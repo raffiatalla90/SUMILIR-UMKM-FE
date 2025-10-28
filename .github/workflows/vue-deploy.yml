@@ -2,7 +2,7 @@ name: Deploy Vue FE to Server
 
 on:
   push:
-    branches: [chore/ci-cd-setup]
+    branches: [staging]
 
 jobs:
   deploy:
