@@ -54,7 +54,7 @@
                 id="email"
                 name="email"
                 type="email"
-                placeholder="contoh@email.com"
+                placeholder="Masukkan email"
                 class="w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FFA30E] text-black placeholder:text-gray-400 transition-all"
                 :class="errors.email ? 'border-red-500' : 'border-primary'"
               />
@@ -67,14 +67,14 @@
                 for="password"
                 class="block text-sm font-bold text-black mb-2"
               >
-                Password
+                Kata Sandi
               </label>
               <div class="relative">
                 <Field
                   id="password"
                   name="password"
                   :type="showPassword ? 'text' : 'password'"
-                  placeholder="Masukkan password"
+                  placeholder="Masukkan kata sandi"
                   class="w-full px-4 py-2.5 pr-10 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FFA30E] text-black placeholder:text-gray-400 transition-all"
                   :class="errors.password ? 'border-red-500' : 'border-primary'"
                 />
@@ -87,7 +87,7 @@
                   "
                 >
                   <svg
-                    v-if="!showPassword"
+                    v-if="showPassword"
                     xmlns="http://www.w3.org/2000/svg"
                     class="h-5 w-5"
                     fill="none"
@@ -148,7 +148,7 @@
             <button
               type="submit"
               :disabled="isLoading"
-              class="w-full bg-[#FFA30E] text-white font-bold text-base md:text-lg py-2.5 px-4 mb-4 rounded-xl hover:bg-[#ff8c00] focus:outline-none focus:ring-2 focus:ring-[#FFA30E] focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+              class="w-full active:scale-95 bg-[#FFA30E] cursor-pointer text-white font-bold text-base md:text-lg py-2.5 px-4 mb-4 rounded-xl hover:bg-[#ff8c00] focus:outline-none focus:ring-2 focus:ring-[#FFA30E] focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
             >
               {{ isLoading ? "Loading..." : "Masuk" }}
             </button>
@@ -208,10 +208,7 @@ const schema = yup.object({
     .string()
     .required("Email wajib diisi")
     .email("Format email tidak valid"),
-  password: yup
-    .string()
-    .required("Password wajib diisi")
-    .min(6, "Password minimal 6 karakter"),
+  password: yup.string().required("Kata sandi wajib diisi"),
 });
 
 const handleLogin = async (values) => {

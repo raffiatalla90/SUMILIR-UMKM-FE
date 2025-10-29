@@ -15,6 +15,16 @@ const routes = [
     meta: { guest: true, title: "Register | SUMILIR" },
   },
   {
+    path: "/merchant-register",
+    name: "Merchant Register",
+    component: () => import("@/views/auth/MerchantRegister.vue"),
+    meta: {
+      requiresAuth: true,
+      roles: ["customer"],
+      title: "Merchant Register | SUMILIR",
+    },
+  },
+  {
     path: "/dashboard",
     name: "Dashboard",
     component: () => import("@/views/dashboard/Index.vue"),
@@ -38,13 +48,40 @@ router.beforeEach((to, from, next) => {
   // Set document title
   document.title = to.meta.title || "SUMILIR";
 
+  // Auth check
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    next("/login");
-  } else if (to.meta.guest && authStore.isAuthenticated) {
-    next("/dashboard");
-  } else {
-    next();
+    return next("/login");
   }
+
+  // Role check (dukungan user.roles: [{name}], atau ability 'role:customer')
+  const requiredRoles = to.meta.roles || [];
+  if (requiredRoles.length) {
+    const userRoles = (authStore.user?.roles || [])
+      .map((r) => (typeof r === "string" ? r : r.name))
+      .filter(Boolean)
+      .map((r) => r.toLowerCase());
+    const abilities = (
+      authStore.user?.abilities ||
+      authStore.abilities ||
+      []
+    ).map((a) => a.toLowerCase());
+
+    const allowed = requiredRoles.some((rr) => {
+      const need = rr.toLowerCase();
+      return userRoles.includes(need) || abilities.includes(`role:${need}`);
+    });
+
+    if (!allowed) {
+      // arahkan sesuai kebutuhan (mis. dashboard atau halaman 403)
+      return next("/dashboard");
+    }
+  }
+
+  if (to.meta.guest && authStore.isAuthenticated) {
+    return next("/dashboard");
+  }
+
+  next();
 });
 
 export default router;

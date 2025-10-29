@@ -4,8 +4,8 @@
   --color-primary: #ffa30e;
   --color-secondary: #0894eb;
   --color-tertiary: #cddf8a;
-  --color-background: #000;
-  --color-foreground: #fff;
+  --color-background: #fff;
+  --color-foreground: #000;
   --color-muted: oklch(0.967 0.001 286.375);
   --color-muted-foreground: oklch(0.552 0.016 285.938);
 }

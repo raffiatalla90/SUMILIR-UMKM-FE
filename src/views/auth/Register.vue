@@ -1,8 +1,10 @@
 <template>
   <div
-    class="min-h-screen sm:bg-gray-50 bg-primary flex items-center flex-col justify-end sm:p-8"
+    class="min-h-screen sm:bg-gray-50 bg-primary flex items-center flex-col sm:justify-center justify-end sm:p-8"
   >
-    <div class="flex flex-col flex-1/3 justify-end px-4 py-2 sm:pt-0 pt-8">
+    <div
+      class="sm:hidden flex flex-col flex-1/3 justify-end sm:px-0 px-4 py-2 sm:pt-0 pt-8"
+    >
       <h2
         class="sm:hidden inline text-2xl sm:text-3xl font-bold text-center sm:text-left mb-2 text-muted"
       >
@@ -16,7 +18,7 @@
       </p>
     </div>
     <div
-      class="flex flex-col justify-between flex-2/3 p-8 sm:p-12 sm:max-w-xl w-full bg-white sm:rounded-4xl rounded-t-4xl sm:shadow-lg shadow-none"
+      class="flex flex-col justify-center sm:flex-0 flex-2/3 p-8 sm:p-12 sm:max-w-xl w-full bg-white sm:rounded-4xl rounded-t-4xl sm:shadow-lg shadow-none"
     >
       <!-- Right Side - Form -->
       <div class="sm:flex flex-col">
@@ -36,9 +38,9 @@
           :validation-schema="schema"
           v-slot="{ errors }"
         >
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <!-- Name Field -->
-            <div class="mb-2">
+            <div class="">
               <label for="name" class="block text-sm font-bold text-black mb-2">
                 Nama Lengkap
               </label>
@@ -46,7 +48,7 @@
                 id="name"
                 name="name"
                 type="text"
-                placeholder="Nama Lengkap"
+                placeholder="Masukkan nama lengkap"
                 class="w-full px-4 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-black placeholder:text-gray-400 transition-all"
                 :class="errors.name ? 'border-red-500' : 'border-primary'"
               />
@@ -54,7 +56,7 @@
             </div>
 
             <!-- Email Field -->
-            <div class="mb-2">
+            <div class="">
               <label
                 for="email"
                 class="block text-sm font-bold text-black mb-2"
@@ -65,15 +67,31 @@
                 id="email"
                 name="email"
                 type="email"
-                placeholder="contoh@email.com"
+                placeholder="Masukkan email"
                 class="w-full px-4 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-black placeholder:text-gray-400 transition-all"
                 :class="errors.email ? 'border-red-500' : 'border-primary'"
               />
               <ErrorMessage name="email" class="text-red-500 text-xs mt-1" />
             </div>
 
+            <!-- NIK Field -->
+            <div class="">
+              <label for="nik" class="block text-sm font-bold text-black mb-2">
+                NIK
+              </label>
+              <Field
+                id="nik"
+                name="nik"
+                type="text"
+                placeholder="Masukkan NIK"
+                class="w-full px-4 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-black placeholder:text-gray-400 transition-all"
+                :class="errors.nik ? 'border-red-500' : 'border-primary'"
+              />
+              <ErrorMessage name="nik" class="text-red-500 text-xs mt-1" />
+            </div>
+
             <!-- Telepon Field -->
-            <div class="mb-2">
+            <div class="">
               <label
                 for="telepon"
                 class="block text-sm font-bold text-black mb-2"
@@ -84,7 +102,7 @@
                 id="telepon"
                 name="telepon"
                 type="tel"
-                placeholder="08xxxxxxxxxx"
+                placeholder="Masukkan no. telepon"
                 class="w-full px-4 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-black placeholder:text-gray-400 transition-all"
                 :class="errors.telepon ? 'border-red-500' : 'border-primary'"
               />
@@ -92,32 +110,33 @@
             </div>
 
             <!-- Password Field -->
-            <div class="mb-2">
+            <div class="">
               <label
                 for="password"
                 class="block text-sm font-bold text-black mb-2"
               >
-                Password
+                Kata Sandi
               </label>
               <div class="relative">
                 <Field
                   id="password"
                   name="password"
+                  v-model="passwordValue"
                   :type="showPassword ? 'text' : 'password'"
-                  placeholder="Minimal 8 karakter"
+                  placeholder="Masukkan kata sandi"
                   class="w-full px-4 py-2.5 pr-10 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-black placeholder:text-gray-400 transition-all"
                   :class="errors.password ? 'border-red-500' : 'border-primary'"
                 />
                 <button
                   type="button"
                   @click="showPassword = !showPassword"
-                  class="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
+                  class="absolute inset-y-0 right-3 flex items-center text-muted-foreground hover:text-gray-700"
                   :aria-label="
                     showPassword ? 'Sembunyikan password' : 'Tampilkan password'
                   "
                 >
                   <svg
-                    v-if="!showPassword"
+                    v-if="showPassword"
                     xmlns="http://www.w3.org/2000/svg"
                     class="h-5 w-5"
                     fill="none"
@@ -158,25 +177,29 @@
             </div>
 
             <!-- Password Confirmation Field -->
-            <div class="mb-4 md:col-span-2">
+            <div class="">
               <label
                 for="password_confirmation"
                 class="block text-sm font-bold text-black mb-2"
               >
-                Konfirmasi Password
+                Konfirmasi Kata Sandi
               </label>
               <div class="relative">
                 <Field
                   id="password_confirmation"
                   name="password_confirmation"
                   :type="showPasswordConfirm ? 'text' : 'password'"
-                  placeholder="Ulangi password"
+                  placeholder="Ulangi kata sandi"
                   class="w-full px-4 py-2.5 pr-10 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-black placeholder:text-gray-400 transition-all"
                   :class="
                     errors.password_confirmation
                       ? 'border-red-500'
                       : 'border-primary'
                   "
+                  autocomplete="new-password"
+                  @paste.prevent
+                  @drop.prevent
+                  @contextmenu.prevent
                 />
               </div>
               <ErrorMessage
@@ -185,27 +208,162 @@
               />
             </div>
 
+            <!-- Indicators -->
+            <div
+              class="text-xs p-4 rounded-xl bg-muted sm:col-span-2 col-span-1 flex flex-col gap-1"
+              aria-live="polite"
+            >
+              <div
+                class="flex items-center"
+                :class="
+                  hasMinLength ? 'text-green-600' : 'text-muted-foreground'
+                "
+              >
+                <svg
+                  v-if="hasMinLength"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-4 w-4 mr-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                <svg
+                  v-else
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-4 w-4 mr-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <circle cx="12" cy="12" r="9" stroke-width="2" />
+                </svg>
+                Minimal 8 karakter
+              </div>
+              <div
+                class="flex items-center"
+                :class="
+                  hasUppercase ? 'text-green-600' : 'text-muted-foreground'
+                "
+              >
+                <svg
+                  v-if="hasUppercase"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-4 w-4 mr-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                <svg
+                  v-else
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-4 w-4 mr-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <circle cx="12" cy="12" r="9" stroke-width="2" />
+                </svg>
+                Mengandung huruf besar (A-Z)
+              </div>
+              <div
+                class="flex items-center"
+                :class="hasNumber ? 'text-green-600' : 'text-muted-foreground'"
+              >
+                <svg
+                  v-if="hasNumber"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-4 w-4 mr-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                <svg
+                  v-else
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-4 w-4 mr-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <circle cx="12" cy="12" r="9" stroke-width="2" />
+                </svg>
+                Mengandung angka (0-9)
+              </div>
+              <div
+                class="flex items-center"
+                :class="hasSymbol ? 'text-green-600' : 'text-muted-foreground'"
+              >
+                <svg
+                  v-if="hasSymbol"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-4 w-4 mr-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                <svg
+                  v-else
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-4 w-4 mr-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <circle cx="12" cy="12" r="9" stroke-width="2" />
+                </svg>
+                Mengandung simbol (!@#$%^&*-_)
+              </div>
+            </div>
+
             <!-- Error Message -->
             <div
               v-if="errorMessage"
-              class="mb-2 p-3 bg-red-100 border border-red-400 text-red-700 rounded-xl text-sm md:col-span-2"
+              class="mb-2 p-3 bg-red-100 border border-red-400 text-red-700 rounded-xl text-sm sm:col-span-2"
             >
               {{ errorMessage }}
             </div>
 
             <!-- Submit Button -->
-            <div class="md:col-span-2">
+            <div class="sm:col-span-2">
               <button
                 type="submit"
                 :disabled="isLoading"
-                class="w-full bg-primary text-white font-bold text-base sm:text-lg py-2.5 text-sm px-4 mb-2 rounded-xl hover:bg-[#ff8c00] focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-lg"
+                class="w-full active:scale-95 bg-primary text-white font-bold text-base sm:text-lg py-2.5 text-sm px-4 mb-2 rounded-xl hover:bg-[#ff8c00] cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-lg"
               >
                 {{ isLoading ? "Loading..." : "Daftar" }}
               </button>
             </div>
 
             <!-- Login Link -->
-            <div class="md:col-span-2">
+            <div class="sm:col-span-2">
               <p class="text-black text-center text-xs sm:text-sm">
                 Sudah punya akun?
                 <router-link
@@ -232,7 +390,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { Form, Field, ErrorMessage } from "vee-validate";
 import * as yup from "yup";
@@ -264,19 +422,30 @@ const schema = yup.object({
     )
     .min(10, "No. Telepon minimal 10 digit")
     .max(13, "No. Telepon maksimal 13 digit"),
+  nik: yup
+    .string()
+    .required("NIK wajib diisi")
+    .length(16, "NIK harus 16 karakter"),
   password: yup
     .string()
-    .required("Password wajib diisi")
-    .min(8, "Password minimal 8 karakter")
+    .required("Kata sandi wajib diisi")
+    .min(8, "Persyaratan kata sandi belum terpenuhi")
     .matches(
-      /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]+$/,
-      "Password harus mengandung huruf dan angka"
+      /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*\-_]).+$/,
+      "Persyaratan kata sandi belum terpenuhi"
     ),
   password_confirmation: yup
     .string()
-    .required("Konfirmasi password wajib diisi")
-    .oneOf([yup.ref("password")], "Password tidak cocok"),
+    .required("Konfirmasi kata sandi wajib diisi")
+    .oneOf([yup.ref("password")], "Kata sandi tidak cocok"),
 });
+
+// Password indicators
+const passwordValue = ref("");
+const hasMinLength = computed(() => passwordValue.value.length >= 8);
+const hasUppercase = computed(() => /[A-Z]/.test(passwordValue.value));
+const hasNumber = computed(() => /\d/.test(passwordValue.value));
+const hasSymbol = computed(() => /[!@#$%^&*\-_]/.test(passwordValue.value));
 
 const handleRegister = async (values) => {
   isLoading.value = true;
@@ -286,7 +455,8 @@ const handleRegister = async (values) => {
     const { data } = await api.post("/auth/register", {
       name: values.name,
       email: values.email,
-      telepon: values.telepon,
+      nik: values.nik,
+      phone: values.telepon, // map ke backend
       password: values.password,
       password_confirmation: values.password_confirmation,
     });
