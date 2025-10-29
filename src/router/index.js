@@ -15,6 +15,30 @@ const routes = [
     meta: { guest: true, title: "Register | SUMILIR" },
   },
   {
+    path: "/forgot-password",
+    name: "Forgot Password",
+    component: () => import("@/views/auth/ForgotPassword.vue"),
+    meta: {
+      guest: true,
+      title: "Forgot Password | SUMILIR",
+    },
+  },
+  {
+    path: "/reset-password/:token?", // token via param (opsional)
+    name: "Reset Password",
+    component: () => import("@/views/auth/ResetPassword.vue"),
+    meta: { guest: true, title: "Reset Password | SUMILIR" },
+  },
+  {
+    path: "/verify-email",
+    name: "Email Verification",
+    component: () => import("@/views/auth/EmailVerification.vue"),
+    meta: {
+      guest: true,
+      title: "Email Verification | SUMILIR",
+    },
+  },
+  {
     path: "/merchant-register",
     name: "Merchant Register",
     component: () => import("@/views/auth/MerchantRegister.vue"),

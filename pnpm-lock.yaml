@@ -17,6 +17,9 @@ importers:
       laravel-echo:
         specifier: ^2.2.4
         version: 2.2.4(pusher-js@8.4.0)(socket.io-client@4.8.1)
+      leaflet:
+        specifier: ^1.9.4
+        version: 1.9.4
       pinia:
         specifier: ^3.0.3
         version: 3.0.3(vue@3.5.22)
@@ -687,6 +690,9 @@ packages:
     peerDependencies:
       pusher-js: '*'
       socket.io-client: '*'
+
+  leaflet@1.9.4:
+    resolution: {integrity: sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA==}
 
   lightningcss-android-arm64@1.30.2:
     resolution: {integrity: sha512-BH9sEdOCahSgmkVhBLeU7Hc9DWeZ1Eb6wNS6Da8igvUwAe0sqROHddIlvU06q3WyXVEOYDZ6ykBZQnjTbmo4+A==}
@@ -1499,6 +1505,8 @@ snapshots:
     dependencies:
       pusher-js: 8.4.0
       socket.io-client: 4.8.1
+
+  leaflet@1.9.4: {}
 
   lightningcss-android-arm64@1.30.2:
     optional: true

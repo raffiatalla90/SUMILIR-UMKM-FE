@@ -353,13 +353,16 @@
 
             <!-- Submit Button -->
             <div class="sm:col-span-2">
-              <button
+              <AppButton
                 type="submit"
-                :disabled="isLoading"
-                class="w-full active:scale-95 bg-primary text-white font-bold text-base sm:text-lg py-2.5 text-sm px-4 mb-2 rounded-xl hover:bg-[#ff8c00] cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-lg"
+                :loading="isLoading"
+                variant="primary"
+                size="md"
+                block
+                class="mb-2"
               >
-                {{ isLoading ? "Loading..." : "Daftar" }}
-              </button>
+                Daftar
+              </AppButton>
             </div>
 
             <!-- Login Link -->
@@ -396,10 +399,11 @@ import { Form, Field, ErrorMessage } from "vee-validate";
 import * as yup from "yup";
 import api from "@/libs/axios";
 import { RouterLink } from "vue-router";
-
-import Illustration from "@/assets/images/login-illustration.svg";
+import { useToast } from "vue-toastification"; // NEW
+import AppButton from "@/components/common/Button.vue";
 
 const router = useRouter();
+const toast = useToast(); // NEW
 
 const isLoading = ref(false);
 const errorMessage = ref("");
@@ -456,17 +460,21 @@ const handleRegister = async (values) => {
       name: values.name,
       email: values.email,
       nik: values.nik,
-      phone: values.telepon, // map ke backend
+      phone: values.telepon,
       password: values.password,
       password_confirmation: values.password_confirmation,
     });
 
-    router.push("/login");
+    // Toast sukses langsung, tanpa menunggu email terkirim
+    toast.success("Registrasi berhasil. Cek email untuk verifikasi.", {
+      timeout: 4000,
+    }); // NEW
+
+    // Arahkan ke halaman login
+    router.push({ name: "Login" }).catch(() => {});
   } catch (error) {
     console.error("Register error:", error);
-
     if (error.response?.data?.errors) {
-      // Handle validation errors from backend
       const errors = error.response.data.errors;
       errorMessage.value = Object.values(errors).flat().join(", ");
     } else {

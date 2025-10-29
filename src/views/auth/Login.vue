@@ -37,134 +37,63 @@
             Masukkan akunmu untuk melanjutkan perjalananmu
           </p>
 
-          <Form
-            @submit="handleLogin"
-            :validation-schema="schema"
-            v-slot="{ errors }"
-          >
-            <!-- Email Field -->
-            <div class="mb-4">
-              <label
-                for="email"
-                class="block text-sm font-bold text-black mb-2"
-              >
-                Email
-              </label>
-              <Field
-                id="email"
+          <Form @submit="handleLogin" :validation-schema="schema">
+            <!-- Email -->
+
+            <div>
+              <TextField
                 name="email"
+                label="Email"
                 type="email"
                 placeholder="Masukkan email"
-                class="w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FFA30E] text-black placeholder:text-gray-400 transition-all"
-                :class="errors.email ? 'border-red-500' : 'border-primary'"
               />
-              <ErrorMessage name="email" class="text-red-500 text-xs mt-1" />
             </div>
 
-            <!-- Password Field -->
-            <div class="mb-2">
-              <label
-                for="password"
-                class="block text-sm font-bold text-black mb-2"
-              >
-                Kata Sandi
-              </label>
-              <div class="relative">
-                <Field
-                  id="password"
-                  name="password"
-                  :type="showPassword ? 'text' : 'password'"
-                  placeholder="Masukkan kata sandi"
-                  class="w-full px-4 py-2.5 pr-10 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FFA30E] text-black placeholder:text-gray-400 transition-all"
-                  :class="errors.password ? 'border-red-500' : 'border-primary'"
-                />
-                <button
-                  type="button"
-                  @click="showPassword = !showPassword"
-                  class="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
-                  :aria-label="
-                    showPassword ? 'Sembunyikan password' : 'Tampilkan password'
-                  "
-                >
-                  <svg
-                    v-if="showPassword"
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="1.5"
-                      d="M2.036 12.322a1 1 0 010-.644C3.423 7.51 7.36 5 12 5c4.64 0 8.577 2.51 9.964 6.678a1 1 0 010 .644C20.577 16.49 16.64 19 12 19c-4.64 0-8.577-2.51-9.964-6.678z"
-                    />
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="1.5"
-                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                  </svg>
-                  <svg
-                    v-else
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="1.5"
-                      d="M3 3l18 18M10.584 10.587A3 3 0 0113.414 13.41M9.88 4.603A9.76 9.76 0 0112 4.5c4.64 0 8.577 2.51 9.964 6.678a1 1 0 010 .644 10.21 10.21 0 01-2.126 3.358M6.228 6.232C4.48 7.38 3.152 9.01 2.036 11.678a1 1 0 000 .644c1.387 4.168 5.324 6.678 9.964 6.678 1.088 0 2.141-.15 3.144-.43"
-                    />
-                  </svg>
-                </button>
-              </div>
-              <ErrorMessage name="password" class="text-red-500 text-xs mt-1" />
+            <!-- Password -->
+            <div class="mt-4">
+              <PasswordField
+                name="password"
+                label="Kata Sandi"
+                placeholder="Masukkan kata sandi"
+              />
             </div>
 
             <!-- Forgot Password -->
-            <div class="mb-6">
-              <p
-                class="text-xs text-[#FFA30E] flex justify-end underline cursor-pointer hover:text-[#ff8c00] transition-colors"
-              >
-                Lupa Kata Sandi?
-              </p>
+            <div class="mb-6 mt-2">
+              <router-link to="forgot-password">
+                <p
+                  class="text-xs text-[#FFA30E] flex justify-end underline cursor-pointer hover:text-[#ff8c00] transition-colors"
+                >
+                  Lupa Kata Sandi?
+                </p>
+              </router-link>
             </div>
 
-            <!-- Error Message -->
-            <div
-              v-if="errorMessage"
-              class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-xl text-sm"
-            >
-              {{ errorMessage }}
-            </div>
+            <ErrorAlert :message="errorMessage" />
 
-            <!-- Submit Button -->
-            <button
+            <!-- Submit -->
+            <AppButton
               type="submit"
-              :disabled="isLoading"
-              class="w-full active:scale-95 bg-[#FFA30E] cursor-pointer text-white font-bold text-base md:text-lg py-2.5 px-4 mb-4 rounded-xl hover:bg-[#ff8c00] focus:outline-none focus:ring-2 focus:ring-[#FFA30E] focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+              :loading="isLoading"
+              variant="primary"
+              size="md"
+              block
+              class="mb-4"
             >
-              {{ isLoading ? "Loading..." : "Masuk" }}
-            </button>
+              Masuk
+            </AppButton>
 
-            <!-- Register Link -->
+            <!-- Register -->
             <div>
               <p class="text-black text-center text-xs md:text-sm">
                 Belum punya akun?
-
                 <router-link to="register">
                   <span
                     class="text-[#FFA30E] underline cursor-pointer hover:text-[#ff8c00] transition-colors font-semibold"
                   >
                     Daftar
-                  </span></router-link
-                >
+                  </span>
+                </router-link>
               </p>
             </div>
           </Form>
@@ -187,11 +116,15 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import { Form, Field, ErrorMessage } from "vee-validate";
+import { Form } from "vee-validate";
 import * as yup from "yup";
 import { RouterLink } from "vue-router";
 
 import Illustration from "@/assets/images/login-illustration.svg";
+import TextField from "@/components/forms/TextField.vue";
+import PasswordField from "@/components/forms/PasswordField.vue";
+import ErrorAlert from "@/components/forms/ErrorAlert.vue";
+import AppButton from "@/components/common/Button.vue";
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -199,7 +132,6 @@ const authStore = useAuthStore();
 const isLoading = ref(false);
 const errorMessage = ref("");
 const apiUrl = import.meta.env.VITE_API_BASE_URL || "Not set";
-const showPassword = ref(false);
 const isDev = import.meta.env.DEV;
 
 // Validation Schema
