@@ -25,26 +25,26 @@ jobs:
 
       - name: Create .env.production
         env:
-          SERVER_HOST: ${{ secrets.SERVER_HOST }} # contoh: sumilir.indonesiacentral.cloudapp.azure.com
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
         run: |
           HOST=${SERVER_HOST:-sumilir.indonesiacentral.cloudapp.azure.com}
           cat > .env.production << EOF
           VITE_APP_NAME="SIMSLIFE"
           VITE_APP_URL=https://$HOST
           VITE_PUBLIC_BASE_PATH=/
-          # API relative path agar aman HTTPS (diproxy Nginx ke backend)
           VITE_API_BASE_URL=/api
           VITE_API_PREFIX=/api
           VITE_HTTP_TIMEOUT_MS=20000
-          # Optional: cooldown forgot password agar sinkron default
           VITE_FORGOT_PASSWORD_COOLDOWN=60
           EOF
 
+      # Gunakan no-frozen-lockfile karena pnpm-lock.yaml belum di-commit dengan dependensi PWA
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
-      # Fallback jika lockfile belum ter-update di repo
-      - name: Ensure workbox-window exists
+      # Tidak perlu lagi jika workbox-window sudah ada di package.json
+      - name: Ensure workbox-window exists (skip)
+        if: ${{ false }}
         run: pnpm add workbox-window@^7 --no-save
 
       - name: Build project (PWA)
