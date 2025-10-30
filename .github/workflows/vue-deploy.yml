@@ -23,19 +23,75 @@ jobs:
           node-version: "20"
           cache: "pnpm"
 
+      # Buat .env.production (Vite membaca variabel ini saat build)
+      - name: Create .env.production
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+        run: |
+          cat > .env.production << 'EOF'
+          # ========= App =========
+          VITE_APP_NAME="SUMILIR"
+          VITE_APP_URL=http://${SERVER_HOST}
+          VITE_PUBLIC_BASE_PATH=/
+
+          # ========= API + Sanctum =========
+          VITE_API_BASE_URL=http://${SERVER_HOST}:8000/api
+          VITE_API_PREFIX=/api
+          VITE_SANCTUM_ENDPOINT=/sanctum/csrf-cookie
+          VITE_WITH_CREDENTIALS=true
+          VITE_HTTP_TIMEOUT_MS=20000
+
+          # ========= Echo (chat & notifikasi) =========
+          VITE_ECHO_DRIVER=pusher
+          VITE_ECHO_AUTH_ENDPOINT=/broadcasting/auth
+          VITE_ECHO_WITH_CREDENTIALS=true
+          VITE_ECHO_NAMESPACE=App.Events
+
+          # Pusher / Laravel WebSockets (dev, non-TLS)
+          VITE_PUSHER_APP_KEY=local
+          VITE_PUSHER_CLUSTER=mt1
+          VITE_PUSHER_HOST=localhost
+          VITE_PUSHER_PORT=6001
+          VITE_PUSHER_WSS_PORT=443
+          VITE_PUSHER_SCHEME=http
+          VITE_PUSHER_FORCE_TLS=false
+          VITE_PUSHER_DISABLE_STATS=true
+          VITE_PUSHER_WS_ENABLED=true
+
+          # ========= Map (Leaflet + OSM) =========
+          VITE_MAP_TILE_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
+          VITE_MAP_ATTRIBUTION=&copy; OpenStreetMap contributors
+          VITE_MAP_MAX_ZOOM=19
+
+          # ========= Feature flags (opsional) =========
+          VITE_FEATURE_ECHO=true
+          EOF
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build project
-        run: pnpm run build
+        run: pnpm run build --mode production
 
-      - name: Deploy via SSH
+      # Bersihkan folder dist di server agar tidak ada file lama tertinggal
+      - name: Clean remote dist
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            mkdir -p /var/www/KMI-SIMSLIFE-FE/dist
+            rm -rf /var/www/KMI-SIMSLIFE-FE/dist/*
+
+      # Upload isi dist ke folder dist Nginx
+      - name: Deploy via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "dist/"
-          target: "/var/www/KMI-SIMSLIFE-FE"
-          strip_components: 0
+          source: "dist/**"
+          target: "/var/www/KMI-SIMSLIFE-FE/dist"
+          strip_components: 1
           overwrite: true
