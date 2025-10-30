@@ -23,34 +23,31 @@ jobs:
           node-version: "20"
           cache: "pnpm"
 
-      # Buat .env.production (Vite membaca variabel ini saat build)
       - name: Create .env.production
         env:
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }} # contoh: sumilir.indonesiacentral.cloudapp.azure.com
         run: |
-          HOST=${SERVER_HOST:-70.153.25.109}  # fallback jika secret belum diset
+          HOST=${SERVER_HOST:-sumilir.indonesiacentral.cloudapp.azure.com}
           cat > .env.production << EOF
-          VITE_APP_NAME="SUMILIR"
-          VITE_APP_URL=http://$HOST
+          VITE_APP_NAME="SIMSLIFE"
+          VITE_APP_URL=https://$HOST
           VITE_PUBLIC_BASE_PATH=/
-
-          # API lewat Nginx (tanpa :8000)
-          VITE_API_BASE_URL=http://$HOST/api
+          # API relative path agar aman HTTPS (diproxy Nginx ke backend)
+          VITE_API_BASE_URL=/api
           VITE_API_PREFIX=/api
-          VITE_SANCTUM_ENDPOINT=/sanctum/csrf-cookie
-          VITE_WITH_CREDENTIALS=true
           VITE_HTTP_TIMEOUT_MS=20000
-
-          VITE_FEATURE_ECHO=true
+          # Optional: cooldown forgot password agar sinkron default
+          VITE_FORGOT_PASSWORD_COOLDOWN=60
           EOF
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build project
+      - name: Build project (PWA)
+        env:
+          NODE_OPTIONS: --max_old_space_size=4096
         run: pnpm run build --mode production
 
-      # Bersihkan folder dist di server agar tidak ada file lama tertinggal
       - name: Clean remote dist
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -61,7 +58,6 @@ jobs:
             mkdir -p /var/www/KMI-SIMSLIFE-FE/dist
             rm -rf /var/www/KMI-SIMSLIFE-FE/dist/*
 
-      # Upload isi dist ke folder dist Nginx
       - name: Deploy via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
