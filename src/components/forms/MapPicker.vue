@@ -1,36 +1,33 @@
 <script setup>
+/**
+MapPicker — Pilih lokasi di peta (Leaflet) dengan marker draggable
 
-// MapPicker — Pilih lokasi di peta (Leaflet) dengan marker draggable
+Contoh pakai (aman untuk parser, tanpa tag <template> asli):
+// Parent component (setup)
+import { ref } from 'vue';
+const lat = ref(null);
+const lng = ref(null);
 
-// Contoh pakai:
-// <script setup>
-// import { ref } from 'vue';
-// const lat = ref(null);
-// const lng = ref(null);
-// </script>
+// Template:
+&lt;MapPicker v-model:lat="lat" v-model:lng="lng" :zoom="14" height="300px" /&gt;
+&lt;p class="text-xs text-gray-500"&gt;Lat: {{ lat }} | Lng: {{ lng }}&lt;/p&gt;
 
-// <template>
-//   <MapPicker v-model:lat="lat" v-model:lng="lng" :zoom="14" height="300px" />
-//   <p class="text-xs text-gray-500">Lat: {{ lat }} | Lng: {{ lng }}</p>
-// </template>
+Props:
+- lat: number|string|null => koordinat latitude (dua arah via v-model:lat)
+- lng: number|string|null => koordinat longitude (dua arah via v-model:lng)
+- zoom: number (default 13) => tingkat zoom
+- height: string (default "280px") => tinggi peta (CSS unit)
+- readonly: boolean => nonaktifkan drag marker dan klik peta
 
-// Props:
-// - lat: number|string|null => koordinat latitude (dua arah via v-model:lat)
-// - lng: number|string|null => koordinat longitude (dua arah via v-model:lng)
-// - zoom: number (default 13) => tingkat zoom
-// - height: string (default "280px") => tinggi peta (CSS unit)
-// - readonly: boolean => nonaktifkan drag marker dan klik peta
+Events:
+- update:lat(number|null)
+- update:lng(number|null)
 
-// Events:
-// - update:lat(number|null)
-// - update:lng(number|null)
-
-// Catatan:
-// - Tombol "Gunakan lokasi saya" memerlukan HTTPS atau localhost (geolocation API).
-// - Klik di peta untuk menaruh/memindah marker (jika readonly=false).
-// - Drag marker untuk memperbarui lat/lng (jika readonly=false).
-
-
+Catatan:
+- Tombol "Gunakan lokasi saya" memerlukan HTTPS atau localhost (geolocation API).
+- Klik di peta untuk menaruh/memindah marker (jika readonly=false).
+- Drag marker untuk memperbarui lat/lng (jika readonly=false).
+*/
 import { ref, watch, onMounted, onBeforeUnmount, computed } from "vue";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
