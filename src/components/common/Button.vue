@@ -4,12 +4,12 @@
     :disabled="isDisabled"
     :aria-busy="loading ? 'true' : 'false'"
     :class="[
-      'inline-flex items-center justify-center rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2',
+      'inline-flex items-center justify-center rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 ',
       block ? 'w-full' : 'w-auto',
       sizeClasses[size],
       variantClasses[variant],
       customClass,
-      isDisabled ? 'cursor-not-allowed opacity-70' : '',
+      isDisabled ? 'cursor-not-allowed opacity-70' : 'cursor-pointer',
     ]"
   >
     <span class="inline-flex items-center gap-2">
@@ -39,6 +39,28 @@
 </template>
 
 <script setup>
+/*
+AppButton — Tombol serbaguna dengan state loading
+
+Contoh pakai:
+<template>
+  <AppButton type="submit" :loading="saving" block> Simpan </AppButton>
+  <AppButton variant="outline" @click="onCancel"> Batal </AppButton>
+  <AppButton variant="ghost" size="sm"> Aksi Kecil </AppButton>
+</template>
+
+Props:
+- type: "button" | "submit" | "reset" (default: "button")
+- variant: "primary" | "outline" | "ghost" (default: "primary")
+- size: "sm" | "md" | "lg" (default: "md")
+- loading: boolean => tampilkan spinner dan auto disabled
+- disabled: boolean => nonaktifkan tombol
+- block: boolean => lebar penuh (w-full)
+- customClass: string => tambahan kelas manual
+
+Slots:
+- default => label tombol (teks atau icon)
+*/
 import { computed } from "vue";
 
 const props = defineProps({

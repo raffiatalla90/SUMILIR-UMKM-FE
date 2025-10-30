@@ -1,4 +1,23 @@
 <script setup>
+/*
+PasswordField — Input password dengan toggle show/hide, integrasi vee-validate
+
+Contoh pakai:
+<Form :validation-schema="schema">
+  <PasswordField name="password" label="Kata Sandi" placeholder="Minimal 8 karakter" />
+  <PasswordField name="password_confirmation" label="Konfirmasi Kata Sandi" />
+</Form>
+
+Props:
+- name: string (wajib) => nama field vee-validate
+- label: string (default "Kata Sandi")
+- placeholder: string
+- modelValue: string => dukung v-model dari luar
+
+Catatan:
+- Ikon mata di kanan untuk show/hide password
+- Sudah ada style focus dan error state
+*/
 import { ref } from "vue";
 import { Field, ErrorMessage } from "vee-validate";
 

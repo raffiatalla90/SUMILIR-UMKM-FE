@@ -1,6 +1,6 @@
 <template>
   <div
-    class="min-h-screen sm:bg-gray-50 bg-white flex items-center justify-center p-4 sm:p-8"
+    class="sm:bg-gray-50 bg-white flex items-center justify-center p-4 sm:p-8"
   >
     <div
       class="w-full max-w-5xl bg-white rounded-2xl sm:shadow-lg shadow-none overflow-hidden"
@@ -99,13 +99,13 @@
           </Form>
 
           <!-- Debug Info (Development Only) -->
-          <div
+          <!-- <div
             v-if="isDev"
             class="mt-6 p-4 bg-gray-50 rounded-xl text-xs border border-gray-200"
           >
             <p class="font-semibold mb-2 text-gray-700">Debug Info:</p>
             <p class="text-gray-600"><strong>API URL:</strong> {{ apiUrl }}</p>
-          </div>
+          </div> -->
         </div>
       </div>
     </div>

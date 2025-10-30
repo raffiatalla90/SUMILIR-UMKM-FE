@@ -8,5 +8,14 @@
 </template>
 
 <script setup>
+/*
+ErrorAlert — Komponen alert error sederhana
+
+Contoh pakai:
+<ErrorAlert :message="errorMessage" />
+
+Props:
+- message: string => pesan error; komponen hanya render jika ada nilai
+*/
 defineProps({ message: { type: String, default: "" } });
 </script>

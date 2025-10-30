@@ -2,42 +2,46 @@ import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 
 const routes = [
+  // Grup halaman Auth pakai AuthLayout
   {
-    path: "/login",
-    name: "Login",
-    component: () => import("@/views/auth/Login.vue"),
-    meta: { guest: true, title: "Login | SUMILIR" },
+    path: "/",
+    component: () => import("@/layouts/AuthLayout.vue"),
+    children: [
+      {
+        path: "login",
+        name: "Login",
+        component: () => import("@/views/auth/Login.vue"),
+        meta: { guest: true, title: "Login | SUMILIR" },
+      },
+      {
+        path: "register",
+        name: "Register",
+        component: () => import("@/views/auth/Register.vue"),
+        meta: { guest: true, title: "Register | SUMILIR" },
+      },
+      {
+        path: "forgot-password",
+        name: "Forgot Password",
+        component: () => import("@/views/auth/ForgotPassword.vue"),
+        meta: { guest: true, title: "Forgot Password | SUMILIR" },
+      },
+      {
+        path: "reset-password/:token?",
+        name: "Reset Password",
+        component: () => import("@/views/auth/ResetPassword.vue"),
+        meta: { guest: true, title: "Reset Password | SUMILIR" },
+      },
+      {
+        path: "verify-email",
+        name: "Email Verification",
+        component: () => import("@/views/auth/EmailVerification.vue"),
+        meta: { guest: true, title: "Email Verification | SUMILIR" },
+      },
+      { path: "", redirect: { name: "Login" } },
+    ],
   },
-  {
-    path: "/register",
-    name: "Register",
-    component: () => import("@/views/auth/Register.vue"),
-    meta: { guest: true, title: "Register | SUMILIR" },
-  },
-  {
-    path: "/forgot-password",
-    name: "Forgot Password",
-    component: () => import("@/views/auth/ForgotPassword.vue"),
-    meta: {
-      guest: true,
-      title: "Forgot Password | SUMILIR",
-    },
-  },
-  {
-    path: "/reset-password/:token?", // token via param (opsional)
-    name: "Reset Password",
-    component: () => import("@/views/auth/ResetPassword.vue"),
-    meta: { guest: true, title: "Reset Password | SUMILIR" },
-  },
-  {
-    path: "/verify-email",
-    name: "Email Verification",
-    component: () => import("@/views/auth/EmailVerification.vue"),
-    meta: {
-      guest: true,
-      title: "Email Verification | SUMILIR",
-    },
-  },
+
+  // Halaman non-auth (tanpa AuthLayout)
   {
     path: "/merchant-register",
     name: "Merchant Register",
@@ -54,10 +58,9 @@ const routes = [
     component: () => import("@/views/dashboard/Index.vue"),
     meta: { requiresAuth: true },
   },
-  {
-    path: "/",
-    redirect: "/login",
-  },
+
+  // Fallback
+  { path: "/:pathMatch(.*)*", redirect: "/login" },
 ];
 
 const router = createRouter({
@@ -68,16 +71,10 @@ const router = createRouter({
 // Navigation Guard
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore();
-
-  // Set document title
   document.title = to.meta.title || "SUMILIR";
 
-  // Auth check
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    return next("/login");
-  }
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) return next("/login");
 
-  // Role check (dukungan user.roles: [{name}], atau ability 'role:customer')
   const requiredRoles = to.meta.roles || [];
   if (requiredRoles.length) {
     const userRoles = (authStore.user?.roles || [])
@@ -89,22 +86,15 @@ router.beforeEach((to, from, next) => {
       authStore.abilities ||
       []
     ).map((a) => a.toLowerCase());
-
-    const allowed = requiredRoles.some((rr) => {
-      const need = rr.toLowerCase();
-      return userRoles.includes(need) || abilities.includes(`role:${need}`);
-    });
-
-    if (!allowed) {
-      // arahkan sesuai kebutuhan (mis. dashboard atau halaman 403)
-      return next("/dashboard");
-    }
+    const allowed = requiredRoles.some(
+      (rr) =>
+        userRoles.includes(rr.toLowerCase()) ||
+        abilities.includes(`role:${rr.toLowerCase()}`)
+    );
+    if (!allowed) return next("/dashboard");
   }
 
-  if (to.meta.guest && authStore.isAuthenticated) {
-    return next("/dashboard");
-  }
-
+  if (to.meta.guest && authStore.isAuthenticated) return next("/dashboard");
   next();
 });
 

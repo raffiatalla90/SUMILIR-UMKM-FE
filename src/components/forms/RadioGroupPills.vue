@@ -1,4 +1,24 @@
 <script setup>
+/*
+RadioGroupPills — Kumpulan radio bergaya "pil"
+
+Contoh pakai:
+<Form :validation-schema="schema">
+  <RadioGroupPills
+    name="gender"
+    label="Jenis Kelamin"
+    :options="[
+      { value: 'male', label: 'Laki-laki' },
+      { value: 'female', label: 'Perempuan' },
+    ]"
+  />
+</Form>
+
+Props:
+- name: string (wajib) => nama field vee-validate
+- label: string => label grup
+- options: Array<{ value:any, label:string }> (wajib)
+*/
 import { Field, ErrorMessage } from "vee-validate";
 
 const props = defineProps({

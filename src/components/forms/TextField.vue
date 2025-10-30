@@ -1,4 +1,27 @@
 <script setup>
+/*
+TextField — Input teks/textarea terintegrasi vee-validate
+
+Contoh pakai:
+<Form :validation-schema="schema" @submit="onSubmit">
+  <TextField name="email" label="Email" type="email" placeholder="you@example.com" />
+  <TextField name="bio" label="Bio" textarea :rows="4" placeholder="Ceritakan tentang Anda" />
+</Form>
+
+Props:
+- name: string (wajib) => nama field vee-validate
+- label: string => label di atas input
+- type: string (default "text") => tipe input (email, number, dll.)
+- placeholder: string
+- textarea: boolean => jika true, render <textarea>
+- modelValue: string|number => optional v-model dari luar
+- alignWithPassword: boolean (default true) => beri padding kanan agar sejajar dengan PasswordField
+- rows: number (default 3) => tinggi textarea
+- readonly: boolean => input hanya-baca
+
+Events:
+- update:modelValue => emit saat nilai berubah (opsional jika ingin two-way binding)
+*/
 import { Field, ErrorMessage } from "vee-validate";
 
 const props = defineProps({

@@ -1,6 +1,6 @@
 <template>
   <div
-    class="min-h-screen sm:bg-gray-50 bg-primary flex items-center flex-col sm:justify-center justify-end sm:p-8"
+    class="sm:bg-gray-50 bg-primary flex items-center flex-col sm:justify-center justify-end sm:pb-8"
   >
     <div
       class="sm:hidden flex flex-col flex-1/3 justify-end sm:px-0 px-4 py-2 sm:pt-0 pt-8"
@@ -22,11 +22,29 @@
     >
       <!-- Right Side - Form -->
       <div class="sm:flex flex-col">
-        <h2
-          class="hidden sm:inline text-2xl sm:text-3xl font-bold text-center sm:text-left mb-2 text-black"
-        >
-          Daftar
-        </h2>
+        <div class="flex gap-3 items-center mb-2">
+          <span
+            class="hidden sm:inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary"
+          >
+            <!-- <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-5 w-5"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path
+                d="M12 3a6 6 0 1 0 3.917 10.566l2.258 2.258A2 2 0 0 0 20.586 17H21a1 1 0 1 0 0-2h-.586l-.707-.707.293-.293H21a1 1 0 1 0 0-2h-2a1 1 0 0 0-.707.293l-.293.293-1.758-1.758A6 6 0 0 0 12 3Zm-4 6a4 4 0 1 1 8.001.001A4 4 0 0 1 8 9Z"
+              />
+            </svg> -->
+            <i class="pi pi-user-plus"></i>
+          </span>
+          <h2
+            class="hidden sm:inline text-2xl sm:text-xl font-bold text-center sm:text-left text-black"
+          >
+            Daftar
+          </h2>
+        </div>
+
         <p
           class="hidden sm:inline text-xs sm:text-sm text-center sm:text-left mb-6 text-gray-600"
         >

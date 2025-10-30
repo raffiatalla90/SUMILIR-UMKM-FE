@@ -1,4 +1,32 @@
 <script setup>
+/*
+SelectField — Select terintegrasi vee-validate dengan state loading
+
+Contoh pakai:
+<Form :validation-schema="schema">
+  <SelectField
+    name="province_id"
+    label="Provinsi"
+    :options="provinces"          // [{ value: 11, label: 'ACEH' }, ...]
+    :loading="loadingProvinces"
+    placeholder="Pilih Provinsi"
+  />
+</Form>
+
+Props:
+- name: string (wajib) => nama field vee-validate
+- label: string => label di atas select
+- options: Array<{ value:any, label:string }>
+- disabled: boolean
+- modelValue: string|number => dukung v-model luar
+- loading: boolean => menampilkan skeleton dan spinner
+- placeholder: string (default "Pilih")
+- emptyText: string (default "Tidak ada data")
+- skeleton: boolean (default true) => tampilkan skeleton saat loading
+
+Events:
+- update:modelValue => emit saat nilai berubah
+*/
 import { Field, ErrorMessage } from "vee-validate";
 
 const props = defineProps({

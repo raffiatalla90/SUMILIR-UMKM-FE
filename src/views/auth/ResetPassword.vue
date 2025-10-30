@@ -1,37 +1,44 @@
 <template>
-  <div class="max-w-md mx-auto px-4 py-10">
-    <div class="bg-white border rounded-2xl p-6 shadow-sm">
-      <div class="flex items-center gap-3 mb-4">
+  <div
+    class="sm:bg-gray-50 bg-primary flex items-center flex-col sm:justify-center justify-end sm:pb-8"
+  >
+    <!-- Mobile header -->
+    <div
+      class="sm:hidden flex flex-col flex-1/3 justify-end sm:px-0 px-4 py-2 sm:pt-0 pt-8"
+    >
+      <h2
+        class="sm:hidden inline text-2xl sm:text-3xl font-bold text-center sm:text-left mb-2 text-white"
+      >
+        Reset Password
+      </h2>
+      <p
+        class="sm:hidden inline text-[10px] sm:text-sm text-center sm:text-left mb-6 text-white"
+      >
+        Atur ulang password Anda dengan aman
+      </p>
+    </div>
+
+    <div
+      class="flex flex-col justify-center sm:flex-0 flex-2/3 p-8 sm:p-12 sm:max-w-xl w-full bg-white sm:rounded-4xl rounded-t-4xl sm:shadow-lg shadow-none"
+    >
+      <!-- Desktop header -->
+      <div class="hidden sm:flex gap-3 items-center mb-2">
         <span
           class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-5 w-5"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-          >
-            <path
-              d="M12 3a6 6 0 1 0 3.917 10.566l2.258 2.258A2 2 0 0 0 20.586 17H21a1 1 0 1 0 0-2h-.586l-.707-.707.293-.293H21a1 1 0 1 0 0-2h-2a1 1 0 0 0-.707.293l-.293.293-1.758-1.758A6 6 0 0 0 12 3Zm-4 6a4 4 0 1 1 8.001.001A4 4 0 0 1 8 9Z"
-            />
-          </svg>
+          <i class="pi pi-key"></i>
         </span>
-        <h1 class="text-xl font-bold">Reset Password</h1>
+        <h1 class="text-xl font-bold text-black">Reset Password</h1>
       </div>
 
-      <Form
-        @submit="handleSubmit"
-        :validation-schema="schema"
-        :initial-values="initialValues"
-      >
+      <p v-if="emailFromQuery" class="text-sm text-gray-600 mb-4">
+        Mengatur ulang untuk:
+        <span class="font-semibold">{{ emailFromQuery }}</span>
+      </p>
+
+      <Form @submit="handleSubmit" :validation-schema="schema">
         <div class="space-y-4">
-          <TextField
-            name="email"
-            label="Email"
-            type="email"
-            placeholder="you@example.com"
-          />
-          <TextField
+          <PasswordField
             name="password"
             label="Password Baru"
             type="password"
@@ -44,21 +51,25 @@
             placeholder="Ulangi password"
           />
 
-          <button
+          <AppButton
             type="submit"
-            :disabled="isLoading"
-            class="w-full active:scale-95 bg-primary text-white font-semibold py-2.5 px-4 rounded-xl hover:opacity-90 disabled:opacity-60 transition-all"
+            :loading="isLoading"
+            variant="primary"
+            size="md"
+            block
           >
-            {{ isLoading ? "Memproses..." : "Setel Ulang Password" }}
-          </button>
+            Setel Ulang Password
+          </AppButton>
 
-          <button
+          <AppButton
             type="button"
-            class="w-full border rounded-xl py-2.5 font-semibold hover:bg-gray-50"
+            variant="outline"
+            size="md"
+            block
             @click="goToLogin"
           >
             Kembali ke Login
-          </button>
+          </AppButton>
         </div>
       </Form>
     </div>
@@ -73,23 +84,19 @@ import * as yup from "yup";
 import api from "@/libs/axios";
 import { useToast } from "vue-toastification";
 import TextField from "@/components/forms/TextField.vue";
+import PasswordField from "@/components/forms/PasswordField.vue";
+import AppButton from "@/components/common/Button.vue";
 
 const route = useRoute();
-// Ambil token dari param atau query
+const router = useRouter();
+const toast = useToast();
+const isLoading = ref(false);
+
+// Ambil token & email dari URL (param atau query)
 const token = ref((route.params.token || route.query.token || "").toString());
 const emailFromQuery = (route.query.email || "").toString();
 
-const initialValues = {
-  email: emailFromQuery,
-  password: "",
-  password_confirmation: "",
-};
-
 const schema = yup.object({
-  email: yup
-    .string()
-    .email("Format email tidak valid")
-    .required("Email wajib diisi"),
   password: yup
     .string()
     .min(8, "Min 8 karakter")
@@ -101,18 +108,23 @@ const schema = yup.object({
 });
 
 async function handleSubmit(values) {
+  if (!token.value || !emailFromQuery) {
+    toast.error("Link reset tidak valid. Minta tautan baru.");
+    return;
+  }
+
   isLoading.value = true;
   try {
     await api.post("/auth/reset-password", {
       token: token.value,
-      email: values.email,
+      email: emailFromQuery, // dikirim tersembunyi
       password: values.password,
       password_confirmation: values.password_confirmation,
     });
     toast.success("Password berhasil direset. Silakan login.", {
       timeout: 4000,
     });
-    router.push({ name: "login" });
+    router.push({ name: "Login" });
   } catch (e) {
     const msg = e.response?.data?.message || "Gagal reset password.";
     toast.error(msg);
@@ -122,6 +134,6 @@ async function handleSubmit(values) {
 }
 
 function goToLogin() {
-  router.push({ name: "login" }).catch(() => router.push("/login"));
+  router.push({ name: "Login" }).catch(() => router.push("/login"));
 }
 </script>
