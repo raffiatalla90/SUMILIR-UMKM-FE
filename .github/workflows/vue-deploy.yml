@@ -43,6 +43,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Fallback jika lockfile belum ter-update di repo
+      - name: Ensure workbox-window exists
+        run: pnpm add workbox-window@^7 --no-save
+
       - name: Build project (PWA)
         env:
           NODE_OPTIONS: --max_old_space_size=4096
