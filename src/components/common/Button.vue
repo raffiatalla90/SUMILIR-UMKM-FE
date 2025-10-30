@@ -3,36 +3,38 @@
     :type="type"
     :disabled="isDisabled"
     :aria-busy="loading ? 'true' : 'false'"
-    class="inline-flex items-center justify-center transition-all font-semibold rounded-xl focus:outline-none cursor-pointer focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed"
     :class="[
+      'inline-flex items-center justify-center rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2',
+      block ? 'w-full' : 'w-auto',
       sizeClasses[size],
       variantClasses[variant],
-      block ? 'w-full' : '',
-      loading ? 'pointer-events-none' : '',
       customClass,
+      isDisabled ? 'cursor-not-allowed opacity-70' : '',
     ]"
   >
-    <svg
-      v-if="loading"
-      class="mr-2 h-4 w-4 animate-spin"
-      viewBox="0 0 24 24"
-      fill="none"
-    >
-      <circle
-        class="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        stroke-width="3"
-      />
-      <path
-        class="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z"
-      />
-    </svg>
-    <slot />
+    <span class="inline-flex items-center gap-2">
+      <svg
+        v-if="loading"
+        class="h-4 w-4 animate-spin"
+        viewBox="0 0 24 24"
+        fill="none"
+      >
+        <circle
+          class="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          stroke-width="4"
+        />
+        <path
+          class="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z"
+        />
+      </svg>
+      <slot />
+    </span>
   </button>
 </template>
 
@@ -45,8 +47,7 @@ const props = defineProps({
   size: { type: String, default: "md" }, // sm | md | lg
   loading: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
-  block: { type: Boolean, default: false }, // full width
-  // opsional: untuk tambahan kelas custom
+  block: { type: Boolean, default: false },
   customClass: { type: String, default: "" },
 });
 

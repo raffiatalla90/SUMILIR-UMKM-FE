@@ -36,12 +36,18 @@
           <AppButton
             type="submit"
             :loading="isLoading"
+            :disabled="isLoading || cooldown > 0"
             variant="primary"
             size="md"
             block
           >
-            Kirim Link Reset
+            <span v-if="cooldown > 0">Kirim Ulang ({{ cooldown }}s)</span>
+            <span v-else>Kirim Link Reset</span>
           </AppButton>
+
+          <p v-if="cooldown > 0" class="text-xs text-gray-500 text-center">
+            Anda dapat meminta ulang dalam {{ cooldown }} detik.
+          </p>
 
           <AppButton
             type="button"
@@ -59,7 +65,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onBeforeUnmount, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { Form } from "vee-validate";
 import * as yup from "yup";
@@ -71,6 +77,10 @@ import AppButton from "@/components/common/Button.vue";
 const router = useRouter();
 const toast = useToast();
 const isLoading = ref(false);
+const cooldown = ref(0);
+let cooldownTimer = null;
+
+const COOLDOWN_KEY = "fp_cooldown_until";
 
 const schema = yup.object({
   email: yup
@@ -79,19 +89,76 @@ const schema = yup.object({
     .required("Email wajib diisi"),
 });
 
+function persistCooldownUntil(seconds) {
+  const until = Date.now() + seconds * 1000;
+  localStorage.setItem(COOLDOWN_KEY, String(until));
+}
+
+function readPersistedCooldown() {
+  const untilStr = localStorage.getItem(COOLDOWN_KEY);
+  if (!untilStr) return 0;
+  const until = Number(untilStr);
+  const remainMs = until - Date.now();
+  return remainMs > 0 ? Math.ceil(remainMs / 1000) : 0;
+}
+
+function clearPersistedCooldown() {
+  localStorage.removeItem(COOLDOWN_KEY);
+}
+
+function startCooldown(seconds) {
+  cooldown.value = seconds;
+  persistCooldownUntil(seconds);
+  if (cooldownTimer) clearInterval(cooldownTimer);
+  cooldownTimer = setInterval(() => {
+    const remain = readPersistedCooldown();
+    cooldown.value = remain;
+    if (remain <= 0) {
+      clearInterval(cooldownTimer);
+      cooldownTimer = null;
+      clearPersistedCooldown();
+      cooldown.value = 0;
+    }
+  }, 1000);
+}
+
+onMounted(() => {
+  const remain = readPersistedCooldown();
+  if (remain > 0) startCooldown(remain);
+});
+
+onBeforeUnmount(() => {
+  if (cooldownTimer) clearInterval(cooldownTimer);
+});
+
 async function handleSubmit(values) {
+  if (cooldown.value > 0) return;
   isLoading.value = true;
   try {
-    await api.post("/auth/forgot-password", { email: values.email });
-    toast.success(
-      "Jika email terdaftar, tautan reset telah dikirim ke inbox Anda.",
-      { timeout: 4000 }
-    );
+    const res = await api.post("/auth/forgot-password", {
+      email: values.email,
+    });
+    // Ambil durasi dari header Retry-After (detik); fallback ke DEFAULT_COOLDOWN
+    const seconds = Number(res.headers?.["retry-after"]);
+
+    toast.success("Tautan reset telah dikirim.", { timeout: 4000 });
+    startCooldown(seconds); // mulai countdown langsung setelah sukses
   } catch (e) {
-    const msg =
-      e.response?.data?.message ||
-      "Gagal mengirim tautan reset password. Coba lagi.";
-    toast.error(msg, { timeout: 4000 });
+    const status = e.response?.status;
+    if (status === 429) {
+      const seconds =
+        Number(e.response?.data?.retry_after) ||
+        Number(e.response?.headers?.["retry-after"]);
+      startCooldown(seconds);
+      toast.error(
+        `Terlalu banyak permintaan. Coba lagi dalam ${seconds} detik.`,
+        { timeout: 4000 }
+      );
+    } else {
+      const msg =
+        e.response?.data?.message || "Gagal mengirim tautan reset. Coba lagi.";
+      toast.error(msg, { timeout: 4000 });
+    }
   } finally {
     isLoading.value = false;
   }

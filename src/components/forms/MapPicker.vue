@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount } from "vue";
+import { ref, watch, onMounted, onBeforeUnmount, computed } from "vue";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -21,6 +21,13 @@ const tileUrl =
   "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const attribution =
   import.meta.env.VITE_MAP_ATTRIBUTION || "&copy; OpenStreetMap contributors";
+
+// Tambahan state
+const geoError = ref("");
+const isLocating = ref(false);
+const isSecure = window.isSecureContext === true; // HTTPS atau localhost
+const isGeoSupported = "geolocation" in navigator;
+const canUseGeo = computed(() => isSecure && isGeoSupported && !props.readonly);
 
 function setMarker(latlng) {
   if (!map) return;
@@ -48,19 +55,60 @@ function updateLatLng(lat, lng, setView = false) {
 }
 
 function locateMe() {
-  if (!navigator.geolocation) return;
+  geoError.value = "";
+  if (!canUseGeo.value) {
+    geoError.value = isSecure
+      ? "Geolocation tidak didukung browser."
+      : "Geolocation memerlukan HTTPS atau localhost.";
+    return;
+  }
+
+  isLocating.value = true;
+
+  const onSuccess = (pos) => {
+    const { latitude, longitude } = pos.coords;
+    emit("update:lat", +latitude.toFixed(6));
+    emit("update:lng", +longitude.toFixed(6));
+    updateLatLng(latitude, longitude, true);
+    isLocating.value = false;
+  };
+
+  const onFinalError = (err) => {
+    // 1: permission denied, 2: position unavailable, 3: timeout
+    if (err.code === 1) {
+      geoError.value =
+        "Akses lokasi ditolak. Izinkan di Site settings browser.";
+    } else if (err.code === 2) {
+      geoError.value = "Lokasi akurat Anda tidak dapat ditentukan.";
+    } else if (err.code === 3) {
+      geoError.value = "Permintaan lokasi timeout. Coba lagi.";
+    } else {
+      geoError.value = "Gagal mengambil lokasi.";
+    }
+    console.warn("Geolocation error:", err);
+    isLocating.value = false;
+  };
+
+  const tryHighAccuracy = () => {
+    navigator.geolocation.getCurrentPosition(onSuccess, onFinalError, {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0,
+    });
+  };
+
+  // Mulai dari low accuracy (lebih mudah dapat cache di desktop), lalu fallback high accuracy
   navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      const { latitude, longitude } = pos.coords;
-      emit("update:lat", +latitude.toFixed(6));
-      emit("update:lng", +longitude.toFixed(6));
-      updateLatLng(latitude, longitude, true);
-    },
+    onSuccess,
     (err) => {
-      console.warn("Geolocation error:", err);
-      // Bisa tampilkan toast/alert jika perlu
+      if (err.code === 2 || err.code === 3) {
+        // coba ulang dengan high accuracy
+        tryHighAccuracy();
+      } else {
+        onFinalError(err);
+      }
     },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 } // boleh pakai cache 5 menit
   );
 }
 
@@ -137,22 +185,37 @@ onBeforeUnmount(() => {
       class="w-full rounded-xl overflow-hidden border border-gray-200"
       :style="{ height }"
     />
-    <div class="flex gap-2">
-      <button
-        type="button"
-        @click="locateMe"
-        class="px-3 py-2 text-sm font-semibold rounded-lg border border-primary text-primary hover:bg-primary/5"
-      >
-        Gunakan lokasi saya
-      </button>
-      <button
-        v-if="!readonly"
-        type="button"
-        @click="resetMarker"
-        class="px-3 py-2 text-sm rounded-lg text-gray-600 hover:bg-gray-100"
-      >
-        Reset
-      </button>
+    <div class="flex flex-col gap-2">
+      <div class="flex gap-2">
+        <button
+          type="button"
+          @click="locateMe"
+          :disabled="!canUseGeo || isLocating"
+          class="px-3 py-2 text-sm font-semibold rounded-lg border border-primary text-primary hover:bg-primary/5 disabled:opacity-60"
+          :aria-busy="isLocating ? 'true' : 'false'"
+          :title="
+            !isSecure
+              ? 'Butuh HTTPS/localhost'
+              : !isGeoSupported
+              ? 'Geolocation tidak didukung'
+              : ''
+          "
+        >
+          {{ isLocating ? "Mencari lokasi..." : "Gunakan lokasi saya" }}
+        </button>
+        <button
+          v-if="!readonly"
+          type="button"
+          @click="resetMarker"
+          class="px-3 py-2 text-sm rounded-lg text-gray-600 hover:bg-gray-100"
+        >
+          Reset
+        </button>
+      </div>
+      <p v-if="geoError" class="text-xs text-red-600">{{ geoError }}</p>
+      <p v-else-if="!isSecure" class="text-xs text-amber-600">
+        Tips: buka lewat HTTPS atau localhost agar geolocation bisa diakses.
+      </p>
     </div>
   </div>
 </template>
