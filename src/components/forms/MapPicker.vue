@@ -1,0 +1,253 @@
+<script setup>
+
+// MapPicker — Pilih lokasi di peta (Leaflet) dengan marker draggable
+
+// Contoh pakai:
+// <script setup>
+// import { ref } from 'vue';
+// const lat = ref(null);
+// const lng = ref(null);
+// </script>
+
+// <template>
+//   <MapPicker v-model:lat="lat" v-model:lng="lng" :zoom="14" height="300px" />
+//   <p class="text-xs text-gray-500">Lat: {{ lat }} | Lng: {{ lng }}</p>
+// </template>
+
+// Props:
+// - lat: number|string|null => koordinat latitude (dua arah via v-model:lat)
+// - lng: number|string|null => koordinat longitude (dua arah via v-model:lng)
+// - zoom: number (default 13) => tingkat zoom
+// - height: string (default "280px") => tinggi peta (CSS unit)
+// - readonly: boolean => nonaktifkan drag marker dan klik peta
+
+// Events:
+// - update:lat(number|null)
+// - update:lng(number|null)
+
+// Catatan:
+// - Tombol "Gunakan lokasi saya" memerlukan HTTPS atau localhost (geolocation API).
+// - Klik di peta untuk menaruh/memindah marker (jika readonly=false).
+// - Drag marker untuk memperbarui lat/lng (jika readonly=false).
+
+
+import { ref, watch, onMounted, onBeforeUnmount, computed } from "vue";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+const props = defineProps({
+  lat: { type: [Number, String, null], default: null },
+  lng: { type: [Number, String, null], default: null },
+  zoom: { type: Number, default: 13 },
+  height: { type: String, default: "280px" },
+  readonly: { type: Boolean, default: false },
+});
+const emit = defineEmits(["update:lat", "update:lng"]);
+
+const mapEl = ref(null);
+let map;
+let marker;
+
+const tileUrl =
+  import.meta.env.VITE_MAP_TILE_URL ||
+  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+const attribution =
+  import.meta.env.VITE_MAP_ATTRIBUTION || "&copy; OpenStreetMap contributors";
+
+// Tambahan state
+const geoError = ref("");
+const isLocating = ref(false);
+const isSecure = window.isSecureContext === true; // HTTPS atau localhost
+const isGeoSupported = "geolocation" in navigator;
+const canUseGeo = computed(() => isSecure && isGeoSupported && !props.readonly);
+
+function setMarker(latlng) {
+  if (!map) return;
+  if (!marker) {
+    marker = L.marker(latlng, { draggable: !props.readonly }).addTo(map);
+    if (!props.readonly) {
+      marker.on("dragend", () => {
+        const { lat, lng } = marker.getLatLng();
+        emit("update:lat", +lat.toFixed(6));
+        emit("update:lng", +lng.toFixed(6));
+      });
+    }
+  } else {
+    marker.setLatLng(latlng);
+  }
+}
+
+function updateLatLng(lat, lng, setView = false) {
+  if (!map || lat == null || lng == null) return;
+  const latNum = typeof lat === "string" ? parseFloat(lat) : lat;
+  const lngNum = typeof lng === "string" ? parseFloat(lng) : lng;
+  const latlng = L.latLng(latNum, lngNum);
+  setMarker(latlng);
+  if (setView) map.setView(latlng, props.zoom);
+}
+
+function locateMe() {
+  geoError.value = "";
+  if (!canUseGeo.value) {
+    geoError.value = isSecure
+      ? "Geolocation tidak didukung browser."
+      : "Geolocation memerlukan HTTPS atau localhost.";
+    return;
+  }
+
+  isLocating.value = true;
+
+  const onSuccess = (pos) => {
+    const { latitude, longitude } = pos.coords;
+    emit("update:lat", +latitude.toFixed(6));
+    emit("update:lng", +longitude.toFixed(6));
+    updateLatLng(latitude, longitude, true);
+    isLocating.value = false;
+  };
+
+  const onFinalError = (err) => {
+    // 1: permission denied, 2: position unavailable, 3: timeout
+    if (err.code === 1) {
+      geoError.value =
+        "Akses lokasi ditolak. Izinkan di Site settings browser.";
+    } else if (err.code === 2) {
+      geoError.value = "Lokasi akurat Anda tidak dapat ditentukan.";
+    } else if (err.code === 3) {
+      geoError.value = "Permintaan lokasi timeout. Coba lagi.";
+    } else {
+      geoError.value = "Gagal mengambil lokasi.";
+    }
+    console.warn("Geolocation error:", err);
+    isLocating.value = false;
+  };
+
+  const tryHighAccuracy = () => {
+    navigator.geolocation.getCurrentPosition(onSuccess, onFinalError, {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0,
+    });
+  };
+
+  // Mulai dari low accuracy (lebih mudah dapat cache di desktop), lalu fallback high accuracy
+  navigator.geolocation.getCurrentPosition(
+    onSuccess,
+    (err) => {
+      if (err.code === 2 || err.code === 3) {
+        // coba ulang dengan high accuracy
+        tryHighAccuracy();
+      } else {
+        onFinalError(err);
+      }
+    },
+    { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 } // boleh pakai cache 5 menit
+  );
+}
+
+function resetMarker() {
+  if (!map) return;
+  if (marker) {
+    map.removeLayer(marker);
+    marker = null;
+  }
+  emit("update:lat", null);
+  emit("update:lng", null);
+}
+
+onMounted(() => {
+  // Perbaiki path icon Leaflet di Vite
+  const iconRetinaUrl = new URL(
+    "leaflet/dist/images/marker-icon-2x.png",
+    import.meta.url
+  ).toString();
+  const iconUrl = new URL(
+    "leaflet/dist/images/marker-icon.png",
+    import.meta.url
+  ).toString();
+  const shadowUrl = new URL(
+    "leaflet/dist/images/marker-shadow.png",
+    import.meta.url
+  ).toString();
+  L.Marker.prototype.options.icon = L.icon({
+    iconRetinaUrl,
+    iconUrl,
+    shadowUrl,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+  });
+
+  const startLat = props.lat ?? -2.5; // tengah Indonesia
+  const startLng = props.lng ?? 118.0;
+
+  map = L.map(mapEl.value).setView([startLat, startLng], props.zoom);
+  L.tileLayer(tileUrl, { attribution }).addTo(map);
+
+  if (props.lat != null && props.lng != null) {
+    setMarker([props.lat, props.lng]);
+  }
+
+  if (!props.readonly) {
+    map.on("click", (e) => {
+      const { lat, lng } = e.latlng;
+      emit("update:lat", +lat.toFixed(6));
+      emit("update:lng", +lng.toFixed(6));
+      setMarker(e.latlng);
+    });
+  }
+});
+
+watch(
+  () => [props.lat, props.lng],
+  ([lat, lng]) => {
+    if (lat != null && lng != null) updateLatLng(lat, lng, false);
+  }
+);
+
+onBeforeUnmount(() => {
+  if (map) map.remove();
+});
+</script>
+
+<template>
+  <div class="space-y-2">
+    <div
+      ref="mapEl"
+      class="w-full rounded-xl overflow-hidden border border-gray-200"
+      :style="{ height }"
+    />
+    <div class="flex flex-col gap-2">
+      <div class="flex gap-2">
+        <button
+          type="button"
+          @click="locateMe"
+          :disabled="!canUseGeo || isLocating"
+          class="px-3 py-2 text-sm font-semibold rounded-lg border border-primary text-primary hover:bg-primary/5 disabled:opacity-60"
+          :aria-busy="isLocating ? 'true' : 'false'"
+          :title="
+            !isSecure
+              ? 'Butuh HTTPS/localhost'
+              : !isGeoSupported
+              ? 'Geolocation tidak didukung'
+              : ''
+          "
+        >
+          {{ isLocating ? "Mencari lokasi..." : "Gunakan lokasi saya" }}
+        </button>
+        <button
+          v-if="!readonly"
+          type="button"
+          @click="resetMarker"
+          class="px-3 py-2 text-sm rounded-lg text-gray-600 hover:bg-gray-100"
+        >
+          Reset
+        </button>
+      </div>
+      <p v-if="geoError" class="text-xs text-red-600">{{ geoError }}</p>
+      <p v-else-if="!isSecure" class="text-xs text-amber-600">
+        Tips: buka lewat HTTPS atau localhost agar geolocation bisa diakses.
+      </p>
+    </div>
+  </div>
+</template>
