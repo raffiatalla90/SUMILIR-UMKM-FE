@@ -1,7 +1,7 @@
 <template>
-  <div class="min-h-screen flex flex-col bg-gray-50 text-gray-900">
+  <div class="min-h-screen flex flex-col sm:bg-gray-50 bg-white text-gray-900">
     <!-- Header: tampil hanya ≥ sm -->
-    <header class="w-full bg-gray-50 hidden sm:block">
+    <header class="w-full sm:bg-gray-50 bg-white hidden sm:block">
       <div
         class="max-w-5xl mx-auto sm:px-4 px-0 py-4 flex items-center justify-center"
       >
