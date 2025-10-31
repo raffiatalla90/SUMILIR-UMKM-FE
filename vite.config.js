@@ -37,8 +37,10 @@ export default defineConfig(({ mode }) => {
           ],
         },
         workbox: {
-          cleanupOutdatedCaches: true,
           navigateFallback: "/index.html",
+          cleanupOutdatedCaches: true,
+          clientsClaim: true,
+          skipWaiting: true,
           runtimeCaching: [
             {
               urlPattern: ({ request, sameOrigin }) =>

@@ -8,7 +8,16 @@ import "./style.css";
 import { registerSW } from "virtual:pwa-register";
 import { useAuthStore } from "@/stores/auth"; // import ini ditambahkan
 
-const updateSW = registerSW({ immediate: true });
+const updateSW = registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    // aktifkan SW baru tanpa prompt
+    updateSW(true);
+  },
+  onOfflineReady() {
+    // optional: show toast “Siap offline”
+  },
+});
 
 // Minimal waktu splash (ms)
 const MIN_SPLASH_MS = Number(import.meta.env.VITE_SPLASH_MIN_MS || 1000);
