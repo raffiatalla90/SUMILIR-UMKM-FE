@@ -6,7 +6,6 @@ import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  // Gunakan path relatif agar tidak mixed content saat HTTPS
   const apiBase = env.VITE_API_BASE_URL || "/api";
 
   return {
@@ -37,11 +36,11 @@ export default defineConfig(({ mode }) => {
           ],
         },
         workbox: {
-          navigateFallback: "/index.html",
           cleanupOutdatedCaches: true,
-          clientsClaim: true,
-          skipWaiting: true,
+          navigateFallback: "/index.html",
+          navigateFallbackDenylist: [/^\/api\//],
           runtimeCaching: [
+            // cache assets statis
             {
               urlPattern: ({ request, sameOrigin }) =>
                 sameOrigin &&
@@ -51,7 +50,7 @@ export default defineConfig(({ mode }) => {
               handler: "StaleWhileRevalidate",
               options: { cacheName: "assets-v1" },
             },
-            // Cache GET API di origin yang sama (via /api proxy Nginx)
+            // cache GET API (bukan navigasi)
             {
               urlPattern: new RegExp(
                 `^${apiBase.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}/.*`
@@ -60,9 +59,8 @@ export default defineConfig(({ mode }) => {
               method: "GET",
               options: {
                 cacheName: "api-cache-v1",
-                networkTimeoutSeconds: 5,
                 cacheableResponse: { statuses: [0, 200] },
-                expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 },
+                expiration: { maxEntries: 200, maxAgeSeconds: 3600 },
               },
             },
           ],
