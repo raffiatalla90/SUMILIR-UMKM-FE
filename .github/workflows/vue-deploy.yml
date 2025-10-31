@@ -29,7 +29,7 @@ jobs:
         run: |
           HOST=${SERVER_HOST:-sumilir.indonesiacentral.cloudapp.azure.com}
           cat > .env.production << EOF
-          VITE_APP_NAME="SIMSLIFE"
+          VITE_APP_NAME="SUMILIR"
           VITE_APP_URL=https://$HOST
           VITE_PUBLIC_BASE_PATH=/
           VITE_API_BASE_URL=/api
