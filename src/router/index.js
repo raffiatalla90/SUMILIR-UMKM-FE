@@ -6,36 +6,37 @@ const routes = [
   {
     path: "/",
     component: () => import("@/layouts/AuthLayout.vue"),
+    meta: { guest: true },
     children: [
       {
         path: "login",
         name: "Login",
         component: () => import("@/views/auth/Login.vue"),
-        meta: { guest: true, title: "Login | SUMILIR" },
+        meta: { title: "Login | SUMILIR" },
       },
       {
         path: "register",
         name: "Register",
         component: () => import("@/views/auth/Register.vue"),
-        meta: { guest: true, title: "Register | SUMILIR" },
+        meta: { title: "Register | SUMILIR" },
       },
       {
         path: "forgot-password",
         name: "Forgot Password",
         component: () => import("@/views/auth/ForgotPassword.vue"),
-        meta: { guest: true, title: "Forgot Password | SUMILIR" },
+        meta: { title: "Forgot Password | SUMILIR" },
       },
       {
         path: "reset-password/:token?",
         name: "Reset Password",
         component: () => import("@/views/auth/ResetPassword.vue"),
-        meta: { guest: true, title: "Reset Password | SUMILIR" },
+        meta: { title: "Reset Password | SUMILIR" },
       },
       {
         path: "verify-email",
         name: "Email Verification",
         component: () => import("@/views/auth/EmailVerification.vue"),
-        meta: { guest: true, title: "Email Verification | SUMILIR" },
+        meta: { title: "Email Verification | SUMILIR" },
       },
       { path: "", redirect: { name: "Login" } },
     ],
@@ -52,11 +53,42 @@ const routes = [
       title: "Merchant Register | SUMILIR",
     },
   },
+
+  // {
+  //   path: "/dashboard",
+  //   name: "Dashboard",
+  //   component: () => import("@/views/dashboard/Index.vue"),
+  //   meta: { requiresAuth: true },
+  // },
+
   {
-    path: "/dashboard",
-    name: "Dashboard",
-    component: () => import("@/views/dashboard/Index.vue"),
-    meta: { requiresAuth: true },
+    path: "/merchant-center",
+    name: "Merchant Center",
+    component: () => import("@/layouts/MerchantLayout.vue"),
+    meta: {
+      // requiresAuth: true,
+      guest: true,
+      // roles: ["umkm-owner"],
+    },
+    children: [
+      { path: "", redirect: { name: "Merchant - Dashboard" } },
+      {
+        path: "dashboard",
+        name: "Merchant - Dashboard",
+        component: () => import("@/views/merchant/products/index.vue"),
+        meta: {
+          title: "Merchant Center | SUMILIR",
+        },
+      },
+      {
+        path: "products",
+        name: "Merchant - Product UMKM",
+        component: () => import("@/views/merchant/products/index.vue"),
+        meta: {
+          title: "Product UMKM | SUMILIR",
+        },
+      },
+    ],
   },
 
   // Fallback

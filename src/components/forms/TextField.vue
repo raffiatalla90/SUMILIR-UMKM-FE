@@ -4,7 +4,7 @@ TextField — Input teks/textarea terintegrasi vee-validate
 
 Contoh pakai:
 <Form :validation-schema="schema" @submit="onSubmit">
-  <TextField name="email" label="Email" type="email" placeholder="you@example.com" />
+  <TextField name="email" label="Email" type="email" placeholder="you@example.com" variant="merchant" />
   <TextField name="bio" label="Bio" textarea :rows="4" placeholder="Ceritakan tentang Anda" />
 </Form>
 
@@ -18,11 +18,13 @@ Props:
 - alignWithPassword: boolean (default true) => beri padding kanan agar sejajar dengan PasswordField
 - rows: number (default 3) => tinggi textarea
 - readonly: boolean => input hanya-baca
+- variant: string (default "primary") => "primary" | "merchant"
 
 Events:
 - update:modelValue => emit saat nilai berubah (opsional jika ingin two-way binding)
 */
 import { Field, ErrorMessage } from "vee-validate";
+import { computed } from "vue";
 
 const props = defineProps({
   name: { type: String, required: true },
@@ -33,9 +35,22 @@ const props = defineProps({
   modelValue: { type: [String, Number], default: "" },
   alignWithPassword: { type: Boolean, default: true },
   rows: { type: Number, default: 3 },
-  readonly: { type: Boolean, default: false }, // NEW
+  readonly: { type: Boolean, default: false },
+  variant: { type: String, default: "primary" }, // NEW: primary | merchant
 });
 const emit = defineEmits(["update:modelValue"]);
+
+const focusRingClass = computed(() => {
+  return props.variant === "merchant"
+    ? "focus:ring-merchant-primary"
+    : "focus:ring-primary";
+});
+
+const borderClass = computed(() => {
+  return props.variant === "merchant"
+    ? "border-merchant-primary"
+    : "border-primary";
+});
 
 const inputClasses = (invalid, isTextarea) =>
   [
@@ -43,7 +58,7 @@ const inputClasses = (invalid, isTextarea) =>
     "text-black placeholder:text-gray-400",
     invalid
       ? "border-red-500 focus:ring-2 focus:ring-red-500"
-      : "border-primary focus:ring-2 focus:ring-primary",
+      : `${borderClass.value} focus:ring-2 ${focusRingClass.value}`,
     !isTextarea && props.alignWithPassword ? "pr-10" : "",
   ]
     .filter(Boolean)

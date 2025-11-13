@@ -4,7 +4,7 @@ PasswordField — Input password dengan toggle show/hide, integrasi vee-validate
 
 Contoh pakai:
 <Form :validation-schema="schema">
-  <PasswordField name="password" label="Kata Sandi" placeholder="Minimal 8 karakter" />
+  <PasswordField name="password" label="Kata Sandi" placeholder="Minimal 8 karakter" variant="merchant" />
   <PasswordField name="password_confirmation" label="Konfirmasi Kata Sandi" />
 </Form>
 
@@ -13,12 +13,13 @@ Props:
 - label: string (default "Kata Sandi")
 - placeholder: string
 - modelValue: string => dukung v-model dari luar
+- variant: string (default "primary") => "primary" | "merchant"
 
 Catatan:
 - Ikon mata di kanan untuk show/hide password
 - Sudah ada style focus dan error state
 */
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { Field, ErrorMessage } from "vee-validate";
 
 const props = defineProps({
@@ -26,16 +27,36 @@ const props = defineProps({
   label: { type: String, default: "Kata Sandi" },
   placeholder: { type: String, default: "Masukkan kata sandi" },
   modelValue: { type: String, default: "" },
+  variant: { type: String, default: "primary" }, // NEW: primary | merchant
 });
 const emit = defineEmits(["update:modelValue"]);
 
 const show = ref(false);
+
+const focusRingClass = computed(() => {
+  return props.variant === "merchant"
+    ? "focus:ring-merchant-primary"
+    : "focus:ring-primary";
+});
+
+const borderClass = computed(() => {
+  return props.variant === "merchant"
+    ? "border-merchant-primary"
+    : "border-primary";
+});
+
+const toggleButtonClass = computed(() => {
+  return props.variant === "merchant"
+    ? "text-merchant-primary hover:text-merchant-primary/80"
+    : "text-muted-foreground hover:text-gray-700";
+});
+
 const inputClasses = (invalid) =>
   [
     "w-full px-4 py-2.5 pr-10 text-sm border rounded-xl focus:outline-none",
     invalid
       ? "border-red-500 focus:ring-2 focus:ring-red-500"
-      : "border-primary focus:ring-2 focus:ring-primary",
+      : `${borderClass.value} focus:ring-2 ${focusRingClass.value}`,
     "text-black placeholder:text-gray-400 transition-all",
   ].join(" ");
 </script>
@@ -63,7 +84,10 @@ const inputClasses = (invalid) =>
         <button
           type="button"
           @click="show = !show"
-          class="absolute inset-y-0 right-3 flex items-center text-muted-foreground hover:text-gray-700"
+          :class="[
+            'absolute inset-y-0 right-3 flex items-center transition-colors',
+            toggleButtonClass,
+          ]"
           :aria-label="show ? 'Sembunyikan password' : 'Tampilkan password'"
           tabindex="-1"
         >

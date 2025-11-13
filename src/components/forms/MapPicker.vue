@@ -9,7 +9,7 @@ const lat = ref(null);
 const lng = ref(null);
 
 // Template:
-&lt;MapPicker v-model:lat="lat" v-model:lng="lng" :zoom="14" height="300px" /&gt;
+&lt;MapPicker v-model:lat="lat" v-model:lng="lng" :zoom="14" height="300px" variant="merchant" /&gt;
 &lt;p class="text-xs text-gray-500"&gt;Lat: {{ lat }} | Lng: {{ lng }}&lt;/p&gt;
 
 Props:
@@ -18,6 +18,7 @@ Props:
 - zoom: number (default 13) => tingkat zoom
 - height: string (default "280px") => tinggi peta (CSS unit)
 - readonly: boolean => nonaktifkan drag marker dan klik peta
+- variant: string (default "primary") => "primary" | "merchant"
 
 Events:
 - update:lat(number|null)
@@ -38,6 +39,7 @@ const props = defineProps({
   zoom: { type: Number, default: 13 },
   height: { type: String, default: "280px" },
   readonly: { type: Boolean, default: false },
+  variant: { type: String, default: "primary" }, // NEW: primary | merchant
 });
 const emit = defineEmits(["update:lat", "update:lng"]);
 
@@ -54,9 +56,27 @@ const attribution =
 // Tambahan state
 const geoError = ref("");
 const isLocating = ref(false);
-const isSecure = window.isSecureContext === true; // HTTPS atau localhost
+const isSecure = window.isSecureContext === true;
 const isGeoSupported = "geolocation" in navigator;
 const canUseGeo = computed(() => isSecure && isGeoSupported && !props.readonly);
+
+const borderColorClass = computed(() => {
+  return props.variant === "merchant"
+    ? "border-merchant-primary"
+    : "border-primary";
+});
+
+const buttonTextClass = computed(() => {
+  return props.variant === "merchant"
+    ? "text-merchant-primary hover:bg-merchant-primary/5"
+    : "text-primary hover:bg-primary/5";
+});
+
+const buttonBorderClass = computed(() => {
+  return props.variant === "merchant"
+    ? "border-merchant-primary"
+    : "border-primary";
+});
 
 function setMarker(latlng) {
   if (!map) return;
@@ -103,7 +123,6 @@ function locateMe() {
   };
 
   const onFinalError = (err) => {
-    // 1: permission denied, 2: position unavailable, 3: timeout
     if (err.code === 1) {
       geoError.value =
         "Akses lokasi ditolak. Izinkan di Site settings browser.";
@@ -126,18 +145,16 @@ function locateMe() {
     });
   };
 
-  // Mulai dari low accuracy (lebih mudah dapat cache di desktop), lalu fallback high accuracy
   navigator.geolocation.getCurrentPosition(
     onSuccess,
     (err) => {
       if (err.code === 2 || err.code === 3) {
-        // coba ulang dengan high accuracy
         tryHighAccuracy();
       } else {
         onFinalError(err);
       }
     },
-    { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 } // boleh pakai cache 5 menit
+    { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
   );
 }
 
@@ -152,7 +169,6 @@ function resetMarker() {
 }
 
 onMounted(() => {
-  // Perbaiki path icon Leaflet di Vite
   const iconRetinaUrl = new URL(
     "leaflet/dist/images/marker-icon-2x.png",
     import.meta.url
@@ -175,7 +191,7 @@ onMounted(() => {
     shadowSize: [41, 41],
   });
 
-  const startLat = props.lat ?? -2.5; // tengah Indonesia
+  const startLat = props.lat ?? -2.5;
   const startLng = props.lng ?? 118.0;
 
   map = L.map(mapEl.value).setView([startLat, startLng], props.zoom);
@@ -211,7 +227,7 @@ onBeforeUnmount(() => {
   <div class="space-y-2">
     <div
       ref="mapEl"
-      class="w-full rounded-xl overflow-hidden border border-gray-200"
+      :class="['w-full rounded-xl overflow-hidden border', borderColorClass]"
       :style="{ height }"
     />
     <div class="flex flex-col gap-2">
@@ -220,7 +236,12 @@ onBeforeUnmount(() => {
           type="button"
           @click="locateMe"
           :disabled="!canUseGeo || isLocating"
-          class="px-3 py-2 text-sm font-semibold rounded-lg border border-primary text-primary hover:bg-primary/5 disabled:opacity-60"
+          :class="[
+            'px-3 py-2 text-sm font-semibold rounded-lg border',
+            buttonBorderClass,
+            buttonTextClass,
+            'disabled:opacity-60',
+          ]"
           :aria-busy="isLocating ? 'true' : 'false'"
           :title="
             !isSecure

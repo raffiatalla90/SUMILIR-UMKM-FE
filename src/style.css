@@ -2,12 +2,19 @@
 @import "primeicons/primeicons.css";
 @theme {
   --color-primary: #ffa30e;
+  --color-merchant-primary: #058895;
   --color-secondary: #0894eb;
   --color-tertiary: #cddf8a;
   --color-background: #fff;
   --color-foreground: #000;
-  --color-muted: oklch(0.967 0.001 286.375);
+  --color-muted-background: oklch(0.967 0.001 286.375);
   --color-muted-foreground: oklch(0.552 0.016 285.938);
+  --color-warning-background: #fec901;
+  --color-warning-foreground: #333333;
+  --color-danger-background: #f3d4ca;
+  --color-danger-foreground: #f32013;
+  --color-success-background: #c5ffce;
+  --color-success-foreground: #009d12;
 }
 
 :root {
@@ -16,8 +23,8 @@
   font-weight: 400;
 
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color: rgba(0, 0, 0, 0.87);
+  background-color: #fff;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
