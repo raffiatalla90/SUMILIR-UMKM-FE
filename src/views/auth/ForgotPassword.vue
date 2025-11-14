@@ -1,6 +1,6 @@
 <template>
   <div
-    class="sm:bg-gray-50 bg-primary flex items-center flex-col sm:justify-center justify-end sm:pb-8"
+    class="sm:bg-gray-50 flex items-center flex-col sm:justify-center justify-end sm:pb-8 bg-primary"
   >
     <!-- Mobile header -->
     <div
@@ -20,7 +20,7 @@
     </div>
 
     <div
-      class="flex flex-col justify-center sm:flex-0 flex-2/3 p-8 sm:p-12 sm:max-w-xl w-full bg-white sm:rounded-4xl rounded-t-4xl sm:shadow-lg shadow-none"
+      class="flex flex-col justify-center sm:flex-0 flex-2/3 p-8 sm:p-12 sm:max-w-xl w-full bg-white sm:rounded-4xl sm:shadow-lg"
     >
       <!-- Desktop header -->
       <div class="hidden sm:flex gap-3 items-center mb-2">
@@ -67,7 +67,7 @@
 
           <AppButton
             type="button"
-            variant="outline"
+            variant="primary-outline"
             size="md"
             block
             @click="goToLogin"

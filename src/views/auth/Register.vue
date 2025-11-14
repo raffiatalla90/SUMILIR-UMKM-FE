@@ -6,7 +6,7 @@
       class="sm:hidden flex flex-col flex-1/3 justify-end sm:px-0 px-4 py-2 sm:pt-0 pt-8"
     >
       <h2
-        class="sm:hidden inline text-2xl sm:text-3xl font-bold text-center sm:text-left mb-2 text-muted"
+        class="sm:hidden inline text-2xl sm:text-3xl font-bold text-center sm:text-left mb-2 text-white"
       >
         Daftar
       </h2>

@@ -88,6 +88,24 @@ const routes = [
           title: "Product UMKM | SUMILIR",
         },
       },
+      {
+        path: "products/:id",
+        name: "Merchant - Product Detail",
+        component: () => import("@/views/merchant/products/Detail.vue"),
+        meta: {
+          title: "Product Detail UMKM | SUMILIR",
+        },
+      },
+      // {
+      //   path: "products/:id/edit",
+      //   name: "Merchant - Product Edit",
+      //   component: () => import("@/views/merchant/products/Edit.vue"),
+      // },
+      // {
+      //   path: "products/:id/variants",
+      //   name: "Merchant - Product Variants",
+      //   component: () => import("@/views/merchant/products/Variants.vue"),
+      // },
     ],
   },
 
