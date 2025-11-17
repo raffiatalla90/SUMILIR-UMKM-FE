@@ -27,7 +27,8 @@ const props = defineProps({
   label: { type: String, default: "Kata Sandi" },
   placeholder: { type: String, default: "Masukkan kata sandi" },
   modelValue: { type: String, default: "" },
-  variant: { type: String, default: "primary" }, // NEW: primary | merchant
+  variant: { type: String, default: "primary" },
+  required: { type: Boolean, default: false }, // NEW
 });
 const emit = defineEmits(["update:modelValue"]);
 
@@ -55,7 +56,7 @@ const inputClasses = (invalid) =>
   [
     "w-full px-4 py-2.5 pr-10 text-sm border rounded-xl focus:outline-none",
     invalid
-      ? "border-red-500 focus:ring-2 focus:ring-red-500"
+      ? "border-danger-foreground focus:ring-2 focus:ring-danger-foreground"
       : `${borderClass.value} focus:ring-2 ${focusRingClass.value}`,
     "text-black placeholder:text-gray-400 transition-all",
   ].join(" ");
@@ -65,6 +66,7 @@ const inputClasses = (invalid) =>
   <div>
     <label :for="name" class="block text-sm font-bold text-black mb-2">
       {{ label }}
+      <span v-if="required" class="text-danger-foreground">*</span>
     </label>
 
     <Field
@@ -131,6 +133,6 @@ const inputClasses = (invalid) =>
       </div>
     </Field>
 
-    <ErrorMessage :name="name" class="text-red-500 text-xs mt-1" />
+    <ErrorMessage :name="name" class="text-danger-foreground text-xs mt-1" />
   </div>
 </template>

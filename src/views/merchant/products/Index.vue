@@ -5,7 +5,12 @@ import { useToast } from "vue-toastification";
 import TextField from "@/components/forms/TextField.vue";
 import SelectField from "@/components/forms/SelectField.vue";
 import Button from "@/components/common/Button.vue";
+import MerchantTable from "@/components/common/MerchantTable.vue";
+import StatusLabel from "@/components/common/StatusLabel.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
+import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
+import ProductCard from "@/components/common/ProductCard.vue";
+import MobilePagination from "@/components/common/MobilePagination.vue";
 
 const router = useRouter();
 const toast = useToast();
@@ -23,10 +28,19 @@ const selectAll = ref(false);
 const showExportModal = ref(false);
 const showFilterModal = ref(false);
 const showBulkActionModal = ref(false);
+const showVisibilityModal = ref(false); // NEW
+
+// NEW: Selected product for visibility toggle
+const selectedProductForVisibility = ref(null);
 
 // NEW: Combined modal state for body scroll lock
 const isAnyModalOpen = computed(() => {
-  return showExportModal.value || showFilterModal.value;
+  return (
+    showExportModal.value ||
+    showFilterModal.value ||
+    showBulkActionModal.value ||
+    showVisibilityModal.value
+  );
 });
 
 // Apply body scroll lock when any modal is open
@@ -34,7 +48,17 @@ useBodyScrollLock(isAnyModalOpen);
 
 // Filters
 const searchQuery = ref("");
-const filters = ref({
+const tempFilters = ref({
+  status: "",
+  category: "",
+  minPrice: null,
+  maxPrice: null,
+  minStock: null,
+  maxStock: null,
+  sortBy: "newest",
+});
+
+const activeFilters = ref({
   status: "",
   category: "",
   minPrice: null,
@@ -47,13 +71,35 @@ const filters = ref({
 const currentPage = ref(1);
 const perPage = ref(10);
 const totalItems = ref(0);
-const merchantId = ref(1);
+
+// NEW: Computed untuk pagination
+const paginatedProducts = computed(() => {
+  const start = (currentPage.value - 1) * perPage.value;
+  const end = start + perPage.value;
+  return filteredProducts.value.slice(start, end);
+});
+
+const totalPages = computed(() => {
+  return Math.ceil(filteredProducts.value.length / perPage.value);
+});
+
+const paginationInfo = computed(() => {
+  const start = (currentPage.value - 1) * perPage.value + 1;
+  const end = Math.min(
+    currentPage.value * perPage.value,
+    filteredProducts.value.length
+  );
+  return {
+    start,
+    end,
+    total: filteredProducts.value.length,
+  };
+});
 
 // Filter options
 const statusOptions = [
   { label: "Semua Status", value: "" },
   { label: "Dipublish", value: "published" },
-  { label: "Draft", value: "draft" },
   { label: "Diarsipkan", value: "archived" },
 ];
 
@@ -147,7 +193,7 @@ const dummyProducts = [
     slug: "nasi-goreng-spesial-ba000004",
     sku: "BA000004",
     description: "Nasi goreng dengan telur mata sapi",
-    status: "draft",
+    status: "published",
     total_stock: 0,
     min_price: 15000,
     max_price: 20000,
@@ -242,6 +288,66 @@ const dummyProducts = [
     created_at: "2025-11-07T13:45:00.000Z",
     updated_at: "2025-11-12T17:00:00.000Z",
   },
+  {
+    id: 9,
+    name: "Gula Pasir",
+    slug: "gula-pasir-ba000008",
+    sku: "BA000008",
+    description: "Gula pasir putih 1kg",
+    status: "published",
+    total_stock: 25,
+    min_price: 15000,
+    max_price: 15000,
+    variant_count: 0,
+    cover_image: {
+      id: 9,
+      image_path: "https://via.placeholder.com/150/ECF0F1/000000?text=Gula",
+      is_cover: true,
+    },
+    categories: [{ id: 2, category_name: "Bahan Masakan" }],
+    created_at: "2025-11-07T13:45:00.000Z",
+    updated_at: "2025-11-12T17:00:00.000Z",
+  },
+  {
+    id: 10,
+    name: "Gula Pasir",
+    slug: "gula-pasir-ba000008",
+    sku: "BA000008",
+    description: "Gula pasir putih 1kg",
+    status: "published",
+    total_stock: 25,
+    min_price: 15000,
+    max_price: 15000,
+    variant_count: 0,
+    cover_image: {
+      id: 10,
+      image_path: "https://via.placeholder.com/150/ECF0F1/000000?text=Gula",
+      is_cover: true,
+    },
+    categories: [{ id: 2, category_name: "Bahan Masakan" }],
+    created_at: "2025-11-07T13:45:00.000Z",
+    updated_at: "2025-11-12T17:00:00.000Z",
+  },
+  {
+    id: 11,
+    name: "Gula Pasir",
+    slug: "gula-pasir-ba000008",
+    sku: "BA000008",
+    description: "Gula pasir putih 1kg",
+    status: "published",
+    total_stock: 25,
+    min_price: 15000,
+    max_price: 15000,
+    variant_count: 0,
+    cover_image: {
+      id: 11,
+      image_path: "https://via.placeholder.com/150/ECF0F1/000000?text=Gula",
+      is_cover: true,
+    },
+    categories: [{ id: 2, category_name: "Bahan Masakan" }],
+    created_at: "2025-11-07T13:45:00.000Z",
+    updated_at: "2025-11-12T17:00:00.000Z",
+  },
 ];
 
 // Computed
@@ -257,36 +363,40 @@ const filteredProducts = computed(() => {
     );
   }
 
-  // Status filter
-  if (filters.value.status) {
-    result = result.filter((p) => p.status === filters.value.status);
+  // Status filter - GUNAKAN activeFilters
+  if (activeFilters.value.status) {
+    result = result.filter((p) => p.status === activeFilters.value.status);
   }
 
-  // Category filter
-  if (filters.value.category) {
+  // Category filter - GUNAKAN activeFilters
+  if (activeFilters.value.category) {
     result = result.filter((p) =>
-      p.categories?.some((c) => c.id === parseInt(filters.value.category))
+      p.categories?.some((c) => c.id === parseInt(activeFilters.value.category))
     );
   }
 
-  // Price range
-  if (filters.value.minPrice !== null) {
-    result = result.filter((p) => p.min_price >= filters.value.minPrice);
+  // Price range - GUNAKAN activeFilters
+  if (activeFilters.value.minPrice !== null) {
+    result = result.filter((p) => p.min_price >= activeFilters.value.minPrice);
   }
-  if (filters.value.maxPrice !== null) {
-    result = result.filter((p) => p.max_price <= filters.value.maxPrice);
-  }
-
-  // Stock range
-  if (filters.value.minStock !== null) {
-    result = result.filter((p) => p.total_stock >= filters.value.minStock);
-  }
-  if (filters.value.maxStock !== null) {
-    result = result.filter((p) => p.total_stock <= filters.value.maxStock);
+  if (activeFilters.value.maxPrice !== null) {
+    result = result.filter((p) => p.max_price <= activeFilters.value.maxPrice);
   }
 
-  // Sort
-  switch (filters.value.sortBy) {
+  // Stock range - GUNAKAN activeFilters
+  if (activeFilters.value.minStock !== null) {
+    result = result.filter(
+      (p) => p.total_stock >= activeFilters.value.minStock
+    );
+  }
+  if (activeFilters.value.maxStock !== null) {
+    result = result.filter(
+      (p) => p.total_stock <= activeFilters.value.maxStock
+    );
+  }
+
+  // Sort - GUNAKAN activeFilters
+  switch (activeFilters.value.sortBy) {
     case "oldest":
       result.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
       break;
@@ -319,13 +429,13 @@ const filteredProducts = computed(() => {
 
 const activeFilterCount = computed(() => {
   let count = 0;
-  if (filters.value.status) count++;
-  if (filters.value.category) count++;
-  if (filters.value.minPrice !== null) count++;
-  if (filters.value.maxPrice !== null) count++;
-  if (filters.value.minStock !== null) count++;
-  if (filters.value.maxStock !== null) count++;
-  if (filters.value.sortBy !== "newest") count++;
+  if (activeFilters.value.status) count++;
+  if (activeFilters.value.category) count++;
+  if (activeFilters.value.minPrice !== null) count++;
+  if (activeFilters.value.maxPrice !== null) count++;
+  if (activeFilters.value.minStock !== null) count++;
+  if (activeFilters.value.maxStock !== null) count++;
+  if (activeFilters.value.sortBy !== "newest") count++;
   return count;
 });
 
@@ -348,7 +458,7 @@ const fetchProducts = async () => {
 };
 
 const handleSearch = () => {
-  currentPage.value = 1;
+  currentPage.value = 1; // Reset ke halaman 1
   fetchProducts();
 };
 
@@ -403,6 +513,8 @@ const openExportModal = () => {
 };
 
 const openFilterModal = () => {
+  // Copy current active filters ke temp filters
+  tempFilters.value = { ...activeFilters.value };
   showFilterModal.value = true;
 };
 
@@ -428,12 +540,15 @@ const cancelSelection = () => {
 };
 
 const applyFilters = () => {
+  // Copy tempFilters ke activeFilters
+  activeFilters.value = { ...tempFilters.value };
+  currentPage.value = 1; // Reset ke halaman 1
   closeFilterModal();
-  fetchProducts();
+  // fetchProducts(); // OPTIONAL: jika data dari API
 };
 
 const resetFilters = () => {
-  filters.value = {
+  const defaultFilters = {
     status: "",
     category: "",
     minPrice: null,
@@ -442,7 +557,13 @@ const resetFilters = () => {
     maxStock: null,
     sortBy: "newest",
   };
-  fetchProducts();
+
+  tempFilters.value = { ...defaultFilters };
+  activeFilters.value = { ...defaultFilters };
+  currentPage.value = 1;
+  closeFilterModal();
+  toast.success("Filter berhasil direset");
+  // fetchProducts(); // OPTIONAL: jika data dari API
 };
 
 const exportPDF = () => {
@@ -456,11 +577,18 @@ const exportExcel = () => {
 };
 
 const goToCreate = () => {
-  toast.info("Navigasi ke halaman tambah produk");
+  // toast.info("Navigasi ke halaman tambah produk");
+  router.push({
+    name: "Merchant - Buat Product",
+  });
 };
 
 const goToEdit = (product) => {
-  toast.info(`Edit produk: ${product.name}`);
+  router.push({
+    name: "Merchant - Product Edit",
+    // params: { merchantId: merchantId.value, productId: product.id },
+    params: { id: product.id },
+  });
 };
 
 const goToDetail = (product) => {
@@ -478,24 +606,6 @@ const deleteProduct = (product) => {
     totalItems.value--;
     toast.success("Produk berhasil dihapus");
   }
-};
-
-const getStatusLabel = (status) => {
-  const labels = {
-    published: "Dipublish",
-    draft: "Draft",
-    archived: "Diarsipkan",
-  };
-  return labels[status] || status;
-};
-
-const getStatusClass = (status) => {
-  const classes = {
-    published: "bg-success-background text-success-foreground",
-    draft: "bg-warning-background text-warning-foreground",
-    archived: "bg-danger-background text-danger-foreground",
-  };
-  return classes[status] || "bg-muted-background text-black";
 };
 
 // Add number formatter helper
@@ -536,20 +646,141 @@ const formatPrice = (min, max) => {
   return `${formatCompact(min)} - ${formatCompact(max)}`;
 };
 
+// NEW: Generate page numbers untuk pagination
+const visiblePages = computed(() => {
+  const pages = [];
+  const total = totalPages.value;
+  const current = currentPage.value;
+
+  if (total <= 7) {
+    // Tampilkan semua halaman jika <= 7
+    for (let i = 1; i <= total; i++) {
+      pages.push(i);
+    }
+  } else {
+    // Tampilkan halaman dengan ellipsis
+    if (current <= 3) {
+      // Awal: 1 2 3 4 ... last
+      pages.push(1, 2, 3, 4, "...", total);
+    } else if (current >= total - 2) {
+      // Akhir: 1 ... last-3 last-2 last-1 last
+      pages.push(1, "...", total - 3, total - 2, total - 1, total);
+    } else {
+      // Tengah: 1 ... current-1 current current+1 ... last
+      pages.push(1, "...", current - 1, current, current + 1, "...", total);
+    }
+  }
+
+  return pages;
+});
+
+// NEW: Pagination methods
+const goToPage = (page) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page;
+    // Scroll ke atas saat ganti halaman
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+};
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    goToPage(currentPage.value + 1);
+  }
+};
+
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    goToPage(currentPage.value - 1);
+  }
+};
+
 onMounted(() => {
   fetchProducts();
 });
+
+// Table Configuration
+const tableColumns = [
+  { key: "name", label: "Produk", sortable: true },
+  { key: "sku", label: "SKU", sortable: true, cellClass: "font-mono" },
+  { key: "categories.0.category_name", label: "Kategori", sortable: false },
+  { key: "total_stock", label: "Stok", sortable: true },
+  { key: "price", label: "Harga", sortable: true },
+  { key: "status", label: "Status", sortable: true },
+];
+
+const tableActions = [
+  {
+    icon: "pi-eye",
+    label: "Lihat Detail",
+    handler: (product) => goToDetail(product),
+    class: " hover:bg-muted-foreground/20 text-muted-foreground",
+  },
+  {
+    icon: "pi-pencil",
+    label: "Edit Produk",
+    handler: (product) => goToEdit(product),
+    class: " text-merchant-primary hover:bg-merchant-primary/20",
+  },
+  // UPDATED: Toggle Visibility Action - icon static
+  {
+    icon: "pi-cog",
+    label: "Ubah Status",
+    handler: (product) => toggleProductVisibility(product),
+    class: "hover:bg-muted-foreground/20 text-warning-foreground",
+  },
+  {
+    icon: "pi-trash",
+    label: "Hapus Produk",
+    handler: (product) => deleteProduct(product),
+    class: "hover:bg-danger-background text-danger-foreground",
+  },
+];
+
+// NEW: Helper functions for status (masih dibutuhkan untuk modal visibility)
+const getStatusLabel = (status) => {
+  const labels = {
+    published: "Dipublish",
+    archived: "Diarsipkan",
+    out_of_stock: "Stok Habis",
+  };
+  return labels[status] || status;
+};
+
+// NEW: Toggle visibility method - open modal
+const toggleProductVisibility = (product) => {
+  selectedProductForVisibility.value = product;
+  showVisibilityModal.value = true;
+};
+
+// NEW: Confirm visibility change
+const confirmVisibilityChange = (newStatus) => {
+  if (selectedProductForVisibility.value) {
+    selectedProductForVisibility.value.status = newStatus;
+    const statusLabel = getStatusLabel(newStatus);
+    toast.success(`Status produk berhasil diubah menjadi ${statusLabel}`);
+  }
+  closeVisibilityModal();
+};
+
+// NEW: Close visibility modal
+const closeVisibilityModal = () => {
+  showVisibilityModal.value = false;
+  selectedProductForVisibility.value = null;
+};
 </script>
 
 <template>
   <div class="">
-    <!-- Header -->
-    <div class="flex justify-between items-center py-6 px-4 sm:px-6 bg-white">
+    <!-- Header - FIXED -->
+    <div
+      class="fixed sm:static top-0 left-0 right-0 flex justify-between items-center py-6 px-4 sm:px-6 bg-white"
+    >
       <div class="flex items-center gap-3">
-        <!-- Hamburger Button (Mobile) - Emit event to parent -->
+        <!-- Hamburger Button (Mobile) -->
         <button
           @click="emit('toggle-sidebar')"
-          class="w-10 h-10 rounded-full bg-white flex items-center justify-center hover:bg-muted-background transition lg:hidden"
+          class="w-10 h-10 rounded-full bg-white flex items-center justify-center hover:bg-muted-background transition sm:hidden"
         >
           <i class="pi pi-bars text-muted-foreground"></i>
         </button>
@@ -604,6 +835,9 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Spacer untuk kompensasi fixed header -->
+    <div class="h-24 sm:h-0"></div>
+
     <!-- Search & Toolbar -->
     <div class="px-4 sm:px-6 space-y-2 sm:space-y-4 mb-1 bg-white">
       <!-- Search Bar -->
@@ -638,7 +872,7 @@ onMounted(() => {
 
       <!-- Mobile: Toolbar (Pilih Semua + Filter) -->
       <div
-        class="flex sm:hidden flex-row justify-between items-center p-3 rounded-lg gap-4"
+        class="flex sm:hidden flex-row justify-between items-center px-3 rounded-lg gap-4"
       >
         <label class="flex items-center cursor-pointer group">
           <input
@@ -695,348 +929,129 @@ onMounted(() => {
 
     <!-- Product List -->
     <div v-else class="px-4 sm:px-6">
-      <!-- Mobile: Card List -->
+      <!-- Mobile: Card List - UPDATE action buttons -->
       <div class="flex sm:hidden flex-col gap-2 py-2">
-        <div
-          v-for="product in filteredProducts"
+        <ProductCard
+          v-for="product in paginatedProducts"
           :key="product.id"
-          class="flex flex-col gap-2 p-4 bg-white shadow hover:shadow-md transition"
-        >
-          <!-- Mobile layout (existing code) -->
-          <div class="flex gap-3 items-center">
-            <div class="flex-shrink-0 pt-1">
-              <label class="cursor-pointer inline-block">
-                <input
-                  type="checkbox"
-                  v-model="selectedProducts"
-                  :value="product.id"
-                  class="appearance-none w-4.5 h-4.5 border-1 border-muted-foreground rounded-sm bg-transparent cursor-pointer transition-all duration-200 checked:bg-merchant-primary checked:border-merchant-primary focus:outline-none focus:ring-2 focus:ring-merchant-primary focus:ring-offset-2 relative before:content-[''] before:absolute before:inset-0 before:bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOSIgdmlld0JveD0iMCAwIDEyIDkiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xIDQuNUw0LjUgOEwxMSAxIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K')] before:bg-center before:bg-no-repeat before:opacity-0 checked:before:opacity-100"
-                />
-              </label>
-            </div>
+          :product="product"
+          :selected="selectedProducts.includes(product.id)"
+          @toggle-select="toggleProductSelection"
+          @view-detail="goToDetail"
+          @edit="goToEdit"
+          @delete="deleteProduct"
+          @toggle-visibility="toggleProductVisibility"
+        />
+      </div>
 
-            <div
-              @click="goToDetail(product)"
-              class="w-16 h-16 rounded-lg overflow-hidden bg-muted-background cursor-pointer flex-shrink-0"
+      <!-- Desktop: Use MerchantTable Component -->
+      <div class="hidden sm:block mb-4">
+        <MerchantTable
+          :items="paginatedProducts"
+          :loading="loading"
+          :columns="tableColumns"
+          :selected-items="selectedProducts"
+          :select-all="selectAll"
+          :actions="tableActions"
+          :current-page="currentPage"
+          :total-pages="totalPages"
+          :pagination-info="paginationInfo"
+          empty-message="Tidak ada produk yang sesuai dengan filter"
+          @update:selected-items="selectedProducts = $event"
+          @update:select-all="
+            selectAll = $event;
+            toggleSelectAll();
+          "
+          @row-click="goToDetail"
+          @page-change="goToPage"
+          @next-page="nextPage"
+          @prev-page="prevPage"
+        >
+          <!-- Custom Product Cell -->
+          <template #cell-name="{ item }">
+            <div class="flex items-center gap-3 cursor-pointer group">
+              <div
+                class="w-12 h-12 rounded-lg overflow-hidden bg-muted-background flex-shrink-0"
+              >
+                <img
+                  :src="item.cover_image?.image_path"
+                  :alt="item.name"
+                  class="w-full h-full object-cover"
+                />
+              </div>
+              <div class="min-w-0 max-w-xs">
+                <p
+                  class="text-sm font-semibold text-merchant-primary truncate group-hover:text-merchant-primary/80 transition"
+                  :title="item.name"
+                >
+                  {{ item.name }}
+                </p>
+              </div>
+            </div>
+          </template>
+
+          <!-- Custom SKU Cell -->
+          <template #cell-sku="{ value }">
+            <p
+              class="text-sm text-muted-foreground font-mono truncate max-w-[150px]"
+              :title="value"
             >
-              <img
-                :src="product.cover_image?.image_path"
-                :alt="product.name"
-                class="w-full h-full object-cover"
+              {{ value }}
+            </p>
+          </template>
+
+          <!-- Custom Stock Cell -->
+          <template #cell-total_stock="{ value }">
+            <span
+              class="inline-flex items-center px-2.5 py-1 bg-merchant-primary/10 text-merchant-primary rounded-md text-sm font-medium whitespace-nowrap"
+            >
+              {{ formatNumber(value) }}
+            </span>
+          </template>
+
+          <!-- Custom Price Cell -->
+          <template #cell-price="{ item }">
+            <p
+              class="text-sm font-semibold text-merchant-primary truncate max-w-[150px]"
+              :title="formatPrice(item.min_price, item.max_price)"
+            >
+              {{ formatPrice(item.min_price, item.max_price) }}
+            </p>
+          </template>
+
+          <!-- Custom Status Cell -->
+          <template #cell-status="{ item }">
+            <div class="flex flex-col gap-1">
+              <StatusLabel :status="item.status" variant="product" size="sm" />
+              <StatusLabel
+                v-if="item.variant_count > 0"
+                status="out_of_stock"
+                variant="product"
+                size="xs"
+                :label="`${item.variant_count} varian habis`"
               />
             </div>
-
-            <div class="flex-1 min-w-0">
-              <h3
-                @click="goToDetail(product)"
-                class="text-sm font-semibold text-merchant-primary truncate cursor-pointer hover:text-merchant-primary/80 transition"
-                :title="product.name"
-              >
-                {{ product.name }}
-              </h3>
-
-              <p
-                class="text-xs text-muted-foreground font-medium truncate mt-0.5"
-                :title="product.sku"
-              >
-                {{ product.sku }}
-              </p>
-
-              <div class="flex items-center gap-2 mt-2">
-                <span
-                  class="inline-flex items-center px-2 py-1 bg-merchant-primary/10 text-merchant-primary rounded-md text-xs font-medium"
-                >
-                  <i class="pi pi-box mr-1"></i>
-                  Stok: {{ formatNumber(product.total_stock) }}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div class="border-t border-muted-background"></div>
-
-          <div class="space-y-3">
-            <div class="flex justify-between items-center text-xs">
-              <span class="text-muted-foreground flex-shrink-0">Kategori</span>
-              <span
-                class="font-medium text-right truncate ml-2"
-                :title="product.categories?.[0]?.category_name"
-              >
-                {{ product.categories?.[0]?.category_name || "-" }}
-              </span>
-            </div>
-
-            <div class="flex justify-between items-center text-xs">
-              <span class="text-muted-foreground flex-shrink-0">Harga</span>
-              <span
-                class="text-merchant-primary font-semibold text-right truncate ml-2"
-                :title="formatPrice(product.min_price, product.max_price)"
-              >
-                {{ formatPrice(product.min_price, product.max_price) }}
-              </span>
-            </div>
-
-            <div class="flex flex-row justify-between items-center gap-2">
-              <span class="text-xs text-muted-foreground flex-shrink-0">
-                Status Produk
-              </span>
-              <div class="flex flex-col items-end gap-1">
-                <span
-                  :class="[
-                    'px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap',
-                    getStatusClass(product.status),
-                  ]"
-                >
-                  {{ getStatusLabel(product.status) }}
-                </span>
-
-                <span
-                  v-if="product.variant_count > 0"
-                  class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-warning-background text-warning-foreground rounded-full text-xs whitespace-nowrap"
-                >
-                  <i class="pi pi-exclamation-triangle text-[10px]"></i>
-                  {{ product.variant_count }} varian habis
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div class="border-t border-muted-background"></div>
-
-          <div class="flex items-center justify-between">
-            <button
-              @click="deleteProduct(product)"
-              class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-danger-background text-danger-foreground transition text-sm font-medium"
-            >
-              <i class="pi pi-trash"></i>
-            </button>
-
-            <div class="flex gap-2">
-              <button
-                @click="goToDetail(product)"
-                class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted-background text-muted-foreground transition text-sm font-medium"
-              >
-                <i class="pi pi-eye"></i>
-              </button>
-              <button
-                @click="goToEdit(product)"
-                class="flex items-center gap-2 px-3 py-2 rounded-lg bg-merchant-primary/10 text-merchant-primary hover:bg-merchant-primary/20 transition text-sm font-medium"
-              >
-                <i class="pi pi-pencil"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Desktop: Table Layout -->
-      <div
-        class="hidden sm:block py-4 bg-white rounded-lg shadow overflow-hidden"
-      >
-        <!-- Add container with max-width -->
-        <div class="w-full overflow-x-auto">
-          <div class="min-w-[1000px]">
-            <table class="w-full">
-              <thead>
-                <tr
-                  class="border-b border-muted-background bg-muted-background"
-                >
-                  <th class="px-6 py-4 text-left w-12">
-                    <label class="flex items-center cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        v-model="selectAll"
-                        @change="toggleSelectAll"
-                        class="appearance-none w-5 h-5 border-2 border-muted-foreground rounded-md bg-transparent cursor-pointer transition-all duration-200 checked:bg-merchant-primary checked:border-merchant-primary focus:outline-none focus:ring-2 focus:ring-merchant-primary focus:ring-offset-2 relative before:content-[''] before:absolute before:inset-0 before:bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOSIgdmlld0JveD0iMCAwIDEyIDkiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xIDQuNUw0LjUgOEwxMSAxIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K')] before:bg-center before:bg-no-repeat before:opacity-0 checked:before:opacity-100"
-                      />
-                    </label>
-                  </th>
-                  <th
-                    class="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider"
-                  >
-                    Produk
-                  </th>
-                  <th
-                    class="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider"
-                  >
-                    SKU
-                  </th>
-                  <th
-                    class="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider"
-                  >
-                    Kategori
-                  </th>
-                  <th
-                    class="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider"
-                  >
-                    Stok
-                  </th>
-                  <th
-                    class="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider"
-                  >
-                    Harga
-                  </th>
-                  <th
-                    class="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider"
-                  >
-                    Status
-                  </th>
-                  <th
-                    class="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider w-32"
-                  >
-                    Aksi
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-muted-background">
-                <tr
-                  v-for="product in filteredProducts"
-                  :key="product.id"
-                  class="hover:bg-muted-background transition"
-                >
-                  <!-- Checkbox -->
-                  <td class="px-6 py-4">
-                    <label class="cursor-pointer inline-block">
-                      <input
-                        type="checkbox"
-                        v-model="selectedProducts"
-                        :value="product.id"
-                        class="appearance-none w-5 h-5 border-2 border-muted-foreground rounded-md bg-transparent cursor-pointer transition-all duration-200 checked:bg-merchant-primary checked:border-merchant-primary focus:outline-none focus:ring-2 focus:ring-merchant-primary focus:ring-offset-2 relative before:content-[''] before:absolute before:inset-0 before:bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOSIgdmlld0JveD0iMCAwIDEyIDkiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xIDQuNUw0LjUgOEwxMSAxIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K')] before:bg-center before:bg-no-repeat before:opacity-0 checked:before:opacity-100"
-                      />
-                    </label>
-                  </td>
-
-                  <!-- Product Info -->
-                  <td class="px-6 py-4">
-                    <div
-                      class="flex items-center gap-3 cursor-pointer group"
-                      @click="goToDetail(product)"
-                    >
-                      <div
-                        class="w-12 h-12 rounded-lg overflow-hidden bg-muted-background flex-shrink-0"
-                      >
-                        <img
-                          :src="product.cover_image?.image_path"
-                          :alt="product.name"
-                          class="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div class="min-w-0 max-w-xs">
-                        <p
-                          class="text-sm font-semibold text-merchant-primary truncate group-hover:text-merchant-primary/80 transition"
-                          :title="product.name"
-                        >
-                          {{ product.name }}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-
-                  <!-- SKU -->
-                  <td class="px-6 py-4">
-                    <p
-                      class="text-sm text-muted-foreground font-mono truncate max-w-[150px]"
-                      :title="product.sku"
-                    >
-                      {{ product.sku }}
-                    </p>
-                  </td>
-
-                  <!-- Category -->
-                  <td class="px-6 py-4">
-                    <p
-                      class="text-sm text-muted-foreground truncate max-w-[120px]"
-                    >
-                      {{ product.categories?.[0]?.category_name || "-" }}
-                    </p>
-                  </td>
-
-                  <!-- Stock -->
-                  <td class="px-6 py-4">
-                    <span
-                      class="inline-flex items-center px-2.5 py-1 bg-merchant-primary/10 text-merchant-primary rounded-md text-sm font-medium whitespace-nowrap"
-                    >
-                      {{ formatNumber(product.total_stock) }}
-                    </span>
-                  </td>
-
-                  <!-- Price -->
-                  <td class="px-6 py-4">
-                    <p
-                      class="text-sm font-semibold text-merchant-primary truncate max-w-[150px]"
-                      :title="formatPrice(product.min_price, product.max_price)"
-                    >
-                      {{ formatPrice(product.min_price, product.max_price) }}
-                    </p>
-                  </td>
-
-                  <!-- Status -->
-                  <td
-                    class="px-6 py-4"
-                    :class="[
-                      'px-6 py-4',
-                      product.variant_count > 0 ? 'flex flex-col gap-1' : '',
-                    ]"
-                  >
-                    <span
-                      :class="[
-                        'inline-block px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap w-fit',
-                        getStatusClass(product.status),
-                      ]"
-                    >
-                      {{ getStatusLabel(product.status) }}
-                    </span>
-                    <p
-                      v-if="product.variant_count > 0"
-                      :class="[
-                        'inline-flex items-center gap-1.5 px-2.5 py-1 bg-warning-background text-warning-foreground rounded-full text-xs whitespace-nowrap w-fit',
-                      ]"
-                    >
-                      <i class="pi pi-exclamation-triangle mr-1"></i>
-                      {{ product.variant_count }} varian habis
-                    </p>
-                  </td>
-
-                  <!-- Actions -->
-                  <td class="px-6 py-4">
-                    <div class="flex items-center justify-end gap-2">
-                      <button
-                        @click="goToDetail(product)"
-                        class="p-2 rounded-lg hover:bg-muted-background text-muted-foreground transition"
-                        title="Lihat Detail"
-                      >
-                        <i class="pi pi-eye text-sm"></i>
-                      </button>
-                      <button
-                        @click="goToEdit(product)"
-                        class="p-2 rounded-lg bg-merchant-primary/10 text-merchant-primary hover:bg-merchant-primary/20 transition"
-                        title="Edit Produk"
-                      >
-                        <i class="pi pi-pencil text-sm"></i>
-                      </button>
-                      <button
-                        @click="deleteProduct(product)"
-                        class="p-2 rounded-lg hover:bg-danger-background text-danger-foreground transition"
-                        title="Hapus Produk"
-                      >
-                        <i class="pi pi-trash text-sm"></i>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+          </template>
+        </MerchantTable>
       </div>
     </div>
 
-    <!-- Pagination -->
-    <div v-if="totalItems > perPage" class="mt-4 text-center px-4 sm:px-6">
-      <p class="text-sm text-muted-foreground">
-        Menampilkan {{ filteredProducts.length }} dari {{ totalItems }} produk
-      </p>
+    <!-- Mobile Pagination (Bottom) - TAMBAHKAN INI -->
+    <div
+      v-if="!loading && filteredProducts.length > 0"
+      class="sm:hidden px-4 pb-4"
+    >
+      <MobilePagination
+        :current-page="currentPage"
+        :total-pages="totalPages"
+        @prev="prevPage"
+        @next="nextPage"
+        @go-to="goToPage"
+      />
     </div>
+
+    <!-- Spacer untuk Floating Bulk Action Bar (Mobile) -->
+    <div v-if="hasSelectedProducts" class="h-20 sm:h-0"></div>
 
     <!-- Floating Bulk Action Bar -->
     <transition
@@ -1243,12 +1258,12 @@ onMounted(() => {
             </button>
           </div>
 
-          <!-- Content with scroll -->
+          <!-- Content with scroll - BIND ke tempFilters -->
           <div class="overflow-y-auto flex-1 px-6 py-4 space-y-4">
             <!-- Status Filter -->
             <SelectField
               variant="merchant"
-              v-model="filters.status"
+              v-model="tempFilters.status"
               label="Status Produk"
               :options="statusOptions"
             />
@@ -1256,7 +1271,7 @@ onMounted(() => {
             <!-- Category Filter -->
             <SelectField
               variant="merchant"
-              v-model="filters.category"
+              v-model="tempFilters.category"
               label="Kategori"
               :options="categoryOptions"
             />
@@ -1264,55 +1279,63 @@ onMounted(() => {
             <!-- Sort By -->
             <SelectField
               variant="merchant"
-              v-model="filters.sortBy"
+              v-model="tempFilters.sortBy"
               label="Urutkan Berdasarkan"
               :options="sortOptions"
             />
 
             <!-- Price Range -->
-            <div>
-              <label
-                class="block text-sm font-medium text-muted-foreground mb-2"
-              >
+            <div class="w-full">
+              <label class="block text-sm font-bold text-black mb-2">
                 Rentang Harga
               </label>
-              <div class="flex items-center gap-2">
+              <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                 <TextField
                   variant="merchant"
-                  v-model.number="filters.minPrice"
+                  v-model.number="tempFilters.minPrice"
                   type="number"
                   placeholder="Min"
+                  prefix="Rp"
+                  :hideLabel="true"
+                  label="Harga Minimum"
                 />
-                <span class="text-muted-foreground font-medium">-</span>
+                <span class="text-muted-foreground font-bold px-1">-</span>
                 <TextField
                   variant="merchant"
-                  v-model.number="filters.maxPrice"
+                  v-model.number="tempFilters.maxPrice"
                   type="number"
                   placeholder="Max"
+                  prefix="Rp"
+                  :hideLabel="true"
+                  label="Harga Maximum"
                 />
               </div>
             </div>
 
             <!-- Stock Range -->
-            <div>
-              <label
-                class="block text-sm font-medium text-muted-foreground mb-2"
-              >
+            <div class="w-full">
+              <label class="block text-sm font-bold text-black mb-2">
                 Rentang Stok
               </label>
-              <div class="flex items-center gap-2">
+              <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                 <TextField
                   variant="merchant"
-                  v-model.number="filters.minStock"
+                  v-model.number="tempFilters.minStock"
                   type="number"
                   placeholder="Min"
+                  suffix="pcs"
+                  :hideLabel="true"
+                  label="Stok Minimum"
                 />
-                <span class="text-muted-foreground font-medium">-</span>
+                <span class="text-black font-bold px-1">-</span>
                 <TextField
                   variant="merchant"
-                  v-model.number="filters.maxStock"
+                  v-model.number="tempFilters.maxStock"
                   type="number"
                   placeholder="Max"
+                  suffix="pcs"
+                  :hideLabel="true"
+                  label="Stok Maximum"
                 />
               </div>
             </div>
@@ -1326,6 +1349,7 @@ onMounted(() => {
               Reset
             </Button>
             <Button @click="applyFilters" block variant="merchant">
+              <i class="pi pi-check mr-2"></i>
               Terapkan Filter
             </Button>
           </div>
@@ -1420,6 +1444,91 @@ onMounted(() => {
       </div>
     </transition>
 
+    <!-- UPDATED: Visibility Toggle Modal menggunakan ResponsiveModal -->
+    <ResponsiveModal
+      v-model:show="showVisibilityModal"
+      title="Ubah Status Produk"
+      :subtitle="selectedProductForVisibility?.name"
+      size="md"
+      @close="closeVisibilityModal"
+    >
+      <!-- Content -->
+      <div class="space-y-3">
+        <!-- Current Status Info -->
+        <div
+          v-if="selectedProductForVisibility"
+          class="p-4 bg-muted-background rounded-xl"
+        >
+          <p class="text-xs text-muted-foreground mb-2">Status Saat Ini</p>
+          <StatusLabel
+            :status="selectedProductForVisibility.status"
+            variant="product"
+            size="md"
+          />
+        </div>
+
+        <!-- Publish Action -->
+        <button
+          @click="confirmVisibilityChange('published')"
+          :disabled="selectedProductForVisibility?.status === 'published'"
+          class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl transition text-left group"
+          :class="
+            selectedProductForVisibility?.status === 'published'
+              ? 'opacity-50 cursor-not-allowed'
+              : 'hover:bg-muted-background hover:border-merchant-primary'
+          "
+        >
+          <div
+            class="w-12 h-12 bg-success-background rounded-lg flex items-center justify-center flex-shrink-0 transition-transform"
+            :class="
+              selectedProductForVisibility?.status !== 'published' &&
+              'group-hover:scale-110'
+            "
+          >
+            <i class="pi pi-check-circle text-2xl text-success-foreground"></i>
+          </div>
+          <div>
+            <h4 class="text-sm sm:text-base font-semibold text-black">
+              Dipublish
+            </h4>
+            <p class="text-xs sm:text-sm text-muted-foreground">
+              Produk akan muncul di katalog dan dapat dibeli
+            </p>
+          </div>
+        </button>
+
+        <!-- Archive Action -->
+        <button
+          @click="confirmVisibilityChange('archived')"
+          :disabled="selectedProductForVisibility?.status === 'archived'"
+          class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl transition text-left group"
+          :class="
+            selectedProductForVisibility?.status === 'archived'
+              ? 'opacity-50 cursor-not-allowed'
+              : 'hover:bg-muted-background hover:border-merchant-primary'
+          "
+        >
+          <div
+            class="w-12 h-12 bg-danger-background rounded-lg flex items-center justify-center flex-shrink-0 transition-transform"
+            :class="
+              selectedProductForVisibility?.status !== 'archived' &&
+              'group-hover:scale-110'
+            "
+          >
+            <i class="pi pi-box text-2xl text-danger-foreground"></i>
+          </div>
+          <div>
+            <h4 class="text-sm sm:text-base font-semibold text-black">
+              Diarsipkan
+            </h4>
+            <p class="text-xs sm:text-sm text-muted-foreground">
+              Produk diarsipkan dan tidak aktif
+            </p>
+          </div>
+        </button>
+      </div>
+    </ResponsiveModal>
+
     <!-- UPDATED: Unified Backdrop -->
     <transition
       enter-active-class="transition-opacity duration-300"
@@ -1435,6 +1544,7 @@ onMounted(() => {
           showFilterModal = false;
           showExportModal = false;
           showBulkActionModal = false;
+          showVisibilityModal = false;
         "
         class="fixed inset-0 bg-black/30 z-40"
       ></div>

@@ -42,7 +42,8 @@ const props = defineProps({
   placeholder: { type: String, default: "Pilih" },
   emptyText: { type: String, default: "Tidak ada data" },
   skeleton: { type: Boolean, default: true },
-  variant: { type: String, default: "primary" }, // NEW: primary | merchant
+  variant: { type: String, default: "primary" },
+  required: { type: Boolean, default: false }, // NEW
 });
 const emit = defineEmits(["update:modelValue"]);
 
@@ -63,7 +64,7 @@ const selectClasses = (invalid) =>
     "w-full px-4 py-2.5 pr-10 text-sm border rounded-xl bg-white text-black transition-all",
     "placeholder:text-muted-foreground appearance-none",
     invalid
-      ? "border-red-500 focus:ring-2 focus:ring-red-500"
+      ? "border-danger-foreground focus:ring-2 focus:ring-danger-foreground"
       : `${borderClass.value} focus:ring-2 ${focusRingClass.value}`,
     "cursor-pointer disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed focus:outline-none",
   ].join(" ");
@@ -77,6 +78,7 @@ const selectClasses = (invalid) =>
       class="block text-sm font-bold text-black mb-2"
     >
       {{ label }}
+      <span v-if="required" class="text-danger-foreground">*</span>
     </label>
 
     <!-- Skeleton saat loading -->
@@ -159,7 +161,7 @@ const selectClasses = (invalid) =>
     <ErrorMessage
       v-if="!(skeleton && loading)"
       :name="name"
-      class="text-red-500 text-xs mt-1"
+      class="text-danger-foreground text-xs mt-1"
     />
   </div>
 </template>

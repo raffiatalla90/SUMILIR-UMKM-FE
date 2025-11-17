@@ -1,4 +1,5 @@
 <script setup>
+// filepath: /var/www/html/KMI-SIMSLIFE-FE/src/layouts/MerchantLayout.vue
 import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 
@@ -52,8 +53,19 @@ const navigateTo = (routePath) => {
   }
 };
 
+// UPDATED: Check if route is active including child routes
 const isActive = (routePath) => {
-  return route.path === routePath;
+  // Exact match
+  if (route.path === routePath) {
+    return true;
+  }
+
+  // Check if current route starts with the menu route path
+  // This will match child routes like:
+  // /merchant-center/products/create
+  // /merchant-center/products/123/edit
+  // /merchant-center/products/123
+  return route.path.startsWith(routePath + "/");
 };
 
 const logout = () => {
@@ -82,29 +94,29 @@ defineExpose({
       <div
         v-if="isOpen"
         @click="closeSidebar"
-        class="fixed inset-0 bg-black/50 z-40 lg:hidden"
+        class="fixed inset-0 bg-black/50 z-40 sm:hidden"
       ></div>
     </transition>
 
     <!-- Sidebar -->
     <aside
       :class="[
-        'fixed top-0 left-0 h-full bg-white shadow-lg z-50 transition-all duration-300 flex flex-col',
+        'fixed top-0 left-0 h-full bg-white shadow-sm z-40 transition-all duration-300 flex flex-col',
         // Mobile: Hidden or visible with animation
         isOpen ? 'translate-x-0' : '-translate-x-full',
         // Desktop: Collapsed or expanded
-        'lg:translate-x-0',
+        'sm:translate-x-0',
         // Width
-        isOpen ? 'w-64' : 'w-64 lg:w-16',
+        isOpen ? 'w-64' : 'w-64 sm:w-16',
       ]"
     >
       <!-- Header -->
       <div
         :class="[
-          'flex items-center border-b border-gray-200 transition-all duration-300 py-6',
+          'flex items-center transition-all duration-300 h-20 shadow-sm',
           isOpen
-            ? 'justify-between px-4 '
-            : 'justify-between px-4 lg:justify-center lg:px-4',
+            ? 'justify-between px-4'
+            : 'justify-between px-4 sm:justify-center sm:px-4',
         ]"
       >
         <h2
@@ -112,7 +124,7 @@ defineExpose({
             'text-lg font-bold text-gray-800 transition-all duration-300',
             isOpen
               ? 'opacity-100'
-              : 'opacity-100 lg:opacity-0 lg:w-0 lg:hidden',
+              : 'opacity-100 sm:opacity-0 sm:w-0 sm:hidden',
           ]"
         >
           Sumilir Logo
@@ -142,7 +154,7 @@ defineExpose({
                 'w-full flex items-center rounded-lg text-sm font-medium transition-all',
                 isOpen
                   ? 'px-4 py-3 gap-3'
-                  : 'px-4 py-3 gap-3 lg:px-3 lg:justify-center lg:gap-0',
+                  : 'px-4 py-3 gap-3 sm:px-3 sm:justify-center sm:gap-0',
                 isActive(item.route)
                   ? 'bg-merchant-primary/10 text-merchant-primary'
                   : 'text-gray-700 hover:bg-gray-50',
@@ -163,7 +175,7 @@ defineExpose({
                   'transition-all duration-300',
                   isOpen
                     ? 'opacity-100 w-auto'
-                    : 'opacity-100 w-auto lg:opacity-0 lg:w-0 lg:overflow-hidden',
+                    : 'opacity-100 w-auto sm:opacity-0 sm:w-0 sm:overflow-hidden',
                 ]"
               >
                 {{ item.label }}
@@ -181,14 +193,14 @@ defineExpose({
             'w-full flex items-center rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition',
             isOpen
               ? 'justify-between px-4 py-3'
-              : 'justify-between px-4 py-3 lg:justify-center lg:px-3 lg:relative',
+              : 'justify-between px-4 py-3 sm:justify-center sm:px-3 sm:relative',
           ]"
           :title="!isOpen ? 'Notifikasi' : ''"
         >
           <div
             :class="[
               'flex items-center',
-              isOpen ? 'gap-3' : 'gap-3 lg:gap-0 lg:relative',
+              isOpen ? 'gap-3' : 'gap-3 sm:gap-0 sm:relative',
             ]"
           >
             <i class="pi pi-bell text-lg text-gray-600 flex-shrink-0"></i>
@@ -197,7 +209,7 @@ defineExpose({
                 'transition-all duration-300',
                 isOpen
                   ? 'opacity-100 w-auto'
-                  : 'opacity-100 w-auto lg:opacity-0 lg:w-0 lg:overflow-hidden',
+                  : 'opacity-100 w-auto sm:opacity-0 sm:w-0 sm:overflow-hidden',
               ]"
             >
               Notifikasi
@@ -209,7 +221,7 @@ defineExpose({
               'bg-merchant-primary text-white text-xs font-bold rounded-full text-center transition-all duration-300',
               isOpen
                 ? 'px-2 py-0.5 min-w-[24px]'
-                : 'px-2 py-0.5 min-w-[24px] lg:absolute lg:-top-1 lg:-right-1 lg:w-5 lg:h-5 lg:p-0 lg:flex lg:items-center lg:justify-center',
+                : 'px-2 py-0.5 min-w-[24px] sm:absolute sm:-top-1 sm:-right-1 sm:w-5 sm:h-5 sm:p-0 sm:flex sm:items-center sm:justify-center',
             ]"
           >
             {{ notificationCount }}
@@ -223,7 +235,7 @@ defineExpose({
             'w-full flex items-center rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition',
             isOpen
               ? 'px-4 py-3 gap-3'
-              : 'px-4 py-3 gap-3 lg:justify-center lg:px-3 lg:gap-0',
+              : 'px-4 py-3 gap-3 sm:justify-center sm:px-3 sm:gap-0',
           ]"
           :title="!isOpen ? 'Log Out' : ''"
         >
@@ -233,7 +245,7 @@ defineExpose({
               'transition-all duration-300',
               isOpen
                 ? 'opacity-100 w-auto'
-                : 'opacity-100 w-auto lg:opacity-0 lg:w-0 lg:overflow-hidden',
+                : 'opacity-100 w-auto sm:opacity-0 sm:w-0 sm:overflow-hidden',
             ]"
           >
             Log Out
@@ -243,7 +255,7 @@ defineExpose({
         <!-- Profile Card (Full) -->
         <div
           v-if="isOpen"
-          class="bg-gradient-to-r from-merchant-primary to-merchant-primary/80 text-white rounded-xl p-4 mt-2 lg:block"
+          class="bg-gradient-to-r from-merchant-primary to-merchant-primary/80 text-white rounded-xl p-4 mt-2 sm:block"
         >
           <div class="flex items-center gap-3">
             <div
@@ -266,7 +278,7 @@ defineExpose({
         <!-- Profile Icon (Collapsed - Desktop Only) -->
         <button
           v-else
-          class="hidden lg:flex w-full justify-center items-center p-3 bg-merchant-primary/10 rounded-lg hover:bg-merchant-primary/20 transition"
+          class="hidden sm:flex w-full justify-center items-center p-3 bg-merchant-primary/10 rounded-lg hover:bg-merchant-primary/20 transition"
           title="Profile"
         >
           <i class="pi pi-user text-lg text-merchant-primary"></i>
@@ -278,8 +290,7 @@ defineExpose({
     <div
       :class="[
         'flex-1 w-full min-h-screen overflow-x-hidden transition-all duration-300',
-        '',
-        !isOpen ? 'lg:ml-16' : 'lg:ml-64',
+        !isOpen ? 'sm:ml-16' : 'sm:ml-64',
       ]"
     >
       <!-- Router View -->

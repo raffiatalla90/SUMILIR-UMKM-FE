@@ -12,7 +12,7 @@
       isDisabled ? 'cursor-not-allowed opacity-70' : 'cursor-pointer',
     ]"
   >
-    <span class="inline-flex items-center gap-2">
+    <span class="inline-flex justify-center items-center gap-2">
       <svg
         v-if="loading"
         class="h-4 w-4 animate-spin"

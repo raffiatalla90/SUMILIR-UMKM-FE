@@ -27,8 +27,9 @@ import { computed } from "vue";
 const props = defineProps({
   name: { type: String, required: true },
   label: { type: String, default: "" },
-  options: { type: Array, required: true }, // [{ value, label }]
-  variant: { type: String, default: "primary" }, // NEW: primary | merchant
+  options: { type: Array, required: true },
+  variant: { type: String, default: "primary" },
+  required: { type: Boolean, default: false }, // NEW
 });
 
 const borderColorClass = computed(() => {
@@ -64,9 +65,10 @@ const ringColorClass = computed(() => {
 
 <template>
   <div class="text-foreground">
-    <span v-if="label" class="block text-sm font-bold text-black mb-2">{{
-      label
-    }}</span>
+    <span v-if="label" class="block text-sm font-bold text-black mb-2">
+      {{ label }}
+      <span v-if="required" class="text-danger-foreground">*</span>
+    </span>
     <div class="flex flex-wrap items-center gap-3">
       <label
         v-for="opt in options"
@@ -99,6 +101,6 @@ const ringColorClass = computed(() => {
         </span>
       </label>
     </div>
-    <ErrorMessage :name="name" class="text-red-500 text-xs mt-1" />
+    <ErrorMessage :name="name" class="text-danger-foreground text-xs mt-1" />
   </div>
 </template>

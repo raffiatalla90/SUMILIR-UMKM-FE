@@ -15,6 +15,8 @@
   --color-danger-foreground: #f32013;
   --color-success-background: #c5ffce;
   --color-success-foreground: #009d12;
+
+  --shadow-sm: 0px 0px 3px rgba(0, 0, 0, 0.05);
 }
 
 :root {
@@ -25,6 +27,7 @@
   color-scheme: light dark;
   color: rgba(0, 0, 0, 0.87);
   background-color: #fff;
+  border-color: var(--color-muted-background);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;

@@ -75,7 +75,7 @@ const routes = [
       {
         path: "dashboard",
         name: "Merchant - Dashboard",
-        component: () => import("@/views/merchant/products/index.vue"),
+        component: () => import("@/views/merchant/products/Index.vue"),
         meta: {
           title: "Merchant Center | SUMILIR",
         },
@@ -83,7 +83,7 @@ const routes = [
       {
         path: "products",
         name: "Merchant - Product UMKM",
-        component: () => import("@/views/merchant/products/index.vue"),
+        component: () => import("@/views/merchant/products/Index.vue"),
         meta: {
           title: "Product UMKM | SUMILIR",
         },
@@ -96,11 +96,22 @@ const routes = [
           title: "Product Detail UMKM | SUMILIR",
         },
       },
-      // {
-      //   path: "products/:id/edit",
-      //   name: "Merchant - Product Edit",
-      //   component: () => import("@/views/merchant/products/Edit.vue"),
-      // },
+      {
+        path: "products/create",
+        name: "Merchant - Buat Product",
+        component: () => import("@/views/merchant/products/Create.vue"),
+        meta: {
+          title: "Buat Product UMKM | SUMILIR",
+        },
+      },
+      {
+        path: "products/:id/edit",
+        name: "Merchant - Product Edit",
+        component: () => import("@/views/merchant/products/Edit.vue"),
+        meta: {
+          title: "Edit Product UMKM | SUMILIR",
+        },
+      },
       // {
       //   path: "products/:id/variants",
       //   name: "Merchant - Product Variants",
