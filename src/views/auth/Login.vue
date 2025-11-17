@@ -1,6 +1,6 @@
 <template>
   <div
-    class="sm:bg-gray-50 bg-white flex min-h-[100svh] sm:min-h-0 items-center sm:items-stretch justify-center p-4 sm:p-8"
+    class="sm:bg-gray-50 bg-white flex min-h-svh sm:min-h-0 items-center sm:items-stretch justify-center p-4 sm:p-8"
   >
     <div
       class="w-full max-w-5xl bg-white rounded-2xl sm:shadow-lg shadow-none overflow-hidden"
@@ -8,7 +8,7 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-0">
         <!-- Left Side - Illustration (Hidden on Mobile) -->
         <div
-          class="hidden sm:flex items-center justify-center bg-gradient-to-br from-primary to-[#FFA30E] p-12"
+          class="hidden sm:flex items-center justify-center bg-linear-to-br from-primary to-[#FFA30E] p-12"
         >
           <img
             :src="Illustration"

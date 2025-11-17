@@ -1,23 +1,64 @@
 @import "tailwindcss";
 @import "primeicons/primeicons.css";
+
+/* ========================================
+   Custom Theme Variables (Tailwind v4)
+   ======================================== */
 @theme {
-  --color-primary: #ffa30e;
-  --color-secondary: #0894eb;
+  /* Colors */
+  --color-primary: #0894eb;
+  --color-secondary: #ffa30e;
   --color-tertiary: #cddf8a;
-  --color-background: #fff;
-  --color-foreground: #000;
-  --color-muted: oklch(0.967 0.001 286.375);
-  --color-muted-foreground: oklch(0.552 0.016 285.938);
+  --color-background: #f5f5f5;
+  --color-foreground: #000000;
+  --color-muted: #757575;
+  --color-muted-foreground: #757575;
+
+  /* Breakpoints */
+  --breakpoint-mobile: 440px;
+  --breakpoint-desktop: 1440px;
+
+  /* Typography Tokens */
+  --font-family-base: "Inter", system-ui, -apple-system, sans-serif;
+  
+  /* Section Title (Home/Root Menu) */
+  --font-section-title-size: 15px;
+  --font-section-title-weight: 700;
+  --font-section-title-line-height: 100%;
+  --font-section-title-letter-spacing: 0%;
+  
+  /* Component Title (Product/Event) */
+  --font-component-title-size: 12px;
+  --font-component-title-weight: 700;
+  --font-component-title-line-height: 100%;
+  
+  /* Component Subtitle (Product) */
+  --font-component-subtitle-size: 8px;
+  --font-component-subtitle-weight: 400;
+  --font-component-subtitle-line-height: 100%;
+  
+  /* Event Detail (Card) */
+  --font-event-detail-size: 10px;
+  --font-event-detail-weight: 400;
+  --font-event-detail-line-height: 100%;
+  
+  /* Page Detail (Full Page) */
+  --font-page-detail-size: 13px;
+  --font-page-detail-weight: 400;
+  --font-page-detail-line-height: 100%;
 }
 
+/* ========================================
+   Global Styles
+   ======================================== */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: var(--font-family-base);
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  
+  color-scheme: light;
+  color: var(--color-foreground);
+  background-color: var(--color-background);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -26,5 +67,96 @@
 }
 
 body {
-  font-family: "Inter", sans-serif;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-family-base);
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+}
+
+/* ========================================
+   Typography Utility Classes
+   ======================================== */
+
+/* Section Title (Home Menu) */
+.text-section-title {
+  font-size: var(--font-section-title-size);
+  font-weight: var(--font-section-title-weight);
+  line-height: var(--font-section-title-line-height);
+  letter-spacing: var(--font-section-title-letter-spacing);
+  text-align: center;
+  color: var(--color-foreground);
+}
+
+/* Component Title (Product/Event Card) */
+.text-component-title {
+  font-size: var(--font-component-title-size);
+  font-weight: var(--font-component-title-weight);
+  line-height: var(--font-component-title-line-height);
+  letter-spacing: 0%;
+  text-align: center;
+  color: var(--color-foreground);
+}
+
+/* Component Subtitle (Product Card) */
+.text-component-subtitle {
+  font-size: var(--font-component-subtitle-size);
+  font-weight: var(--font-component-subtitle-weight);
+  line-height: var(--font-component-subtitle-line-height);
+  letter-spacing: 0%;
+  color: var(--color-foreground);
+}
+
+/* Event Detail (Card Detail) */
+.text-event-detail {
+  font-size: var(--font-event-detail-size);
+  font-weight: var(--font-event-detail-weight);
+  line-height: var(--font-event-detail-line-height);
+  letter-spacing: 0%;
+  color: var(--color-muted);
+}
+
+/* Page Detail (Full Page Detail) */
+.text-page-detail {
+  font-size: var(--font-page-detail-size);
+  font-weight: var(--font-page-detail-weight);
+  line-height: var(--font-page-detail-line-height);
+  letter-spacing: 0%;
+  color: var(--color-foreground);
+}
+
+/* ========================================
+   Responsive Container
+   ======================================== */
+.container-mobile {
+  max-width: var(--breakpoint-mobile);
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.container-desktop {
+  max-width: var(--breakpoint-desktop);
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+/* ========================================
+   Custom Scrollbar 
+   ======================================== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-muted);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
 }
