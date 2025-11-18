@@ -62,7 +62,7 @@
             <div class="mb-6 mt-2">
               <router-link to="forgot-password">
                 <p
-                  class="text-xs text-[#FFA30E] flex justify-end underline cursor-pointer hover:text-[#ff8c00] transition-colors"
+                  class="text-xs text-[#FFA30E] flex justify-end underline cursor-pointer hover:text-secondary-hover transition-colors"
                 >
                   Lupa Kata Sandi?
                 </p>
@@ -89,7 +89,7 @@
                 Belum punya akun?
                 <router-link to="register">
                   <span
-                    class="text-[#FFA30E] underline cursor-pointer hover:text-[#ff8c00] transition-colors font-semibold"
+                    class="text-[#FFA30E] underline cursor-pointer hover:text-secondary-hover transition-colors font-semibold"
                   >
                     Daftar
                   </span>

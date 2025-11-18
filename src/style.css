@@ -8,34 +8,62 @@
   /* Colors */
   --color-primary: #0894eb;
   --color-secondary: #ffa30e;
+  --color-secondary-hover: #ff8c00;
   --color-tertiary: #cddf8a;
   --color-background: #f5f5f5;
   --color-foreground: #000000;
   --color-muted: #757575;
   --color-muted-foreground: #757575;
+  --color-border: #d9d9d9;
+  --color-white: #ffffff;
+  --color-delivery-icon: #8aa624;
 
   /* Breakpoints */
   --breakpoint-mobile: 440px;
+  --breakpoint-tablet: 768px;
   --breakpoint-desktop: 1440px;
+
+  /* Container Padding */
+  --container-padding-mobile: 36px;
+  --container-padding-tablet: 44px;
+  --container-padding-desktop: 52px;
+
+  /* Grid Gap */
+  --grid-col-gap-mobile: 10px;
+  --grid-row-gap-mobile: 15px;
+  --grid-col-gap-tablet: 35px;
+  --grid-row-gap-tablet: 22px;
+  --grid-col-gap-desktop: 60px;
+  --grid-row-gap-desktop: 30px;
 
   /* Typography Tokens */
   --font-family-base: "Inter", system-ui, -apple-system, sans-serif;
   
   /* Section Title (Home/Root Menu) */
-  --font-section-title-size: 15px;
+  --font-section-title-size: 32px;
   --font-section-title-weight: 700;
   --font-section-title-line-height: 100%;
   --font-section-title-letter-spacing: 0%;
   
-  /* Component Title (Product/Event) */
+  /* Component Title (Product/Event - Mobile) */
   --font-component-title-size: 12px;
   --font-component-title-weight: 700;
   --font-component-title-line-height: 100%;
   
-  /* Component Subtitle (Product) */
+  /* Component Subtitle (Product - Mobile) */
   --font-component-subtitle-size: 8px;
   --font-component-subtitle-weight: 400;
   --font-component-subtitle-line-height: 100%;
+  
+  /* Product Title Desktop */
+  --font-product-title-desktop-size: 25px;
+  --font-product-title-desktop-weight: 700;
+  --font-product-title-desktop-line-height: 100%;
+  
+  /* Product Description Desktop */
+  --font-product-desc-desktop-size: 18px;
+  --font-product-desc-desktop-weight: 400;
+  --font-product-desc-desktop-line-height: 100%;
   
   /* Event Detail (Card) */
   --font-event-detail-size: 10px;
@@ -56,14 +84,8 @@
   line-height: 1.5;
   font-weight: 400;
   
-  color-scheme: light;
   color: var(--color-foreground);
   background-color: var(--color-background);
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
@@ -74,89 +96,73 @@ body {
   color: var(--color-foreground);
 }
 
-/* ========================================
-   Typography Utility Classes
-   ======================================== */
-
-/* Section Title (Home Menu) */
-.text-section-title {
-  font-size: var(--font-section-title-size);
-  font-weight: var(--font-section-title-weight);
-  line-height: var(--font-section-title-line-height);
-  letter-spacing: var(--font-section-title-letter-spacing);
-  text-align: center;
-  color: var(--color-foreground);
-}
-
-/* Component Title (Product/Event Card) */
-.text-component-title {
-  font-size: var(--font-component-title-size);
-  font-weight: var(--font-component-title-weight);
-  line-height: var(--font-component-title-line-height);
-  letter-spacing: 0%;
-  text-align: center;
-  color: var(--color-foreground);
-}
-
-/* Component Subtitle (Product Card) */
-.text-component-subtitle {
-  font-size: var(--font-component-subtitle-size);
-  font-weight: var(--font-component-subtitle-weight);
-  line-height: var(--font-component-subtitle-line-height);
-  letter-spacing: 0%;
-  color: var(--color-foreground);
-}
-
-/* Event Detail (Card Detail) */
-.text-event-detail {
-  font-size: var(--font-event-detail-size);
-  font-weight: var(--font-event-detail-weight);
-  line-height: var(--font-event-detail-line-height);
-  letter-spacing: 0%;
-  color: var(--color-muted);
-}
-
-/* Page Detail (Full Page Detail) */
-.text-page-detail {
-  font-size: var(--font-page-detail-size);
-  font-weight: var(--font-page-detail-weight);
-  line-height: var(--font-page-detail-line-height);
-  letter-spacing: 0%;
-  color: var(--color-foreground);
-}
 
 /* ========================================
-   Responsive Container
+   Typography Utilities (enable variants)
    ======================================== */
-.container-mobile {
-  max-width: var(--breakpoint-mobile);
-  margin: 0 auto;
-  padding: 0 1rem;
-}
+  @utility text-section-title {
+    font-size: var(--font-section-title-size);
+    font-weight: var(--font-section-title-weight);
+    line-height: var(--font-section-title-line-height);
+    letter-spacing: var(--font-section-title-letter-spacing);
+    color: var(--color-foreground);
+  }
 
-.container-desktop {
-  max-width: var(--breakpoint-desktop);
-  margin: 0 auto;
-  padding: 0 2rem;
-}
+  /* Mobile */
+  @utility text-product-title-mobile {
+    font-size: var(--font-component-title-size);
+    font-weight: var(--font-component-title-weight);
+    line-height: var(--font-component-title-line-height);
+    letter-spacing: 0%;
+    color: var(--color-foreground);
+  }
 
-/* ========================================
-   Custom Scrollbar 
-   ======================================== */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
+  @utility text-product-subtitle-mobile {
+    font-size: var(--font-component-subtitle-size);
+    font-weight: var(--font-component-subtitle-weight);
+    line-height: var(--font-component-subtitle-line-height);
+    letter-spacing: 0%;
+    color: var(--color-foreground);
+  }
 
-::-webkit-scrollbar-track {
-  background: var(--color-background);
-}
+  /* Desktop */
+  @utility text-product-title-desktop {
+    font-size: var(--font-product-title-desktop-size);
+    font-weight: var(--font-product-title-desktop-weight);
+    line-height: var(--font-product-title-desktop-line-height);
+    letter-spacing: 0%;
+    color: var(--color-foreground);
+  }
 
-::-webkit-scrollbar-thumb {
-  background: var(--color-muted);
-  border-radius: 4px;
-}
+  @utility text-product-desc-desktop {
+    font-size: var(--font-product-desc-desktop-size);
+    font-weight: var(--font-product-desc-desktop-weight);
+    line-height: var(--font-product-desc-desktop-line-height);
+    letter-spacing: 0%;
+    color: var(--color-foreground);
+  }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-primary);
+  @utility text-event-detail {
+    font-size: var(--font-event-detail-size);
+    font-weight: var(--font-event-detail-weight);
+    line-height: var(--font-event-detail-line-height);
+    letter-spacing: 0%;
+    color: var(--color-muted);
+  }
+
+  @utility text-page-detail {
+    font-size: var(--font-page-detail-size);
+    font-weight: var(--font-page-detail-weight);
+    line-height: var(--font-page-detail-line-height);
+    letter-spacing: 0%;
+    color: var(--color-foreground);
+  }
+
+.no-scrollbar {
+  -ms-overflow-style: none;     
+  scrollbar-width: none;       
+}
+.no-scrollbar::-webkit-scrollbar { 
+  width: 0;
+  height: 0;
 }

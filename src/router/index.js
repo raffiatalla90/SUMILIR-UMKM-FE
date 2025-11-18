@@ -2,11 +2,17 @@ import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 
 const routes = [
-  // Grup halaman Auth pakai AuthLayout
   {
     path: "/",
+    name: "Home",
+    component: () => import("@/views/HomeView.vue"),
+  },
+  // Grup halaman Auth pakai AuthLayout
+  {
+    path: "/auth",
     component: () => import("@/layouts/AuthLayout.vue"),
     children: [
+
       {
         path: "login",
         name: "Login",
@@ -42,6 +48,7 @@ const routes = [
   },
 
   // Halaman non-auth (tanpa AuthLayout)
+
   {
     path: "/merchant-register",
     name: "Merchant Register",
@@ -60,7 +67,7 @@ const routes = [
   },
 
   // Fallback
-  { path: "/:pathMatch(.*)*", redirect: "/login" },
+  { path: "/:pathMatch(.*)*", redirect: "/" },
 ];
 
 const router = createRouter({
