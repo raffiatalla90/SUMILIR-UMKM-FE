@@ -5,6 +5,9 @@ const rawBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").trim();
 const baseURL = rawBaseUrl || "http://localhost:8000/api";
 console.log("[API] VITE_API_BASE_URL =", rawBaseUrl || "(empty)");
 console.log("[API] Using baseURL     =", baseURL);
+if (!baseURL.includes("/api")) {
+  console.error("❌ baseURL tidak ada /api! Periksa .env dan restart Vite");
+}
 // Ekspos untuk dicek via Console
 // eslint-disable-next-line no-undef
 window.__API_BASE__ = baseURL;
