@@ -15,7 +15,7 @@ const toast = useToast();
 
 const loading = ref(false);
 const useVariants = ref(false);
-const variantUsesImages = ref({}); // Track which variant uses images
+const variantUsesImages = ref({});
 
 // Images
 const productImages = ref([]);
@@ -32,21 +32,30 @@ const categoriesLevel2 = ref([]);
 const selectedCategory = ref(null);
 const selectedSubCategories = ref([]);
 
-// Variants (max 2) - PERBAIKAN: Tambah ref untuk tracking nama varian
+// Variants
 const variants = ref([]);
-const variantNames = ref({}); // Track variant names by ID
+const variantNames = ref({});
 const maxVariants = 2;
 const maxOptions = 50;
 
-// Combinations - PERBAIKAN: Tambahkan default 0
+// Combinations
 const combinations = ref([]);
 const showCombinationsModal = ref(false);
-const bulkPrice = ref(0); // Default 0
-const bulkStock = ref(0); // Default 0
+const bulkPrice = ref(0);
+const bulkStock = ref(0);
 const selectedCombinations = ref(new Set());
 useBodyScrollLock(showCombinationsModal);
 
-// Validation schema - PERBAIKAN dengan transform dan default 0
+// UPDATED: Add-on Groups State
+const addOnGroups = ref([]);
+const maxAddOnGroups = 10;
+const maxAddOnOptions = 20;
+
+const canAddAddOnGroup = computed(
+  () => addOnGroups.value.length < maxAddOnGroups
+);
+
+// Validation schema
 const schema = yup.object({
   name: yup.string().required("Nama produk wajib diisi"),
   description: yup.string().required("Deskripsi wajib diisi"),
@@ -79,6 +88,10 @@ const canAddSubCategory = computed(
   () => selectedSubCategories.value.length < 4
 );
 const canAddVariant = computed(() => variants.value.length < maxVariants);
+
+// NEW: Computed untuk add-ons - TAMBAHKAN INI
+const canAddAddOn = computed(() => addOnGroups.value.length < maxAddOnGroups);
+
 const totalCombinations = computed(() => {
   if (!useVariants.value || variants.value.length === 0) return 0;
 
@@ -474,6 +487,34 @@ const handleSubmit = async (values) => {
     }
   }
 
+  // Add-on Groups validation
+  if (addOnGroups.value.length > 0) {
+    const hasInvalidGroup = addOnGroups.value.some((group) => {
+      // Cek nama group
+      if (!group.name.trim()) return true;
+
+      // Cek minimal 1 opsi valid
+      const validOptions = group.options.filter(
+        (opt) => opt.name.trim() && opt.price >= 0
+      );
+      if (validOptions.length === 0) return true;
+
+      // Validasi min/max selection
+      if (group.min_selection < 0 || group.max_selection < 1) return true;
+      if (group.min_selection > group.max_selection) return true;
+      if (group.max_selection > validOptions.length) return true;
+
+      return false;
+    });
+
+    if (hasInvalidGroup) {
+      toast.error(
+        "Pastikan setiap grup add-on memiliki nama, minimal 1 opsi valid, dan pengaturan min/max yang benar"
+      );
+      return;
+    }
+  }
+
   loading.value = true;
 
   try {
@@ -539,12 +580,44 @@ const handleSubmit = async (values) => {
       formData.append("stock", values.stock);
     }
 
+    // NEW: Append add-ons
+    addOnGroups.value.forEach((group, gIndex) => {
+      if (group.name.trim()) {
+        formData.append(`add_on_groups[${gIndex}][name]`, group.name.trim());
+        formData.append(
+          `add_on_groups[${gIndex}][is_required]`,
+          group.is_required
+        );
+        formData.append(
+          `add_on_groups[${gIndex}][min_selection]`,
+          group.min_selection
+        );
+        formData.append(
+          `add_on_groups[${gIndex}][max_selection]`,
+          group.max_selection
+        );
+
+        group.options.forEach((opt, oIndex) => {
+          if (opt.name.trim()) {
+            formData.append(
+              `add_on_groups[${gIndex}][options][${oIndex}][name]`,
+              opt.name.trim()
+            );
+            formData.append(
+              `add_on_groups[${gIndex}][options][${oIndex}][price]`,
+              opt.price
+            );
+          }
+        });
+      }
+    });
+
     // TODO: API call
     // await api.post("/merchant/products", formData);
 
     setTimeout(() => {
       toast.success("Produk berhasil ditambahkan");
-      router.push("/merchant/products");
+      router.push("/merchant-center/products");
     }, 1000);
   } catch (error) {
     toast.error(error.response?.data?.message || "Gagal menambahkan produk");
@@ -597,6 +670,66 @@ const isVariantExpanded = (variantId) => {
 //     expandedVariants.value.add(variantId); // Auto expand
 //   }
 // };
+
+// UPDATED: Add-on Group Methods
+const addAddOnGroup = () => {
+  if (canAddAddOnGroup.value) {
+    const groupId = Date.now() + Math.random();
+    addOnGroups.value.push({
+      id: groupId,
+      name: "",
+      is_required: false,
+      min_selection: 0,
+      max_selection: 1,
+      options: [
+        {
+          id: Date.now(),
+          name: "",
+          price: 0,
+        },
+      ],
+    });
+    expandedAddOnGroups.value.add(groupId); // Auto expand
+  }
+};
+
+const removeAddOnGroup = (index) => {
+  addOnGroups.value.splice(index, 1);
+};
+
+const addAddOnOption = (groupIndex) => {
+  const group = addOnGroups.value[groupIndex];
+  if (group.options.length < maxAddOnOptions) {
+    group.options.push({
+      id: Date.now() + Math.random(),
+      name: "",
+      price: 0,
+    });
+  }
+};
+
+const removeAddOnOption = (groupIndex, optionIndex) => {
+  const group = addOnGroups.value[groupIndex];
+  if (group.options.length > 1) {
+    group.options.splice(optionIndex, 1);
+  }
+};
+
+// NEW: Add-on Group Accordion State
+const expandedAddOnGroups = ref(new Set());
+
+// NEW: Add-on Group Accordion Methods
+const toggleAddOnGroupExpand = (groupId) => {
+  if (expandedAddOnGroups.value.has(groupId)) {
+    expandedAddOnGroups.value.delete(groupId);
+  } else {
+    expandedAddOnGroups.value.add(groupId);
+  }
+};
+
+const isAddOnGroupExpanded = (groupId) => {
+  return expandedAddOnGroups.value.has(groupId);
+};
 </script>
 
 <template>
@@ -1074,7 +1207,10 @@ const isVariantExpanded = (variantId) => {
                     </div>
 
                     <!-- List Opsi dengan Scroll -->
-                    <div class="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
+                    <div
+                      v-if="isVariantExpanded(variant.id)"
+                      class="space-y-2.5 max-h-[500px] overflow-y-auto pr-1"
+                    >
                       <div
                         v-for="(option, oIndex) in variant.options"
                         :key="option.id"
@@ -1088,14 +1224,15 @@ const isVariantExpanded = (variantId) => {
                             {{ oIndex + 1 }}
                           </div>
                           <div class="flex-1 space-y-2.5">
-                            <!-- Input Nama Opsi -->
-                            <input
+                            <!-- UPDATED: Gunakan TextField -->
+                            <TextField
+                              :name="`variant_${variant.id}_option_${option.id}_name`"
                               v-model="option.name"
-                              type="text"
                               :placeholder="`Contoh: ${
                                 vIndex === 0 ? 'Merah' : 'S'
                               }`"
-                              class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-merchant-primary focus:border-transparent placeholder:text-muted-foreground bg-white"
+                              :hideLabel="true"
+                              variant="primary"
                             />
 
                             <!-- Option Image (hanya jika varian 1 & uses images) - MAKSIMAL 1 -->
@@ -1162,7 +1299,7 @@ const isVariantExpanded = (variantId) => {
                             v-if="variant.options.length > 1"
                             @click="removeOption(vIndex, oIndex)"
                             type="button"
-                            class="w-8 h-8 rounded-lg bg-white border border-gray-300 hover:bg-red-50 hover:border-red-300 hover:text-red-600 flex items-center justify-center transition flex-shrink-0 mt-0.5"
+                            class="w-8 h-8 rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100 flex items-center justify-center transition flex-shrink-0 mt-0.5"
                           >
                             <i class="pi pi-times text-sm"></i>
                           </button>
@@ -1251,7 +1388,352 @@ const isVariantExpanded = (variantId) => {
           </div>
         </div>
 
-        <!-- Min Purchase - PERBAIKAN dengan v-model.number -->
+        <!-- UPDATED: Add-on Groups Section dengan Grid Layout -->
+        <div
+          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 space-y-4 sm:rounded-xl sm:shadow-sm"
+        >
+          <div class="flex items-center justify-between">
+            <div>
+              <h3
+                class="text-sm font-semibold text-black flex items-center gap-2"
+              >
+                <i class="pi pi-plus-circle text-merchant-primary"></i>
+                Grup Add-on (Opsional)
+                <span class="text-sm font-normal text-muted-foreground"
+                  >(Maks. {{ maxAddOnGroups }})</span
+                >
+              </h3>
+              <p class="text-xs text-muted-foreground mt-1">
+                Kelompokkan add-on berdasarkan kategori (contoh: tingkat
+                kepedasan, topping)
+              </p>
+            </div>
+            <button
+              v-if="canAddAddOnGroup"
+              @click="addAddOnGroup"
+              type="button"
+              class="text-sm text-merchant-primary hover:underline flex items-center gap-1 font-semibold"
+            >
+              <i class="pi pi-plus"></i>
+              Tambah
+            </button>
+          </div>
+
+          <!-- UPDATED: Grid Layout untuk Desktop -->
+          <div
+            v-if="addOnGroups.length > 0"
+            class="grid grid-cols-1 lg:grid-cols-2 gap-4"
+          >
+            <div
+              v-for="(group, gIndex) in addOnGroups"
+              :key="group.id"
+              class="border-2 border-gray-200 rounded-xl overflow-hidden bg-white hover:border-merchant-primary/50 transition"
+            >
+              <!-- Group Header - Always Visible -->
+              <div class="p-4 space-y-4 bg-white">
+                <!-- Header: Badge + Delete -->
+                <div
+                  class="flex items-center justify-between pb-3 border-b border-gray-100"
+                >
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span
+                      class="px-3 py-1 bg-merchant-primary text-white text-xs font-bold rounded-full"
+                    >
+                      Grup {{ gIndex + 1 }}
+                    </span>
+                    <span
+                      v-if="group.is_required || group.min_selection > 0"
+                      class="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded-full flex items-center gap-1"
+                    >
+                      <i class="pi pi-exclamation-circle text-[10px]"></i>
+                      Wajib
+                    </span>
+                    <span
+                      class="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full flex items-center gap-1"
+                    >
+                      <i class="pi pi-list text-[10px]"></i>
+                      {{ group.min_selection }}-{{ group.max_selection }}
+                      pilihan
+                    </span>
+                  </div>
+                  <button
+                    @click="removeAddOnGroup(gIndex)"
+                    type="button"
+                    class="w-8 h-8 rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100 flex items-center justify-center transition flex-shrink-0"
+                  >
+                    <i class="pi pi-trash text-sm"></i>
+                  </button>
+                </div>
+
+                <!-- Group Name -->
+                <TextField
+                  :name="`addon_group_name_${group.id}`"
+                  v-model="group.name"
+                  label="Nama Grup Add-on"
+                  placeholder="Contoh: Tingkat Kepedasan, Topping"
+                  required
+                />
+
+                <!-- Min/Max Selection Settings -->
+                <div
+                  class="bg-gray-50 rounded-lg border border-gray-200 p-3 space-y-3"
+                >
+                  <label class="text-xs font-semibold text-gray-700 block">
+                    Aturan Pemilihan
+                  </label>
+
+                  <div class="grid grid-cols-2 gap-3">
+                    <!-- UPDATED: Min Selection -->
+                    <div>
+                      <TextField
+                        :name="`addon_group_${group.id}_min_selection`"
+                        label="Minimal Pilihan"
+                        v-model.number="group.min_selection"
+                        type="number"
+                        min="0"
+                        :max="group.max_selection"
+                        placeholder="0"
+                        suffix="opsi"
+                        :labelBold="false"
+                      />
+                      <p class="text-[10px] text-gray-500 mt-1">0 = opsional</p>
+                    </div>
+
+                    <!-- UPDATED: Max Selection -->
+                    <div>
+                      <TextField
+                        :name="`addon_group_${group.id}_max_selection`"
+                        label="Maksimal Pilihan"
+                        v-model.number="group.max_selection"
+                        type="number"
+                        :min="Math.max(1, group.min_selection)"
+                        :max="
+                          group.options.filter((opt) => opt.name.trim())
+                            .length || 1
+                        "
+                        placeholder="1"
+                        suffix="opsi"
+                        :labelBold="false"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Quick Presets -->
+                  <div
+                    class="flex flex-wrap gap-2 pt-2 border-t border-gray-200"
+                  >
+                    <button
+                      @click="
+                        group.min_selection = 0;
+                        group.max_selection = 1;
+                      "
+                      type="button"
+                      class="px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg text-[10px] font-medium text-gray-700 hover:bg-gray-50 hover:border-merchant-primary transition"
+                    >
+                      <i class="pi pi-circle text-[8px] mr-1"></i>
+                      Pilih 1 (Optional)
+                    </button>
+                    <button
+                      @click="
+                        group.min_selection = 1;
+                        group.max_selection = 1;
+                      "
+                      type="button"
+                      class="px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg text-[10px] font-medium text-gray-700 hover:bg-gray-50 hover:border-merchant-primary transition"
+                    >
+                      <i class="pi pi-exclamation-circle text-[8px] mr-1"></i>
+                      Wajib Pilih 1
+                    </button>
+                    <button
+                      @click="
+                        group.min_selection = 0;
+                        group.max_selection =
+                          group.options.filter((opt) => opt.name.trim())
+                            .length || 99;
+                      "
+                      type="button"
+                      class="px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg text-[10px] font-medium text-gray-700 hover:bg-gray-50 hover:border-merchant-primary transition"
+                    >
+                      <i class="pi pi-check-square text-[8px] mr-1"></i>
+                      Multi-pilih
+                    </button>
+                  </div>
+
+                  <!-- Validation Warning -->
+                  <div
+                    v-if="group.min_selection > group.max_selection"
+                    class="flex items-start gap-2 p-2 bg-red-50 border border-red-200 rounded-lg"
+                  >
+                    <i
+                      class="pi pi-exclamation-triangle text-red-600 text-xs mt-0.5"
+                    ></i>
+                    <p class="text-[10px] text-red-700 flex-1">
+                      Minimal tidak boleh lebih besar dari maksimal
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Accordion Toggle Button -->
+                <button
+                  @click="toggleAddOnGroupExpand(group.id)"
+                  type="button"
+                  :class="[
+                    'w-full flex items-center justify-between py-3 px-0 border-merchant-primary/50 hover:bg-merchant-primary/10 transition',
+                    isAddOnGroupExpanded(group.id) ? 'border-t' : 'border-y',
+                  ]"
+                >
+                  <div class="flex items-center gap-2">
+                    <i class="pi pi-list text-merchant-primary"></i>
+                    <span class="text-sm font-semibold text-black">
+                      Kelola Opsi
+                      <span class="text-muted-foreground ml-1">
+                        ({{
+                          group.options.filter((opt) => opt.name.trim()).length
+                        }})
+                      </span>
+                    </span>
+                  </div>
+                  <i
+                    :class="[
+                      'pi text-merchant-primary transition-transform duration-300',
+                      isAddOnGroupExpanded(group.id)
+                        ? 'pi-chevron-up'
+                        : 'pi-chevron-down',
+                    ]"
+                  ></i>
+                </button>
+              </div>
+
+              <!-- Accordion Content - Options List -->
+              <transition
+                enter-active-class="transition-all duration-300 ease-out"
+                enter-from-class="max-h-0 opacity-0"
+                enter-to-class="max-h-[2000px] opacity-100"
+                leave-active-class="transition-all duration-200 ease-in"
+                leave-from-class="max-h-[2000px] opacity-100"
+                leave-to-class="max-h-0 opacity-0"
+              >
+                <div
+                  v-if="isAddOnGroupExpanded(group.id)"
+                  class="border-t border-gray-200 overflow-hidden"
+                >
+                  <div class="p-4 pt-3 bg-gray-50 space-y-3">
+                    <!-- Options Header -->
+                    <div
+                      class="flex items-center justify-between pb-2 border-b border-gray-300"
+                    >
+                      <label
+                        class="text-xs font-bold text-black uppercase tracking-wide"
+                      >
+                        Daftar Opsi
+                      </label>
+                      <button
+                        @click="addAddOnOption(gIndex)"
+                        type="button"
+                        :disabled="group.options.length >= maxAddOnOptions"
+                        class="text-xs text-merchant-primary hover:underline flex items-center gap-1 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <i class="pi pi-plus text-[10px]"></i>
+                        Tambah
+                      </button>
+                    </div>
+
+                    <!-- Options List with Scroll -->
+                    <div class="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
+                      <div
+                        v-for="(option, oIndex) in group.options"
+                        :key="option.id"
+                        class="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow"
+                      >
+                        <div class="flex items-start gap-2.5">
+                          <div
+                            class="w-7 h-7 rounded-lg bg-merchant-primary text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5"
+                          >
+                            {{ oIndex + 1 }}
+                          </div>
+
+                          <div class="flex-1 space-y-2.5">
+                            <!-- UPDATED: Option Name -->
+                            <TextField
+                              :name="`addon_group_${group.id}_option_${option.id}_name`"
+                              v-model="option.name"
+                              :placeholder="`Contoh: ${
+                                gIndex === 0 ? 'Tidak Pedas' : 'Daging Asap'
+                              }`"
+                              :hideLabel="true"
+                              variant="primary"
+                            />
+
+                            <!-- UPDATED: Price -->
+                            <TextField
+                              :name="`addon_group_${group.id}_option_${option.id}_price`"
+                              label="Harga Tambahan"
+                              v-model.number="option.price"
+                              type="number"
+                              min="0"
+                              placeholder="0"
+                              prefix="Rp"
+                              :labelBold="false"
+                            />
+                            <p
+                              v-if="option.price === 0"
+                              class="text-xs text-gray-500 -mt-1 flex items-center gap-1"
+                            >
+                              <i class="pi pi-info-circle text-[10px]"></i>
+                              Gratis (Rp 0)
+                            </p>
+                          </div>
+
+                          <!-- Delete Button -->
+                          <button
+                            v-if="group.options.length > 1"
+                            @click="removeAddOnOption(gIndex, oIndex)"
+                            type="button"
+                            class="w-8 h-8 rounded-lg bg-white border border-gray-300 hover:bg-red-50 hover:border-red-300 hover:text-red-600 flex items-center justify-center transition flex-shrink-0 mt-0.5"
+                          >
+                            <i class="pi pi-times text-sm"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Add Option Button (Bottom) -->
+                    <button
+                      @click="addAddOnOption(gIndex)"
+                      type="button"
+                      :disabled="group.options.length >= maxAddOnOptions"
+                      class="w-full py-2.5 px-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-merchant-primary font-bold hover:border-merchant-primary hover:bg-white transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <i class="pi pi-plus text-xs"></i>
+                      Tambah Opsi Baru
+                    </button>
+                  </div>
+                </div>
+              </transition>
+            </div>
+          </div>
+
+          <!-- Empty State (tetap sama) -->
+          <div
+            v-else
+            class="text-center py-8 px-4 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50"
+          >
+            <i class="pi pi-plus-circle text-4xl text-gray-300 mb-3 block"></i>
+            <p class="text-sm text-gray-500 mb-3">
+              Belum ada grup add-on ditambahkan
+            </p>
+            <button
+              @click="addAddOnGroup"
+              type="button"
+              class="inline-flex items-center gap-2 px-4 py-2 bg-merchant-primary text-white rounded-lg hover:bg-merchant-primary/90 transition text-sm font-medium"
+            >
+              <i class="pi pi-plus"></i>
+              Tambah Grup Pertama
+            </button>
+          </div>
+        </div>
+
+        <!-- Min Purchase -->
         <div
           class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
         >
@@ -1297,9 +1779,6 @@ const isVariantExpanded = (variantId) => {
           ? `${selectedCombinations.size} kombinasi dipilih`
           : null
       "
-      size="xl"
-      max-height="85vh"
-      desktop-max-height="90vh"
       show-footer
       @close="closeCombinationsModal"
     >
@@ -1442,17 +1921,13 @@ const isVariantExpanded = (variantId) => {
           </div>
         </div>
       </div>
-
-      <!-- Footer -->
+      <!-- Footer Actions (Mobile Only) -->
       <template #footer>
-        <Button
-          @click="closeCombinationsModal"
-          type="button"
-          variant="merchant"
-          block
-        >
-          Selesai
-        </Button>
+        <div class="flex gap-3">
+          <Button @click="closeCombinationsModal" block variant="merchant">
+            Selesai
+          </Button>
+        </div>
       </template>
     </ResponsiveModal>
   </div>

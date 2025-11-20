@@ -1,3 +1,4 @@
+<!-- filepath: c:\laragon\www\KMI-SIMSLIFE-FE\src\components\common\ResponsiveModal.vue -->
 <script setup>
 // filepath: /var/www/html/KMI-SIMSLIFE-FE/src/components/common/ResponsiveModal.vue
 import { computed } from "vue";
@@ -17,24 +18,6 @@ const props = defineProps({
   subtitle: {
     type: String,
     default: null,
-  },
-
-  // Size
-  size: {
-    type: String,
-    default: "md",
-    validator: (value) => ["sm", "md", "lg", "xl", "full"].includes(value),
-  },
-
-  // Height
-  maxHeight: {
-    type: String,
-    default: "85vh", // Mobile default
-    validator: (value) => value.endsWith("vh") || value.endsWith("px"),
-  },
-  desktopMaxHeight: {
-    type: String,
-    default: "90vh", // Desktop default
   },
 
   // Behavior
@@ -78,18 +61,6 @@ const props = defineProps({
 
 const emit = defineEmits(["close", "update:show"]);
 
-// Computed
-const sizeClasses = computed(() => {
-  const sizes = {
-    sm: "sm:max-w-md sm:w-full",
-    md: "sm:max-w-lg sm:w-full",
-    lg: "sm:max-w-2xl sm:w-full",
-    xl: "sm:max-w-4xl sm:w-3/4",
-    full: "sm:max-w-full sm:w-full",
-  };
-  return sizes[props.size];
-});
-
 // Methods
 const handleClose = () => {
   if (!props.persistent) {
@@ -125,7 +96,7 @@ const handleBackdropClick = () => {
     ></div>
   </transition>
 
-  <!-- Modal -->
+  <!-- UPDATED: Modal dengan inline style + media query di CSS -->
   <transition
     enter-active-class="transition-all duration-300 ease-out"
     enter-from-class="sm:opacity-0 sm:scale-95 translate-y-full sm:translate-y-0"
@@ -138,14 +109,10 @@ const handleBackdropClick = () => {
       v-if="show"
       @click.stop
       :class="[
-        'fixed inset-x-0 bottom-0 sm:fixed sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2',
-        'bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col z-[70]',
-        sizeClasses,
+        'fixed inset-x-0 bottom-0 sm:fixed sm:left-1/2 sm:-translate-x-1/2 sm:top-1/2 sm:-translate-y-1/2 sm:w-3/4',
+        'bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col z-[70] sm:max-h-[90vh] sm:h-fit sm:max-w-xl',
+        ,
       ]"
-      :style="{
-        maxHeight: maxHeight,
-        'sm:max-height': desktopMaxHeight,
-      }"
     >
       <!-- Header -->
       <div
@@ -184,7 +151,7 @@ const handleBackdropClick = () => {
       <div
         v-if="showFooter || $slots.footer"
         :class="[
-          'border-t border-muted-background p-4 bg-white sticky bottom-0 rounded-b-3xl sm:rounded-b-2xl flex-shrink-0',
+          'border-t border-muted-background p-4 bg-white sticky sm:static bottom-0 rounded-b-3xl sm:rounded-b-2xl flex-shrink-0 ',
           footerClass,
         ]"
       >

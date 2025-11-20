@@ -15,9 +15,11 @@ const toast = useToast();
 const loading = ref(false);
 const currentImageIndex = ref(0);
 const showVariantsModal = ref(false);
+const showAddOnsModal = ref(false); // TAMBAHKAN: Add-on modal state
 
 // Lock body scroll when modal is open
 useBodyScrollLock(showVariantsModal);
+useBodyScrollLock(showAddOnsModal); // Lock body scroll untuk add-ons modal
 
 // Breadcrumb
 const breadcrumbs = [
@@ -166,6 +168,47 @@ const product = ref({
     type: "percentage",
     value: 5000,
   },
+  // TAMBAHKAN: Add-on Groups
+  add_on_groups: [
+    {
+      id: 1,
+      name: "Tingkat Kepedasan",
+      is_required: true,
+      min_selection: 1,
+      max_selection: 1,
+      options: [
+        { id: 1, name: "Tidak Pedas", price: 0 },
+        { id: 2, name: "Sedang", price: 0 },
+        { id: 3, name: "Pedas", price: 0 },
+        { id: 4, name: "Extra Pedas", price: 2000 },
+      ],
+    },
+    {
+      id: 2,
+      name: "Extra Topping",
+      is_required: false,
+      min_selection: 0,
+      max_selection: 3,
+      options: [
+        { id: 5, name: "Daging Asap", price: 8000 },
+        { id: 6, name: "Cumi", price: 10000 },
+        { id: 7, name: "Sosis", price: 5000 },
+        { id: 8, name: "Telur Mata Sapi", price: 5000 },
+      ],
+    },
+    {
+      id: 3,
+      name: "Ukuran Es",
+      is_required: false,
+      min_selection: 0,
+      max_selection: 1,
+      options: [
+        { id: 9, name: "Sedikit", price: 0 },
+        { id: 10, name: "Normal", price: 0 },
+        { id: 11, name: "Banyak", price: 0 },
+      ],
+    },
+  ],
 });
 
 // Computed
@@ -237,6 +280,44 @@ const variantsByOptionValue = computed(() => {
   return grouped;
 });
 
+// TAMBAHKAN: Add-on computed
+const totalAddOnGroups = computed(() => {
+  return product.value.add_on_groups?.length || 0;
+});
+
+const totalAddOnOptions = computed(() => {
+  if (!product.value.add_on_groups) return 0;
+  return product.value.add_on_groups.reduce(
+    (total, group) => total + group.options.length,
+    0
+  );
+});
+
+const addOnPriceRange = computed(() => {
+  if (
+    !product.value.add_on_groups ||
+    product.value.add_on_groups.length === 0
+  ) {
+    return null;
+  }
+
+  const prices = product.value.add_on_groups.flatMap((group) =>
+    group.options.map((opt) => opt.price)
+  );
+  const nonZeroPrices = prices.filter((p) => p > 0);
+
+  if (nonZeroPrices.length === 0) return null;
+
+  const min = Math.min(...nonZeroPrices);
+  const max = Math.max(...nonZeroPrices);
+
+  if (min === max) {
+    return `+Rp ${formatNumber(min)}`;
+  }
+
+  return `+Rp ${formatNumber(min)} - Rp ${formatNumber(max)}`;
+});
+
 // Methods
 const formatNumber = (num) => {
   if (num >= 1000000000) {
@@ -283,12 +364,39 @@ const closeVariantsModal = () => {
   showVariantsModal.value = false;
 };
 
+const openAddOnsModal = () => {
+  showAddOnsModal.value = true;
+};
+
+const closeAddOnsModal = () => {
+  showAddOnsModal.value = false;
+};
+
 const goBack = () => {
   router.back();
 };
 
 const editProduct = () => {
   router.push(`/merchant-center/products/${route.params.id}/edit`);
+};
+
+// UPDATED: Add-on label helper methods
+const getSelectionTypeLabel = (group) => {
+  if (group.min_selection === group.max_selection) {
+    if (group.min_selection === 0) {
+      return "Opsional";
+    }
+    return `Pilih ${group.min_selection}`;
+  }
+  return `${group.min_selection}-${group.max_selection} pilihan`;
+};
+
+// NEW: Get selection type status untuk StatusLabel
+const getSelectionTypeStatus = (group) => {
+  if (group.is_required || group.min_selection > 0) {
+    return "pending"; // Kuning untuk wajib/required
+  }
+  return "published"; // Hijau untuk opsional
 };
 
 onMounted(() => {
@@ -566,6 +674,29 @@ onMounted(() => {
             <i class="pi pi-chevron-right text-gray-400"></i>
           </button>
 
+          <!-- TAMBAHKAN: Add-ons Card (Clickable) -->
+          <button
+            v-if="totalAddOnGroups > 0"
+            @click="openAddOnsModal"
+            class="w-full bg-white p-4 sm:p-6 flex items-center justify-between hover:bg-gray-50 active:bg-gray-100 transition sm:rounded-xl sm:shadow-sm"
+          >
+            <div class="flex items-center gap-3">
+              <div
+                class="w-10 h-10 rounded-full bg-merchant-primary/10 flex items-center justify-center flex-shrink-0"
+              >
+                <i class="pi pi-plus-circle text-merchant-primary"></i>
+              </div>
+              <div class="text-left">
+                <p class="text-sm font-semibold text-gray-900">Grup Add-on</p>
+                <p class="text-xs text-gray-500">
+                  {{ totalAddOnGroups }} grup | {{ totalAddOnOptions }} opsi
+                  <span v-if="addOnPriceRange"> | {{ addOnPriceRange }}</span>
+                </p>
+              </div>
+            </div>
+            <i class="pi pi-chevron-right text-gray-400"></i>
+          </button>
+
           <!-- Description Card - Mobile Only -->
           <div class="sm:hidden bg-white p-4 sm:rounded-xl sm:shadow-sm">
             <h3
@@ -584,13 +715,12 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- UPDATED: Variants Modal menggunakan ResponsiveModal -->
+    <!-- UPDATED: Variants Modal - Tinggi Desktop Diperpanjang -->
     <ResponsiveModal
       v-model:show="showVariantsModal"
       title="Variasi, Harga & Stok"
       size="xl"
-      max-height="85vh"
-      desktop-max-height="85vh"
+      max-height="h-[85vh] sm:max-h-[90vh]"
       show-footer
       footer-class="inline sm:hidden"
       @close="closeVariantsModal"
@@ -823,6 +953,149 @@ onMounted(() => {
       <!-- Footer -->
       <template #footer>
         <Button @click="closeVariantsModal" block variant="merchant">
+          Tutup
+        </Button>
+      </template>
+    </ResponsiveModal>
+
+    <!-- UPDATED: Add-ons Modal - Tinggi Desktop Diperpanjang -->
+    <ResponsiveModal
+      v-model:show="showAddOnsModal"
+      title="Grup Add-on"
+      size="xl"
+      max-height="h-[85vh] sm:max-h-[90vh]"
+      show-footer
+      footer-class="inline sm:hidden"
+      @close="closeAddOnsModal"
+    >
+      <!-- Summary Card -->
+      <div
+        class="bg-merchant-primary/5 rounded-xl p-4 border border-merchant-primary/20 mb-4"
+      >
+        <div class="mb-3">
+          <p class="text-xs text-muted-foreground mb-1">Rentang Harga Add-on</p>
+          <p class="text-base font-semibold text-merchant-primary truncate">
+            {{ addOnPriceRange || "Semua Gratis" }}
+          </p>
+        </div>
+
+        <div
+          class="grid grid-cols-2 gap-4 pt-3 border-t border-merchant-primary/20"
+        >
+          <div>
+            <p class="text-xs text-muted-foreground mb-1">Total Grup</p>
+            <p class="text-lg font-bold text-merchant-primary">
+              {{ totalAddOnGroups }}
+            </p>
+          </div>
+          <div>
+            <p class="text-xs text-muted-foreground mb-1">Total Opsi</p>
+            <p class="text-lg font-bold text-merchant-primary">
+              {{ totalAddOnOptions }}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add-on Groups List -->
+      <div class="space-y-4">
+        <div
+          v-for="(group, gIndex) in product.add_on_groups"
+          :key="group.id"
+          class="bg-white border border-muted-background rounded-xl overflow-hidden"
+        >
+          <!-- Group Header dengan StatusLabel -->
+          <div
+            class="bg-merchant-primary/5 border-b border-merchant-primary/20 p-4"
+          >
+            <div class="flex items-start justify-between gap-3 mb-3">
+              <div class="flex-1">
+                <h3 class="text-sm font-bold text-black mb-2">
+                  {{ gIndex + 1 }}. {{ group.name }}
+                </h3>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <!-- Required Badge -->
+                  <StatusLabel
+                    v-if="group.is_required || group.min_selection > 0"
+                    status="merchant"
+                    variant="general"
+                    label="Wajib"
+                    size="xs"
+                    :show-icon="false"
+                  />
+
+                  <!-- Selection Type -->
+                  <StatusLabel
+                    status="warning"
+                    variant="general"
+                    :label="getSelectionTypeLabel(group)"
+                    size="xs"
+                    :show-icon="false"
+                  />
+
+                  <!-- Options Count -->
+                  <StatusLabel
+                    status="muted"
+                    variant="general"
+                    :label="`${group.options.length} opsi`"
+                    size="xs"
+                    :show-icon="false"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Options List -->
+          <div class="p-4 space-y-2">
+            <div
+              v-for="(option, oIndex) in group.options"
+              :key="option.id"
+              class="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
+            >
+              <div class="flex items-center gap-3 flex-1 min-w-0">
+                <!-- Number Badge -->
+                <StatusLabel
+                  status="processing"
+                  variant="custom"
+                  :label="`${oIndex + 1}`"
+                  custom-class="bg-merchant-primary text-white"
+                  size="xs"
+                  :show-icon="false"
+                />
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-black truncate">
+                    {{ option.name }}
+                  </p>
+                </div>
+              </div>
+              <div class="flex-shrink-0">
+                <!-- Price Badge -->
+                <StatusLabel
+                  v-if="option.price > 0"
+                  status="primary"
+                  variant="general"
+                  :label="`+${formatPrice(option.price)}`"
+                  size="sm"
+                  :show-icon="false"
+                />
+                <StatusLabel
+                  v-else
+                  status="success"
+                  variant="general"
+                  label="Gratis"
+                  size="sm"
+                  :show-icon="false"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <template #footer>
+        <Button @click="closeAddOnsModal" block variant="merchant">
           Tutup
         </Button>
       </template>

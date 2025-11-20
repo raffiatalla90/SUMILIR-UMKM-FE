@@ -11,6 +11,7 @@ import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import ProductCard from "@/components/common/ProductCard.vue";
 import MobilePagination from "@/components/common/MobilePagination.vue";
+import BulkActionBar from "@/components/common/BulkActionBar.vue";
 
 const router = useRouter();
 const toast = useToast();
@@ -768,6 +769,23 @@ const closeVisibilityModal = () => {
   showVisibilityModal.value = false;
   selectedProductForVisibility.value = null;
 };
+
+// ADD: Toggle product selection method
+const toggleProductSelection = (productId) => {
+  const index = selectedProducts.value.indexOf(productId);
+
+  if (index > -1) {
+    // Remove from selection
+    selectedProducts.value.splice(index, 1);
+  } else {
+    // Add to selection
+    selectedProducts.value.push(productId);
+  }
+
+  // Update selectAll state
+  selectAll.value =
+    selectedProducts.value.length === filteredProducts.value.length;
+};
 </script>
 
 <template>
@@ -1053,403 +1071,261 @@ const closeVisibilityModal = () => {
     <!-- Spacer untuk Floating Bulk Action Bar (Mobile) -->
     <div v-if="hasSelectedProducts" class="h-20 sm:h-0"></div>
 
-    <!-- Floating Bulk Action Bar -->
+    <!-- UPDATED: Menggunakan BulkActionBar Component -->
+    <BulkActionBar
+      :selected-count="selectedProductsCount"
+      :show="hasSelectedProducts"
+      @cancel="cancelSelection"
+      @delete="bulkDelete"
+      @change-status="openBulkActionModal"
+    />
+
+    <!-- RESTORED: Bulk Status Action Modal (Manual Structure) -->
+    <!-- Backdrop -->
     <transition
-      enter-active-class="transition-all duration-300"
-      enter-from-class="translate-y-full opacity-0"
-      enter-to-class="translate-y-0 opacity-100"
-      leave-active-class="transition-all duration-300"
-      leave-from-class="translate-y-0 opacity-100"
-      leave-to-class="translate-y-full opacity-0"
-    >
-      <div
-        v-if="hasSelectedProducts"
-        class="fixed z-40"
-        :class="[
-          // Mobile: Bottom sticky (full width)
-          'bottom-0 left-0 right-0 bg-white border-t border-muted-background shadow-2xl',
-          // Desktop: Floating centered
-          'sm:bottom-6 sm:left-1/2 sm:-translate-x-1/2 sm:min-w-xl sm:rounded-2xl  sm:shadow-lg',
-        ]"
-      >
-        <div class="px-6 py-4">
-          <div class="flex items-center justify-between gap-3">
-            <!-- Selected Count -->
-            <div class="flex items-center gap-3 min-w-0">
-              <div
-                class="w-10 h-10 bg-merchant-primary/10 rounded-full flex items-center justify-center flex-shrink-0"
-              >
-                <span class="text-merchant-primary font-bold text-sm">
-                  {{ selectedProductsCount }}
-                </span>
-              </div>
-              <div class="min-w-0">
-                <p class="text-sm font-semibold text-black truncate">
-                  {{ selectedProductsCount }} Produk dipilih
-                </p>
-                <button
-                  @click="cancelSelection"
-                  class="text-xs text-muted-foreground hover:text-merchant-primary transition whitespace-nowrap"
-                >
-                  Batalkan Pilihan
-                </button>
-              </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="flex items-center gap-2 flex-shrink-0">
-              <!-- Delete Button -->
-              <Button
-                @click="bulkDelete"
-                variant="danger-outline"
-                custom-class=""
-              >
-                <i class="pi pi-trash"></i>
-                <span class="hidden sm:inline text-sm">Hapus</span>
-              </Button>
-
-              <!-- Status Action Button -->
-              <Button
-                @click="openBulkActionModal"
-                variant="merchant"
-                custom-class=""
-              >
-                <i class="pi pi-pencil"></i>
-                <span class="hidden sm:inline text-sm">Ubah Status</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </transition>
-
-    <!-- UPDATED: Bulk Status Action Modal -->
-    <transition
-      enter-active-class="transition-all duration-300"
-      enter-from-class="translate-y-full sm:scale-95 opacity-0"
-      enter-to-class="translate-y-0 sm:scale-100 opacity-100"
-      leave-active-class="transition-all duration-300"
-      leave-from-class="translate-y-0 sm:scale-100 opacity-100"
-      leave-to-class="translate-y-full sm:scale-95 opacity-0"
+      enter-active-class="transition-opacity duration-300"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-opacity duration-300"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
     >
       <div
         v-if="showBulkActionModal"
-        class="fixed z-50"
-        :class="[
-          'inset-x-0 bottom-0 rounded-t-2xl',
-          'sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4',
-        ]"
-        @click.self="closeBulkActionModal"
-      >
-        <div
-          class="bg-white shadow-2xl w-full"
-          :class="['rounded-t-2xl', 'sm:rounded-2xl sm:max-w-md sm:w-full']"
-          @click.stop
-        >
-          <!-- Header -->
-          <div
-            class="flex justify-between items-center px-6 py-4 border-b border-muted-background"
-          >
-            <div>
-              <h3 class="text-base sm:text-lg font-semibold text-black">
-                Ubah Status Produk
-              </h3>
-              <p class="text-xs sm:text-sm text-muted-foreground mt-1">
-                {{ selectedProductsCount }} produk akan diubah statusnya
-              </p>
-            </div>
-            <button
-              @click="closeBulkActionModal"
-              class="w-8 h-8 rounded-full hover:bg-muted-background flex items-center justify-center transition"
-            >
-              <i class="pi pi-times text-muted-foreground"></i>
-            </button>
-          </div>
-
-          <!-- Content -->
-          <div class="px-6 py-4 space-y-3">
-            <!-- Publish Action -->
-            <button
-              @click="bulkUpdateStatus('published')"
-              class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary transition text-left group"
-            >
-              <div
-                class="w-12 h-12 bg-success-background rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform"
-              >
-                <i
-                  class="pi pi-check-circle text-2xl text-success-foreground"
-                ></i>
-              </div>
-              <div>
-                <h4 class="text-sm sm:text-base font-semibold text-black">
-                  Dipublish
-                </h4>
-                <p class="text-xs sm:text-sm text-muted-foreground">
-                  Produk akan muncul di katalog dan dapat dibeli
-                </p>
-              </div>
-            </button>
-
-            <!-- Archive Action -->
-            <button
-              @click="bulkUpdateStatus('archived')"
-              class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary transition text-left group"
-            >
-              <div
-                class="w-12 h-12 bg-danger-background rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform"
-              >
-                <i class="pi pi-box text-2xl text-danger-foreground"></i>
-              </div>
-              <div>
-                <h4 class="text-sm sm:text-base font-semibold text-black">
-                  Diarsipkan
-                </h4>
-                <p class="text-xs sm:text-sm text-muted-foreground">
-                  Produk diarsipkan dan tidak aktif
-                </p>
-              </div>
-            </button>
-          </div>
-
-          <!-- Safe Area Bottom Padding (Mobile only) -->
-          <div class="h-6 sm:h-0"></div>
-        </div>
-      </div>
+        @click="closeBulkActionModal"
+        class="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center sm:justify-center p-0 sm:p-4"
+      ></div>
     </transition>
 
-    <!-- UPDATED: Filter Modal -->
-    <transition
-      enter-active-class="transition-all duration-300"
-      enter-from-class="translate-y-full sm:scale-95 opacity-0"
-      enter-to-class="translate-y-0 sm:scale-100 opacity-100"
-      leave-active-class="transition-all duration-300"
-      leave-from-class="translate-y-0 sm:scale-100 opacity-100"
-      leave-to-class="translate-y-full sm:scale-95 opacity-0"
+    <!-- UPDATED: Filter Modal - Single Footer untuk Mobile & Desktop -->
+    <ResponsiveModal
+      v-model:show="showFilterModal"
+      title="Filter Produk"
+      show-footer
+      @close="closeFilterModal"
     >
-      <div
-        v-if="showFilterModal"
-        class="fixed z-50"
-        :class="[
-          'inset-x-0 bottom-0 rounded-t-2xl max-h-[90vh]',
-          'sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4 sm:max-h-none',
-        ]"
-        @click.self="closeFilterModal"
-      >
-        <div
-          class="bg-white shadow-2xl overflow-hidden w-full"
-          :class="[
-            'rounded-t-2xl max-h-[90vh] flex flex-col',
-            'sm:rounded-2xl sm:max-w-lg sm:w-full sm:max-h-[90vh]',
-          ]"
-          @click.stop
-        >
-          <!-- Header -->
-          <div
-            class="flex justify-between items-center px-6 py-4 border-b border-muted-background flex-shrink-0"
-          >
-            <h3 class="text-base sm:text-lg font-semibold text-black">
-              Filter Produk
-            </h3>
-            <button
-              @click="closeFilterModal"
-              class="w-8 h-8 rounded-full hover:bg-muted-background flex items-center justify-center transition"
-            >
-              <i class="pi pi-times text-muted-foreground"></i>
-            </button>
+      <!-- Content - BIND ke tempFilters -->
+      <div class="space-y-4">
+        <!-- Status Filter -->
+        <SelectField
+          variant="merchant"
+          v-model="tempFilters.status"
+          label="Status Produk"
+          :options="statusOptions"
+        />
+
+        <!-- Category Filter -->
+        <SelectField
+          variant="merchant"
+          v-model="tempFilters.category"
+          label="Kategori"
+          :options="categoryOptions"
+        />
+
+        <!-- Sort By -->
+        <SelectField
+          variant="merchant"
+          v-model="tempFilters.sortBy"
+          label="Urutkan Berdasarkan"
+          :options="sortOptions"
+        />
+
+        <!-- Price Range -->
+        <div class="w-full">
+          <label class="block text-sm font-bold text-black mb-2">
+            Rentang Harga
+          </label>
+          <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+            <TextField
+              variant="merchant"
+              v-model.number="tempFilters.minPrice"
+              type="number"
+              placeholder="Min"
+              prefix="Rp"
+              :hideLabel="true"
+              label="Harga Minimum"
+            />
+            <span class="text-muted-foreground font-bold px-1">-</span>
+            <TextField
+              variant="merchant"
+              v-model.number="tempFilters.maxPrice"
+              type="number"
+              placeholder="Max"
+              prefix="Rp"
+              :hideLabel="true"
+              label="Harga Maximum"
+            />
           </div>
+        </div>
 
-          <!-- Content with scroll - BIND ke tempFilters -->
-          <div class="overflow-y-auto flex-1 px-6 py-4 space-y-4">
-            <!-- Status Filter -->
-            <SelectField
+        <!-- Stock Range -->
+        <div class="w-full">
+          <label class="block text-sm font-bold text-black mb-2">
+            Rentang Stok
+          </label>
+          <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+            <TextField
               variant="merchant"
-              v-model="tempFilters.status"
-              label="Status Produk"
-              :options="statusOptions"
+              v-model.number="tempFilters.minStock"
+              type="number"
+              placeholder="Min"
+              suffix="pcs"
+              :hideLabel="true"
+              label="Stok Minimum"
             />
-
-            <!-- Category Filter -->
-            <SelectField
+            <span class="text-black font-bold px-1">-</span>
+            <TextField
               variant="merchant"
-              v-model="tempFilters.category"
-              label="Kategori"
-              :options="categoryOptions"
+              v-model.number="tempFilters.maxStock"
+              type="number"
+              placeholder="Max"
+              suffix="pcs"
+              :hideLabel="true"
+              label="Stok Maximum"
             />
-
-            <!-- Sort By -->
-            <SelectField
-              variant="merchant"
-              v-model="tempFilters.sortBy"
-              label="Urutkan Berdasarkan"
-              :options="sortOptions"
-            />
-
-            <!-- Price Range -->
-            <div class="w-full">
-              <label class="block text-sm font-bold text-black mb-2">
-                Rentang Harga
-              </label>
-              <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                <TextField
-                  variant="merchant"
-                  v-model.number="tempFilters.minPrice"
-                  type="number"
-                  placeholder="Min"
-                  prefix="Rp"
-                  :hideLabel="true"
-                  label="Harga Minimum"
-                />
-                <span class="text-muted-foreground font-bold px-1">-</span>
-                <TextField
-                  variant="merchant"
-                  v-model.number="tempFilters.maxPrice"
-                  type="number"
-                  placeholder="Max"
-                  prefix="Rp"
-                  :hideLabel="true"
-                  label="Harga Maximum"
-                />
-              </div>
-            </div>
-
-            <!-- Stock Range -->
-            <div class="w-full">
-              <label class="block text-sm font-bold text-black mb-2">
-                Rentang Stok
-              </label>
-              <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                <TextField
-                  variant="merchant"
-                  v-model.number="tempFilters.minStock"
-                  type="number"
-                  placeholder="Min"
-                  suffix="pcs"
-                  :hideLabel="true"
-                  label="Stok Minimum"
-                />
-                <span class="text-black font-bold px-1">-</span>
-                <TextField
-                  variant="merchant"
-                  v-model.number="tempFilters.maxStock"
-                  type="number"
-                  placeholder="Max"
-                  suffix="pcs"
-                  :hideLabel="true"
-                  label="Stok Maximum"
-                />
-              </div>
-            </div>
-          </div>
-
-          <!-- Footer Actions -->
-          <div
-            class="flex gap-3 px-6 py-4 border-t border-muted-background bg-white flex-shrink-0"
-          >
-            <Button @click="resetFilters" variant="muted-outline" block>
-              Reset
-            </Button>
-            <Button @click="applyFilters" block variant="merchant">
-              <i class="pi pi-check mr-2"></i>
-              Terapkan Filter
-            </Button>
           </div>
         </div>
       </div>
-    </transition>
 
-    <!-- UPDATED: Export Modal -->
-    <transition
-      enter-active-class="transition-all duration-300"
-      enter-from-class="translate-y-full sm:scale-95 opacity-0"
-      enter-to-class="translate-y-0 sm:scale-100 opacity-100"
-      leave-active-class="transition-all duration-300"
-      leave-from-class="translate-y-0 sm:scale-100 opacity-100"
-      leave-to-class="translate-y-full sm:scale-95 opacity-0"
+      <!-- Footer Actions (Single for Mobile & Desktop) -->
+      <template #footer>
+        <div class="flex gap-3">
+          <Button @click="resetFilters" variant="muted-outline" block>
+            Reset
+          </Button>
+          <Button @click="applyFilters" block variant="merchant">
+            <i class="pi pi-check mr-2"></i>
+            Terapkan Filter
+          </Button>
+        </div>
+      </template>
+    </ResponsiveModal>
+
+    <!-- UPDATED: Export Modal - Single Footer -->
+    <ResponsiveModal
+      v-model:show="showExportModal"
+      title="Export Data"
+      show-footer
+      footer-class="sm:hidden"
+      @close="closeExportModal"
     >
-      <div
-        v-if="showExportModal"
-        class="fixed z-50"
-        :class="[
-          'inset-x-0 bottom-0 rounded-t-2xl',
-          'sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4',
-        ]"
-        @click.self="closeExportModal"
-      >
-        <div
-          class="bg-white shadow-2xl w-full"
-          :class="['rounded-t-2xl', 'sm:rounded-2xl sm:max-w-md sm:w-full']"
-          @click.stop
+      <!-- Content -->
+      <div class="space-y-3">
+        <button
+          @click="exportPDF"
+          class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary transition text-left group"
         >
-          <!-- Header -->
           <div
-            class="flex justify-between items-center px-6 py-4 border-b border-muted-background"
+            class="w-12 h-12 bg-danger-background rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform"
           >
-            <h3 class="text-base sm:text-lg font-semibold text-black">
-              Export Data
-            </h3>
-            <button
-              @click="closeExportModal"
-              class="w-8 h-8 rounded-full hover:bg-muted-background flex items-center justify-center transition"
-            >
-              <i class="pi pi-times text-muted-foreground"></i>
-            </button>
+            <i class="pi pi-file-pdf text-2xl text-danger-foreground"></i>
           </div>
-
-          <!-- Content -->
-          <div class="px-6 py-4 space-y-3">
-            <button
-              @click="exportPDF"
-              class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary transition text-left group"
-            >
-              <div
-                class="w-12 h-12 bg-danger-background rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform"
-              >
-                <i class="pi pi-file-pdf text-2xl text-danger-foreground"></i>
-              </div>
-              <div>
-                <h4 class="text-sm sm:text-base font-semibold text-black">
-                  Export ke PDF
-                </h4>
-                <p class="text-xs sm:text-sm text-muted-foreground">
-                  Download data produk dalam format PDF
-                </p>
-              </div>
-            </button>
-
-            <button
-              @click="exportExcel"
-              class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary transition text-left group"
-            >
-              <div
-                class="w-12 h-12 bg-success-background rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform"
-              >
-                <i
-                  class="pi pi-file-excel text-2xl text-success-foreground"
-                ></i>
-              </div>
-              <div>
-                <h4 class="text-sm sm:text-base font-semibold text-black">
-                  Export ke Excel
-                </h4>
-                <p class="text-xs sm:text-sm text-muted-foreground">
-                  Download dalam format Excel (.xlsx)
-                </p>
-              </div>
-            </button>
+          <div>
+            <h4 class="text-sm sm:text-base font-semibold text-black">
+              Export ke PDF
+            </h4>
+            <p class="text-xs sm:text-sm text-muted-foreground">
+              Download data produk dalam format PDF
+            </p>
           </div>
+        </button>
 
-          <!-- Safe Area Bottom Padding (Mobile only) -->
-          <div class="h-6 sm:h-0"></div>
-        </div>
+        <button
+          @click="exportExcel"
+          class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary transition text-left group"
+        >
+          <div
+            class="w-12 h-12 bg-success-background rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform"
+          >
+            <i class="pi pi-file-excel text-2xl text-success-foreground"></i>
+          </div>
+          <div>
+            <h4 class="text-sm sm:text-base font-semibold text-black">
+              Export ke Excel
+            </h4>
+            <p class="text-xs sm:text-sm text-muted-foreground">
+              Download dalam format Excel (.xlsx)
+            </p>
+          </div>
+        </button>
       </div>
-    </transition>
 
-    <!-- UPDATED: Visibility Toggle Modal menggunakan ResponsiveModal -->
+      <!-- Footer Actions -->
+      <template #footer>
+        <Button @click="closeExportModal" block variant="merchant">
+          Tutup
+        </Button>
+      </template>
+    </ResponsiveModal>
+
+    <!-- UPDATED: Bulk Action Modal - Single Footer -->
+    <ResponsiveModal
+      v-model:show="showBulkActionModal"
+      title="Ubah Status Produk"
+      :subtitle="`${selectedProductsCount} produk akan diubah statusnya`"
+      show-footer
+      footer-class="sm:hidden"
+      @close="closeBulkActionModal"
+    >
+      <!-- Body -->
+      <div class="space-y-3">
+        <!-- Publish Action -->
+        <button
+          @click="bulkUpdateStatus('published')"
+          class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary transition text-left group"
+        >
+          <div
+            class="w-12 h-12 bg-success-background rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform"
+          >
+            <i class="pi pi-check-circle text-2xl text-success-foreground"></i>
+          </div>
+          <div>
+            <h4 class="text-sm sm:text-base font-semibold text-black">
+              Dipublish
+            </h4>
+            <p class="text-xs sm:text-sm text-muted-foreground">
+              Produk akan muncul di katalog dan dapat dibeli
+            </p>
+          </div>
+        </button>
+
+        <!-- Archive Action -->
+        <button
+          @click="bulkUpdateStatus('archived')"
+          class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary transition text-left group"
+        >
+          <div
+            class="w-12 h-12 bg-danger-background rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform"
+          >
+            <i class="pi pi-box text-2xl text-danger-foreground"></i>
+          </div>
+          <div>
+            <h4 class="text-sm sm:text-base font-semibold text-black">
+              Diarsipkan
+            </h4>
+            <p class="text-xs sm:text-sm text-muted-foreground">
+              Produk diarsipkan dan tidak aktif
+            </p>
+          </div>
+        </button>
+      </div>
+
+      <!-- Footer Actions -->
+      <template #footer>
+        <Button @click="closeBulkActionModal" block variant="merchant">
+          Tutup
+        </Button>
+      </template>
+    </ResponsiveModal>
+
+    <!-- UPDATED: Visibility Modal - Single Footer -->
     <ResponsiveModal
       v-model:show="showVisibilityModal"
       title="Ubah Status Produk"
       :subtitle="selectedProductForVisibility?.name"
       size="md"
+      show-footer
+      footer-class="sm:hidden"
       @close="closeVisibilityModal"
     >
       <!-- Content -->
@@ -1527,6 +1403,13 @@ const closeVisibilityModal = () => {
           </div>
         </button>
       </div>
+
+      <!-- Footer Actions -->
+      <template #footer>
+        <Button @click="closeVisibilityModal" block variant="merchant">
+          Tutup
+        </Button>
+      </template>
     </ResponsiveModal>
 
     <!-- UPDATED: Unified Backdrop -->
