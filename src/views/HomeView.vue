@@ -80,7 +80,7 @@ const menuItems = [
   {
     key: 'komunitas',
     label: 'Komunitas',
-    to: '#',
+    to: '/community',
     svg: `<svg width="98" height="66" viewBox="0 0 98 66" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 <rect width="98" height="66" rx="10" fill="#FFA30E"/>
 <rect x="16" width="65" height="65" fill="url(#pattern0_805_3999)"/>
