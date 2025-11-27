@@ -64,7 +64,7 @@
           <button
             type="submit"
             :disabled="loading || submitDisabled"
-            class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-60"
+            class="flex-1 bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/85 disabled:opacity-60"
           >
             {{ loading ? 'Mengirim...' : 'Kirim' }}
           </button>

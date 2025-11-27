@@ -2,7 +2,7 @@
   <div class="max-w-3xl mx-auto py-8 px-4">
     <div class="flex justify-between items-center mb-6">
       <h1 class="text-2xl font-bold">Komunitas</h1>
-      <button @click="showCreatePost = true" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+      <button @click="showCreatePost = true" class="bg-primary text-white px-4 py-2 rounded hover:bg-primary/85">
         Buat Post
       </button>
     </div>
@@ -84,7 +84,28 @@
               />
             </div>
 
-            <!-- 3 or more images -->
+            <!-- 3 images: 1 big on top, 2 below in 2 columns -->
+            <div v-else-if="post.images.length === 3">
+              <img
+                :src="imageUrl(post.images[0])"
+                alt="hero"
+                class="w-full h-48 sm:h-56 md:h-72 lg:h-80 object-cover rounded-lg cursor-pointer mb-2"
+                loading="lazy"
+                @click="openLightbox(post.images, 0)"
+              />
+              <div class="grid grid-cols-2 gap-2">
+                <img
+                  v-for="(img,i) in post.images.slice(1,3)"
+                  :key="i"
+                  :src="imageUrl(img)"
+                  class="w-full h-32 sm:h-40 md:h-44 object-cover rounded-md cursor-pointer"
+                  loading="lazy"
+                  @click="openLightbox(post.images, i+1)"
+                />
+              </div>
+            </div>
+
+            <!-- 4 or more images -->
             <div v-else>
               <img
                 :src="imageUrl(post.images[0])"
@@ -95,48 +116,42 @@
               />
 
               <!-- thumbnails -->
-                <div class="gap-2">
-                  <!-- mobile grid -->
-                  <div class="grid grid-cols-3 gap-2 md:hidden">
-                    <div v-for="(img,i) in post.images.slice(1,4)" :key="i" class="relative">
-                      <img
-                        :src="imageUrl(img)"
-                        class="w-full h-24 object-cover rounded-md cursor-pointer"
-                        loading="lazy"
-                        @click="openLightbox(post.images, i+1)"
-                      />
-                      <div v-if="i === 2 && post.images.length > 4"
-                        class="absolute inset-0 bg-black/45 rounded-md flex items-center justify-center text-white text-lg font-semibold cursor-pointer"
-                        @click.stop="openLightbox(post.images, i+1)">
-                        <span>+{{ post.images.length - 4 }}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- tablet/desktop: grid -->
-                  <div class="hidden md:grid md:grid-cols-3 gap-2">
-                    <div v-for="(img,i) in post.images.slice(1,4)" :key="i" class="relative">
-                      <img
-                        :src="imageUrl(img)"
-                        class="w-full h-40 md:h-44 lg:h-48 object-cover rounded-md cursor-pointer"
-                        loading="lazy"
-                        @click="openLightbox(post.images, i+1)"
-                      />
-                      <div v-if="i === 2 && post.images.length > 4"
-                        class="absolute inset-0 bg-black/45 rounded-md flex items-center justify-center text-white text-lg font-semibold cursor-pointer"
-                        @click.stop="openLightbox(post.images, i+1)">
-                        <span>+{{ post.images.length - 4 }}</span>
-                      </div>
+              <div class="gap-2">
+                <!-- mobile grid -->
+                <div class="grid grid-cols-3 gap-2 md:hidden">
+                  <div v-for="(img,i) in post.images.slice(1,4)" :key="i" class="relative">
+                    <img
+                      :src="imageUrl(img)"
+                      class="w-full h-24 object-cover rounded-md cursor-pointer"
+                      loading="lazy"
+                      @click="openLightbox(post.images, i+1)"
+                    />
+                    <div v-if="i === 2 && post.images.length > 4"
+                      class="absolute inset-0 bg-black/45 rounded-md flex items-center justify-center text-white text-lg font-semibold cursor-pointer"
+                      @click.stop="openLightbox(post.images, i+1)">
+                      <span>+{{ post.images.length - 4 }}</span>
                     </div>
                   </div>
                 </div>
 
+                <!-- tablet/desktop: grid -->
+                <div class="hidden md:grid md:grid-cols-3 gap-2">
+                  <div v-for="(img,i) in post.images.slice(1,4)" :key="i" class="relative">
+                    <img
+                      :src="imageUrl(img)"
+                      class="w-full h-40 md:h-44 lg:h-48 object-cover rounded-md cursor-pointer"
+                      loading="lazy"
+                      @click="openLightbox(post.images, i+1)"
+                    />
+                    <div v-if="i === 2 && post.images.length > 4"
+                      class="absolute inset-0 bg-black/45 rounded-md flex items-center justify-center text-white text-lg font-semibold cursor-pointer"
+                      @click.stop="openLightbox(post.images, i+1)">
+                      <span>+{{ post.images.length - 4 }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-
-          <!-- no images -->
-          <div v-else class="w-full h-40 sm:h-48 md:h-56 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-            Tidak ada gambar
           </div>
         </div>
 
