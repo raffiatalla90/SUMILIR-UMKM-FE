@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+import CommunityView from "@/views/CommunityView.vue";
+import CommunityDetailView from "@/views/CommunityDetailView.vue";
 
 const routes = [
   {
@@ -68,6 +70,18 @@ const routes = [
 
   // Fallback
   { path: "/:pathMatch(.*)*", redirect: "/" },
+
+  {
+    path: "/community",
+    name: "community",
+    component: CommunityView,
+  },
+  {
+    path: "/community/:slug",
+    name: "community-detail",
+    component: CommunityDetailView,
+    props: true,
+  },
 ];
 
 const router = createRouter({
