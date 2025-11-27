@@ -22,7 +22,7 @@
         <!-- header -->
         <div class="flex items-start gap-4 mb-4">
           <img
-            :src="post.user?.profile_picture_path || post.author?.profile_picture_path || '/default-avatar.png'"
+            :src="post.author?.profile_picture"
             alt="avatar"
             class="w-12 h-12 rounded-full object-cover"
             loading="lazy"
@@ -47,7 +47,7 @@
 
         <!-- Title & content -->
         <div class="mb-3">
-          <h2 class="text-lg font-bold text-gray-900">{{ post.post_title || post.title || post.judul || 'Tanpa Judul' }}</h2>
+          <h2 class="text-lg font-bold text-gray-900">{{ post.post_title }}</h2>
         </div>
 
         <div class="mb-4 text-gray-800 whitespace-pre-line">
@@ -253,10 +253,10 @@ async function fetchPosts() {
 
     posts.value = posts.value.map(p => ({
       ...p,
-      user: p.user || p.author || p.creator || {},
-      author: p.author || p.user || p.creator || {},
-      images: normalizeImages(p.images || p.post_images || p.images_data || []),
-      comments_count: p.comments_count ?? (p.comments?.length ?? 0),
+      user: p.user || {},
+      author: p.author || {},
+      images: normalizeImages(p.images || []),
+      comments_count: p.comments_count ?? p.comments_count ?? 0, 
       views_count: p.views_count ?? (p.views ?? 0)
     }))
   } catch (e) {
