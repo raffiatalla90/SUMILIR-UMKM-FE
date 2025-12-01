@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"name": "KMI-SIMSLIFE-FE-main",
+			"path": "."
+		},
+		{
+			"path": "../../vue3-crud"
+		},
+		{
+			"path": "../KMI-SIMSLIFE-BE-main"
+		},
+		{
+			"path": "../../simslife-backend"
+		}
+	],
+	"settings": {}
+}

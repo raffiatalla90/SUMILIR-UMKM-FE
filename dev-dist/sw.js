@@ -79,7 +79,7 @@ define(['./workbox-14ef65e8'], (function (workbox) { 'use strict';
    */
   workbox.precacheAndRoute([{
     "url": "/index.html",
-    "revision": "0.a0uhfe09h0g"
+    "revision": "0.ioacpn6i858"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("/index.html"), {
@@ -93,7 +93,7 @@ define(['./workbox-14ef65e8'], (function (workbox) { 'use strict';
     "cacheName": "assets-v1",
     plugins: []
   }), 'GET');
-  workbox.registerRoute(/^http:\/\/localhost:8000\/api\/.*/, new workbox.NetworkFirst({
+  workbox.registerRoute(/^\/api\/.*/, new workbox.NetworkFirst({
     "cacheName": "api-cache-v1",
     plugins: [new workbox.CacheableResponsePlugin({
       statuses: [0, 200]
