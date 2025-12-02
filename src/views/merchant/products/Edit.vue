@@ -1,25 +1,48 @@
 <!-- filepath: c:\laragon\www\KMI-SIMSLIFE-FE\src\views\merchant\products\Edit.vue -->
 <script setup>
 // filepath: c:\laragon\www\KMI-SIMSLIFE-FE\src\views\merchant\products\Edit.vue
-import { ref, computed, watch, onMounted } from "vue";
+
+import { ref, computed, watch, onMounted, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
-import { Form } from "vee-validate";
+import api from "@/libs/axios";
+import { Form, useForm } from "vee-validate";
 import * as yup from "yup";
 import TextField from "@/components/forms/TextField.vue";
 import SelectField from "@/components/forms/SelectField.vue";
 import Button from "@/components/common/Button.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
-
+import { useCategories } from "@/composables/useCategories";
+import { useProducts } from "@/composables/useProducts"; // already present — ensure fetchProductDetail used
+import { getImageUrl } from "@/libs/getImageUrl.js"; // ADD THIS
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 
+// ✅ Use composables
+const {
+  categoriesLevel1,
+  categoriesLevel2,
+  loadingLevel1,
+  loadingLevel2,
+  fetchLevel1Categories,
+  fetchSubCategories,
+} = useCategories();
+
+// ubah jadi:
+const { loading: loadingProduct, fetchProductDetail } = useProducts();
+
 const loading = ref(false);
 const loadingData = ref(true);
+const productId = computed(() => route.params.id);
+
+// ✅ SAMA SEPERTI CREATE: State Management
 const useVariants = ref(false);
-const variantUsesImages = ref({});
+const variantUsesImages = ref({}); // ✅ Gunakan 0 dan 1
+
+const name = ref("");
+const description = ref("");
 
 // Images
 const productImages = ref([]);
@@ -28,22 +51,16 @@ const coverImageIndex = ref(0);
 const draggedImageIndex = ref(null);
 
 // Categories
-const categoriesLevel1 = ref([
-  { value: 1, label: "Benda Pakai" },
-  { value: 2, label: "Makanan & Minuman" },
-]);
-const categoriesLevel2 = ref([]);
 const selectedCategory = ref(null);
 const selectedSubCategories = ref([]);
 
 // Variants
 const variants = ref([]);
+const variantNames = ref({});
 const maxVariants = 2;
 const maxOptions = 50;
 
 // Combinations
-const name = ref("");
-const description = ref("");
 const combinations = ref([]);
 const showCombinationsModal = ref(false);
 const bulkPrice = ref(0);
@@ -51,23 +68,46 @@ const bulkStock = ref(0);
 const selectedCombinations = ref(new Set());
 useBodyScrollLock(showCombinationsModal);
 
-// Form values
-const formPrice = ref(0);
-const formStock = ref(0);
-const formMinPurchase = ref(1);
+// Add-on Groups
+const addOnGroups = ref([]);
+const maxAddOnGroups = 10;
+const maxAddOnOptions = 20;
+
+// Accordion States
 const expandedVariants = ref(new Set());
+const expandedAddOnGroups = ref(new Set());
+const formSku = ref("");
+// ✅ SAMA SEPERTI CREATE: Form values
+const formPrice = computed({
+  get: () => values.price || 0,
+  set: (val) => setFieldValue("price", val),
+});
 
-// Initial values untuk form
-const initialValues = ref({});
+const formStock = computed({
+  get: () => values.stock || 0,
+  set: (val) => setFieldValue("stock", val),
+});
 
-// Validation schema
+const formMinPurchase = computed({
+  get: () => values.min_purchase || 1,
+  set: (val) => setFieldValue("min_purchase", val),
+});
+
+// ✅ SAMA SEPERTI CREATE: Validation Schema
 const schema = yup.object({
   name: yup.string().required("Nama produk wajib diisi"),
   description: yup.string().required("Deskripsi wajib diisi"),
   category_id: yup.number().required("Kategori utama wajib dipilih"),
+  sku: yup
+    .string()
+    .max(100, "SKU maksimal 100 karakter")
+    .when([], {
+      is: () => !useVariants.value,
+      then: (schema) => schema.nullable(),
+    }),
   price: yup
     .number()
-    .min(1, "Harga minimal 1")
+    .min(0, "Harga minimal 0")
     .when([], {
       is: () => !useVariants.value,
       then: (schema) => schema.required("Harga wajib diisi"),
@@ -87,11 +127,35 @@ const schema = yup.object({
     .required("Minimal pembelian wajib diisi"),
 });
 
-// Computed
+// ✅ SAMA SEPERTI CREATE: VEE-VALIDATE SETUP
+const {
+  handleSubmit: veeHandleSubmit,
+  errors,
+  values,
+  setFieldValue,
+  validate,
+} = useForm({
+  validationSchema: schema,
+  initialValues: {
+    name: "",
+    description: "",
+    category_id: null,
+    min_purchase: 1,
+    sku: "",
+    price: 0,
+    stock: 0,
+  },
+});
+
+// ✅ SAMA SEPERTI CREATE: Computed
 const canAddSubCategory = computed(
   () => selectedSubCategories.value.length < 4
 );
 const canAddVariant = computed(() => variants.value.length < maxVariants);
+const canAddAddOnGroup = computed(
+  () => addOnGroups.value.length < maxAddOnGroups
+);
+
 const totalCombinations = computed(() => {
   if (!useVariants.value || variants.value.length === 0) return 0;
 
@@ -114,368 +178,333 @@ const allCombinationsSelected = computed(() => {
   );
 });
 
-// Breadcrumb
 const breadcrumbs = computed(() => [
   { label: "Produk", path: "/merchant-center/products" },
   { label: "Edit Produk", path: null },
 ]);
 
-// Watch category change
+// ✅ SAMA SEPERTI CREATE: Watchers
+watch(name, (newName) => {
+  setFieldValue("name", newName);
+});
+
+watch(description, (newDesc) => {
+  setFieldValue("description", newDesc);
+});
+
 watch(selectedCategory, async (newCat) => {
+  console.log("[Categories] Selected category:", newCat);
+  setFieldValue("category_id", newCat);
+
   if (newCat) {
-    categoriesLevel2.value = [
-      { value: 10, label: "Alas Kaki" },
-      { value: 11, label: "Pakaian" },
-    ];
+    await fetchSubCategories(newCat);
   } else {
     categoriesLevel2.value = [];
   }
-  // Don't clear sub categories on edit mode
+  // Jangan clear sub categories pada mode edit
 });
 
-// Watch variants
+// ✅ ADD: Flag to prevent auto-regenerate during initial load
+const isInitialLoad = ref(false);
+
+// ✅ IMPROVED: Watcher with debounce and smart regeneration
+let regenerateTimeout = null;
+
 watch(
   () => [useVariants.value, variants.value],
   () => {
-    if (useVariants.value && variants.value.length > 0) {
-      generateCombinations();
-    } else {
-      combinations.value = [];
-      selectedCombinations.value.clear();
+    // Skip during initial data load
+    if (isInitialLoad.value) {
+      console.log("[Watcher] Skipping during initial load");
+      return;
     }
+
+    // Clear previous timeout
+    if (regenerateTimeout) {
+      clearTimeout(regenerateTimeout);
+    }
+
+    // ✅ Debounce: Wait 300ms before regenerating
+    regenerateTimeout = setTimeout(() => {
+      if (useVariants.value && variants.value.length > 0) {
+        console.log("[Watcher] Triggering smart regeneration");
+        generateCombinations();
+      } else {
+        selectedCombinations.value.clear();
+      }
+    }, 300);
   },
   { deep: true }
 );
 
-// PERBAIKAN: Tambahkan ref untuk tracking nama varian
-const variantNames = ref({});
+// ✅ IMPROVED: Helper function dengan EXPLICIT sorting
+const createCombinationKey = (attributes) => {
+  if (!attributes || attributes.length === 0) return "";
 
-// TAMBAHKAN: Add-on Groups State
-const addOnGroups = ref([]);
-const maxAddOnGroups = 10;
-const maxAddOnOptions = 20;
-const expandedAddOnGroups = ref(new Set());
+  // Sort by name (case-insensitive)
+  const sorted = [...attributes].sort((a, b) => {
+    const nameA = (a.name || "").toLowerCase().trim();
+    const nameB = (b.name || "").toLowerCase().trim();
+    return nameA.localeCompare(nameB);
+  });
 
-const canAddAddOnGroup = computed(
-  () => addOnGroups.value.length < maxAddOnGroups
-);
+  // Create key with normalized values
+  const key = sorted
+    .map((attr) => {
+      const name = (attr.name || "").toLowerCase().trim();
+      const value = (attr.value || "").toLowerCase().trim();
+      return `${name}:${value}`;
+    })
+    .join("|");
 
-// TAMBAHKAN: Add-on Group Methods (sebelum onMounted)
-const addAddOnGroup = () => {
-  if (canAddAddOnGroup.value) {
-    const groupId = Date.now() + Math.random();
-    addOnGroups.value.push({
-      id: groupId,
-      name: "",
-      is_required: false,
-      min_selection: 0,
-      max_selection: 1,
-      options: [
-        {
-          id: Date.now(),
-          name: "",
-          price: 0,
-        },
-      ],
+  return key;
+};
+
+// ✅ ADD: Debug helper
+const debugCombination = (combo, source) => {
+  const key = createCombinationKey(combo.attributes);
+  console.log(`[${source}] Combo:`, {
+    combination: combo.combination,
+    key: key,
+    attributes: combo.attributes,
+    price: combo.price,
+    stock: combo.stock,
+  });
+  return key;
+};
+
+// ✅ CRITICAL FIX: Generate combinations dengan proper attribute structure
+const generateCombinations = () => {
+  console.log("\n[Generate] ============ START GENERATION ============");
+  console.log(
+    "[Generate] Current variants:",
+    JSON.parse(JSON.stringify(variants.value))
+  );
+
+  const validVariants = variants.value
+    .filter((v) => v.name.trim() && v.options.some((opt) => opt.name.trim()))
+    .map((v) => ({
+      name: v.name.trim(),
+      options: v.options
+        .filter((opt) => opt.name.trim())
+        .map((opt) => ({
+          id: opt.id,
+          name: opt.name.trim(),
+          images: opt.images,
+        })),
+    }));
+
+  if (validVariants.length === 0) {
+    console.log("[Generate] No valid variants, clearing combinations");
+    selectedCombinations.value.clear();
+    return;
+  }
+
+  console.log("[Generate] Valid variants:", validVariants);
+
+  // ✅ CRITICAL: Store existing with debug logging
+  const existingCombosMap = new Map();
+
+  console.log("\n[Generate] ============ EXISTING COMBINATIONS ============");
+  combinations.value.forEach((combo, idx) => {
+    const key = debugCombination(combo, `Existing[${idx}]`);
+    existingCombosMap.set(key, {
+      sku: combo.sku,
+      price: combo.price,
+      stock: combo.stock,
     });
-    expandedAddOnGroups.value.add(groupId);
-  }
-};
+  });
 
-const removeAddOnGroup = (index) => {
-  const groupId = addOnGroups.value[index].id;
-  expandedAddOnGroups.value.delete(groupId);
-  addOnGroups.value.splice(index, 1);
-};
+  console.log("\n[Generate] Existing map size:", existingCombosMap.size);
+  console.log(
+    "[Generate] Existing map keys:",
+    Array.from(existingCombosMap.keys())
+  );
 
-const addAddOnOption = (groupIndex) => {
-  const group = addOnGroups.value[groupIndex];
-  if (group.options.length < maxAddOnOptions) {
-    group.options.push({
-      id: Date.now() + Math.random(),
-      name: "",
-      price: 0,
+  const newCombinations = [];
+
+  const generateRecursive = (variantIndex, current) => {
+    if (variantIndex === validVariants.length) {
+      // ✅ CRITICAL: Ensure attributes are in SAME ORDER as when stored
+      const normalizedAttributes = current.attributes.map((attr) => ({
+        name: attr.name.trim(),
+        value: attr.value.trim(),
+      }));
+
+      const attributeKey = createCombinationKey(normalizedAttributes);
+      const existingData = existingCombosMap.get(attributeKey);
+
+      if (existingData) {
+        console.log(
+          `[Generate] ✅ MATCH FOUND: "${current.combination}"`,
+          `\n  Key: ${attributeKey}`,
+          `\n  Data:`,
+          existingData
+        );
+      } else {
+        console.log(
+          `[Generate] 🆕 NEW: "${current.combination}"`,
+          `\n  Key: ${attributeKey}`,
+          `\n  Attributes:`,
+          normalizedAttributes
+        );
+      }
+
+      newCombinations.push({
+        combination: current.combination,
+        sku: existingData?.sku || "",
+        price: existingData?.price || 0,
+        stock: existingData?.stock || 0,
+        attributes: normalizedAttributes,
+      });
+      return;
+    }
+
+    const variant = validVariants[variantIndex];
+    variant.options.forEach((option) => {
+      generateRecursive(variantIndex + 1, {
+        combination: current.combination
+          ? `${current.combination} - ${option.name}`
+          : option.name,
+        attributes: [
+          ...current.attributes,
+          {
+            name: variant.name,
+            value: option.name,
+          },
+        ],
+      });
     });
-  }
-};
+  };
 
-const removeAddOnOption = (groupIndex, optionIndex) => {
-  const group = addOnGroups.value[groupIndex];
-  if (group.options.length > 1) {
-    group.options.splice(optionIndex, 1);
-  }
-};
+  generateRecursive(0, { combination: "", attributes: [] });
 
-const toggleAddOnGroupExpand = (groupId) => {
-  if (expandedAddOnGroups.value.has(groupId)) {
-    expandedAddOnGroups.value.delete(groupId);
+  if (newCombinations.length > maxOptions) {
+    combinations.value = newCombinations.slice(0, maxOptions);
+    toast.warning(`Kombinasi dipotong menjadi ${maxOptions} (maksimal)`);
   } else {
-    expandedAddOnGroups.value.add(groupId);
+    combinations.value = newCombinations;
   }
-};
 
-const isAddOnGroupExpanded = (groupId) => {
-  return expandedAddOnGroups.value.has(groupId);
-};
+  console.log("\n[Generate] ============ NEW COMBINATIONS ============");
+  combinations.value.forEach((combo, idx) => {
+    debugCombination(combo, `New[${idx}]`);
+  });
 
-// Load product data
-onMounted(async () => {
+  console.log("\n[Generate] ============ SUMMARY ============");
+  console.log(`Total: ${newCombinations.length} combinations`);
+  console.log(
+    `Preserved: ${
+      Array.from(existingCombosMap.keys()).filter((key) =>
+        combinations.value.some(
+          (c) => createCombinationKey(c.attributes) === key && c.price > 0
+        )
+      ).length
+    }`
+  );
+  console.log("[Generate] ============ END GENERATION ============\n");
+
+  selectedCombinations.value.clear();
+};
+const absoluteImagePath = (img) => {
+  // img bisa berupa string (path) atau object { id, image_path }
+  if (!img) return "";
+
+  const baseURL = (
+    import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
+  ).replace(/\/$/, "");
+
+  // jika argumen adalah object
+  const image_path = typeof img === "string" ? img : img.image_path;
+  const id = typeof img === "string" ? null : img.id;
+
+  if (!image_path && id) {
+    // tidak ada image_path, fallback ke endpoint by id
+    return getImageUrl(id);
+  }
+
+  if (!image_path && !id) return "";
+
+  const path = image_path.trim();
+
+  // already absolute URL?
+  if (/^https?:\/\//i.test(path)) return path;
+
+  // starts with api/ or /api/... -> prefix baseURL
+  if (
+    /^\/?api\//i.test(path) ||
+    /^\/storage\//i.test(path) ||
+    path.startsWith("/")
+  ) {
+    return `${baseURL.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
+  }
+
+  // fallback: treat as file path relative to API root
+  return `${baseURL}/${path}`;
+};
+// ================= REPLACE EXISTING fetchProductData WITH THIS =================
+const fetchProductData = async () => {
   loadingData.value = true;
+  isInitialLoad.value = true;
+
   try {
-    // DUMMY DATA untuk simulasi
-    const productData = {
-      id: route.params.id,
-      name: "Sandal Jepit Premium",
-      description:
-        "Sandal jepit berkualitas tinggi dengan bahan yang nyaman dan tahan lama. Cocok untuk pemakaian sehari-hari maupun santai di rumah. Tersedia dalam berbagai warna dan ukuran.\n\nSpesifikasi:\n- Material: Karet premium\n- Anti slip\n- Ringan dan nyaman\n- Mudah dibersihkan",
-      category_id: 1,
-      sub_categories: [10],
-      min_purchase: 1,
-      condition: "new",
-      use_variants: true,
-      price: 50000,
-      stock: 100,
-      images: [
-        {
-          id: 1,
-          image_path:
-            "https://via.placeholder.com/400/4A90E2/FFFFFF?text=Image+1",
-          is_cover: true,
-        },
-        {
-          id: 2,
-          image_path:
-            "https://via.placeholder.com/400/E74C3C/FFFFFF?text=Image+2",
-          is_cover: false,
-        },
-        {
-          id: 3,
-          image_path:
-            "https://via.placeholder.com/400/F39C12/FFFFFF?text=Image+3",
-          is_cover: false,
-        },
-      ],
-      variants: [
-        {
-          id: 1,
-          name: "Warna",
-          uses_images: true,
-          options: [
-            {
-              id: 1,
-              name: "Merah",
-              images: [
-                {
-                  id: 1,
-                  image_path:
-                    "https://via.placeholder.com/100/FF0000/FFFFFF?text=Red",
-                },
-              ],
-            },
-            { id: 2, name: "Biru", images: [] },
-            { id: 3, name: "Hijau", images: [] },
-          ],
-        },
-        {
-          id: 2,
-          name: "Ukuran",
-          uses_images: false,
-          options: [
-            { id: 4, name: "S", images: [] },
-            { id: 5, name: "M", images: [] },
-            { id: 6, name: "L", images: [] },
-          ],
-        },
-      ],
-      combinations: [
-        {
-          combination: "Merah - S",
-          sku: "SANDAL-RED-S",
-          price: 50000,
-          stock: 25,
-        },
-        {
-          combination: "Merah - M",
-          sku: "SANDAL-RED-M",
-          price: 55000,
-          stock: 30,
-        },
-        {
-          combination: "Merah - L",
-          sku: "SANDAL-RED-L",
-          price: 60000,
-          stock: 20,
-        },
-        {
-          combination: "Biru - S",
-          sku: "SANDAL-BLUE-S",
-          price: 50000,
-          stock: 20,
-        },
-        {
-          combination: "Biru - M",
-          sku: "SANDAL-BLUE-M",
-          price: 55000,
-          stock: 25,
-        },
-        {
-          combination: "Biru - L",
-          sku: "SANDAL-BLUE-L",
-          price: 60000,
-          stock: 15,
-        },
-        {
-          combination: "Hijau - S",
-          sku: "SANDAL-GREEN-S",
-          price: 50000,
-          stock: 18,
-        },
-        {
-          combination: "Hijau - M",
-          sku: "SANDAL-GREEN-M",
-          price: 55000,
-          stock: 22,
-        },
-        {
-          combination: "Hijau - L",
-          sku: "SANDAL-GREEN-L",
-          price: 60000,
-          stock: 12,
-        },
-      ],
-      // TAMBAHKAN: Add-on Groups data
-      add_on_groups: [
-        {
-          id: 1,
-          name: "Tingkat Kepedasan",
-          is_required: true,
-          min_selection: 1,
-          max_selection: 1,
-          options: [
-            { id: 1, name: "Tidak Pedas", price: 0 },
-            { id: 2, name: "Sedang", price: 0 },
-            { id: 3, name: "Pedas", price: 0 },
-          ],
-        },
-        {
-          id: 2,
-          name: "Extra Topping",
-          is_required: false,
-          min_selection: 0,
-          max_selection: 3,
-          options: [
-            { id: 4, name: "Daging Asap", price: 8000 },
-            { id: 5, name: "Cumi", price: 10000 },
-            { id: 6, name: "Sosis", price: 5000 },
-          ],
-        },
-      ],
-    };
+    console.log("[Edit] Fetching product (via composable):", productId.value);
 
-    // PERBAIKAN: Set name dan description ke ref
-    name.value = productData.name;
-    description.value = productData.description;
+    // gunakan composable yang sudah dibuat — dia return payload bersih
+    const payload = await fetchProductDetail(productId.value);
 
-    // Set form data - INI YANG MEMBUAT INPUT TER-ISI
-    initialValues.value = {
-      name: productData.name,
-      description: productData.description,
-      category_id: productData.category_id,
-      min_purchase: productData.min_purchase,
-      condition: productData.condition,
-      price: productData.price || 0,
-      stock: productData.stock || 0,
-    };
+    // payload mungkin berada di response.data (sudah dinormalisasi oleh composable)
+    const productData = payload;
 
-    // Set images
-    productImages.value = productData.images.map((img) => ({
+    console.log("[Edit] Product loaded (composable):", productData);
+
+    // Fetch sub categories jika ada main category
+    if (productData.categories && productData.categories.length > 0) {
+      await fetchSubCategories(productData.categories[0].id);
+    }
+
+    // Normalisasi: pastikan images adalah array
+    if (!Array.isArray(productData.images)) {
+      productData.images = productData.images ? [productData.images] : [];
+    }
+
+    productImages.value = (productData.images || []).map((img, idx) => ({
       id: img.id,
-      preview: img.image_path,
-      is_cover: img.is_cover,
+      preview: absoluteImagePath(img), // <- penting: pakai absolute URL
+      is_cover: !!img.is_cover,
       existing: true,
     }));
+
+    // set coverImageIndex
     coverImageIndex.value = productImages.value.findIndex(
       (img) => img.is_cover
     );
-
-    // Set categories
-    selectedCategory.value = productData.category_id;
-    if (productData.category_id) {
-      categoriesLevel2.value = [
-        { value: 10, label: "Alas Kaki" },
-        { value: 11, label: "Pakaian" },
-      ];
-    }
-    selectedSubCategories.value = productData.sub_categories || [];
-
-    // Set variants
-    useVariants.value = productData.use_variants;
-    if (productData.use_variants && productData.variants) {
-      variants.value = productData.variants.map((v) => ({
-        id: v.id,
-        name: v.name,
-        options: v.options.map((opt) => ({
-          id: opt.id,
-          name: opt.name,
-          images: opt.images.map((img) => ({
-            id: img.id,
-            preview: img.image_path,
-            existing: true,
-          })),
-        })),
-      }));
-
-      // PERBAIKAN: Set variant names dengan ID unik
-      productData.variants.forEach((v) => {
-        variantNames.value[v.id] = v.name;
-        variantUsesImages.value[v.id] = v.uses_images;
-        expandedVariants.value.add(v.id);
-      });
-
-      // Set combinations
-      combinations.value = productData.combinations.map((combo) => ({
-        combination: combo.combination,
-        sku: combo.sku,
-        price: combo.price,
-        stock: combo.stock,
-        attributes: combo.attributes || [],
-      }));
-    } else {
-      formPrice.value = productData.price;
-      formStock.value = productData.stock;
+    if (coverImageIndex.value === -1 && productImages.value.length > 0) {
+      coverImageIndex.value = 0;
+      // mark first as cover if none flagged
+      productImages.value[0].is_cover = true;
     }
 
-    // TAMBAHKAN: Set add-on groups
-    if (productData.add_on_groups && productData.add_on_groups.length > 0) {
-      addOnGroups.value = productData.add_on_groups.map((group) => ({
-        id: group.id,
-        name: group.name,
-        is_required: group.is_required,
-        min_selection: group.min_selection,
-        max_selection: group.max_selection,
-        options: group.options.map((opt) => ({
-          id: opt.id,
-          name: opt.name,
-          price: opt.price,
-        })),
-      }));
-
-      // Auto expand semua grup
-      productData.add_on_groups.forEach((group) => {
-        expandedAddOnGroups.value.add(group.id);
-      });
-    }
-
-    formMinPurchase.value = productData.min_purchase;
+    // Populate rest of the form + variants/addons using helper yang sudah ada
+    populateFormFromProduct(productData);
   } catch (error) {
-    toast.error("Gagal memuat data produk");
+    console.error("[Edit] Error fetching product via composable:", error);
+    // biarkan toast dan redirect seperti sebelumnya; gunakan existing toast/router yang ada
+    toast.error(error.response?.data?.message || "Gagal memuat data produk");
     router.push("/merchant-center/products");
   } finally {
     loadingData.value = false;
-  }
-});
 
-// Methods - Images
+    // Release initial load flag setelah tick supaya watcher tidak auto-trigger saat populate
+    await nextTick();
+    setTimeout(() => {
+      isInitialLoad.value = false;
+      console.log("[Edit] ✅ Initial load complete, watchers now active");
+    }, 300);
+  }
+};
+
+// ✅ SAMA SEPERTI CREATE: Image Methods
 const triggerFileInput = () => {
   fileInput.value?.click();
 };
@@ -508,14 +537,6 @@ const removeImage = (index) => {
   }
 };
 
-const setCoverImage = (index) => {
-  coverImageIndex.value = index;
-  productImages.value.forEach((img, i) => {
-    img.is_cover = i === index;
-  });
-};
-
-// Drag & Drop
 const onDragStart = (event, index) => {
   draggedImageIndex.value = index;
   event.dataTransfer.effectAllowed = "move";
@@ -557,7 +578,7 @@ const onDragEnd = () => {
   draggedImageIndex.value = null;
 };
 
-// Methods - Variants
+// ✅ SAMA SEPERTI CREATE: Variant Methods
 const addVariant = () => {
   if (canAddVariant.value) {
     const variantId = Date.now() + Math.random();
@@ -566,8 +587,8 @@ const addVariant = () => {
       name: "",
       options: [{ id: Date.now(), name: "", images: [] }],
     });
-    variantNames.value[variantId] = ""; // Initialize empty name
-    variantUsesImages.value[variantId] = false;
+    variantNames.value[variantId] = "";
+    variantUsesImages.value[variantId] = 0; // ✅ Default 0
     expandedVariants.value.add(variantId);
   }
 };
@@ -591,10 +612,13 @@ const removeOption = (variantIndex, optionIndex) => {
   variants.value[variantIndex].options.splice(optionIndex, 1);
 };
 
+// ✅ SAMA SEPERTI CREATE: Toggle antara 0 dan 1
 const toggleVariantImages = (variantId) => {
-  variantUsesImages.value[variantId] = !variantUsesImages.value[variantId];
+  variantUsesImages.value[variantId] = variantUsesImages.value[variantId]
+    ? 0
+    : 1;
 
-  if (!variantUsesImages.value[variantId]) {
+  if (variantUsesImages.value[variantId] === 0) {
     const variant = variants.value.find((v) => v.id === variantId);
     if (variant) {
       variant.options.forEach((opt) => (opt.images = []));
@@ -647,69 +671,6 @@ const toggleVariantExpand = (variantId) => {
 
 const isVariantExpanded = (variantId) => {
   return expandedVariants.value.has(variantId);
-};
-
-// Generate combinations
-const generateCombinations = () => {
-  const validVariants = variants.value
-    .filter((v) => v.name.trim() && v.options.some((opt) => opt.name.trim()))
-    .map((v) => ({
-      name: v.name.trim(),
-      options: v.options
-        .filter((opt) => opt.name.trim())
-        .map((opt) => ({
-          id: opt.id,
-          name: opt.name.trim(),
-          images: opt.images,
-        })),
-    }));
-
-  if (validVariants.length === 0) {
-    combinations.value = [];
-    selectedCombinations.value.clear();
-    return;
-  }
-
-  const newCombinations = [];
-  const generateRecursive = (variantIndex, current) => {
-    if (variantIndex === validVariants.length) {
-      const existingCombo = combinations.value.find(
-        (c) => c.combination === current.combination
-      );
-
-      newCombinations.push({
-        combination: current.combination,
-        sku: existingCombo?.sku || "",
-        price: existingCombo?.price || 0,
-        stock: existingCombo?.stock || 0,
-        attributes: [...current.attributes],
-      });
-      return;
-    }
-
-    const variant = validVariants[variantIndex];
-    variant.options.forEach((option) => {
-      generateRecursive(variantIndex + 1, {
-        combination: current.combination
-          ? `${current.combination} - ${option.name}`
-          : option.name,
-        attributes: [
-          ...current.attributes,
-          { name: variant.name, value: option.name },
-        ],
-      });
-    });
-  };
-
-  generateRecursive(0, { combination: "", attributes: [] });
-
-  if (newCombinations.length > maxOptions) {
-    combinations.value = newCombinations.slice(0, maxOptions);
-  } else {
-    combinations.value = newCombinations;
-  }
-
-  selectedCombinations.value.clear();
 };
 
 const openCombinationsModal = () => {
@@ -793,418 +754,816 @@ const applyBulkEdit = () => {
   }
 };
 
-// Submit
-const handleSubmit = async (values) => {
-  if (productImages.value.length === 0) {
-    toast.error("Minimal tambahkan 1 foto produk");
-    return;
-  }
-
-  if (useVariants.value) {
-    if (variants.value.length === 0) {
-      toast.error("Minimal tambahkan 1 varian");
-      return;
-    }
-
-    if (combinationsExceedLimit.value) {
-      toast.error(`Kombinasi maksimal ${maxOptions}`);
-      return;
-    }
-
-    const hasInvalidCombo = combinations.value.some(
-      (c) => !c.price || c.price <= 0 || c.stock < 0
-    );
-    if (hasInvalidCombo) {
-      toast.error("Semua kombinasi harus diisi harga dan stok yang valid");
-      return;
-    }
-  }
-
-  // TAMBAHKAN: Add-on Groups validation
-  if (addOnGroups.value.length > 0) {
-    const hasInvalidGroup = addOnGroups.value.some((group) => {
-      if (!group.name.trim()) return true;
-
-      const validOptions = group.options.filter(
-        (opt) => opt.name.trim() && opt.price >= 0
-      );
-      if (validOptions.length === 0) return true;
-
-      if (group.min_selection < 0 || group.max_selection < 1) return true;
-      if (group.min_selection > group.max_selection) return true;
-      if (group.max_selection > validOptions.length) return true;
-
-      return false;
+// ✅ SAMA SEPERTI CREATE: Add-on Group Methods
+const addAddOnGroup = () => {
+  if (canAddAddOnGroup.value) {
+    const groupId = Date.now() + Math.random();
+    addOnGroups.value.push({
+      id: groupId,
+      name: "",
+      is_required: false,
+      min_selection: 0,
+      max_selection: 1,
+      options: [
+        {
+          id: Date.now(),
+          name: "",
+          price: 0,
+        },
+      ],
     });
-
-    if (hasInvalidGroup) {
-      toast.error(
-        "Pastikan setiap grup add-on memiliki nama, minimal 1 opsi valid, dan pengaturan min/max yang benar"
-      );
-      return;
-    }
-  }
-
-  loading.value = true;
-
-  try {
-    const formData = new FormData();
-
-    formData.append("_method", "PUT");
-    formData.append("name", values.name);
-    formData.append("description", values.description);
-    formData.append("category_id", values.category_id);
-    formData.append("min_purchase", values.min_purchase);
-    formData.append("condition", values.condition);
-
-    selectedSubCategories.value.forEach((subCat, index) => {
-      formData.append(`sub_categories[${index}]`, subCat);
-    });
-
-    // Images - send both new and existing
-    productImages.value.forEach((img, index) => {
-      if (img.existing) {
-        formData.append(`existing_images[${index}][id]`, img.id);
-        formData.append(
-          `existing_images[${index}][is_cover]`,
-          index === coverImageIndex.value
-        );
-        formData.append(`existing_images[${index}][order]`, index);
-      } else {
-        formData.append(`images[${index}]`, img.file);
-        formData.append(
-          `images[${index}][is_cover]`,
-          index === coverImageIndex.value
-        );
-        formData.append(`images[${index}][order]`, index);
-      }
-    });
-
-    if (useVariants.value) {
-      variants.value.forEach((variant, vIndex) => {
-        formData.append(`variants[${vIndex}][id]`, variant.id);
-        formData.append(`variants[${vIndex}][name]`, variant.name);
-        formData.append(
-          `variants[${vIndex}][uses_images]`,
-          variantUsesImages.value[variant.id] || false
-        );
-
-        variant.options.forEach((opt, oIndex) => {
-          if (opt.name.trim()) {
-            formData.append(
-              `variants[${vIndex}][options][${oIndex}][id]`,
-              opt.id
-            );
-            formData.append(
-              `variants[${vIndex}][options][${oIndex}][name]`,
-              opt.name.trim()
-            );
-
-            if (variantUsesImages.value[variant.id] && opt.images.length > 0) {
-              opt.images.forEach((img, iIndex) => {
-                if (img.existing) {
-                  formData.append(
-                    `variants[${vIndex}][options][${oIndex}][existing_images][${iIndex}]`,
-                    img.id
-                  );
-                } else {
-                  formData.append(
-                    `variants[${vIndex}][options][${oIndex}][images][${iIndex}]`,
-                    img.file
-                  );
-                }
-              });
-            }
-          }
-        });
-      });
-
-      combinations.value.forEach((combo, cIndex) => {
-        formData.append(
-          `combinations[${cIndex}][combination]`,
-          combo.combination
-        );
-        formData.append(`combinations[${cIndex}][sku]`, combo.sku || "");
-        formData.append(`combinations[${cIndex}][price]`, combo.price);
-        formData.append(`combinations[${cIndex}][stock]`, combo.stock);
-      });
-    } else {
-      formData.append("price", values.price);
-      formData.append("stock", values.stock);
-    }
-
-    // TAMBAHKAN: Append add-on groups
-    addOnGroups.value.forEach((group, gIndex) => {
-      if (group.name.trim()) {
-        formData.append(`add_on_groups[${gIndex}][id]`, group.id);
-        formData.append(`add_on_groups[${gIndex}][name]`, group.name.trim());
-        formData.append(
-          `add_on_groups[${gIndex}][is_required]`,
-          group.is_required
-        );
-        formData.append(
-          `add_on_groups[${gIndex}][min_selection]`,
-          group.min_selection
-        );
-        formData.append(
-          `add_on_groups[${gIndex}][max_selection]`,
-          group.max_selection
-        );
-
-        group.options.forEach((opt, oIndex) => {
-          if (opt.name.trim()) {
-            formData.append(
-              `add_on_groups[${gIndex}][options][${oIndex}][id]`,
-              opt.id
-            );
-            formData.append(
-              `add_on_groups[${gIndex}][options][${oIndex}][name]`,
-              opt.name.trim()
-            );
-            formData.append(
-              `add_on_groups[${gIndex}][options][${oIndex}][price]`,
-              opt.price
-            );
-          }
-        });
-      }
-    });
-
-    // TODO: API call
-    // await api.post(`/merchant/products/${route.params.id}`, formData);
-
-    setTimeout(() => {
-      toast.success("Produk berhasil diperbarui");
-      router.push(`/merchant-center/products/${route.params.id}`);
-    }, 1000);
-  } catch (error) {
-    toast.error(error.response?.data?.message || "Gagal memperbarui produk");
-  } finally {
-    loading.value = false;
+    expandedAddOnGroups.value.add(groupId);
   }
 };
+
+const removeAddOnGroup = (index) => {
+  addOnGroups.value.splice(index, 1);
+};
+
+const addAddOnOption = (groupIndex) => {
+  const group = addOnGroups.value[groupIndex];
+  if (group.options.length < maxAddOnOptions) {
+    group.options.push({
+      id: Date.now() + Math.random(),
+      name: "",
+      price: 0,
+    });
+  }
+};
+
+const removeAddOnOption = (groupIndex, optionIndex) => {
+  const group = addOnGroups.value[groupIndex];
+  if (group.options.length > 1) {
+    group.options.splice(optionIndex, 1);
+  }
+};
+
+const toggleAddOnGroupExpand = (groupId) => {
+  if (expandedAddOnGroups.value.has(groupId)) {
+    expandedAddOnGroups.value.delete(groupId);
+  } else {
+    expandedAddOnGroups.value.add(groupId);
+  }
+};
+
+const isAddOnGroupExpanded = (groupId) => {
+  return expandedAddOnGroups.value.has(groupId);
+};
+
+// ✅ SAMA SEPERTI CREATE: Submit Handler
+const onSubmit = veeHandleSubmit(
+  async (values) => {
+    console.log("[Submit] Form values:", values);
+
+    // === 1) Validasi dengan Yup langsung (deterministik, gak tergantung field registration) ===
+    try {
+      // validasi semua field di values berdasarkan schema
+      await schema.validate(values, { abortEarly: false });
+    } catch (yupError) {
+      // yupError adalah ValidationError
+      const messages = (yupError.inner || [])
+        .map((e) => e.message)
+        .filter(Boolean);
+
+      // fallback jika inner kosong tapi ada message tunggal
+      if (messages.length === 0 && yupError.message) {
+        messages.push(yupError.message);
+      }
+
+      // pastikan yang dikirim ke toast adalah string (hindari passing object)
+      const firstMsg = String(
+        messages[0] || "Mohon lengkapi semua field yang wajib diisi"
+      );
+      toast.error(firstMsg);
+      return;
+    }
+
+    // === 2) Lanjut validasi kustom yang tergantung UI (gambar, variants, add-ons) ===
+    if (productImages.value.length === 0) {
+      toast.error("Minimal tambahkan 1 foto produk");
+      return;
+    }
+
+    if (useVariants.value) {
+      if (variants.value.length === 0) {
+        toast.error("Minimal tambahkan 1 varian");
+        return;
+      }
+
+      const hasEmptyVariantName = variants.value.some((v) => !v.name.trim());
+      if (hasEmptyVariantName) {
+        toast.error("Semua nama varian harus diisi");
+        return;
+      }
+
+      const hasEmptyOptions = variants.value.some(
+        (v) => v.options.filter((opt) => opt.name.trim()).length === 0
+      );
+      if (hasEmptyOptions) {
+        toast.error("Setiap varian harus memiliki minimal 1 opsi");
+        return;
+      }
+
+      if (combinationsExceedLimit.value) {
+        toast.error(`Kombinasi maksimal ${maxOptions}`);
+        return;
+      }
+
+      const hasInvalidCombo = combinations.value.some(
+        (c) => c.price < 0 || c.stock < 0
+      );
+      if (hasInvalidCombo) {
+        toast.error("Harga dan stok tidak boleh negatif");
+        return;
+      }
+    }
+
+    // Validasi add-on groups
+    if (addOnGroups.value.length > 0) {
+      const hasInvalidGroup = addOnGroups.value.some((group) => {
+        if (!group.name.trim()) return true;
+
+        const validOptions = group.options.filter(
+          (opt) => opt.name.trim() && opt.price >= 0
+        );
+        if (validOptions.length === 0) return true;
+
+        if (group.min_selection < 0 || group.max_selection < 1) return true;
+        if (group.min_selection > group.max_selection) return true;
+        if (group.max_selection > validOptions.length) return true;
+
+        return false;
+      });
+
+      if (hasInvalidGroup) {
+        toast.error(
+          "Pastikan setiap grup add-on memiliki nama, minimal 1 opsi valid, dan pengaturan min/max yang benar"
+        );
+        return;
+      }
+    }
+
+    loading.value = true;
+
+    try {
+      const formData = new FormData();
+
+      // Basic Info
+      formData.append("_method", "PUT");
+      formData.append("name", values.name);
+      formData.append("description", values.description);
+      formData.append("category_id", values.category_id);
+      formData.append("min_purchase", values.min_purchase);
+
+      // Sub Categories
+      selectedSubCategories.value.forEach((subCat, index) => {
+        formData.append(`sub_categories[${index}]`, subCat);
+      });
+
+      // ✅ Images - separate existing and new
+      let existingIndex = 0;
+      let newIndex = 0;
+
+      productImages.value.forEach((img, index) => {
+        if (img.existing) {
+          formData.append(`existing_images[${existingIndex}][id]`, img.id);
+          formData.append(`existing_images[${existingIndex}][order]`, index);
+          formData.append(
+            `existing_images[${existingIndex}][is_cover]`,
+            index === coverImageIndex.value ? 1 : 0
+          );
+          existingIndex++;
+        } else {
+          formData.append(`images[${newIndex}][file]`, img.file);
+          formData.append(`images[${newIndex}][order]`, index);
+          newIndex++;
+        }
+      });
+
+      formData.append("cover_image_index", coverImageIndex.value);
+
+      // ✅ Variants or direct pricing (SAMA SEPERTI CREATE)
+      if (useVariants.value) {
+        variants.value.forEach((variant, vIndex) => {
+          if (variant.id) {
+            formData.append(`variants[${vIndex}][id]`, variant.id);
+          }
+          formData.append(`variants[${vIndex}][name]`, variant.name);
+          formData.append(
+            `variants[${vIndex}][uses_images]`,
+            variantUsesImages.value[variant.id] || 0
+          );
+
+          variant.options.forEach((opt, oIndex) => {
+            if (opt.name.trim()) {
+              if (opt.id) {
+                formData.append(
+                  `variants[${vIndex}][options][${oIndex}][id]`,
+                  opt.id
+                );
+              }
+              formData.append(
+                `variants[${vIndex}][options][${oIndex}][name]`,
+                opt.name.trim()
+              );
+
+              if (
+                variantUsesImages.value[variant.id] === 1 &&
+                opt.images.length > 0
+              ) {
+                opt.images.forEach((img, iIndex) => {
+                  if (img.existing) {
+                    formData.append(
+                      `variants[${vIndex}][options][${oIndex}][existing_images][${iIndex}]`,
+                      img.id
+                    );
+                  } else {
+                    formData.append(
+                      `variants[${vIndex}][options][${oIndex}][images][${iIndex}][file]`,
+                      img.file
+                    );
+                  }
+                });
+              }
+            }
+          });
+        });
+
+        combinations.value.forEach((combo, cIndex) => {
+          formData.append(
+            `combinations[${cIndex}][combination]`,
+            combo.combination
+          );
+          formData.append(`combinations[${cIndex}][sku]`, combo.sku || "");
+          formData.append(`combinations[${cIndex}][price]`, combo.price);
+          formData.append(`combinations[${cIndex}][stock]`, combo.stock);
+
+          combo.attributes.forEach((attr, aIndex) => {
+            formData.append(
+              `combinations[${cIndex}][attributes][${aIndex}][name]`,
+              attr.name
+            );
+            formData.append(
+              `combinations[${cIndex}][attributes][${aIndex}][value]`,
+              attr.value
+            );
+          });
+        });
+      } else {
+        formData.append("price", values.price);
+        formData.append("stock", values.stock);
+      }
+
+      // ✅ Add-on groups (SAMA SEPERTI CREATE)
+      addOnGroups.value.forEach((group, gIndex) => {
+        if (group.name.trim()) {
+          if (group.id) {
+            formData.append(`add_on_groups[${gIndex}][id]`, group.id);
+          }
+          formData.append(`add_on_groups[${gIndex}][name]`, group.name.trim());
+          formData.append(
+            `add_on_groups[${gIndex}][min_selection]`,
+            group.min_selection
+          );
+          formData.append(
+            `add_on_groups[${gIndex}][max_selection]`,
+            group.max_selection
+          );
+
+          group.options.forEach((opt, oIndex) => {
+            if (opt.name.trim()) {
+              if (opt.id) {
+                formData.append(
+                  `add_on_groups[${gIndex}][options][${oIndex}][id]`,
+                  opt.id
+                );
+              }
+              formData.append(
+                `add_on_groups[${gIndex}][options][${oIndex}][name]`,
+                opt.name.trim()
+              );
+              formData.append(
+                `add_on_groups[${gIndex}][options][${oIndex}][price]`,
+                opt.price
+              );
+            }
+          });
+        }
+      });
+
+      // Debug FormData (development only)
+      if (import.meta.env.DEV) {
+        console.log("[FormData Entries]:");
+        for (let [key, value] of formData.entries()) {
+          if (value instanceof File) {
+            console.log(`  ${key}: <File: ${value.name}>`);
+          } else {
+            console.log(`  ${key}:`, value);
+          }
+        }
+      }
+
+      // ✅ API Call
+      await api.post(`/products/${productId.value}`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      toast.success("Produk berhasil diperbarui");
+      router.push(`/merchant-center/products/${productId.value}`);
+    } catch (error) {
+      console.error("[Edit] Error updating product:", error);
+
+      // ✅ Log detailed error
+      if (error.response?.data) {
+        console.error("[Edit] Response data:", error.response.data);
+      }
+
+      if (error.response?.status === 422) {
+        const errors = error.response.data.errors || {};
+        const firstError = Object.values(errors)[0];
+        toast.error(firstError?.[0] || "Validasi gagal");
+      } else {
+        // ✅ Show detailed error message
+        const errorMsg =
+          error.response?.data?.error ||
+          error.response?.data?.message ||
+          "Gagal memperbarui produk";
+
+        toast.error(errorMsg);
+
+        // ✅ Log trace in console (development only)
+        if (import.meta.env.DEV && error.response?.data?.trace) {
+          console.error("[Edit] Stack trace:", error.response.data.trace);
+        }
+      }
+    } finally {
+      loading.value = false;
+    }
+  },
+  (errorsFromVee) => {
+    console.log("[Validation] Errors (handler):", errorsFromVee);
+
+    // Helper: ambil pesan string pertama dari berbagai shape error
+    function getFirstErrorMessage(errObj) {
+      if (!errObj) return null;
+
+      // jika sudah string
+      if (typeof errObj === "string") return errObj;
+
+      // jika ada field 'errors' yang berupa object mapping field -> message(s)
+      if (errObj.errors && typeof errObj.errors === "object") {
+        const vals = Object.values(errObj.errors);
+        for (const v of vals) {
+          if (typeof v === "string") return v;
+          if (Array.isArray(v) && v.length) return String(v[0]);
+          if (v && v.message) return String(v.message);
+        }
+      }
+
+      // jika ada 'results' (vee-validate might provide nested result objects)
+      if (errObj.results && typeof errObj.results === "object") {
+        const vals = Object.values(errObj.results);
+        for (const r of vals) {
+          // many shapes: r may have .errors (array) or .message
+          if (r && r.errors && Array.isArray(r.errors) && r.errors.length)
+            return String(r.errors[0]);
+          if (r && r.message) return String(r.message);
+        }
+      }
+
+      // fallback: try to flatten top-level object values
+      if (typeof errObj === "object") {
+        const vals = Object.values(errObj);
+        for (const v of vals) {
+          if (typeof v === "string") return v;
+          if (Array.isArray(v) && v.length && typeof v[0] === "string")
+            return v[0];
+          if (v && typeof v === "object") {
+            // dive one level
+            const inner = Object.values(v).find(
+              (iv) => typeof iv === "string" || (Array.isArray(iv) && iv.length)
+            );
+            if (typeof inner === "string") return inner;
+            if (Array.isArray(inner)) return String(inner[0]);
+          }
+        }
+      }
+
+      return null;
+    }
+
+    const firstMsg =
+      getFirstErrorMessage(errorsFromVee) ||
+      "Mohon lengkapi semua field yang wajib diisi";
+
+    // Pastikan kita kirim string, bukan object
+    toast.error(String(firstMsg));
+  }
+);
 
 const goBack = () => {
   router.back();
 };
+
+const populateFormFromProduct = (productData) => {
+  console.log("[Edit] Populating form from product data:", productData);
+
+  // Basic info
+  name.value = productData.name || "";
+  description.value = productData.description || "";
+
+  setFieldValue("name", productData.name || "");
+  setFieldValue("description", productData.description || "");
+  setFieldValue("category_id", productData.categories?.[0]?.id || null);
+  setFieldValue("min_purchase", productData.min_purchase ?? 1);
+
+  // Categories
+  if (productData.categories && productData.categories.length > 0) {
+    selectedCategory.value = productData.categories[0].id;
+    selectedSubCategories.value = productData.categories
+      .slice(1)
+      .map((cat) => cat.id);
+  } else {
+    selectedCategory.value = null;
+    selectedSubCategories.value = [];
+  }
+
+  // Images — gunakan getImageUrl mirip Detail.vue agar src menjadi /api/images/{id}
+  productImages.value = (productData.images || []).map((img) => ({
+    id: img.id,
+    preview: img.id ? getImageUrl(img.id) : img.image_path || "",
+    is_cover: !!img.is_cover,
+    existing: true,
+  }));
+
+  // set cover index
+  coverImageIndex.value = productImages.value.findIndex((img) => img.is_cover);
+  if (coverImageIndex.value === -1 && productImages.value.length > 0) {
+    coverImageIndex.value = 0;
+  }
+
+  // Variants / Options
+  if (productData.options && productData.options.length > 0) {
+    useVariants.value = true;
+
+    // options: productData.options[].values[].image_path available
+    variants.value = productData.options.map((option) => ({
+      id: option.id,
+      name: option.option_name,
+      options: (option.values || []).map((val) => ({
+        id: val.id,
+        name: val.option_value,
+        images: val.image_path
+          ? [
+              {
+                id: val.id,
+                preview: val.image_path,
+                existing: true,
+              },
+            ]
+          : [],
+      })),
+    }));
+
+    productData.options.forEach((option) => {
+      variantNames.value[option.id] = option.option_name;
+      variantUsesImages.value[option.id] = option.uses_image ? 1 : 0;
+      expandedVariants.value.add(option.id);
+    });
+
+    // Variants (combinations) jika ada
+    if (productData.variants && productData.variants.length > 0) {
+      combinations.value = productData.variants.map((variant) => {
+        const optionValues = variant.option_values || [];
+        const attributes = optionValues.map((ov) => ({
+          name: (ov.option_name || "").trim(),
+          value: (ov.option_value || "").trim(),
+        }));
+
+        const combinationName = optionValues
+          .map((ov) => ov.option_value)
+          .join(" - ");
+
+        return {
+          combination: combinationName,
+          sku: variant.sku || "",
+          price: parseFloat(variant.price) || 0,
+          stock: parseInt(variant.stock) || 0,
+          attributes,
+        };
+      });
+    }
+  } else {
+    // Non-variant product
+    useVariants.value = false;
+    if (productData.variants && productData.variants[0]) {
+      const variant = productData.variants[0];
+      setFieldValue("sku", variant.sku || ""); // ✅ Set SKU
+      setFieldValue("price", parseFloat(variant.price) || 0);
+      setFieldValue("stock", parseInt(variant.stock) || 0);
+    } else {
+      setFieldValue("sku", "");
+      setFieldValue("price", 0);
+      setFieldValue("stock", 0);
+    }
+  }
+
+  // Add-on groups (normalize both possible key names)
+  const addonGroups = productData.addon_groups ?? productData.addonGroups ?? [];
+  if (addonGroups && addonGroups.length > 0) {
+    addOnGroups.value = addonGroups.map((group) => ({
+      id: group.id,
+      name: group.addon_group_name || group.name || "",
+      is_required: (group.min_selection ?? 0) > 0,
+      min_selection: group.min_selection ?? 0,
+      max_selection: group.max_selection ?? 1,
+      options: (group.options || []).map((opt) => ({
+        id: opt.id,
+        name: opt.addon?.addon_name || opt.addon_name || "",
+        price: parseFloat(opt.addon_price ?? 0),
+      })),
+    }));
+
+    addonGroups.forEach((group) => expandedAddOnGroups.value.add(group.id));
+  } else {
+    addOnGroups.value = [];
+  }
+};
+
+// ✅ ADD: Debug watcher untuk monitoring form values
+watch(
+  () => values,
+  (newValues) => {
+    console.log("[Form Values Changed]:", {
+      name: newValues.name,
+      price: newValues.price,
+      stock: newValues.stock,
+      min_purchase: newValues.min_purchase,
+    });
+  },
+  { deep: true }
+);
+watch(
+  () => values.sku,
+  (newVal) => {
+    formSku.value = newVal || "";
+  }
+);
+watch(formSku, (newVal) => {
+  setFieldValue("sku", newVal);
+});
+onMounted(async () => {
+  console.log("[Edit Product] Component mounted");
+  await fetchLevel1Categories();
+  await fetchProductData();
+});
 </script>
 
 <template>
   <div class="min-h-screen bg-gray-50 pb-20 sm:pb-0">
-    <!-- Loading State -->
-    <div v-if="loadingData" class="flex justify-center items-center py-20">
-      <div
-        class="w-10 h-10 border-4 border-gray-300 border-t-merchant-primary rounded-full animate-spin"
-      ></div>
+    <!-- ✅ Mobile Header - ALWAYS SHOWN -->
+    <div
+      class="fixed sm:hidden top-0 left-0 right-0 bg-merchant-primary text-white px-4 py-6 flex items-center justify-center z-50 rounded-b-2xl shadow-lg"
+    >
+      <button
+        @click="goBack"
+        class="absolute left-4 w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition"
+      >
+        <i class="pi pi-arrow-left"></i>
+      </button>
+      <h1 class="text-lg font-semibold">Edit Produk</h1>
     </div>
 
-    <!-- Content -->
-    <div v-else>
-      <!-- Mobile Header -->
+    <!-- ✅ Desktop Header - ALWAYS SHOWN -->
+    <div class="hidden sm:block sticky top-0 left-0 right-0 z-30 py-6">
       <div
-        class="fixed sm:hidden top-0 left-0 right-0 bg-merchant-primary text-white px-4 py-6 flex items-center justify-center z-50 rounded-b-2xl"
+        class="mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap gap-y-2 items-center justify-between gap-x-4"
       >
-        <button
-          @click="goBack"
-          class="absolute left-4 w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition"
-        >
-          <i class="pi pi-arrow-left"></i>
-        </button>
-        <h1 class="text-lg font-semibold">Edit Produk</h1>
-      </div>
+        <!-- Left: Breadcrumb -->
+        <div>
+          <nav class="flex items-center gap-2 text-sm">
+            <template v-for="(crumb, index) in breadcrumbs" :key="index">
+              <router-link
+                v-if="crumb.path"
+                :to="crumb.path"
+                class="text-muted-foreground hover:text-merchant-primary transition flex items-center gap-2 text-base lg:text-2xl"
+              >
+                {{ crumb.label }}
+              </router-link>
+              <span
+                v-else
+                class="text-merchant-primary font-bold text-base lg:text-2xl whitespace-nowrap"
+              >
+                {{ crumb.label }}
+              </span>
+              <i
+                v-if="index < breadcrumbs.length - 1"
+                class="pi pi-chevron-right text-gray-400 text-xs"
+              ></i>
+            </template>
+          </nav>
+          <p class="text-muted-foreground text-xs lg:text-sm">
+            {{ loadingData ? "Memuat data produk..." : name || "Edit Produk" }}
+          </p>
+        </div>
 
-      <!-- Desktop Header -->
-      <div class="hidden sm:block sticky top-0 left-0 right-0 z-50 py-6">
-        <div
-          class="mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap gap-y-2 items-center justify-between gap-x-4"
-        >
-          <div>
-            <nav class="flex items-center gap-2 text-sm">
-              <template v-for="(crumb, index) in breadcrumbs" :key="index">
-                <router-link
-                  v-if="crumb.path"
-                  :to="crumb.path"
-                  class="text-muted-foreground hover:text-merchant-primary transition flex items-center gap-2 text-base lg:text-2xl"
-                >
-                  {{ crumb.label }}
-                </router-link>
-                <span
-                  v-else
-                  class="text-merchant-primary font-bold text-base lg:text-2xl whitespace-nowrap"
-                >
-                  {{ crumb.label }}
-                </span>
-                <i
-                  v-if="index < breadcrumbs.length - 1"
-                  class="pi pi-chevron-right text-gray-400 text-xs"
-                ></i>
-              </template>
-            </nav>
-            <p class="text-muted-foreground text-xs lg:text-sm">
-              Perbarui informasi produk Anda.
-            </p>
-          </div>
-
-          <div class="flex items-center gap-3">
-            <Button
-              @click="$refs.formRef.handleSubmit()"
-              variant="merchant"
-              size="md"
-              :loading="loading"
-            >
-              <i v-if="loading" class="pi pi-spin pi-spinner"></i>
-              <i v-else class="pi pi-check"></i>
-              <span>{{ loading ? "Menyimpan..." : "Simpan Perubahan" }}</span>
-            </Button>
-          </div>
+        <!-- Right: Action Buttons (Only show when not loading) -->
+        <div v-if="!loadingData" class="flex items-center gap-3">
+          <Button
+            @click="onSubmit"
+            variant="merchant"
+            size="md"
+            :loading="loading"
+          >
+            <span>{{ loading ? "Menyimpan..." : "Simpan Perubahan" }}</span>
+          </Button>
         </div>
       </div>
+    </div>
 
-      <!-- Spacer for Mobile -->
-      <div class="h-[72px] sm:h-0"></div>
+    <!-- Spacer for Mobile -->
+    <div class="h-[72px] sm:h-0"></div>
 
-      <!-- Form -->
-      <div class="mx-auto px-0 sm:px-4 lg:px-6 sm:py-6 sm:pt-0">
-        <Form
-          ref="formRef"
-          :validation-schema="schema"
-          :initial-values="initialValues"
-          @submit="handleSubmit"
+    <!-- ✅ Loading State - IMPROVED -->
+    <div
+      v-if="loadingData"
+      class="flex flex-col justify-center items-center py-20 gap-3"
+    >
+      <div
+        class="w-12 h-12 border-4 border-gray-300 border-t-merchant-primary rounded-full animate-spin"
+      ></div>
+      <p class="text-sm text-muted-foreground">Memuat data produk...</p>
+    </div>
+
+    <!-- ✅ Content (Only show when data loaded) -->
+    <div v-else class="mx-auto px-0 sm:px-4 lg:px-6 sm:py-6 sm:pt-0">
+      <Form
+        ref="formRef"
+        :validation-schema="schema"
+        :initial-values="initialValues"
+        @submit="onSubmit"
+      >
+        <!-- Foto Produk -->
+        <div
+          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
         >
-          <!-- Foto Produk -->
-          <div
-            class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
+          <h3
+            class="text-sm font-semibold text-black mb-3 flex items-center gap-2"
           >
-            <h3
-              class="text-sm font-semibold text-black mb-3 flex items-center gap-2"
-            >
-              <i class="pi pi-image text-merchant-primary"></i>
-              Foto Produk
-              <span class="text-xs font-normal text-danger-foreground">*</span>
-            </h3>
+            <i class="pi pi-image text-merchant-primary"></i>
+            Foto Produk
+            <span class="text-xs font-normal text-danger-foreground">*</span>
+          </h3>
 
+          <div
+            class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3 mb-3"
+          >
             <div
-              class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3 mb-3"
+              v-for="(img, index) in productImages"
+              :key="img.id"
+              draggable="true"
+              @dragstart="onDragStart($event, index)"
+              @dragover="onDragOver"
+              @drop="onDrop($event, index)"
+              @dragend="onDragEnd"
+              class="relative aspect-square rounded-xl overflow-hidden border-2 group cursor-move"
+              :class="
+                index === coverImageIndex
+                  ? 'border-merchant-primary ring-2 ring-merchant-primary/20'
+                  : 'border-gray-200'
+              "
             >
-              <div
-                v-for="(img, index) in productImages"
-                :key="img.id"
-                draggable="true"
-                @dragstart="onDragStart($event, index)"
-                @dragover="onDragOver"
-                @drop="onDrop($event, index)"
-                @dragend="onDragEnd"
-                class="relative aspect-square rounded-xl overflow-hidden border-2 group cursor-move"
-                :class="
-                  index === coverImageIndex
-                    ? 'border-merchant-primary ring-2 ring-merchant-primary/20'
-                    : 'border-gray-200'
-                "
-              >
-                <img
-                  :src="img.preview"
-                  class="w-full h-full object-cover pointer-events-none"
-                />
-
-                <div
-                  class="absolute top-2 right-2 w-6 h-6 bg-black/60 rounded-full flex items-center justify-center pointer-events-none"
-                >
-                  <i class="pi pi-arrows-alt text-white text-xs"></i>
-                </div>
-
-                <div
-                  v-if="index === coverImageIndex"
-                  class="absolute top-2 left-2 px-2 py-1 bg-merchant-primary text-white text-[10px] font-semibold rounded-full flex items-center gap-1"
-                >
-                  <i class="pi pi-star-fill"></i>
-                  <span>Cover</span>
-                </div>
-
-                <div
-                  class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2"
-                >
-                  <button
-                    @click.stop="removeImage(index)"
-                    type="button"
-                    class="w-8 h-8 bg-white rounded-full flex items-center justify-center hover:scale-110 transition"
-                  >
-                    <i class="pi pi-trash text-danger-foreground text-sm"></i>
-                  </button>
-                </div>
-              </div>
-
-              <button
-                v-if="productImages.length < 6"
-                @click="triggerFileInput"
-                type="button"
-                class="aspect-square rounded-xl border-2 border-dashed border-gray-300 hover:border-merchant-primary hover:bg-merchant-primary/5 transition flex flex-col items-center justify-center gap-2"
-              >
-                <i class="pi pi-plus text-2xl text-merchant-primary"></i>
-                <span class="text-xs text-muted-foreground">Tambah</span>
-              </button>
-            </div>
-
-            <input
-              ref="fileInput"
-              type="file"
-              accept="image/*"
-              multiple
-              class="hidden"
-              @change="handleImageUpload"
-            />
-
-            <p class="text-xs text-muted-foreground">
-              <i class="pi pi-info-circle"></i>
-              Drag gambar untuk mengubah urutan. Foto pertama menjadi cover.
-              Maks 6 foto.
-            </p>
-          </div>
-
-          <!-- Info Dasar -->
-          <div
-            class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 space-y-3 sm:rounded-xl sm:shadow-sm"
-          >
-            <h3
-              class="text-sm font-semibold text-black flex items-center gap-2"
-            >
-              <i class="pi pi-info-circle text-merchant-primary"></i>
-              Informasi Dasar
-            </h3>
-
-            <TextField
-              name="name"
-              label="Nama Produk"
-              placeholder="Contoh: Sandal Jepit"
-              v-model="name"
-              required
-            />
-            <TextField
-              name="description"
-              label="Deskripsi"
-              v-model="description"
-              textarea
-              :rows="4"
-              placeholder="Jelaskan detail produk Anda"
-              required
-            />
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <SelectField
-                name="category_id"
-                label="Kategori Utama"
-                :options="categoriesLevel1"
-                v-model="selectedCategory"
-                required
+              <img
+                :src="img.preview"
+                class="w-full h-full object-cover pointer-events-none"
               />
 
-              <div v-if="categoriesLevel2.length > 0">
-                <label class="block text-sm font-bold text-black mb-2">
-                  Sub Kategori
-                  <span class="text-xs font-normal text-muted-foreground"
-                    >(Maks. 4)</span
-                  >
-                </label>
+              <div
+                class="absolute top-2 right-2 w-6 h-6 bg-black/60 rounded-full flex items-center justify-center pointer-events-none"
+              >
+                <i class="pi pi-arrows-alt text-white text-xs"></i>
+              </div>
 
+              <div
+                v-if="index === coverImageIndex"
+                class="absolute top-2 left-2 px-2 py-1 bg-merchant-primary text-white text-[10px] font-semibold rounded-full flex items-center gap-1"
+              >
+                <i class="pi pi-star-fill"></i>
+                <span>Cover</span>
+              </div>
+
+              <div
+                class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2"
+              >
+                <button
+                  @click.stop="removeImage(index)"
+                  type="button"
+                  class="w-8 h-8 bg-white rounded-full flex items-center justify-center hover:scale-110 transition"
+                >
+                  <i class="pi pi-trash text-danger-foreground text-sm"></i>
+                </button>
+              </div>
+            </div>
+
+            <button
+              v-if="productImages.length < 6"
+              @click="triggerFileInput"
+              type="button"
+              class="aspect-square rounded-xl border-2 border-dashed border-gray-300 hover:border-merchant-primary hover:bg-merchant-primary/5 transition flex flex-col items-center justify-center gap-2"
+            >
+              <i class="pi pi-plus text-2xl text-merchant-primary"></i>
+              <span class="text-xs text-muted-foreground">Tambah</span>
+            </button>
+          </div>
+
+          <input
+            ref="fileInput"
+            type="file"
+            accept="image/*"
+            multiple
+            class="hidden"
+            @change="handleImageUpload"
+          />
+
+          <p class="text-xs text-muted-foreground">
+            <i class="pi pi-info-circle"></i>
+            Drag gambar untuk mengubah urutan. Foto pertama menjadi cover. Maks
+            6 foto.
+          </p>
+        </div>
+
+        <!-- Info Dasar -->
+        <div
+          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 space-y-3 sm:rounded-xl sm:shadow-sm"
+        >
+          <h3 class="text-sm font-semibold text-black flex items-center gap-2">
+            <i class="pi pi-info-circle text-merchant-primary"></i>
+            Informasi Dasar
+          </h3>
+
+          <TextField
+            name="name"
+            label="Nama Produk"
+            placeholder="Contoh: Sandal Jepit"
+            v-model="name"
+            required
+          />
+          <TextField
+            name="description"
+            label="Deskripsi"
+            v-model="description"
+            textarea
+            :rows="4"
+            placeholder="Jelaskan detail produk Anda"
+            required
+          />
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <SelectField
+              name="category_id"
+              label="Kategori Utama"
+              :options="categoriesLevel1"
+              v-model="selectedCategory"
+              :loading="loadingLevel1"
+              required
+            />
+
+            <div v-if="selectedCategory">
+              <label class="block text-sm font-bold text-black mb-2">
+                Sub Kategori
+                <span class="text-xs font-normal text-muted-foreground"
+                  >(Maks. 4)</span
+                >
+              </label>
+
+              <!-- ✅ Loading State for Level 2 -->
+              <div
+                v-if="loadingLevel2"
+                class="py-4 px-3 bg-gray-50 rounded-lg border border-gray-200 text-center"
+              >
+                <div
+                  class="w-5 h-5 border-2 border-gray-300 border-t-merchant-primary rounded-full animate-spin mx-auto mb-2"
+                ></div>
+                <p class="text-xs text-muted-foreground">
+                  Memuat sub kategori...
+                </p>
+              </div>
+
+              <!-- ✅ Empty State -->
+              <div
+                v-else-if="!loadingLevel2 && categoriesLevel2.length === 0"
+                class="py-4 px-3 bg-gray-50 rounded-lg border border-gray-200 text-center"
+              >
+                <i class="pi pi-inbox text-2xl text-gray-300 mb-2 block"></i>
+                <p class="text-xs text-gray-500">
+                  Tidak ada sub kategori tersedia
+                </p>
+              </div>
+
+              <!-- ✅ Sub Categories List -->
+              <div v-else class="space-y-2">
                 <div class="space-y-2 mb-2">
                   <div
                     v-for="(subCat, index) in selectedSubCategories"
@@ -1250,997 +1609,932 @@ const goBack = () => {
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- Pengaturan Varian -->
-          <div
-            class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
+        <!-- Pengaturan Varian -->
+        <div
+          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
+        >
+          <label
+            @click="useVariants = !useVariants"
+            class="flex items-center justify-between cursor-pointer"
           >
-            <label
-              @click="useVariants = !useVariants"
-              class="flex items-center justify-between cursor-pointer"
-            >
-              <div>
-                <h3 class="text-sm font-semibold text-black">
-                  Gunakan Variasi
-                </h3>
-                <p class="text-xs text-muted-foreground">
-                  Produk dengan ukuran, warna, dll
-                </p>
-              </div>
-
-              <div
-                :class="[
-                  'relative w-11 h-6 rounded-full transition',
-                  useVariants ? 'bg-merchant-primary' : 'bg-gray-300',
-                ]"
-              >
-                <span
-                  :class="[
-                    'absolute top-1 w-4 h-4 bg-white rounded-full transition-transform',
-                    useVariants ? 'translate-x-6' : 'translate-x-1',
-                  ]"
-                ></span>
-              </div>
-            </label>
-          </div>
-
-          <!-- Variasi Section (jika useVariants true) -->
-          <div
-            v-if="useVariants"
-            class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 space-y-4 sm:rounded-xl sm:shadow-sm"
-          >
-            <div class="flex items-center justify-between">
-              <h3
-                class="text-sm font-semibold text-black flex items-center gap-2"
-              >
-                <i class="pi pi-box text-merchant-primary"></i>
-                Varian
-                <span class="text-sm font-normal text-muted-foreground"
-                  >(Maks. 2)</span
-                >
-              </h3>
-              <button
-                v-if="canAddVariant"
-                @click="addVariant"
-                type="button"
-                class="text-sm text-merchant-primary hover:underline flex items-center gap-1"
-              >
-                <i class="pi pi-plus"></i>
-                Tambah
-              </button>
-            </div>
-
-            <!-- Variants Grid - PERBAIKAN TextField dengan v-model unik -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div
-                v-for="(variant, vIndex) in variants"
-                :key="variant.id"
-                class="border-2 border-gray-200 rounded-xl overflow-hidden bg-white hover:border-merchant-primary/50 transition"
-              >
-                <!-- Variant Header -->
-                <div class="p-4 space-y-4 bg-white">
-                  <div
-                    class="flex items-center justify-between pb-3 border-b border-gray-100"
-                  >
-                    <div class="flex items-center gap-2">
-                      <span
-                        class="px-3 py-1 bg-merchant-primary text-white text-xs font-bold rounded-full"
-                      >
-                        Varian {{ vIndex + 1 }}
-                      </span>
-                      <span
-                        v-if="
-                          variant.options.filter((opt) => opt.name.trim())
-                            .length > 0
-                        "
-                        class="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full"
-                      >
-                        {{
-                          variant.options.filter((opt) => opt.name.trim())
-                            .length
-                        }}
-                        opsi
-                      </span>
-                    </div>
-                    <button
-                      @click="removeVariant(vIndex)"
-                      type="button"
-                      class="w-8 h-8 rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100 flex items-center justify-center transition flex-shrink-0"
-                    >
-                      <i class="pi pi-trash text-sm"></i>
-                    </button>
-                  </div>
-
-                  <!-- PERBAIKAN: TextField dengan name unique per variant -->
-                  <div>
-                    <TextField
-                      :name="`variant_name_${variant.id}`"
-                      type="text"
-                      v-model="variantNames[variant.id]"
-                      @input="variant.name = variantNames[variant.id]"
-                      :label="`Nama Varian`"
-                      :placeholder="`Contoh: ${
-                        vIndex === 0 ? 'Warna' : 'Ukuran'
-                      }`"
-                      required
-                    />
-                  </div>
-
-                  <div v-if="vIndex === 0">
-                    <label
-                      @click="toggleVariantImages(variant.id)"
-                      class="flex items-center justify-between cursor-pointer py-3 px-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition"
-                    >
-                      <div class="flex items-center gap-2">
-                        <i class="pi pi-image text-merchant-primary"></i>
-                        <span class="text-sm font-medium text-gray-700"
-                          >Gunakan foto untuk varian ini</span
-                        >
-                      </div>
-                      <div
-                        :class="[
-                          'relative w-11 h-6 rounded-full transition flex-shrink-0',
-                          variantUsesImages[variant.id]
-                            ? 'bg-merchant-primary'
-                            : 'bg-gray-300',
-                        ]"
-                      >
-                        <span
-                          :class="[
-                            'absolute top-1 w-4 h-4 bg-white rounded-full transition-transform shadow-sm',
-                            variantUsesImages[variant.id]
-                              ? 'translate-x-6'
-                              : 'translate-x-1',
-                          ]"
-                        ></span>
-                      </div>
-                    </label>
-                  </div>
-
-                  <!-- Accordion Toggle -->
-                  <button
-                    @click="toggleVariantExpand(variant.id)"
-                    type="button"
-                    class="w-full flex items-center justify-between py-3 px-4 bg-merchant-primary/5 rounded-lg border border-merchant-primary/20 hover:bg-merchant-primary/10 transition"
-                  >
-                    <div class="flex items-center gap-2">
-                      <i class="pi pi-list text-merchant-primary"></i>
-                      <span class="text-sm font-semibold text-black">
-                        Kelola Opsi
-                        <span class="text-muted-foreground ml-1">
-                          ({{
-                            variant.options.filter((opt) => opt.name.trim())
-                              .length
-                          }})
-                        </span>
-                      </span>
-                    </div>
-                    <i
-                      :class="[
-                        'pi text-merchant-primary transition-transform duration-300',
-                        isVariantExpanded(variant.id)
-                          ? 'pi-chevron-up'
-                          : 'pi-chevron-down',
-                      ]"
-                    ></i>
-                  </button>
-                </div>
-
-                <!-- Accordion Content - tetap sama seperti sebelumnya -->
-                <transition
-                  enter-active-class="transition-all duration-300 ease-out"
-                  enter-from-class="max-h-0 opacity-0"
-                  enter-to-class="max-h-[2000px] opacity-100"
-                  leave-active-class="transition-all duration-200 ease-in"
-                  leave-from-class="max-h-[2000px] opacity-100"
-                  leave-to-class="max-h-0 opacity-0"
-                >
-                  <div
-                    v-if="isVariantExpanded(variant.id)"
-                    class="border-t border-gray-200 overflow-hidden"
-                  >
-                    <div class="p-4 pt-3 bg-gray-50 space-y-3">
-                      <div
-                        class="flex items-center justify-between pb-2 border-b border-gray-300"
-                      >
-                        <label
-                          class="text-xs font-bold text-black uppercase tracking-wide"
-                        >
-                          Daftar Opsi
-                        </label>
-                        <button
-                          @click="addOption(vIndex)"
-                          type="button"
-                          class="text-xs text-merchant-primary hover:underline flex items-center gap-1 font-semibold"
-                        >
-                          <i class="pi pi-plus text-[10px]"></i>
-                          Tambah
-                        </button>
-                      </div>
-
-                      <div
-                        class="space-y-2.5 max-h-[500px] overflow-y-auto pr-1"
-                      >
-                        <div
-                          v-for="(option, oIndex) in variant.options"
-                          :key="option.id"
-                          class="bg-white border border-gray-200 rounded-lg p-3 space-y-2.5 hover:shadow-md transition-shadow"
-                        >
-                          <div class="flex items-start gap-2.5">
-                            <div
-                              class="w-7 h-7 rounded-lg bg-merchant-primary text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5"
-                            >
-                              {{ oIndex + 1 }}
-                            </div>
-                            <div class="flex-1 space-y-2.5">
-                              <input
-                                v-model="option.name"
-                                type="text"
-                                :placeholder="`Contoh: ${
-                                  vIndex === 0 ? 'Merah' : 'S'
-                                }`"
-                                class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-merchant-primary focus:border-transparent placeholder:text-muted-foreground bg-white"
-                              />
-
-                              <div
-                                v-if="
-                                  vIndex === 0 && variantUsesImages[variant.id]
-                                "
-                              >
-                                <label
-                                  class="text-xs font-semibold text-gray-600 mb-1.5 block"
-                                >
-                                  Foto Opsi
-                                </label>
-
-                                <div
-                                  v-if="option.images.length > 0"
-                                  class="relative w-20 h-20 rounded-lg overflow-hidden border-2 border-gray-200 group"
-                                >
-                                  <img
-                                    :src="option.images[0].preview"
-                                    class="w-full h-full object-cover"
-                                  />
-                                  <button
-                                    @click="
-                                      removeOptionImage(vIndex, oIndex, 0)
-                                    "
-                                    type="button"
-                                    class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center"
-                                  >
-                                    <i
-                                      class="pi pi-trash text-white text-sm"
-                                    ></i>
-                                  </button>
-                                </div>
-
-                                <label
-                                  v-else
-                                  class="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 hover:border-merchant-primary hover:bg-merchant-primary/5 transition flex flex-col items-center justify-center cursor-pointer gap-1"
-                                >
-                                  <i
-                                    class="pi pi-plus text-lg text-merchant-primary"
-                                  ></i>
-                                  <span
-                                    class="text-[10px] text-gray-500 font-medium"
-                                  >
-                                    Upload
-                                  </span>
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    class="hidden"
-                                    @change="
-                                      handleOptionImageUpload(
-                                        vIndex,
-                                        oIndex,
-                                        $event
-                                      )
-                                    "
-                                  />
-                                </label>
-                              </div>
-                            </div>
-
-                            <button
-                              v-if="variant.options.length > 1"
-                              @click="removeOption(vIndex, oIndex)"
-                              type="button"
-                              class="w-8 h-8 rounded-lg bg-white border border-gray-300 hover:bg-red-50 hover:border-red-300 hover:text-red-600 flex items-center justify-center transition flex-shrink-0 mt-0.5"
-                            >
-                              <i class="pi pi-times text-sm"></i>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      <button
-                        @click="addOption(vIndex)"
-                        type="button"
-                        class="w-full py-2.5 px-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-merchant-primary font-bold hover:border-merchant-primary hover:bg-white transition flex items-center justify-center gap-2"
-                      >
-                        <i class="pi pi-plus text-xs"></i>
-                        Tambah Opsi Baru
-                      </button>
-                    </div>
-                  </div>
-                </transition>
-              </div>
-            </div>
-
-            <!-- Combinations Summary -->
-            <div
-              v-if="variants.length > 0"
-              class="bg-merchant-primary/5 rounded-xl p-4 border-2 border-merchant-primary/20"
-            >
-              <div
-                class="flex flex-wrap sm:flex-row items-start sm:items-center justify-between gap-3"
-              >
-                <div>
-                  <p class="text-sm font-semibold text-merchant-primary">
-                    Total Kombinasi
-                  </p>
-                  <p class="text-xs text-gray-600">
-                    {{ totalCombinations }} kombinasi akan dibuat
-                  </p>
-                </div>
-                <button
-                  @click="openCombinationsModal"
-                  type="button"
-                  :disabled="totalCombinations === 0"
-                  class="w-full sm:w-auto px-5 py-2.5 bg-merchant-primary text-white text-sm font-semibold rounded-lg hover:bg-merchant-primary/90 disabled:bg-gray-300 disabled:cursor-not-allowed transition shadow-sm"
-                >
-                  <i class="pi pi-cog mr-2"></i>
-                  Atur Harga & Stok
-                </button>
-              </div>
-              <p
-                v-if="combinationsExceedLimit"
-                class="text-xs text-danger-foreground flex items-center gap-1 mt-2 font-medium"
-              >
-                <i class="pi pi-exclamation-triangle"></i>
-                Kombinasi melebihi batas maksimal ({{ maxOptions }})
+            <div>
+              <h3 class="text-sm font-semibold text-black">Gunakan Variasi</h3>
+              <p class="text-xs text-muted-foreground">
+                Produk dengan ukuran, warna, dll
               </p>
             </div>
-          </div>
 
-          <!-- Harga & Stok (tanpa variasi) -->
-          <div
-            v-if="!useVariants"
-            class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 space-y-4 sm:rounded-xl sm:shadow-sm"
-          >
+            <div
+              :class="[
+                'relative w-11 h-6 rounded-full transition',
+                useVariants ? 'bg-merchant-primary' : 'bg-gray-300',
+              ]"
+            >
+              <span
+                :class="[
+                  'absolute top-1 w-4 h-4 bg-white rounded-full transition-transform',
+                  useVariants ? 'translate-x-6' : 'translate-x-1',
+                ]"
+              ></span>
+            </div>
+          </label>
+        </div>
+
+        <!-- Variasi Section (jika useVariants true) -->
+        <div
+          v-if="useVariants"
+          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 space-y-4 sm:rounded-xl sm:shadow-sm"
+        >
+          <div class="flex items-center justify-between">
             <h3
               class="text-sm font-semibold text-black flex items-center gap-2"
             >
-              <i class="pi pi-tag text-merchant-primary"></i>
-              Harga & Stok
+              <i class="pi pi-box text-merchant-primary"></i>
+              Varian
+              <span class="text-sm font-normal text-muted-foreground"
+                >(Maks. 2)</span
+              >
             </h3>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <TextField
-                name="price"
-                label="Harga"
-                type="number"
-                placeholder="0"
-                prefix="Rp"
-                v-model.number="formPrice"
-                required
-              />
-              <TextField
-                name="stock"
-                label="Stok"
-                type="number"
-                placeholder="0"
-                v-model.number="formStock"
-                required
-              />
-            </div>
-          </div>
-
-          <!-- Min Purchase & Condition -->
-          <div
-            class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 space-y-4 sm:rounded-xl sm:shadow-sm"
-          >
-            <TextField
-              name="min_purchase"
-              label="Minimal Jumlah Pembelian"
-              type="number"
-              placeholder="1"
-              v-model.number="formMinPurchase"
-              required
-            />
-          </div>
-
-          <!-- TAMBAHKAN: Add-on Groups Section -->
-          <div
-            class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 space-y-4 sm:rounded-xl sm:shadow-sm"
-          >
-            <div class="flex items-center justify-between">
-              <div>
-                <h3
-                  class="text-sm font-semibold text-black flex items-center gap-2"
-                >
-                  <i class="pi pi-plus-circle text-merchant-primary"></i>
-                  Grup Add-on (Opsional)
-                  <span class="text-sm font-normal text-muted-foreground"
-                    >(Maks. {{ maxAddOnGroups }})</span
-                  >
-                </h3>
-                <p class="text-xs text-muted-foreground mt-1">
-                  Kelompokkan add-on berdasarkan kategori (contoh: tingkat
-                  kepedasan, topping)
-                </p>
-              </div>
-              <button
-                v-if="canAddAddOnGroup"
-                @click="addAddOnGroup"
-                type="button"
-                class="text-sm text-merchant-primary hover:underline flex items-center gap-1 font-semibold"
-              >
-                <i class="pi pi-plus"></i>
-                Tambah
-              </button>
-            </div>
-
-            <!-- Grid Layout untuk Desktop -->
-            <div
-              v-if="addOnGroups.length > 0"
-              class="grid grid-cols-1 lg:grid-cols-2 gap-4"
+            <button
+              v-if="canAddVariant"
+              @click="addVariant"
+              type="button"
+              class="text-sm text-merchant-primary hover:underline flex items-center gap-1"
             >
-              <div
-                v-for="(group, gIndex) in addOnGroups"
-                :key="group.id"
-                class="border-2 border-gray-200 rounded-xl overflow-hidden bg-white hover:border-merchant-primary/50 transition"
-              >
-                <!-- Group Header -->
-                <div class="p-4 space-y-4 bg-white">
-                  <!-- Header: Badge + Delete -->
-                  <div
-                    class="flex items-center justify-between pb-3 border-b border-gray-100"
-                  >
-                    <div class="flex items-center gap-2 flex-wrap">
-                      <span
-                        class="px-3 py-1 bg-merchant-primary text-white text-xs font-bold rounded-full"
-                      >
-                        Grup {{ gIndex + 1 }}
-                      </span>
-                      <span
-                        v-if="group.is_required || group.min_selection > 0"
-                        class="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded-full flex items-center gap-1"
-                      >
-                        <i class="pi pi-exclamation-circle text-[10px]"></i>
-                        Wajib
-                      </span>
-                      <span
-                        class="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full flex items-center gap-1"
-                      >
-                        <i class="pi pi-list text-[10px]"></i>
-                        {{ group.min_selection }}-{{ group.max_selection }}
-                        pilihan
-                      </span>
-                    </div>
-                    <button
-                      @click="removeAddOnGroup(gIndex)"
-                      type="button"
-                      class="w-8 h-8 rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100 flex items-center justify-center transition flex-shrink-0"
+              <i class="pi pi-plus"></i>
+              Tambah
+            </button>
+          </div>
+
+          <!-- Variants Grid - PERBAIKAN TextField dengan v-model unik -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div
+              v-for="(variant, vIndex) in variants"
+              :key="variant.id"
+              class="border-2 border-gray-200 rounded-xl overflow-hidden bg-white hover:border-merchant-primary/50 transition"
+            >
+              <!-- Variant Header -->
+              <div class="p-4 space-y-4 bg-white">
+                <div
+                  class="flex items-center justify-between pb-3 border-b border-gray-100"
+                >
+                  <div class="flex items-center gap-2">
+                    <span
+                      class="px-3 py-1 bg-merchant-primary text-white text-xs font-bold rounded-full"
                     >
-                      <i class="pi pi-trash text-sm"></i>
-                    </button>
+                      Varian {{ vIndex + 1 }}
+                    </span>
+                    <span
+                      v-if="
+                        variant.options.filter((opt) => opt.name.trim())
+                          .length > 0
+                      "
+                      class="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full"
+                    >
+                      {{
+                        variant.options.filter((opt) => opt.name.trim()).length
+                      }}
+                      opsi
+                    </span>
                   </div>
-
-                  <!-- Group Name -->
-                  <TextField
-                    :name="`addon_group_name_${group.id}`"
-                    v-model="group.name"
-                    label="Nama Grup Add-on"
-                    placeholder="Contoh: Tingkat Kepedasan, Topping"
-                    required
-                  />
-
-                  <!-- Settings -->
-                  <div class="space-y-2">
-                    <!-- Toggle Required -->
-                    <label
-                      @click="group.is_required = !group.is_required"
-                      class="flex items-center justify-between cursor-pointer py-3 px-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition"
-                    >
-                      <div class="flex items-center gap-2">
-                        <i class="pi pi-exclamation-circle text-amber-600"></i>
-                        <span class="text-sm font-medium text-gray-700"
-                          >Wajib dipilih pembeli</span
-                        >
-                      </div>
-                      <div
-                        :class="[
-                          'relative w-11 h-6 rounded-full transition flex-shrink-0',
-                          group.is_required
-                            ? 'bg-merchant-primary'
-                            : 'bg-gray-300',
-                        ]"
-                      >
-                        <span
-                          :class="[
-                            'absolute top-1 w-4 h-4 bg-white rounded-full transition-transform shadow-sm',
-                            group.is_required
-                              ? 'translate-x-6'
-                              : 'translate-x-1',
-                          ]"
-                        ></span>
-                      </div>
-                    </label>
-
-                    <!-- Min/Max Selection -->
-                    <div
-                      class="bg-gray-50 rounded-lg border border-gray-200 p-3 space-y-3"
-                    >
-                      <label class="text-xs font-semibold text-gray-700 block">
-                        Aturan Pemilihan
-                      </label>
-
-                      <div class="grid grid-cols-2 gap-3">
-                        <!-- Min Selection -->
-                        <div>
-                          <TextField
-                            :name="`addon_group_${group.id}_min_selection`"
-                            label="Minimal Pilihan"
-                            v-model.number="group.min_selection"
-                            type="number"
-                            min="0"
-                            :max="group.max_selection"
-                            placeholder="0"
-                            suffix="opsi"
-                            :labelBold="false"
-                          />
-                          <p class="text-[10px] text-gray-500 mt-1">
-                            0 = opsional
-                          </p>
-                        </div>
-
-                        <!-- Max Selection -->
-                        <div>
-                          <TextField
-                            :name="`addon_group_${group.id}_max_selection`"
-                            label="Maksimal Pilihan"
-                            v-model.number="group.max_selection"
-                            type="number"
-                            :min="Math.max(1, group.min_selection)"
-                            :max="
-                              group.options.filter((opt) => opt.name.trim())
-                                .length || 1
-                            "
-                            placeholder="1"
-                            suffix="opsi"
-                            :labelBold="false"
-                          />
-                        </div>
-                      </div>
-
-                      <!-- Quick Presets -->
-                      <div
-                        class="flex flex-wrap gap-2 pt-2 border-t border-gray-200"
-                      >
-                        <button
-                          @click="
-                            group.min_selection = 0;
-                            group.max_selection = 1;
-                          "
-                          type="button"
-                          class="px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg text-[10px] font-medium text-gray-700 hover:bg-gray-50 hover:border-merchant-primary transition"
-                        >
-                          <i class="pi pi-circle text-[8px] mr-1"></i>
-                          Pilih 1 (Optional)
-                        </button>
-                        <button
-                          @click="
-                            group.min_selection = 1;
-                            group.max_selection = 1;
-                          "
-                          type="button"
-                          class="px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg text-[10px] font-medium text-gray-700 hover:bg-gray-50 hover:border-merchant-primary transition"
-                        >
-                          <i
-                            class="pi pi-exclamation-circle text-[8px] mr-1"
-                          ></i>
-                          Wajib Pilih 1
-                        </button>
-                        <button
-                          @click="
-                            group.min_selection = 0;
-                            group.max_selection =
-                              group.options.filter((opt) => opt.name.trim())
-                                .length || 99;
-                          "
-                          type="button"
-                          class="px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg text-[10px] font-medium text-gray-700 hover:bg-gray-50 hover:border-merchant-primary transition"
-                        >
-                          <i class="pi pi-check-square text-[8px] mr-1"></i>
-                          Multi-pilih
-                        </button>
-                      </div>
-
-                      <!-- Validation Warning -->
-                      <div
-                        v-if="group.min_selection > group.max_selection"
-                        class="flex items-start gap-2 p-2 bg-red-50 border border-red-200 rounded-lg"
-                      >
-                        <i
-                          class="pi pi-exclamation-triangle text-red-600 text-xs mt-0.5"
-                        ></i>
-                        <p class="text-[10px] text-red-700 flex-1">
-                          Minimal tidak boleh lebih besar dari maksimal
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Accordion Toggle Button -->
                   <button
-                    @click="toggleAddOnGroupExpand(group.id)"
+                    @click="removeVariant(vIndex)"
                     type="button"
-                    :class="[
-                      'w-full flex items-center justify-between py-3 px-0 border-merchant-primary/50 hover:bg-merchant-primary/10 transition',
-                      isAddOnGroupExpanded(group.id) ? 'border-t' : 'border-y',
-                    ]"
+                    class="w-8 h-8 rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100 flex items-center justify-center transition flex-shrink-0"
                   >
-                    <div class="flex items-center gap-2">
-                      <i class="pi pi-list text-merchant-primary"></i>
-                      <span class="text-sm font-semibold text-black">
-                        Kelola Opsi
-                        <span class="text-muted-foreground ml-1">
-                          ({{
-                            group.options.filter((opt) => opt.name.trim())
-                              .length
-                          }})
-                        </span>
-                      </span>
-                    </div>
-                    <i
-                      :class="[
-                        'pi text-merchant-primary transition-transform duration-300',
-                        isAddOnGroupExpanded(group.id)
-                          ? 'pi-chevron-up'
-                          : 'pi-chevron-down',
-                      ]"
-                    ></i>
+                    <i class="pi pi-trash text-sm"></i>
                   </button>
                 </div>
 
-                <!-- Accordion Content - Options List -->
-                <transition
-                  enter-active-class="transition-all duration-300 ease-out"
-                  enter-from-class="max-h-0 opacity-0"
-                  enter-to-class="max-h-[2000px] opacity-100"
-                  leave-active-class="transition-all duration-200 ease-in"
-                  leave-from-class="max-h-[2000px] opacity-100"
-                  leave-to-class="max-h-0 opacity-0"
-                >
-                  <div
-                    v-if="isAddOnGroupExpanded(group.id)"
-                    class="border-t border-gray-200 overflow-hidden"
+                <!-- PERBAIKAN: TextField dengan name unique per variant -->
+                <div>
+                  <TextField
+                    :name="`variant_name_${variant.id}`"
+                    type="text"
+                    v-model="variantNames[variant.id]"
+                    @input="variant.name = variantNames[variant.id]"
+                    :label="`Nama Varian`"
+                    :placeholder="`Contoh: ${
+                      vIndex === 0 ? 'Warna' : 'Ukuran'
+                    }`"
+                    required
+                  />
+                </div>
+
+                <div v-if="vIndex === 0">
+                  <label
+                    @click="toggleVariantImages(variant.id)"
+                    class="flex items-center justify-between cursor-pointer py-3 px-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition"
                   >
-                    <div class="p-4 pt-3 bg-gray-50 space-y-3">
-                      <!-- Options Header -->
-                      <div
-                        class="flex items-center justify-between pb-2 border-b border-gray-300"
+                    <div class="flex items-center gap-2">
+                      <i class="pi pi-image text-merchant-primary"></i>
+                      <span class="text-sm font-medium text-gray-700"
+                        >Gunakan foto untuk varian ini</span
                       >
-                        <label
-                          class="text-xs font-bold text-black uppercase tracking-wide"
-                        >
-                          Daftar Opsi
-                        </label>
-                        <button
-                          @click="addAddOnOption(gIndex)"
-                          type="button"
-                          :disabled="group.options.length >= maxAddOnOptions"
-                          class="text-xs text-merchant-primary hover:underline flex items-center gap-1 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <i class="pi pi-plus text-[10px]"></i>
-                          Tambah
-                        </button>
-                      </div>
+                    </div>
+                    <div
+                      :class="[
+                        'relative w-11 h-6 rounded-full transition flex-shrink-0',
+                        variantUsesImages[variant.id]
+                          ? 'bg-merchant-primary'
+                          : 'bg-gray-300',
+                      ]"
+                    >
+                      <span
+                        :class="[
+                          'absolute top-1 w-4 h-4 bg-white rounded-full transition-transform shadow-sm',
+                          variantUsesImages[variant.id]
+                            ? 'translate-x-6'
+                            : 'translate-x-1',
+                        ]"
+                      ></span>
+                    </div>
+                  </label>
+                </div>
 
-                      <!-- Options List -->
-                      <div
-                        class="space-y-2.5 max-h-[500px] overflow-y-auto pr-1"
+                <!-- Accordion Toggle -->
+                <button
+                  @click="toggleVariantExpand(variant.id)"
+                  type="button"
+                  class="w-full flex items-center justify-between py-3 px-4 bg-merchant-primary/5 rounded-lg border border-merchant-primary/20 hover:bg-merchant-primary/10 transition"
+                >
+                  <div class="flex items-center gap-2">
+                    <i class="pi pi-list text-merchant-primary"></i>
+                    <span class="text-sm font-semibold text-black">
+                      Kelola Opsi
+                      <span class="text-muted-foreground ml-1">
+                        ({{
+                          variant.options.filter((opt) => opt.name.trim())
+                            .length
+                        }})
+                      </span>
+                    </span>
+                  </div>
+                  <i
+                    :class="[
+                      'pi text-merchant-primary transition-transform duration-300',
+                      isVariantExpanded(variant.id)
+                        ? 'pi-chevron-up'
+                        : 'pi-chevron-down',
+                    ]"
+                  ></i>
+                </button>
+              </div>
+
+              <!-- Accordion Content - tetap sama seperti sebelumnya -->
+              <transition
+                enter-active-class="transition-all duration-300 ease-out"
+                enter-from-class="max-h-0 opacity-0"
+                enter-to-class="max-h-[2000px] opacity-100"
+                leave-active-class="transition-all duration-200 ease-in"
+                leave-from-class="max-h-[2000px] opacity-100"
+                leave-to-class="max-h-0 opacity-0"
+              >
+                <div
+                  v-if="isVariantExpanded(variant.id)"
+                  class="border-t border-gray-200 overflow-hidden"
+                >
+                  <div class="p-4 pt-3 bg-gray-50 space-y-3">
+                    <div
+                      class="flex items-center justify-between pb-2 border-b border-gray-300"
+                    >
+                      <label
+                        class="text-xs font-bold text-black uppercase tracking-wide"
                       >
-                        <div
-                          v-for="(option, oIndex) in group.options"
-                          :key="option.id"
-                          class="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow"
-                        >
-                          <div class="flex items-start gap-2.5">
-                            <div
-                              class="w-7 h-7 rounded-lg bg-merchant-primary text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5"
-                            >
-                              {{ oIndex + 1 }}
-                            </div>
+                        Daftar Opsi
+                      </label>
+                      <button
+                        @click="addOption(vIndex)"
+                        type="button"
+                        class="text-xs text-merchant-primary hover:underline flex items-center gap-1 font-semibold"
+                      >
+                        <i class="pi pi-plus text-[10px]"></i>
+                        Tambah
+                      </button>
+                    </div>
 
-                            <div class="flex-1 space-y-2.5">
-                              <!-- Option Name -->
-                              <TextField
-                                :name="`addon_group_${group.id}_option_${option.id}_name`"
-                                v-model="option.name"
-                                :placeholder="`Contoh: ${
-                                  gIndex === 0 ? 'Tidak Pedas' : 'Daging Asap'
-                                }`"
-                                :hideLabel="true"
-                                variant="primary"
-                              />
-
-                              <!-- Price -->
-                              <TextField
-                                :name="`addon_group_${group.id}_option_${option.id}_price`"
-                                label="Harga Tambahan"
-                                v-model.number="option.price"
-                                type="number"
-                                min="0"
-                                placeholder="0"
-                                prefix="Rp"
-                                :labelBold="false"
-                              />
-                              <p
-                                v-if="option.price === 0"
-                                class="text-xs text-gray-500 -mt-1 flex items-center gap-1"
-                              >
-                                <i class="pi pi-info-circle text-[10px]"></i>
-                                Gratis (Rp 0)
-                              </p>
-                            </div>
-
-                            <!-- Delete Button -->
-                            <button
-                              v-if="group.options.length > 1"
-                              @click="removeAddOnOption(gIndex, oIndex)"
-                              type="button"
-                              class="w-8 h-8 rounded-lg bg-white border border-gray-300 hover:bg-red-50 hover:border-red-300 hover:text-red-600 flex items-center justify-center transition flex-shrink-0 mt-0.5"
-                            >
-                              <i class="pi pi-times text-sm"></i>
-                            </button>
+                    <div class="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
+                      <div
+                        v-for="(option, oIndex) in variant.options"
+                        :key="option.id"
+                        class="bg-white border border-gray-200 rounded-lg p-3 space-y-2.5 hover:shadow-md transition-shadow"
+                      >
+                        <div class="flex items-start gap-2.5">
+                          <div
+                            class="w-7 h-7 rounded-lg bg-merchant-primary text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5"
+                          >
+                            {{ oIndex + 1 }}
                           </div>
+                          <div class="flex-1 space-y-2.5">
+                            <input
+                              v-model="option.name"
+                              type="text"
+                              :placeholder="`Contoh: ${
+                                vIndex === 0 ? 'Merah' : 'S'
+                              }`"
+                              class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-merchant-primary focus:border-transparent placeholder:text-muted-foreground bg-white"
+                            />
+
+                            <div
+                              v-if="
+                                vIndex === 0 && variantUsesImages[variant.id]
+                              "
+                            >
+                              <label
+                                class="text-xs font-semibold text-gray-600 mb-1.5 block"
+                              >
+                                Foto Opsi
+                              </label>
+
+                              <div
+                                v-if="option.images.length > 0"
+                                class="relative w-20 h-20 rounded-lg overflow-hidden border-2 border-gray-200 group"
+                              >
+                                <img
+                                  :src="option.images[0].preview"
+                                  class="w-full h-full object-cover"
+                                />
+                                <button
+                                  @click="removeOptionImage(vIndex, oIndex, 0)"
+                                  type="button"
+                                  class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center"
+                                >
+                                  <i class="pi pi-trash text-white text-sm"></i>
+                                </button>
+                              </div>
+
+                              <label
+                                v-else
+                                class="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 hover:border-merchant-primary hover:bg-merchant-primary/5 transition flex flex-col items-center justify-center cursor-pointer gap-1"
+                              >
+                                <i
+                                  class="pi pi-plus text-lg text-merchant-primary"
+                                ></i>
+                                <span
+                                  class="text-[10px] text-gray-500 font-medium"
+                                >
+                                  Upload
+                                </span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  class="hidden"
+                                  @change="
+                                    handleOptionImageUpload(
+                                      vIndex,
+                                      oIndex,
+                                      $event
+                                    )
+                                  "
+                                />
+                              </label>
+                            </div>
+                          </div>
+
+                          <button
+                            v-if="variant.options.length > 1"
+                            @click="removeOption(vIndex, oIndex)"
+                            type="button"
+                            class="w-8 h-8 rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100 flex items-center justify-center transition flex-shrink-0 mt-0.5"
+                          >
+                            <i class="pi pi-times text-sm"></i>
+                          </button>
                         </div>
                       </div>
+                    </div>
 
-                      <!-- Add Option Button -->
+                    <button
+                      @click="addOption(vIndex)"
+                      type="button"
+                      class="w-full py-2.5 px-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-merchant-primary font-bold hover:border-merchant-primary hover:bg-white transition flex items-center justify-center gap-2"
+                    >
+                      <i class="pi pi-plus text-xs"></i>
+                      Tambah Opsi Baru
+                    </button>
+                  </div>
+                </div>
+              </transition>
+            </div>
+          </div>
+
+          <!-- Combinations Summary -->
+          <div
+            v-if="variants.length > 0"
+            class="bg-merchant-primary/5 rounded-xl p-4 border-2 border-merchant-primary/20"
+          >
+            <div
+              class="flex flex-wrap sm:flex-row items-start sm:items-center justify-between gap-3"
+            >
+              <div>
+                <p class="text-sm font-semibold text-merchant-primary">
+                  Total Kombinasi
+                </p>
+                <p class="text-xs text-gray-600">
+                  {{ totalCombinations }} kombinasi akan dibuat
+                </p>
+              </div>
+              <button
+                @click="openCombinationsModal"
+                type="button"
+                :disabled="totalCombinations === 0"
+                class="w-full sm:w-auto px-5 py-2.5 bg-merchant-primary text-white text-sm font-semibold rounded-lg hover:bg-merchant-primary/90 disabled:bg-gray-300 disabled:cursor-not-allowed transition shadow-sm"
+              >
+                <i class="pi pi-cog mr-2"></i>
+                Atur Harga & Stok
+              </button>
+            </div>
+            <p
+              v-if="combinationsExceedLimit"
+              class="text-xs text-danger-foreground flex items-center gap-1 mt-2 font-medium"
+            >
+              <i class="pi pi-exclamation-triangle"></i>
+              Kombinasi melebihi batas maksimal ({{ maxOptions }})
+            </p>
+          </div>
+        </div>
+
+        <!-- Harga & Stok (tanpa variasi) -->
+        <div
+          v-if="!useVariants"
+          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 space-y-4 sm:rounded-xl sm:shadow-sm"
+        >
+          <h3 class="text-sm font-semibold text-black flex items-center gap-2">
+            <i class="pi pi-tag text-merchant-primary"></i>
+            Harga & Stok
+          </h3>
+          <TextField
+            name="sku"
+            label="SKU (Opsional)"
+            type="text"
+            placeholder="Contoh: PRD-001"
+            v-model="formSku"
+          />
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <!-- ✅ FIXED: Gunakan computed v-model -->
+
+            <TextField
+              name="price"
+              label="Harga"
+              type="number"
+              placeholder="0"
+              prefix="Rp"
+              v-model="formPrice"
+              required
+            />
+            <TextField
+              name="stock"
+              label="Stok"
+              type="number"
+              placeholder="0"
+              v-model="formStock"
+              required
+            />
+          </div>
+        </div>
+
+        <!-- TAMBAHKAN: Add-on Groups Section -->
+        <div
+          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 space-y-4 sm:rounded-xl sm:shadow-sm"
+        >
+          <div class="flex items-center justify-between">
+            <div>
+              <h3
+                class="text-sm font-semibold text-black flex items-center gap-2"
+              >
+                <i class="pi pi-plus-circle text-merchant-primary"></i>
+                Grup Add-on (Opsional)
+                <span class="text-sm font-normal text-muted-foreground"
+                  >(Maks. {{ maxAddOnGroups }})</span
+                >
+              </h3>
+              <p class="text-xs text-muted-foreground mt-1">
+                Kelompokkan add-on berdasarkan kategori (contoh: tingkat
+                kepedasan, topping)
+              </p>
+            </div>
+            <button
+              v-if="canAddAddOnGroup"
+              @click="addAddOnGroup"
+              type="button"
+              class="text-sm text-merchant-primary hover:underline flex items-center gap-1 font-semibold"
+            >
+              <i class="pi pi-plus"></i>
+              Tambah
+            </button>
+          </div>
+
+          <!-- Grid Layout untuk Desktop -->
+          <div
+            v-if="addOnGroups.length > 0"
+            class="grid grid-cols-1 lg:grid-cols-2 gap-4"
+          >
+            <div
+              v-for="(group, gIndex) in addOnGroups"
+              :key="group.id"
+              class="border-2 border-gray-200 rounded-xl overflow-hidden bg-white hover:border-merchant-primary/50 transition"
+            >
+              <!-- Group Header -->
+              <div class="p-4 space-y-4 bg-white">
+                <!-- Header: Badge + Delete -->
+                <div
+                  class="flex items-center justify-between pb-3 border-b border-gray-100"
+                >
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span
+                      class="px-3 py-1 bg-merchant-primary text-white text-xs font-bold rounded-full"
+                    >
+                      Grup {{ gIndex + 1 }}
+                    </span>
+                    <span
+                      v-if="group.is_required || group.min_selection > 0"
+                      class="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded-full flex items-center gap-1"
+                    >
+                      <i class="pi pi-exclamation-circle text-[10px]"></i>
+                      Wajib
+                    </span>
+                    <span
+                      class="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full flex items-center gap-1"
+                    >
+                      <i class="pi pi-list text-[10px]"></i>
+                      {{ group.min_selection }}-{{ group.max_selection }}
+                      pilihan
+                    </span>
+                  </div>
+                  <button
+                    @click="removeAddOnGroup(gIndex)"
+                    type="button"
+                    class="w-8 h-8 rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100 flex items-center justify-center transition flex-shrink-0"
+                  >
+                    <i class="pi pi-trash text-sm"></i>
+                  </button>
+                </div>
+
+                <!-- Group Name -->
+                <TextField
+                  :name="`addon_group_name_${group.id}`"
+                  v-model="group.name"
+                  label="Nama Grup Add-on"
+                  placeholder="Contoh: Tingkat Kepedasan, Topping"
+                  required
+                />
+
+                <!-- Settings -->
+                <div class="space-y-2">
+                  <!-- Min/Max Selection -->
+                  <div
+                    class="bg-gray-50 rounded-lg border border-gray-200 p-3 space-y-3"
+                  >
+                    <label class="text-xs font-semibold text-gray-700 block">
+                      Aturan Pemilihan
+                    </label>
+
+                    <div class="grid grid-cols-2 gap-3">
+                      <!-- Min Selection -->
+                      <div>
+                        <TextField
+                          :name="`addon_group_${group.id}_min_selection`"
+                          label="Minimal Pilihan"
+                          v-model.number="group.min_selection"
+                          type="number"
+                          min="0"
+                          :max="group.max_selection"
+                          placeholder="0"
+                          suffix="opsi"
+                          :labelBold="false"
+                        />
+                        <p class="text-[10px] text-gray-500 mt-1">
+                          0 = opsional
+                        </p>
+                      </div>
+
+                      <!-- Max Selection -->
+                      <div>
+                        <TextField
+                          :name="`addon_group_${group.id}_max_selection`"
+                          label="Maksimal Pilihan"
+                          v-model.number="group.max_selection"
+                          type="number"
+                          :min="Math.max(1, group.min_selection)"
+                          :max="
+                            group.options.filter((opt) => opt.name.trim())
+                              .length || 1
+                          "
+                          placeholder="1"
+                          suffix="opsi"
+                          :labelBold="false"
+                        />
+                      </div>
+                    </div>
+
+                    <!-- Quick Presets -->
+                    <div
+                      class="flex flex-wrap gap-2 pt-2 border-t border-gray-200"
+                    >
+                      <button
+                        @click="
+                          group.min_selection = 0;
+                          group.max_selection = 1;
+                        "
+                        type="button"
+                        class="px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg text-[10px] font-medium text-gray-700 hover:bg-gray-50 hover:border-merchant-primary transition"
+                      >
+                        <i class="pi pi-circle text-[8px] mr-1"></i>
+                        Pilih 1 (Optional)
+                      </button>
+                      <button
+                        @click="
+                          group.min_selection = 1;
+                          group.max_selection = 1;
+                        "
+                        type="button"
+                        class="px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg text-[10px] font-medium text-gray-700 hover:bg-gray-50 hover:border-merchant-primary transition"
+                      >
+                        <i class="pi pi-exclamation-circle text-[8px] mr-1"></i>
+                        Wajib Pilih 1
+                      </button>
+                      <button
+                        @click="
+                          group.min_selection = 0;
+                          group.max_selection =
+                            group.options.filter((opt) => opt.name.trim())
+                              .length || 99;
+                        "
+                        type="button"
+                        class="px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg text-[10px] font-medium text-gray-700 hover:bg-gray-50 hover:border-merchant-primary transition"
+                      >
+                        <i class="pi pi-check-square text-[8px] mr-1"></i>
+                        Multi-pilih
+                      </button>
+                    </div>
+
+                    <!-- Validation Warning -->
+                    <div
+                      v-if="group.min_selection > group.max_selection"
+                      class="flex items-start gap-2 p-2 bg-red-50 border border-red-200 rounded-lg"
+                    >
+                      <i
+                        class="pi pi-exclamation-triangle text-red-600 text-xs mt-0.5"
+                      ></i>
+                      <p class="text-[10px] text-red-700 flex-1">
+                        Minimal tidak boleh lebih besar dari maksimal
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Accordion Toggle Button -->
+                <button
+                  @click="toggleAddOnGroupExpand(group.id)"
+                  type="button"
+                  class="w-full flex items-center justify-between py-3 px-4 bg-merchant-primary/5 rounded-lg border border-merchant-primary/20 hover:bg-merchant-primary/10 transition"
+                >
+                  <div class="flex items-center gap-2">
+                    <i class="pi pi-list text-merchant-primary"></i>
+                    <span class="text-sm font-semibold text-black">
+                      Kelola Opsi
+                      <span class="text-muted-foreground ml-1">
+                        ({{
+                          group.options.filter((opt) => opt.name.trim()).length
+                        }})
+                      </span>
+                    </span>
+                  </div>
+                  <i
+                    :class="[
+                      'pi text-merchant-primary transition-transform duration-300',
+                      isAddOnGroupExpanded(group.id)
+                        ? 'pi-chevron-up'
+                        : 'pi-chevron-down',
+                    ]"
+                  ></i>
+                </button>
+              </div>
+
+              <!-- Accordion Content - Options List -->
+              <transition
+                enter-active-class="transition-all duration-300 ease-out"
+                enter-from-class="max-h-0 opacity-0"
+                enter-to-class="max-h-[2000px] opacity-100"
+                leave-active-class="transition-all duration-200 ease-in"
+                leave-from-class="max-h-[2000px] opacity-100"
+                leave-to-class="max-h-0 opacity-0"
+              >
+                <div
+                  v-if="isAddOnGroupExpanded(group.id)"
+                  class="border-t border-gray-200 overflow-hidden"
+                >
+                  <div class="p-4 pt-3 bg-gray-50 space-y-3">
+                    <!-- Options Header -->
+                    <div
+                      class="flex items-center justify-between pb-2 border-b border-gray-300"
+                    >
+                      <label
+                        class="text-xs font-bold text-black uppercase tracking-wide"
+                      >
+                        Daftar Opsi
+                      </label>
                       <button
                         @click="addAddOnOption(gIndex)"
                         type="button"
                         :disabled="group.options.length >= maxAddOnOptions"
-                        class="w-full py-2.5 px-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-merchant-primary font-bold hover:border-merchant-primary hover:bg-white transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        class="text-xs text-merchant-primary hover:underline flex items-center gap-1 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <i class="pi pi-plus text-xs"></i>
-                        Tambah Opsi Baru
+                        <i class="pi pi-plus text-[10px]"></i>
+                        Tambah
                       </button>
                     </div>
-                  </div>
-                </transition>
-              </div>
-            </div>
 
-            <!-- Empty State -->
-            <div
-              v-else
-              class="text-center py-8 px-4 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50"
-            >
-              <i
-                class="pi pi-plus-circle text-4xl text-gray-300 mb-3 block"
-              ></i>
-              <p class="text-sm text-gray-500 mb-3">
-                Belum ada grup add-on ditambahkan
-              </p>
-              <button
-                @click="addAddOnGroup"
-                type="button"
-                class="inline-flex items-center gap-2 px-4 py-2 bg-merchant-primary text-white rounded-lg hover:bg-merchant-primary/90 transition text-sm font-medium"
-              >
-                <i class="pi pi-plus"></i>
-                Tambah Grup Pertama
-              </button>
+                    <!-- Options List -->
+                    <div class="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
+                      <div
+                        v-for="(option, oIndex) in group.options"
+                        :key="option.id"
+                        class="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow"
+                      >
+                        <div class="flex items-start gap-2.5">
+                          <div
+                            class="w-7 h-7 rounded-lg bg-merchant-primary text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5"
+                          >
+                            {{ oIndex + 1 }}
+                          </div>
+
+                          <div class="flex-1 space-y-2.5">
+                            <!-- Option Name -->
+                            <TextField
+                              :name="`addon_group_${group.id}_option_${option.id}_name`"
+                              v-model="option.name"
+                              :placeholder="`Contoh: ${
+                                gIndex === 0 ? 'Tidak Pedas' : 'Daging Asap'
+                              }`"
+                              :hideLabel="true"
+                              variant="primary"
+                            />
+
+                            <!-- Price -->
+                            <TextField
+                              :name="`addon_group_${group.id}_option_${option.id}_price`"
+                              label="Harga Tambahan"
+                              v-model.number="option.price"
+                              type="number"
+                              min="0"
+                              placeholder="0"
+                              prefix="Rp"
+                              :labelBold="false"
+                            />
+                            <p
+                              v-if="option.price === 0"
+                              class="text-xs text-gray-500 -mt-1 flex items-center gap-1"
+                            >
+                              <i class="pi pi-info-circle text-[10px]"></i>
+                              Gratis (Rp 0)
+                            </p>
+                          </div>
+
+                          <!-- Delete Button -->
+                          <button
+                            v-if="group.options.length > 1"
+                            @click="removeAddOnOption(gIndex, oIndex)"
+                            type="button"
+                            class="w-8 h-8 rounded-lg bg-white border border-gray-300 hover:bg-red-50 hover:border-red-300 hover:text-red-600 flex items-center justify-center transition flex-shrink-0 mt-0.5"
+                          >
+                            <i class="pi pi-times text-sm"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Add Option Button -->
+                    <button
+                      @click="addAddOnOption(gIndex)"
+                      type="button"
+                      :disabled="group.options.length >= maxAddOnOptions"
+                      class="w-full py-2.5 px-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-merchant-primary font-bold hover:border-merchant-primary hover:bg-white transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <i class="pi pi-plus text-xs"></i>
+                      Tambah Opsi Baru
+                    </button>
+                  </div>
+                </div>
+              </transition>
             </div>
           </div>
 
-          <!-- Min Purchase & Condition -->
+          <!-- Empty State -->
           <div
-            class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 space-y-4 sm:rounded-xl sm:shadow-sm"
+            v-else
+            class="text-center py-8 px-4 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50"
           >
+            <i class="pi pi-plus-circle text-4xl text-gray-300 mb-3 block"></i>
+            <p class="text-sm text-gray-500 mb-3">
+              Belum ada grup add-on ditambahkan
+            </p>
+            <button
+              @click="addAddOnGroup"
+              type="button"
+              class="inline-flex items-center gap-2 px-4 py-2 bg-merchant-primary text-white rounded-lg hover:bg-merchant-primary/90 transition text-sm font-medium"
+            >
+              <i class="pi pi-plus"></i>
+              Tambah Grup Pertama
+            </button>
+          </div>
+        </div>
+
+        <!-- Min Purchase & Condition -->
+        <div
+          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 space-y-4 sm:rounded-xl sm:shadow-sm"
+        >
+          <TextField
+            name="min_purchase"
+            label="Minimal Jumlah Pembelian"
+            type="number"
+            placeholder="1"
+            v-model="formMinPurchase"
+            required
+          />
+        </div>
+
+        <!-- Submit Button Desktop -->
+        <div class="hidden sm:flex justify-end gap-3">
+          <Button type="submit" variant="merchant" size="md" :loading="loading">
+            <span>{{ loading ? "Menyimpan..." : "Simpan Perubahan" }}</span>
+          </Button>
+        </div>
+
+        <!-- Submit Button Mobile -->
+        <div
+          class="fixed sm:hidden bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-40"
+        >
+          <Button type="submit" :loading="loading" variant="merchant" block>
+            Simpan Perubahan
+          </Button>
+        </div>
+      </Form>
+    </div>
+
+    <!-- UPDATED: Combinations Modal menggunakan ResponsiveModal -->
+    <ResponsiveModal
+      v-model:show="showCombinationsModal"
+      title="Atur Harga & Stok"
+      :subtitle="
+        selectedCombinations.size > 0
+          ? `${selectedCombinations.size} kombinasi dipilih`
+          : null
+      "
+      show-footer="true"
+      @close="closeCombinationsModal"
+    >
+      <!-- Bulk Edit Section -->
+      <div
+        class="bg-merchant-primary/5 rounded-xl p-4 border border-merchant-primary/20 mb-4"
+      >
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-xs font-semibold text-black">Edit Massal</h3>
+          <label
+            class="flex items-center gap-2 cursor-pointer"
+            @click="toggleAllCombinations"
+          >
+            <div
+              class="w-5 h-5 rounded border-2 flex items-center justify-center transition"
+              :class="
+                allCombinationsSelected
+                  ? 'bg-merchant-primary border-merchant-primary'
+                  : 'border-gray-300'
+              "
+            >
+              <i
+                v-if="allCombinationsSelected"
+                class="pi pi-check text-white text-xs"
+              ></i>
+            </div>
+            <span class="text-xs font-medium text-gray-700">Pilih Semua</span>
+          </label>
+        </div>
+
+        <div class="space-y-3">
+          <div class="grid grid-cols-2 gap-3">
             <TextField
-              name="min_purchase"
-              label="Minimal Jumlah Pembelian"
+              label="Harga untuk Terpilih"
+              name="bulkPrice"
+              v-model.number="bulkPrice"
               type="number"
-              placeholder="1"
-              v-model.number="formMinPurchase"
-              required
+              min="0"
+              placeholder="0"
+              prefix="Rp"
+              :labelBold="false"
+            />
+
+            <TextField
+              label="Stok untuk Terpilih"
+              name="bulkStock"
+              v-model.number="bulkStock"
+              type="number"
+              min="0"
+              placeholder="0"
+              suffix="pcs"
+              :labelBold="false"
             />
           </div>
 
-          <!-- Submit Button Desktop -->
-          <div class="hidden sm:flex justify-end gap-3">
-            <Button
-              type="submit"
-              variant="merchant"
-              size="md"
-              :loading="loading"
-            >
-              <i v-if="loading" class="pi pi-spin pi-spinner"></i>
-              <i v-else class="pi pi-check"></i>
-              <span>{{ loading ? "Menyimpan..." : "Simpan Perubahan" }}</span>
-            </Button>
-          </div>
-
-          <!-- Submit Button Mobile -->
-          <div
-            class="fixed sm:hidden bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-40"
+          <Button
+            @click="applyBulkEdit"
+            size="sm"
+            variant="merchant"
+            customClass="!w-full"
+            :disabled="selectedCombinations.size === 0"
           >
-            <Button type="submit" :loading="loading" variant="merchant" block>
-              Simpan Perubahan
-            </Button>
-          </div>
-        </Form>
+            <span v-if="selectedCombinations.size > 0">
+              Terapkan ke {{ selectedCombinations.size }} Kombinasi
+            </span>
+            <span v-else>Terapkan</span>
+          </Button>
+        </div>
       </div>
 
-      <!-- UPDATED: Combinations Modal menggunakan ResponsiveModal -->
-      <ResponsiveModal
-        v-model:show="showCombinationsModal"
-        title="Atur Harga & Stok"
-        :subtitle="
-          selectedCombinations.size > 0
-            ? `${selectedCombinations.size} kombinasi dipilih`
-            : null
-        "
-        size="xl"
-        show-footer="true"
-        @close="closeCombinationsModal"
-      >
-        <!-- Bulk Edit Section -->
+      <!-- Combinations List -->
+      <div class="space-y-4">
         <div
-          class="bg-merchant-primary/5 rounded-xl p-4 border border-merchant-primary/20 mb-4"
+          v-for="(combo, cIndex) in combinations"
+          :key="cIndex"
+          @click="toggleCombinationSelection(cIndex)"
+          class="bg-white border-2 rounded-xl p-4 transition cursor-pointer hover:shadow-md"
+          :class="
+            selectedCombinations.has(cIndex)
+              ? 'border-merchant-primary bg-merchant-primary/5'
+              : 'border-gray-200'
+          "
         >
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="text-xs font-semibold text-black">Edit Massal</h3>
-            <label
-              class="flex items-center gap-2 cursor-pointer"
-              @click="toggleAllCombinations"
+          <div class="flex items-start gap-3 mb-3">
+            <div
+              class="w-5 h-5 rounded border-2 flex items-center justify-center transition flex-shrink-0 mt-0.5"
+              :class="
+                selectedCombinations.has(cIndex)
+                  ? 'bg-merchant-primary border-merchant-primary'
+                  : 'border-gray-300'
+              "
             >
-              <div
-                class="w-5 h-5 rounded border-2 flex items-center justify-center transition"
-                :class="
-                  allCombinationsSelected
-                    ? 'bg-merchant-primary border-merchant-primary'
-                    : 'border-gray-300'
-                "
-              >
-                <i
-                  v-if="allCombinationsSelected"
-                  class="pi pi-check text-white text-xs"
-                ></i>
-              </div>
-              <span class="text-xs font-medium text-gray-700">Pilih Semua</span>
-            </label>
+              <i
+                v-if="selectedCombinations.has(cIndex)"
+                class="pi pi-check text-white text-xs"
+              ></i>
+            </div>
+            <h4 class="text-sm font-semibold text-black flex-1">
+              {{ combo.combination }}
+            </h4>
           </div>
 
-          <div class="space-y-3">
+          <div class="space-y-3 pl-8" @click.stop>
+            <TextField
+              label="SKU (Opsional)"
+              :name="`combination_${cIndex}_sku`"
+              v-model="combo.sku"
+              type="text"
+              placeholder="Masukkan SKU"
+              :labelBold="false"
+            />
+
             <div class="grid grid-cols-2 gap-3">
               <TextField
-                label="Harga untuk Terpilih"
-                name="bulkPrice"
-                v-model.number="bulkPrice"
+                label="Harga"
+                :name="`combination_${cIndex}_price`"
+                v-model.number="combo.price"
                 type="number"
                 min="0"
                 placeholder="0"
                 prefix="Rp"
                 :labelBold="false"
+                required
               />
 
               <TextField
-                label="Stok untuk Terpilih"
-                name="bulkStock"
-                v-model.number="bulkStock"
+                label="Stok"
+                :name="`combination_${cIndex}_stock`"
+                v-model.number="combo.stock"
                 type="number"
                 min="0"
                 placeholder="0"
                 suffix="pcs"
                 :labelBold="false"
+                required
               />
-            </div>
-
-            <Button
-              @click="applyBulkEdit"
-              size="sm"
-              variant="merchant"
-              customClass="!w-full"
-              :disabled="selectedCombinations.size === 0"
-            >
-              <span v-if="selectedCombinations.size > 0">
-                Terapkan ke {{ selectedCombinations.size }} Kombinasi
-              </span>
-              <span v-else>Terapkan</span>
-            </Button>
-          </div>
-        </div>
-
-        <!-- Combinations List -->
-        <div class="space-y-4">
-          <div
-            v-for="(combo, cIndex) in combinations"
-            :key="cIndex"
-            @click="toggleCombinationSelection(cIndex)"
-            class="bg-white border-2 rounded-xl p-4 transition cursor-pointer hover:shadow-md"
-            :class="
-              selectedCombinations.has(cIndex)
-                ? 'border-merchant-primary bg-merchant-primary/5'
-                : 'border-gray-200'
-            "
-          >
-            <div class="flex items-start gap-3 mb-3">
-              <div
-                class="w-5 h-5 rounded border-2 flex items-center justify-center transition flex-shrink-0 mt-0.5"
-                :class="
-                  selectedCombinations.has(cIndex)
-                    ? 'bg-merchant-primary border-merchant-primary'
-                    : 'border-gray-300'
-                "
-              >
-                <i
-                  v-if="selectedCombinations.has(cIndex)"
-                  class="pi pi-check text-white text-xs"
-                ></i>
-              </div>
-              <h4 class="text-sm font-semibold text-black flex-1">
-                {{ combo.combination }}
-              </h4>
-            </div>
-
-            <div class="space-y-3 pl-8" @click.stop>
-              <TextField
-                label="SKU (Opsional)"
-                name="sku"
-                v-model="combo.sku"
-                type="text"
-                placeholder="Masukkan SKU"
-                :labelBold="false"
-              />
-
-              <div class="grid grid-cols-2 gap-3">
-                <TextField
-                  label="Harga"
-                  name="price"
-                  v-model.number="combo.price"
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  prefix="Rp"
-                  :labelBold="false"
-                  required
-                />
-
-                <TextField
-                  label="Stok"
-                  name="stock"
-                  v-model.number="combo.stock"
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  suffix="pcs"
-                  :labelBold="false"
-                  required
-                />
-              </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Footer -->
-        <template #footer>
-          <Button
-            @click="closeCombinationsModal"
-            type="button"
-            variant="merchant"
-            block
-          >
-            Selesai
-          </Button>
-        </template>
-      </ResponsiveModal>
-    </div>
+      <!-- Footer -->
+      <template #footer>
+        <Button
+          @click="closeCombinationsModal"
+          type="button"
+          variant="merchant"
+          block
+        >
+          Selesai
+        </Button>
+      </template>
+    </ResponsiveModal>
   </div>
 </template>
 

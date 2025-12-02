@@ -1,14 +1,18 @@
 <script setup>
-// filepath: /var/www/html/KMI-SIMSLIFE-FE/src/layouts/MerchantLayout.vue
 import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
+import { useAuthStore } from "@/stores/auth.js";
+import Button from "@/components/common/Button.vue";
+import ResponsiveModal from "@/components/common/ResponsiveModal.vue"; // <= pastikan di-import
+
+const authStore = useAuthStore();
 
 const router = useRouter();
 const route = useRoute();
 
 const isOpen = ref(false); // Mobile default: closed, Desktop default: open
 const notificationCount = ref(12);
-
+const showLogoutModal = ref(false); // State untuk modal logout
 const menuItems = [
   {
     label: "Dashboard",
@@ -36,6 +40,22 @@ const menuItems = [
     route: "/merchant-center/discounts",
   },
 ];
+
+// Confirm logout via modal
+const logout = async () => {
+  try {
+    // optionally show some loader here (not implemented)
+    await authStore.logout();
+    showLogoutModal.value = false;
+    // redirect to login (or landing) setelah logout
+    router.push("/login");
+  } catch (error) {
+    console.error("Logout failed:", error);
+    // Pastikan modal tetap terbuka agar user tahu terjadi error,
+    // atau tutup modal dan berikan toast (jika ada)
+    showLogoutModal.value = false;
+  }
+};
 
 const toggleSidebar = () => {
   isOpen.value = !isOpen.value;
@@ -66,12 +86,6 @@ const isActive = (routePath) => {
   // /merchant-center/products/123/edit
   // /merchant-center/products/123
   return route.path.startsWith(routePath + "/");
-};
-
-const logout = () => {
-  if (confirm("Apakah Anda yakin ingin keluar?")) {
-    router.push("/login");
-  }
 };
 
 // Expose toggle function

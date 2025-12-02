@@ -1,8 +1,7 @@
 <script setup>
-// filepath: /var/www/html/KMI-SIMSLIFE-FE/src/components/merchant/ProductCard.vue
 import { computed } from "vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";
-
+import { getImageUrl } from "@/libs/getImageUrl.js";
 const props = defineProps({
   product: {
     type: Object,
@@ -69,10 +68,18 @@ const formatPrice = (min, max) => {
         class="w-16 h-16 rounded-lg overflow-hidden bg-muted-background cursor-pointer flex-shrink-0"
       >
         <img
-          :src="product.cover_image?.image_path"
+          v-if="product.cover_image?.id"
+          :src="getImageUrl(product.cover_image.id)"
           :alt="product.name"
           class="w-full h-full object-cover"
+          @error="(e) => (e.target.style.display = 'none')"
         />
+        <div
+          v-else
+          class="w-full h-full flex items-center justify-center bg-gray-200"
+        >
+          <i class="pi pi-image text-gray-400"></i>
+        </div>
       </div>
 
       <div class="flex-1 min-w-0">

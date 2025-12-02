@@ -1,21 +1,43 @@
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
-import { Form, Field } from "vee-validate";
+import { Form, Field, useForm } from "vee-validate";
 import * as yup from "yup";
 import TextField from "@/components/forms/TextField.vue";
 import SelectField from "@/components/forms/SelectField.vue";
 import Button from "@/components/common/Button.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
+import api from "@/libs/axios";
+import { useCategories } from "@/composables/useCategories";
 
 const router = useRouter();
 const toast = useToast();
 
+// ✅ Use categories composable
+const {
+  categoriesLevel1,
+  categoriesLevel2,
+  loadingLevel1,
+  loadingLevel2,
+  fetchLevel1Categories,
+  fetchSubCategories,
+} = useCategories();
+
+// ============================================================
+// STATE MANAGEMENT
+// ============================================================
 const loading = ref(false);
 const useVariants = ref(false);
+// ✅ FIXED: Gunakan 0 dan 1 bukan boolean
 const variantUsesImages = ref({});
+
+// ✅ merchant_id (TODO: Get from auth store)
+const merchantId = ref(1);
+
+const name = ref("");
+const description = ref("");
 
 // Images
 const productImages = ref([]);
@@ -24,11 +46,6 @@ const coverImageIndex = ref(0);
 const draggedImageIndex = ref(null);
 
 // Categories
-const categoriesLevel1 = ref([
-  { value: 1, label: "Benda Pakai" },
-  { value: 2, label: "Makanan & Minuman" },
-]);
-const categoriesLevel2 = ref([]);
 const selectedCategory = ref(null);
 const selectedSubCategories = ref([]);
 
@@ -46,23 +63,38 @@ const bulkStock = ref(0);
 const selectedCombinations = ref(new Set());
 useBodyScrollLock(showCombinationsModal);
 
-// UPDATED: Add-on Groups State
+// Add-on Groups
 const addOnGroups = ref([]);
 const maxAddOnGroups = 10;
 const maxAddOnOptions = 20;
 
-const canAddAddOnGroup = computed(
-  () => addOnGroups.value.length < maxAddOnGroups
-);
+// Accordion States
+const expandedVariants = ref(new Set());
+const expandedAddOnGroups = ref(new Set());
 
-// Validation schema
+// ✅ ADD: Deklarasi reactive values untuk form binding
+const formPrice = ref(0);
+const formStock = ref(0);
+const formMinPurchase = ref(1);
+const formSku = ref("");
+
+// ============================================================
+// VALIDATION SCHEMA
+// ============================================================
 const schema = yup.object({
   name: yup.string().required("Nama produk wajib diisi"),
   description: yup.string().required("Deskripsi wajib diisi"),
   category_id: yup.number().required("Kategori utama wajib dipilih"),
+  sku: yup
+    .string()
+    .max(100, "SKU maksimal 100 karakter")
+    .when([], {
+      is: () => !useVariants.value,
+      then: (schema) => schema.nullable(),
+    }),
   price: yup
     .number()
-    .min(1, "Harga minimal 1")
+    .min(0, "Harga minimal 0")
     .when([], {
       is: () => !useVariants.value,
       then: (schema) => schema.required("Harga wajib diisi"),
@@ -80,17 +112,127 @@ const schema = yup.object({
     .integer("Minimal pembelian harus bilangan bulat")
     .min(1, "Minimal pembelian minimal 1")
     .required("Minimal pembelian wajib diisi"),
-  condition: yup.string().required("Kondisi produk wajib dipilih"),
 });
 
-// Computed
+// ============================================================
+// VEE-VALIDATE SETUP
+// ============================================================
+const {
+  handleSubmit: veeHandleSubmit,
+  errors,
+  values,
+  setFieldValue,
+  validate,
+} = useForm({
+  validationSchema: schema,
+  initialValues: {
+    name: "",
+    description: "",
+    category_id: null,
+    min_purchase: 1,
+    sku: "",
+    price: 0,
+    stock: 0,
+  },
+});
+
+// ============================================================
+// LIFECYCLE HOOKS
+// ============================================================
+onMounted(async () => {
+  console.log("[Create Product] Component mounted");
+  await fetchLevel1Categories();
+});
+
+// ============================================================
+// WATCHERS
+// ============================================================
+// ✅ Sync selectedCategory dengan form
+watch(name, (newName) => {
+  setFieldValue("name", newName);
+});
+watch(description, (newDesc) => {
+  setFieldValue("description", newDesc);
+});
+
+watch(selectedCategory, async (newCat) => {
+  console.log("[Categories] Selected category:", newCat);
+  setFieldValue("category_id", newCat);
+
+  if (newCat) {
+    await fetchSubCategories(newCat);
+  } else {
+    categoriesLevel2.value = [];
+  }
+  selectedSubCategories.value = [];
+});
+
+watch(
+  () => [useVariants.value, variants.value],
+  () => {
+    if (useVariants.value && variants.value.length > 0) {
+      generateCombinations();
+    } else {
+      combinations.value = [];
+      selectedCombinations.value.clear();
+    }
+  },
+  { deep: true }
+);
+watch(
+  () => values.sku,
+  (newVal) => {
+    formSku.value = newVal || "";
+  }
+);
+// ✅ Sync form values dengan reactive variables (untuk v-model)
+watch(
+  () => values.price,
+  (newVal) => {
+    formPrice.value = newVal || 0;
+  }
+);
+
+watch(
+  () => values.stock,
+  (newVal) => {
+    formStock.value = newVal || 0;
+  }
+);
+
+watch(
+  () => values.min_purchase,
+  (newVal) => {
+    formMinPurchase.value = newVal || 1;
+  }
+);
+
+watch(formSku, (newVal) => {
+  setFieldValue("sku", newVal);
+});
+// ✅ Sync reactive variables kembali ke form (two-way binding)
+watch(formPrice, (newVal) => {
+  setFieldValue("price", newVal);
+});
+
+watch(formStock, (newVal) => {
+  setFieldValue("stock", newVal);
+});
+
+watch(formMinPurchase, (newVal) => {
+  setFieldValue("min_purchase", newVal);
+});
+
+// ============================================================
+// COMPUTED PROPERTIES
+// ============================================================
 const canAddSubCategory = computed(
   () => selectedSubCategories.value.length < 4
 );
 const canAddVariant = computed(() => variants.value.length < maxVariants);
-
-// NEW: Computed untuk add-ons - TAMBAHKAN INI
-const canAddAddOn = computed(() => addOnGroups.value.length < maxAddOnGroups);
+const canAddAddOnGroup = computed(
+  () => addOnGroups.value.length < maxAddOnGroups
+);
 
 const totalCombinations = computed(() => {
   if (!useVariants.value || variants.value.length === 0) return 0;
@@ -114,34 +256,9 @@ const allCombinationsSelected = computed(() => {
   );
 });
 
-// Watch category change
-watch(selectedCategory, async (newCat) => {
-  if (newCat) {
-    categoriesLevel2.value = [
-      { value: 10, label: "Alas Kaki" },
-      { value: 11, label: "Pakaian" },
-    ];
-  } else {
-    categoriesLevel2.value = [];
-  }
-  selectedSubCategories.value = [];
-});
-
-// Watch variants untuk generate combinations
-watch(
-  () => [useVariants.value, variants.value],
-  () => {
-    if (useVariants.value && variants.value.length > 0) {
-      generateCombinations();
-    } else {
-      combinations.value = [];
-      selectedCombinations.value.clear();
-    }
-  },
-  { deep: true }
-);
-
-// Methods - Images (Product)
+// ============================================================
+// IMAGE METHODS
+// ============================================================
 const triggerFileInput = () => {
   fileInput.value?.click();
 };
@@ -173,14 +290,6 @@ const removeImage = (index) => {
   }
 };
 
-const setCoverImage = (index) => {
-  coverImageIndex.value = index;
-  productImages.value.forEach((img, i) => {
-    img.is_cover = i === index;
-  });
-};
-
-// Drag & Drop untuk reorder (FIXED)
 const onDragStart = (event, index) => {
   draggedImageIndex.value = index;
   event.dataTransfer.effectAllowed = "move";
@@ -201,7 +310,6 @@ const onDrop = (event, index) => {
   productImages.value.splice(draggedImageIndex.value, 1);
   productImages.value.splice(index, 0, draggedItem);
 
-  // Update cover index
   if (draggedImageIndex.value === coverImageIndex.value) {
     coverImageIndex.value = index;
   } else if (
@@ -223,7 +331,9 @@ const onDragEnd = () => {
   draggedImageIndex.value = null;
 };
 
-// Methods - Variants - PERBAIKAN
+// ============================================================
+// VARIANT METHODS
+// ============================================================
 const addVariant = () => {
   if (canAddVariant.value) {
     const variantId = Date.now() + Math.random();
@@ -232,15 +342,16 @@ const addVariant = () => {
       name: "",
       options: [{ id: Date.now(), name: "", images: [] }],
     });
-    variantNames.value[variantId] = ""; // Initialize empty name
-    variantUsesImages.value[variantId] = false;
+    variantNames.value[variantId] = "";
+    // ✅ FIXED: Set ke 0 (false) by default
+    variantUsesImages.value[variantId] = 0;
     expandedVariants.value.add(variantId);
   }
 };
 
 const removeVariant = (index) => {
   const variantId = variants.value[index].id;
-  delete variantNames.value[variantId]; // Remove from tracking
+  delete variantNames.value[variantId];
   delete variantUsesImages.value[variantId];
   variants.value.splice(index, 1);
 };
@@ -257,11 +368,15 @@ const removeOption = (variantIndex, optionIndex) => {
   variants.value[variantIndex].options.splice(optionIndex, 1);
 };
 
+// ✅ FIXED: Toggle antara 0 dan 1
 const toggleVariantImages = (variantId) => {
-  variantUsesImages.value[variantId] = !variantUsesImages.value[variantId];
+  // Toggle: 0 -> 1, 1 -> 0
+  variantUsesImages.value[variantId] = variantUsesImages.value[variantId]
+    ? 0
+    : 1;
 
-  // Clear images if toggled off
-  if (!variantUsesImages.value[variantId]) {
+  // Jika disabled (0), hapus semua images dari options
+  if (variantUsesImages.value[variantId] === 0) {
     const variant = variants.value.find((v) => v.id === variantId);
     if (variant) {
       variant.options.forEach((opt) => (opt.images = []));
@@ -273,14 +388,13 @@ const handleOptionImageUpload = (variantIndex, optionIndex, event) => {
   const files = Array.from(event.target.files);
   const option = variants.value[variantIndex].options[optionIndex];
 
-  // PERBAIKAN: Maksimal 1 foto per opsi
   if (option.images.length >= 1) {
     toast.warning("Maksimal 1 foto per opsi");
     event.target.value = "";
     return;
   }
 
-  const file = files[0]; // Ambil hanya file pertama
+  const file = files[0];
   if (file && file.type.startsWith("image/")) {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -304,7 +418,21 @@ const removeOptionImage = (variantIndex, optionIndex, imageIndex) => {
   );
 };
 
-// Generate combinations - PERBAIKAN: Default 0 untuk price & stock
+const toggleVariantExpand = (variantId) => {
+  if (expandedVariants.value.has(variantId)) {
+    expandedVariants.value.delete(variantId);
+  } else {
+    expandedVariants.value.add(variantId);
+  }
+};
+
+const isVariantExpanded = (variantId) => {
+  return expandedVariants.value.has(variantId);
+};
+
+// ============================================================
+// COMBINATION METHODS
+// ============================================================
 const generateCombinations = () => {
   const validVariants = variants.value
     .filter((v) => v.name.trim() && v.options.some((opt) => opt.name.trim()))
@@ -335,8 +463,8 @@ const generateCombinations = () => {
       newCombinations.push({
         combination: current.combination,
         sku: existingCombo?.sku || "",
-        price: existingCombo?.price || 0, // Default 0
-        stock: existingCombo?.stock || 0, // Default 0
+        price: existingCombo?.price || 0,
+        stock: existingCombo?.stock || 0,
         attributes: [...current.attributes],
       });
       return;
@@ -364,7 +492,6 @@ const generateCombinations = () => {
     combinations.value = newCombinations;
   }
 
-  // Clear selections if combinations changed
   selectedCombinations.value.clear();
 };
 
@@ -380,12 +507,11 @@ const openCombinationsModal = () => {
 
 const closeCombinationsModal = () => {
   showCombinationsModal.value = false;
-  bulkPrice.value = 0; // Reset ke 0
-  bulkStock.value = 0; // Reset ke 0
+  bulkPrice.value = 0;
+  bulkStock.value = 0;
   selectedCombinations.value.clear();
 };
 
-// Bulk edit with selection
 const toggleCombinationSelection = (index) => {
   if (selectedCombinations.value.has(index)) {
     selectedCombinations.value.delete(index);
@@ -413,17 +539,10 @@ const applyBulkEdit = () => {
   let updated = false;
   let hasError = false;
 
-  // Validasi harga - PERBAIKAN: Allow 0, tapi warning jika <= 0
   if (bulkPrice.value !== null && bulkPrice.value !== "") {
     if (bulkPrice.value < 0) {
       toast.error("Harga tidak boleh kurang dari 0");
       hasError = true;
-    } else if (bulkPrice.value === 0) {
-      toast.warning("Harga diatur ke 0");
-      selectedCombinations.value.forEach((index) => {
-        combinations.value[index].price = bulkPrice.value;
-      });
-      updated = true;
     } else {
       selectedCombinations.value.forEach((index) => {
         combinations.value[index].price = bulkPrice.value;
@@ -432,7 +551,6 @@ const applyBulkEdit = () => {
     }
   }
 
-  // Validasi stok
   if (!hasError && bulkStock.value !== null && bulkStock.value !== "") {
     if (bulkStock.value < 0) {
       toast.error("Stok tidak boleh kurang dari 0");
@@ -453,225 +571,16 @@ const applyBulkEdit = () => {
     toast.success(
       `Perubahan diterapkan ke ${selectedCombinations.value.size} kombinasi`
     );
-    bulkPrice.value = 0; // Reset ke 0
-    bulkStock.value = 0; // Reset ke 0
+    bulkPrice.value = 0;
+    bulkStock.value = 0;
   } else {
     toast.warning("Masukkan minimal harga atau stok");
   }
 };
 
-// Submit
-const handleSubmit = async (values) => {
-  if (productImages.value.length === 0) {
-    toast.error("Minimal tambahkan 1 foto produk");
-    return;
-  }
-
-  if (useVariants.value) {
-    if (variants.value.length === 0) {
-      toast.error("Minimal tambahkan 1 varian");
-      return;
-    }
-
-    if (combinationsExceedLimit.value) {
-      toast.error(`Kombinasi maksimal ${maxOptions}`);
-      return;
-    }
-
-    const hasInvalidCombo = combinations.value.some(
-      (c) => !c.price || c.price <= 0 || c.stock < 0
-    );
-    if (hasInvalidCombo) {
-      toast.error("Semua kombinasi harus diisi harga dan stok yang valid");
-      return;
-    }
-  }
-
-  // Add-on Groups validation
-  if (addOnGroups.value.length > 0) {
-    const hasInvalidGroup = addOnGroups.value.some((group) => {
-      // Cek nama group
-      if (!group.name.trim()) return true;
-
-      // Cek minimal 1 opsi valid
-      const validOptions = group.options.filter(
-        (opt) => opt.name.trim() && opt.price >= 0
-      );
-      if (validOptions.length === 0) return true;
-
-      // Validasi min/max selection
-      if (group.min_selection < 0 || group.max_selection < 1) return true;
-      if (group.min_selection > group.max_selection) return true;
-      if (group.max_selection > validOptions.length) return true;
-
-      return false;
-    });
-
-    if (hasInvalidGroup) {
-      toast.error(
-        "Pastikan setiap grup add-on memiliki nama, minimal 1 opsi valid, dan pengaturan min/max yang benar"
-      );
-      return;
-    }
-  }
-
-  loading.value = true;
-
-  try {
-    const formData = new FormData();
-
-    formData.append("name", values.name);
-    formData.append("description", values.description);
-    formData.append("category_id", values.category_id);
-    formData.append("min_purchase", values.min_purchase);
-    formData.append("condition", values.condition);
-
-    selectedSubCategories.value.forEach((subCat, index) => {
-      formData.append(`sub_categories[${index}]`, subCat);
-    });
-
-    productImages.value.forEach((img, index) => {
-      formData.append(`images[${index}]`, img.file);
-      formData.append(
-        `images[${index}][is_cover]`,
-        index === coverImageIndex.value
-      );
-      formData.append(`images[${index}][order]`, index);
-    });
-
-    if (useVariants.value) {
-      variants.value.forEach((variant, vIndex) => {
-        formData.append(`variants[${vIndex}][name]`, variant.name);
-        formData.append(
-          `variants[${vIndex}][uses_images]`,
-          variantUsesImages.value[variant.id] || false
-        );
-
-        variant.options.forEach((opt, oIndex) => {
-          if (opt.name.trim()) {
-            formData.append(
-              `variants[${vIndex}][options][${oIndex}][name]`,
-              opt.name.trim()
-            );
-
-            if (variantUsesImages.value[variant.id] && opt.images.length > 0) {
-              opt.images.forEach((img, iIndex) => {
-                formData.append(
-                  `variants[${vIndex}][options][${oIndex}][images][${iIndex}]`,
-                  img.file
-                );
-              });
-            }
-          }
-        });
-      });
-
-      combinations.value.forEach((combo, cIndex) => {
-        formData.append(
-          `combinations[${cIndex}][combination]`,
-          combo.combination
-        );
-        formData.append(`combinations[${cIndex}][sku]`, combo.sku || "");
-        formData.append(`combinations[${cIndex}][price]`, combo.price);
-        formData.append(`combinations[${cIndex}][stock]`, combo.stock);
-      });
-    } else {
-      formData.append("price", values.price);
-      formData.append("stock", values.stock);
-    }
-
-    // NEW: Append add-ons
-    addOnGroups.value.forEach((group, gIndex) => {
-      if (group.name.trim()) {
-        formData.append(`add_on_groups[${gIndex}][name]`, group.name.trim());
-        formData.append(
-          `add_on_groups[${gIndex}][is_required]`,
-          group.is_required
-        );
-        formData.append(
-          `add_on_groups[${gIndex}][min_selection]`,
-          group.min_selection
-        );
-        formData.append(
-          `add_on_groups[${gIndex}][max_selection]`,
-          group.max_selection
-        );
-
-        group.options.forEach((opt, oIndex) => {
-          if (opt.name.trim()) {
-            formData.append(
-              `add_on_groups[${gIndex}][options][${oIndex}][name]`,
-              opt.name.trim()
-            );
-            formData.append(
-              `add_on_groups[${gIndex}][options][${oIndex}][price]`,
-              opt.price
-            );
-          }
-        });
-      }
-    });
-
-    // TODO: API call
-    // await api.post("/merchant/products", formData);
-
-    setTimeout(() => {
-      toast.success("Produk berhasil ditambahkan");
-      router.push("/merchant-center/products");
-    }, 1000);
-  } catch (error) {
-    toast.error(error.response?.data?.message || "Gagal menambahkan produk");
-  } finally {
-    loading.value = false;
-  }
-};
-
-const goBack = () => {
-  router.back();
-};
-
-// Tambahkan breadcrumb items
-const breadcrumbs = [
-  { label: "Produk", path: "/merchant-center/products" },
-  { label: "Tambah Produk", path: null }, // current page, no link
-];
-
-// Tambahkan ref untuk form values
-const formPrice = ref(0);
-const formStock = ref(0);
-const formMinPurchase = ref(1);
-
-// Tambahkan ref untuk tracking expanded variants
-const expandedVariants = ref(new Set());
-
-// Methods untuk accordion
-const toggleVariantExpand = (variantId) => {
-  if (expandedVariants.value.has(variantId)) {
-    expandedVariants.value.delete(variantId);
-  } else {
-    expandedVariants.value.add(variantId);
-  }
-};
-
-const isVariantExpanded = (variantId) => {
-  return expandedVariants.value.has(variantId);
-};
-
-// Auto expand saat variant baru ditambah
-// const addVariant = () => {
-//   if (canAddVariant.value) {
-//     const variantId = Date.now() + Math.random();
-//     variants.value.push({
-//       id: variantId,
-//       name: "",
-//       options: [{ id: Date.now(), name: "", images: [] }],
-//     });
-//     variantUsesImages.value[variantId] = false;
-//     expandedVariants.value.add(variantId); // Auto expand
-//   }
-// };
-
-// UPDATED: Add-on Group Methods
+// ============================================================
+// ADDON GROUP METHODS
+// ============================================================
 const addAddOnGroup = () => {
   if (canAddAddOnGroup.value) {
     const groupId = Date.now() + Math.random();
@@ -689,7 +598,7 @@ const addAddOnGroup = () => {
         },
       ],
     });
-    expandedAddOnGroups.value.add(groupId); // Auto expand
+    expandedAddOnGroups.value.add(groupId);
   }
 };
 
@@ -715,10 +624,6 @@ const removeAddOnOption = (groupIndex, optionIndex) => {
   }
 };
 
-// NEW: Add-on Group Accordion State
-const expandedAddOnGroups = ref(new Set());
-
-// NEW: Add-on Group Accordion Methods
 const toggleAddOnGroupExpand = (groupId) => {
   if (expandedAddOnGroups.value.has(groupId)) {
     expandedAddOnGroups.value.delete(groupId);
@@ -730,13 +635,338 @@ const toggleAddOnGroupExpand = (groupId) => {
 const isAddOnGroupExpanded = (groupId) => {
   return expandedAddOnGroups.value.has(groupId);
 };
+
+// ============================================================
+// SUBMIT HANDLER
+// ============================================================
+const onSubmit = veeHandleSubmit(
+  async (values) => {
+    console.log("[Submit] Form values:", values);
+
+    // === 1) Validasi dengan Yup langsung (deterministik, gak tergantung field registration) ===
+    try {
+      // validasi semua field di values berdasarkan schema
+      await schema.validate(values, { abortEarly: false });
+    } catch (yupError) {
+      // yupError adalah ValidationError
+      const messages = (yupError.inner || [])
+        .map((e) => e.message)
+        .filter(Boolean);
+
+      // fallback jika inner kosong tapi ada message tunggal
+      if (messages.length === 0 && yupError.message) {
+        messages.push(yupError.message);
+      }
+
+      // pastikan yang dikirim ke toast adalah string (hindari passing object)
+      const firstMsg = String(
+        messages[0] || "Mohon lengkapi semua field yang wajib diisi"
+      );
+      toast.error(firstMsg);
+      return;
+    }
+
+    // === 2) Lanjut validasi kustom yang tergantung UI (gambar, variants, add-ons) ===
+    if (productImages.value.length === 0) {
+      toast.error("Minimal tambahkan 1 foto produk");
+      return;
+    }
+
+    if (useVariants.value) {
+      if (variants.value.length === 0) {
+        toast.error("Minimal tambahkan 1 varian");
+        return;
+      }
+
+      const hasEmptyVariantName = variants.value.some((v) => !v.name.trim());
+      if (hasEmptyVariantName) {
+        toast.error("Semua nama varian harus diisi");
+        return;
+      }
+
+      const hasEmptyOptions = variants.value.some(
+        (v) => v.options.filter((opt) => opt.name.trim()).length === 0
+      );
+      if (hasEmptyOptions) {
+        toast.error("Setiap varian harus memiliki minimal 1 opsi");
+        return;
+      }
+
+      if (combinationsExceedLimit.value) {
+        toast.error(`Kombinasi maksimal ${maxOptions}`);
+        return;
+      }
+
+      const hasInvalidCombo = combinations.value.some(
+        (c) => c.price < 0 || c.stock < 0
+      );
+      if (hasInvalidCombo) {
+        toast.error("Harga dan stok tidak boleh negatif");
+        return;
+      }
+    }
+
+    // Validasi add-on groups
+    if (addOnGroups.value.length > 0) {
+      const hasInvalidGroup = addOnGroups.value.some((group) => {
+        if (!group.name.trim()) return true;
+
+        const validOptions = group.options.filter(
+          (opt) => opt.name.trim() && opt.price >= 0
+        );
+        if (validOptions.length === 0) return true;
+
+        if (group.min_selection < 0 || group.max_selection < 1) return true;
+        if (group.min_selection > group.max_selection) return true;
+        if (group.max_selection > validOptions.length) return true;
+
+        return false;
+      });
+
+      if (hasInvalidGroup) {
+        toast.error(
+          "Pastikan setiap grup add-on memiliki nama, minimal 1 opsi valid, dan pengaturan min/max yang benar"
+        );
+        return;
+      }
+    }
+
+    loading.value = true;
+
+    try {
+      const formData = new FormData();
+
+      // Basic Info
+      formData.append("merchant_id", merchantId.value);
+      formData.append("name", values.name);
+      formData.append("description", values.description);
+      formData.append("category_id", values.category_id);
+      formData.append("min_purchase", values.min_purchase);
+      formData.append("status", "draft");
+
+      // Sub Categories
+      selectedSubCategories.value.forEach((subCat, index) => {
+        formData.append(`sub_categories[${index}]`, subCat);
+      });
+
+      // ✅ UPDATED: Product Images dengan struktur baru
+      productImages.value.forEach((img, index) => {
+        formData.append(`images[${index}][file]`, img.file);
+        formData.append(`images[${index}][order]`, index);
+      });
+      formData.append("cover_image_index", coverImageIndex.value);
+
+      // Variants or Direct Pricing
+      if (useVariants.value) {
+        // Append variants
+        variants.value.forEach((variant, vIndex) => {
+          formData.append(`variants[${vIndex}][name]`, variant.name);
+          formData.append(
+            `variants[${vIndex}][uses_images]`,
+            variantUsesImages.value[variant.id] || 0
+          );
+
+          // Append variant options
+          variant.options.forEach((opt, oIndex) => {
+            if (opt.name.trim()) {
+              formData.append(
+                `variants[${vIndex}][options][${oIndex}][name]`,
+                opt.name.trim()
+              );
+
+              // Append option images jika uses_images = 1
+              if (
+                variantUsesImages.value[variant.id] === 1 &&
+                opt.images.length > 0
+              ) {
+                opt.images.forEach((img, iIndex) => {
+                  formData.append(
+                    `variants[${vIndex}][options][${oIndex}][images][${iIndex}][file]`,
+                    img.file
+                  );
+                });
+              }
+            }
+          });
+        });
+
+        // Append combinations
+        combinations.value.forEach((combo, cIndex) => {
+          formData.append(
+            `combinations[${cIndex}][combination]`,
+            combo.combination
+          );
+          formData.append(`combinations[${cIndex}][sku]`, combo.sku || "");
+          formData.append(`combinations[${cIndex}][price]`, combo.price);
+          formData.append(`combinations[${cIndex}][stock]`, combo.stock);
+
+          // Append attributes
+          combo.attributes.forEach((attr, aIndex) => {
+            formData.append(
+              `combinations[${cIndex}][attributes][${aIndex}][name]`,
+              attr.name
+            );
+            formData.append(
+              `combinations[${cIndex}][attributes][${aIndex}][value]`,
+              attr.value
+            );
+          });
+        });
+      } else {
+        // Direct pricing (no variants)
+        if (values.sku) {
+          formData.append("sku", values.sku);
+        }
+        formData.append("price", values.price);
+        formData.append("stock", values.stock);
+      }
+
+      // Add-on Groups
+      addOnGroups.value.forEach((group, gIndex) => {
+        if (group.name.trim()) {
+          formData.append(`add_on_groups[${gIndex}][name]`, group.name.trim());
+          formData.append(
+            `add_on_groups[${gIndex}][min_selection]`,
+            group.min_selection
+          );
+          formData.append(
+            `add_on_groups[${gIndex}][max_selection]`,
+            group.max_selection
+          );
+
+          // Append addon options
+          group.options.forEach((opt, oIndex) => {
+            if (opt.name.trim()) {
+              formData.append(
+                `add_on_groups[${gIndex}][options][${oIndex}][name]`,
+                opt.name.trim()
+              );
+              formData.append(
+                `add_on_groups[${gIndex}][options][${oIndex}][price]`,
+                opt.price
+              );
+            }
+          });
+        }
+      });
+
+      // Debug FormData (development only)
+      if (import.meta.env.DEV) {
+        console.log("[FormData Entries]:");
+        for (let [key, value] of formData.entries()) {
+          if (value instanceof File) {
+            console.log(`  ${key}: <File: ${value.name}>`);
+          } else {
+            console.log(`  ${key}:`, value);
+          }
+        }
+      }
+
+      // API Call
+      const response = await api.post("/products", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      console.log("[Create Product] Success:", response.data);
+
+      toast.success("Produk berhasil ditambahkan");
+      router.push("/merchant-center/products");
+    } catch (error) {
+      console.error("[Create Product] Error:", error);
+
+      // Handle validation errors
+      if (error.response?.status === 422) {
+        const errors = error.response.data.errors || {};
+        const firstError = Object.values(errors)[0];
+        toast.error(firstError?.[0] || "Validasi gagal");
+      } else {
+        toast.error(
+          error.response?.data?.message || "Gagal menambahkan produk"
+        );
+      }
+    } finally {
+      loading.value = false;
+    }
+  },
+  (errorsFromVee) => {
+    console.log("[Validation] Errors (handler):", errorsFromVee);
+
+    // Helper: ambil pesan string pertama dari berbagai shape error
+    function getFirstErrorMessage(errObj) {
+      if (!errObj) return null;
+
+      // jika sudah string
+      if (typeof errObj === "string") return errObj;
+
+      // jika ada field 'errors' yang berupa object mapping field -> message(s)
+      if (errObj.errors && typeof errObj.errors === "object") {
+        const vals = Object.values(errObj.errors);
+        for (const v of vals) {
+          if (typeof v === "string") return v;
+          if (Array.isArray(v) && v.length) return String(v[0]);
+          if (v && v.message) return String(v.message);
+        }
+      }
+
+      // jika ada 'results' (vee-validate might provide nested result objects)
+      if (errObj.results && typeof errObj.results === "object") {
+        const vals = Object.values(errObj.results);
+        for (const r of vals) {
+          // many shapes: r may have .errors (array) or .message
+          if (r && r.errors && Array.isArray(r.errors) && r.errors.length)
+            return String(r.errors[0]);
+          if (r && r.message) return String(r.message);
+        }
+      }
+
+      // fallback: try to flatten top-level object values
+      if (typeof errObj === "object") {
+        const vals = Object.values(errObj);
+        for (const v of vals) {
+          if (typeof v === "string") return v;
+          if (Array.isArray(v) && v.length && typeof v[0] === "string")
+            return v[0];
+          if (v && typeof v === "object") {
+            // dive one level
+            const inner = Object.values(v).find(
+              (iv) => typeof iv === "string" || (Array.isArray(iv) && iv.length)
+            );
+            if (typeof inner === "string") return inner;
+            if (Array.isArray(inner)) return String(inner[0]);
+          }
+        }
+      }
+
+      return null;
+    }
+
+    const firstMsg =
+      getFirstErrorMessage(errorsFromVee) ||
+      "Mohon lengkapi semua field yang wajib diisi";
+
+    // Pastikan kita kirim string, bukan object
+    toast.error(String(firstMsg));
+  }
+);
+
+// ============================================================
+// UTILITY METHODS
+// ============================================================
+const goBack = () => {
+  router.back();
+};
+
+const breadcrumbs = [
+  { label: "Produk", path: "/merchant-center/products" },
+  { label: "Tambah Produk", path: null },
+];
 </script>
 
 <template>
   <div class="min-h-screen bg-gray-50 pb-20 sm:pb-0">
-    <!-- Header - RESPONSIVE UX FRIENDLY -->
-
-    <!-- Mobile Header (< 640px) - Fixed with rounded bottom -->
+    <!-- Mobile Header -->
     <div
       class="fixed sm:hidden top-0 left-0 right-0 bg-merchant-primary text-white px-4 py-6 flex items-center justify-center z-50 rounded-b-2xl"
     >
@@ -749,12 +979,11 @@ const isAddOnGroupExpanded = (groupId) => {
       <h1 class="text-lg font-semibold">Tambah Produk</h1>
     </div>
 
-    <!-- Desktop Header (>= 640px) - Sticky with white bg -->
+    <!-- Desktop Header -->
     <div class="hidden sm:block sticky top-0 left-0 right-0 z-50 py-6">
       <div
         class="mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap gap-y-2 items-center justify-between gap-x-4"
       >
-        <!-- Left: Title -->
         <div>
           <!-- Breadcrumb -->
           <nav class="flex items-center gap-2 text-sm">
@@ -783,18 +1012,14 @@ const isAddOnGroupExpanded = (groupId) => {
           </p>
         </div>
 
-        <!-- Right: Action Buttons -->
+        <!-- ✅ FIXED: Call onSubmit directly -->
         <div class="flex items-center gap-3">
-          <!-- <Button @click="goBack" variant="muted-outline" size="sm">
-            Batal
-          </Button> -->
           <Button
-            @click="$refs.formRef.handleSubmit()"
+            @click="onSubmit"
             variant="merchant"
             size="md"
+            :disabled="loading"
           >
-            <i v-if="loading" class="pi pi-spin pi-spinner"></i>
-            <i v-else class="pi pi-check"></i>
             <span>{{ loading ? "Menyimpan..." : "Simpan" }}</span>
           </Button>
         </div>
@@ -806,17 +1031,8 @@ const isAddOnGroupExpanded = (groupId) => {
 
     <!-- Container Responsive -->
     <div class="mx-auto px-0 sm:px-4 lg:px-6 sm:py-6 sm:pt-0">
-      <Form
-        ref="formRef"
-        :validation-schema="schema"
-        :initial-values="{
-          min_purchase: 1,
-          condition: 'new',
-          price: 0,
-          stock: 0,
-        }"
-        @submit="handleSubmit"
-      >
+      <!-- ✅ FIXED: Remove ref, use @submit -->
+      <Form @submit="onSubmit">
         <!-- Foto Produk -->
         <div
           class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
@@ -923,30 +1139,45 @@ const isAddOnGroupExpanded = (groupId) => {
           <TextField
             name="name"
             label="Nama Produk"
+            v-model="name"
             placeholder="Contoh: Sandal Jepit"
             required
           />
           <TextField
             name="description"
             label="Deskripsi"
+            v-model="description"
             textarea
             :rows="4"
             placeholder="Jelaskan detail produk Anda"
             required
           />
 
-          <!-- RESPONSIVE GRID untuk Kategori -->
+          <!-- ✅ UPDATED: Kategori Section dengan Loading State -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <SelectField
-              name="category_id"
-              label="Kategori Utama"
-              :options="categoriesLevel1"
-              v-model="selectedCategory"
-              required
-            />
+            <!-- Level 1 Category -->
+            <div class="relative">
+              <SelectField
+                name="category_id"
+                label="Kategori Utama"
+                :options="categoriesLevel1"
+                v-model="selectedCategory"
+                :disabled="loadingLevel1"
+                required
+              />
 
-            <!-- Sub Kategori -->
-            <div v-if="categoriesLevel2.length > 0">
+              <!-- Empty State -->
+              <p
+                v-if="!loadingLevel1 && categoriesLevel1.length === 0"
+                class="text-xs text-amber-600 mt-1 flex items-center gap-1"
+              >
+                <i class="pi pi-exclamation-triangle"></i>
+                Tidak ada kategori tersedia
+              </p>
+            </div>
+
+            <!-- Sub Categories -->
+            <div v-if="selectedCategory">
               <label class="block text-sm font-medium text-gray-700 mb-2">
                 Sub Kategori
                 <span class="text-xs font-normal text-muted-foreground"
@@ -954,7 +1185,28 @@ const isAddOnGroupExpanded = (groupId) => {
                 >
               </label>
 
-              <div class="space-y-2 mb-2">
+              <!-- Loading State -->
+              <div
+                v-if="loadingLevel2"
+                class="flex items-center justify-center py-4 text-sm text-gray-500"
+              >
+                <i class="pi pi-spin pi-spinner text-merchant-primary mr-2"></i>
+                Memuat sub-kategori...
+              </div>
+
+              <!-- Empty State -->
+              <div
+                v-else-if="!loadingLevel2 && categoriesLevel2.length === 0"
+                class="py-4 px-3 bg-gray-50 rounded-lg border border-gray-200 text-center"
+              >
+                <i class="pi pi-inbox text-2xl text-gray-300 mb-2 block"></i>
+                <p class="text-xs text-gray-500">
+                  Kategori ini tidak memiliki sub-kategori
+                </p>
+              </div>
+
+              <!-- Sub-category List -->
+              <div v-else class="space-y-2 mb-2">
                 <div
                   v-for="(subCat, index) in selectedSubCategories"
                   :key="index"
@@ -984,8 +1236,9 @@ const isAddOnGroupExpanded = (groupId) => {
                 </div>
               </div>
 
+              <!-- Add Sub-category Button -->
               <button
-                v-if="canAddSubCategory"
+                v-if="canAddSubCategory && categoriesLevel2.length > 0"
                 @click="selectedSubCategories.push('')"
                 type="button"
                 class="text-sm text-merchant-primary hover:underline flex items-center gap-1"
@@ -1109,7 +1362,7 @@ const isAddOnGroupExpanded = (groupId) => {
                   />
                 </div>
 
-                <!-- Toggle images (hanya varian pertama) -->
+                <!-- ✅ FIXED: Toggle images dengan 0/1 -->
                 <div v-if="vIndex === 0">
                   <label
                     @click="toggleVariantImages(variant.id)"
@@ -1117,14 +1370,15 @@ const isAddOnGroupExpanded = (groupId) => {
                   >
                     <div class="flex items-center gap-2">
                       <i class="pi pi-image text-merchant-primary"></i>
-                      <span class="text-sm font-medium text-gray-700"
-                        >Gunakan foto untuk varian ini</span
-                      >
+                      <span class="text-sm font-medium text-gray-700">
+                        Gunakan foto untuk varian ini
+                      </span>
                     </div>
+                    <!-- ✅ FIXED: Check dengan === 1 -->
                     <div
                       :class="[
                         'relative w-11 h-6 rounded-full transition flex-shrink-0',
-                        variantUsesImages[variant.id]
+                        variantUsesImages[variant.id] === 1
                           ? 'bg-merchant-primary'
                           : 'bg-gray-300',
                       ]"
@@ -1132,7 +1386,7 @@ const isAddOnGroupExpanded = (groupId) => {
                       <span
                         :class="[
                           'absolute top-1 w-4 h-4 bg-white rounded-full transition-transform shadow-sm',
-                          variantUsesImages[variant.id]
+                          variantUsesImages[variant.id] === 1
                             ? 'translate-x-6'
                             : 'translate-x-1',
                         ]"
@@ -1145,10 +1399,7 @@ const isAddOnGroupExpanded = (groupId) => {
                 <button
                   @click="toggleVariantExpand(variant.id)"
                   type="button"
-                  :class="[
-                    'w-full flex items-center justify-between py-3 px-0 border-merchant-primary/50 hover:bg-merchant-primary/10 transition',
-                    isVariantExpanded(variant.id) ? 'border-t' : 'border-y',
-                  ]"
+                  class="w-full flex items-center justify-between py-3 px-4 bg-merchant-primary/5 rounded-lg border border-merchant-primary/20 hover:bg-merchant-primary/10 transition"
                 >
                   <div class="flex items-center gap-2">
                     <i class="pi pi-list text-merchant-primary"></i>
@@ -1235,10 +1486,12 @@ const isAddOnGroupExpanded = (groupId) => {
                               variant="primary"
                             />
 
-                            <!-- Option Image (hanya jika varian 1 & uses images) - MAKSIMAL 1 -->
+                            <!-- ✅ FIXED: Check dengan === 1 -->
+                            <!-- Option Image (hanya jika varian 1 & uses_images === 1) -->
                             <div
                               v-if="
-                                vIndex === 0 && variantUsesImages[variant.id]
+                                vIndex === 0 &&
+                                variantUsesImages[variant.id] === 1
                               "
                             >
                               <label
@@ -1247,7 +1500,7 @@ const isAddOnGroupExpanded = (groupId) => {
                                 Foto Opsi
                               </label>
 
-                              <!-- Image Preview (jika sudah ada) -->
+                              <!-- Image Preview -->
                               <div
                                 v-if="option.images.length > 0"
                                 class="relative w-20 h-20 rounded-lg overflow-hidden border-2 border-gray-200 group"
@@ -1265,7 +1518,7 @@ const isAddOnGroupExpanded = (groupId) => {
                                 </button>
                               </div>
 
-                              <!-- Upload Button (jika belum ada foto) -->
+                              <!-- Upload Button -->
                               <label
                                 v-else
                                 class="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 hover:border-merchant-primary hover:bg-merchant-primary/5 transition flex flex-col items-center justify-center cursor-pointer gap-1"
@@ -1367,24 +1620,35 @@ const isAddOnGroupExpanded = (groupId) => {
             Harga & Stok
           </h3>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="space-y-4">
+            <!-- ✅ NEW: SKU Input -->
             <TextField
-              name="price"
-              label="Harga"
-              type="number"
-              placeholder="0"
-              prefix="Rp"
-              v-model.number="formPrice"
-              required
+              name="sku"
+              label="SKU (Opsional)"
+              type="text"
+              placeholder="Contoh: PRD-001"
+              v-model="formSku"
             />
-            <TextField
-              name="stock"
-              label="Stok"
-              type="number"
-              placeholder="0"
-              v-model.number="formStock"
-              required
-            />
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <TextField
+                name="price"
+                label="Harga"
+                type="number"
+                placeholder="0"
+                prefix="Rp"
+                v-model.number="formPrice"
+                required
+              />
+              <TextField
+                name="stock"
+                label="Stok"
+                type="number"
+                placeholder="0"
+                v-model.number="formStock"
+                required
+              />
+            </div>
           </div>
         </div>
 
@@ -1577,10 +1841,7 @@ const isAddOnGroupExpanded = (groupId) => {
                 <button
                   @click="toggleAddOnGroupExpand(group.id)"
                   type="button"
-                  :class="[
-                    'w-full flex items-center justify-between py-3 px-0 border-merchant-primary/50 hover:bg-merchant-primary/10 transition',
-                    isAddOnGroupExpanded(group.id) ? 'border-t' : 'border-y',
-                  ]"
+                  class="w-full flex items-center justify-between py-3 px-4 bg-merchant-primary/5 rounded-lg border border-merchant-primary/20 hover:bg-merchant-primary/10 transition"
                 >
                   <div class="flex items-center gap-2">
                     <i class="pi pi-list text-merchant-primary"></i>
@@ -1747,19 +2008,19 @@ const isAddOnGroupExpanded = (groupId) => {
           />
         </div>
 
+        <!-- ✅ FIXED: Desktop Submit Button -->
         <div class="hidden sm:flex justify-end">
           <Button
-            @click="$refs.formRef.handleSubmit()"
+            @click="onSubmit"
             variant="merchant"
             size="md"
+            :disabled="loading"
           >
-            <i v-if="loading" class="pi pi-spin pi-spinner"></i>
-            <i v-else class="pi pi-check"></i>
             <span>{{ loading ? "Menyimpan..." : "Simpan" }}</span>
           </Button>
         </div>
 
-        <!-- Submit Button - MOBILE ONLY -->
+        <!-- ✅ FIXED: Mobile Submit Button -->
         <div
           class="fixed sm:hidden bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-40"
         >
@@ -1884,9 +2145,10 @@ const isAddOnGroupExpanded = (groupId) => {
           </div>
 
           <div class="space-y-3 pl-8" @click.stop>
+            <!-- ✅ FIXED: Unique name dengan cIndex -->
             <TextField
+              :name="`combination_${cIndex}_sku`"
               label="SKU (Opsional)"
-              name="sku"
               v-model="combo.sku"
               type="text"
               placeholder="Masukkan SKU"
@@ -1894,9 +2156,10 @@ const isAddOnGroupExpanded = (groupId) => {
             />
 
             <div class="grid grid-cols-2 gap-3">
+              <!-- ✅ FIXED: Unique name untuk price -->
               <TextField
+                :name="`combination_${cIndex}_price`"
                 label="Harga"
-                name="price"
                 v-model.number="combo.price"
                 type="number"
                 min="0"
@@ -1906,9 +2169,10 @@ const isAddOnGroupExpanded = (groupId) => {
                 required
               />
 
+              <!-- ✅ FIXED: Unique name untuk stock -->
               <TextField
+                :name="`combination_${cIndex}_stock`"
                 label="Stok"
-                name="stock"
                 v-model.number="combo.stock"
                 type="number"
                 min="0"

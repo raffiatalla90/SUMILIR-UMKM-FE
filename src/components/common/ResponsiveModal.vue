@@ -1,6 +1,4 @@
-<!-- filepath: c:\laragon\www\KMI-SIMSLIFE-FE\src\components\common\ResponsiveModal.vue -->
 <script setup>
-// filepath: /var/www/html/KMI-SIMSLIFE-FE/src/components/common/ResponsiveModal.vue
 import { computed } from "vue";
 
 const props = defineProps({
@@ -40,7 +38,6 @@ const props = defineProps({
     default: false,
   },
 
-  // Style
   backdropClass: {
     type: String,
     default: "bg-black/50",
@@ -96,7 +93,7 @@ const handleBackdropClick = () => {
     ></div>
   </transition>
 
-  <!-- UPDATED: Modal dengan inline style + media query di CSS -->
+  <!-- ✅ UPDATED: Modal Container dengan max-height -->
   <transition
     enter-active-class="transition-all duration-300 ease-out"
     enter-from-class="sm:opacity-0 sm:scale-95 translate-y-full sm:translate-y-0"
@@ -109,15 +106,25 @@ const handleBackdropClick = () => {
       v-if="show"
       @click.stop
       :class="[
-        'fixed inset-x-0 bottom-0 sm:fixed sm:left-1/2 sm:-translate-x-1/2 sm:top-1/2 sm:-translate-y-1/2 sm:w-3/4',
-        'bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col z-[70] sm:max-h-[90vh] sm:h-fit sm:max-w-xl',
-        ,
+        // Mobile: Full width, bottom sheet, max 85vh
+        'fixed inset-x-0 bottom-0 max-h-[85vh]',
+        // Desktop: Centered without top constraint
+        'sm:fixed sm:inset-x-0 sm:inset-y-0 sm:m-auto',
+        'sm:max-h-[90vh] h-fit sm:max-w-3xl sm:w-3/4',
+        // Base styles
+        'bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl',
+        'flex flex-col z-[70]',
+        'overflow-hidden',
       ]"
     >
-      <!-- Header -->
+      <!-- ✅ Header - Fixed (tidak scroll) -->
       <div
         :class="[
-          'flex items-center justify-between px-6 py-4 border-b border-muted-background sticky top-0 bg-white rounded-t-3xl sm:rounded-t-2xl z-10 flex-shrink-0',
+          'flex items-center justify-between px-4 sm:px-6 py-4',
+          'border-b border-gray-200',
+          'bg-white rounded-t-3xl sm:rounded-t-2xl',
+          'flex-shrink-0', // ✅ Prevent shrinking
+          'sticky top-0 z-10', // ✅ Sticky on mobile scroll
           headerClass,
         ]"
       >
@@ -142,16 +149,26 @@ const handleBackdropClick = () => {
         </button>
       </div>
 
-      <!-- Body - Scrollable -->
-      <div :class="['flex-1 overflow-y-auto px-4 sm:px-6 py-4', bodyClass]">
+      <!-- ✅ Body - Scrollable Area -->
+      <div
+        :class="[
+          'flex-1 overflow-y-auto overflow-x-hidden',
+          'px-4 sm:px-6 py-4',
+          'custom-scrollbar', // ✅ Custom scrollbar class
+          bodyClass,
+        ]"
+      >
         <slot></slot>
       </div>
 
-      <!-- Footer (Optional) -->
+      <!-- ✅ Footer - Fixed (tidak scroll) -->
       <div
         v-if="showFooter || $slots.footer"
         :class="[
-          'border-t border-muted-background p-4 bg-white sticky sm:static bottom-0 rounded-b-3xl sm:rounded-b-2xl flex-shrink-0 ',
+          'border-t border-gray-200 p-4',
+          'bg-white rounded-b-3xl sm:rounded-b-2xl',
+          'flex-shrink-0', // ✅ Prevent shrinking
+          'sticky sm:static bottom-0', // ✅ Sticky on mobile
           footerClass,
         ]"
       >
@@ -162,21 +179,42 @@ const handleBackdropClick = () => {
 </template>
 
 <style scoped>
-/* Custom scrollbar */
-.overflow-y-auto::-webkit-scrollbar {
+/* ✅ Custom scrollbar for modal body */
+.custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
 
-.overflow-y-auto::-webkit-scrollbar-track {
+.custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
+  border-radius: 4px;
 }
 
-.overflow-y-auto::-webkit-scrollbar-thumb {
+.custom-scrollbar::-webkit-scrollbar-thumb {
   background: #cbd5e1;
-  border-radius: 3px;
+  border-radius: 4px;
+  transition: background 0.2s;
 }
 
-.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* ✅ Firefox scrollbar */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+/* ✅ Smooth scrolling */
+.custom-scrollbar {
+  scroll-behavior: smooth;
+}
+
+/* ✅ Mobile: Handle safe area (iPhone notch, etc.) */
+@media (max-width: 640px) {
+  .custom-scrollbar {
+    /* Add padding bottom for safe area */
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
 }
 </style>

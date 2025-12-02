@@ -1,5 +1,8 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
+// =======================
+// 1. IMPORTS
+// =======================
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import TextField from "@/components/forms/TextField.vue";
@@ -12,16 +15,34 @@ import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import ProductCard from "@/components/common/ProductCard.vue";
 import MobilePagination from "@/components/common/MobilePagination.vue";
 import BulkActionBar from "@/components/common/BulkActionBar.vue";
+import { useProducts } from "@/composables/useProducts";
+import { useCategories } from "@/composables/useCategories";
+import { getImageUrl } from "@/libs/getImageUrl.js";
+import api from "@/libs/axios";
 
 const router = useRouter();
 const toast = useToast();
+
+// ✅ Use products composable
+const {
+  products,
+  loading,
+  pagination,
+  fetchProducts,
+  deleteProduct,
+  updateProductStatus,
+  bulkDeleteProducts,
+  bulkUpdateStatus,
+} = useProducts();
+
+// ✅ NEW: Use categories composable
+const { categoriesLevel1, loadingLevel1, fetchLevel1Categories } =
+  useCategories();
 
 // Emit untuk toggle sidebar dari parent layout
 const emit = defineEmits(["toggle-sidebar"]);
 
 // State
-const products = ref([]);
-const loading = ref(false);
 const selectedProducts = ref([]);
 const selectAll = ref(false);
 
@@ -29,22 +50,35 @@ const selectAll = ref(false);
 const showExportModal = ref(false);
 const showFilterModal = ref(false);
 const showBulkActionModal = ref(false);
-const showVisibilityModal = ref(false); // NEW
+const showVisibilityModal = ref(false);
+const showDeleteModal = ref(false);
+const showBulkDeleteModal = ref(false);
+// ✅ ADD: Status change confirmation modals
+const showStatusChangeModal = ref(false);
+const showBulkStatusChangeModal = ref(false);
 
-// NEW: Selected product for visibility toggle
+// Selected items for actions
 const selectedProductForVisibility = ref(null);
+const selectedProductForDelete = ref(null);
+// ✅ ADD: Selected product and new status for confirmation
+const selectedProductForStatusChange = ref(null);
+const newStatusForChange = ref(null);
+const newBulkStatus = ref(null);
 
-// NEW: Combined modal state for body scroll lock
+// Combined modal state for body scroll lock
 const isAnyModalOpen = computed(() => {
   return (
     showExportModal.value ||
     showFilterModal.value ||
     showBulkActionModal.value ||
-    showVisibilityModal.value
+    showVisibilityModal.value ||
+    showDeleteModal.value ||
+    showBulkDeleteModal.value ||
+    showStatusChangeModal.value || // ✅ ADD
+    showBulkStatusChangeModal.value // ✅ ADD
   );
 });
 
-// Apply body scroll lock when any modal is open
 useBodyScrollLock(isAnyModalOpen);
 
 // Filters
@@ -56,7 +90,11 @@ const tempFilters = ref({
   maxPrice: null,
   minStock: null,
   maxStock: null,
-  sortBy: "newest",
+  // ✅ NEW: Multiple sort filters (independent)
+  sortByDate: "", // 'newest' | 'oldest'
+  sortByName: "", // 'name_asc' | 'name_desc'
+  sortByPrice: "", // 'price_asc' | 'price_desc'
+  sortByStock: "", // 'stock_asc' | 'stock_desc'
 });
 
 const activeFilters = ref({
@@ -66,38 +104,34 @@ const activeFilters = ref({
   maxPrice: null,
   minStock: null,
   maxStock: null,
-  sortBy: "newest",
+  sortByDate: "",
+  sortByName: "",
+  sortByPrice: "",
+  sortByStock: "",
 });
 
 const currentPage = ref(1);
 const perPage = ref(10);
-const totalItems = ref(0);
 
-// NEW: Computed untuk pagination
-const paginatedProducts = computed(() => {
-  const start = (currentPage.value - 1) * perPage.value;
-  const end = start + perPage.value;
-  return filteredProducts.value.slice(start, end);
-});
-
-const totalPages = computed(() => {
-  return Math.ceil(filteredProducts.value.length / perPage.value);
-});
+// ✅ Use real data dari backend
+const totalItems = computed(() => pagination.value.total);
+const totalPages = computed(() => pagination.value.last_page);
 
 const paginationInfo = computed(() => {
-  const start = (currentPage.value - 1) * perPage.value + 1;
+  const start =
+    (pagination.value.current_page - 1) * pagination.value.per_page + 1;
   const end = Math.min(
-    currentPage.value * perPage.value,
-    filteredProducts.value.length
+    pagination.value.current_page * pagination.value.per_page,
+    pagination.value.total
   );
   return {
     start,
     end,
-    total: filteredProducts.value.length,
+    total: pagination.value.total,
   };
 });
 
-// Filter options
+// Filter options (unchanged)
 const statusOptions = [
   { label: "Semua Status", value: "" },
   { label: "Dipublish", value: "published" },
@@ -115,319 +149,27 @@ const sortOptions = [
   { label: "Stok Tertinggi", value: "stock_desc" },
 ];
 
-const categoryOptions = [
-  { label: "Semua Kategori", value: "" },
-  { label: "Barang Pakai", value: "1" },
-  { label: "Bahan Masakan", value: "2" },
-  { label: "Makanan Cepat Saji", value: "3" },
-  { label: "Makanan", value: "4" },
-  { label: "Toiletries", value: "5" },
-  { label: "Minuman", value: "6" },
-  { label: "Makanan Instan", value: "7" },
-];
+// ✅ SIMPLIFIED: categoryOptions sekarang data sudah normalized
+const categoryOptions = computed(() => {
+  const options = [{ label: "Semua Kategori", value: "" }];
 
-// DUMMY DATA
-const dummyProducts = [
-  {
-    id: 1,
-    name: "Sandal Jepit",
-    slug: "sandal-jepit-ba000001",
-    sku: "BA000001",
-    description: "Sandal jepit nyaman untuk sehari-hari",
-    status: "published",
-    total_stock: 30,
-    min_price: 12000,
-    max_price: 14000,
-    variant_count: 2,
-    cover_image: {
-      id: 1,
-      image_path: "https://via.placeholder.com/150/4A90E2/FFFFFF?text=Sandal",
-      is_cover: true,
-    },
-    categories: [{ id: 1, category_name: "Barang Pakai" }],
-    created_at: "2025-11-10T08:00:00.000Z",
-    updated_at: "2025-11-12T10:30:00.000Z",
-  },
-  {
-    id: 2,
-    name: "Minyak Goreng",
-    slug: "minyak-goreng-ba000002",
-    sku: "BA000002",
-    description: "Minyak goreng kemasan 1L",
-    status: "published",
-    total_stock: 14,
-    min_price: 12000,
-    max_price: 25000,
-    variant_count: 0,
-    cover_image: {
-      id: 2,
-      image_path: "https://via.placeholder.com/150/F5A623/FFFFFF?text=Minyak",
-      is_cover: true,
-    },
-    categories: [{ id: 2, category_name: "Bahan Masakan" }],
-    created_at: "2025-11-11T09:15:00.000Z",
-    updated_at: "2025-11-12T11:00:00.000Z",
-  },
-  {
-    id: 3,
-    name: "Kecap Manis",
-    slug: "kecap-manis-ba000003",
-    sku: "BA000003",
-    description: "Kecap manis cap jempol 600ml",
-    status: "published",
-    total_stock: 14,
-    min_price: 12000,
-    max_price: 25000,
-    variant_count: 2,
-    cover_image: {
-      id: 3,
-      image_path: "https://via.placeholder.com/150/8B572A/FFFFFF?text=Kecap",
-      is_cover: true,
-    },
-    categories: [{ id: 3, category_name: "Makanan Cepat Saji" }],
-    created_at: "2025-11-11T10:30:00.000Z",
-    updated_at: "2025-11-12T12:00:00.000Z",
-  },
-  {
-    id: 4,
-    name: "Nasi Goreng Spesial Solo Sjjksd djKJSdj jdskjdk",
-    slug: "nasi-goreng-spesial-ba000004",
-    sku: "BA000004",
-    description: "Nasi goreng dengan telur mata sapi",
-    status: "published",
-    total_stock: 0,
-    min_price: 15000,
-    max_price: 20000,
-    variant_count: 3,
-    cover_image: {
-      id: 4,
-      image_path:
-        "https://via.placeholder.com/150/E74C3C/FFFFFF?text=Nasi+Goreng",
-      is_cover: true,
-    },
-    categories: [{ id: 4, category_name: "Makanan" }],
-    created_at: "2025-11-12T07:00:00.000Z",
-    updated_at: "2025-11-12T13:00:00.000Z",
-  },
-  {
-    id: 5,
-    name: "Sabun Mandi",
-    slug: "sabun-mandi-ba000005",
-    sku: "BA000005123123123123213",
-    description: "Sabun mandi batangan wangi melati",
-    status: "published",
-    total_stock: 45,
-    min_price: 5000,
-    max_price: 8000,
-    variant_count: 0,
-    cover_image: {
-      id: 5,
-      image_path: "https://via.placeholder.com/150/9B59B6/FFFFFF?text=Sabun",
-      is_cover: true,
-    },
-    categories: [{ id: 5, category_name: "Toiletries" }],
-    created_at: "2025-11-10T14:20:00.000Z",
-    updated_at: "2025-11-12T14:00:00.000Z",
-  },
-  {
-    id: 6,
-    name: "Teh Celup",
-    slug: "teh-celup-ba000006",
-    sku: "BA000006",
-    description: "Teh celup isi 25 sachet",
-    status: "archived",
-    total_stock: 5,
-    min_price: 800000000,
-    max_price: 1200000000,
-    variant_count: 1,
-    cover_image: {
-      id: 6,
-      image_path: "https://via.placeholder.com/150/27AE60/FFFFFF?text=Teh",
-      is_cover: true,
-    },
-    categories: [{ id: 6, category_name: "Minuman" }],
-    created_at: "2025-11-09T11:00:00.000Z",
-    updated_at: "2025-11-12T15:00:00.000Z",
-  },
-  {
-    id: 7,
-    name: "Indomie Goreng",
-    slug: "indomie-goreng-ba000007",
-    sku: "BA000007",
-    description: "Mi instan rasa goreng",
-    status: "published",
-    total_stock: 1003123213,
-    min_price: 3000,
-    max_price: 3000,
-    variant_count: 0,
-    cover_image: {
-      id: 7,
-      image_path: "https://via.placeholder.com/150/E67E22/FFFFFF?text=Indomie",
-      is_cover: true,
-    },
-    categories: [{ id: 7, category_name: "Makanan Instan" }],
-    created_at: "2025-11-08T16:30:00.000Z",
-    updated_at: "2025-11-12T16:00:00.000Z",
-  },
-  {
-    id: 8,
-    name: "Gula Pasir",
-    slug: "gula-pasir-ba000008",
-    sku: "BA000008",
-    description: "Gula pasir putih 1kg",
-    status: "published",
-    total_stock: 25,
-    min_price: 15000,
-    max_price: 15000,
-    variant_count: 0,
-    cover_image: {
-      id: 8,
-      image_path: "https://via.placeholder.com/150/ECF0F1/000000?text=Gula",
-      is_cover: true,
-    },
-    categories: [{ id: 2, category_name: "Bahan Masakan" }],
-    created_at: "2025-11-07T13:45:00.000Z",
-    updated_at: "2025-11-12T17:00:00.000Z",
-  },
-  {
-    id: 9,
-    name: "Gula Pasir",
-    slug: "gula-pasir-ba000008",
-    sku: "BA000008",
-    description: "Gula pasir putih 1kg",
-    status: "published",
-    total_stock: 25,
-    min_price: 15000,
-    max_price: 15000,
-    variant_count: 0,
-    cover_image: {
-      id: 9,
-      image_path: "https://via.placeholder.com/150/ECF0F1/000000?text=Gula",
-      is_cover: true,
-    },
-    categories: [{ id: 2, category_name: "Bahan Masakan" }],
-    created_at: "2025-11-07T13:45:00.000Z",
-    updated_at: "2025-11-12T17:00:00.000Z",
-  },
-  {
-    id: 10,
-    name: "Gula Pasir",
-    slug: "gula-pasir-ba000008",
-    sku: "BA000008",
-    description: "Gula pasir putih 1kg",
-    status: "published",
-    total_stock: 25,
-    min_price: 15000,
-    max_price: 15000,
-    variant_count: 0,
-    cover_image: {
-      id: 10,
-      image_path: "https://via.placeholder.com/150/ECF0F1/000000?text=Gula",
-      is_cover: true,
-    },
-    categories: [{ id: 2, category_name: "Bahan Masakan" }],
-    created_at: "2025-11-07T13:45:00.000Z",
-    updated_at: "2025-11-12T17:00:00.000Z",
-  },
-  {
-    id: 11,
-    name: "Gula Pasir",
-    slug: "gula-pasir-ba000008",
-    sku: "BA000008",
-    description: "Gula pasir putih 1kg",
-    status: "published",
-    total_stock: 25,
-    min_price: 15000,
-    max_price: 15000,
-    variant_count: 0,
-    cover_image: {
-      id: 11,
-      image_path: "https://via.placeholder.com/150/ECF0F1/000000?text=Gula",
-      is_cover: true,
-    },
-    categories: [{ id: 2, category_name: "Bahan Masakan" }],
-    created_at: "2025-11-07T13:45:00.000Z",
-    updated_at: "2025-11-12T17:00:00.000Z",
-  },
-];
-
-// Computed
-const filteredProducts = computed(() => {
-  let result = products.value;
-
-  // Search
-  if (searchQuery.value) {
-    result = result.filter(
-      (p) =>
-        p.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-        p.sku?.toLowerCase().includes(searchQuery.value.toLowerCase())
-    );
+  if (!categoriesLevel1.value || !Array.isArray(categoriesLevel1.value)) {
+    return options;
   }
 
-  // Status filter - GUNAKAN activeFilters
-  if (activeFilters.value.status) {
-    result = result.filter((p) => p.status === activeFilters.value.status);
-  }
+  categoriesLevel1.value
+    .filter((category) => category?.id && category?.name)
+    .forEach((category) => {
+      options.push({
+        label: category.name,
+        value: String(category.id),
+      });
+    });
 
-  // Category filter - GUNAKAN activeFilters
-  if (activeFilters.value.category) {
-    result = result.filter((p) =>
-      p.categories?.some((c) => c.id === parseInt(activeFilters.value.category))
-    );
-  }
-
-  // Price range - GUNAKAN activeFilters
-  if (activeFilters.value.minPrice !== null) {
-    result = result.filter((p) => p.min_price >= activeFilters.value.minPrice);
-  }
-  if (activeFilters.value.maxPrice !== null) {
-    result = result.filter((p) => p.max_price <= activeFilters.value.maxPrice);
-  }
-
-  // Stock range - GUNAKAN activeFilters
-  if (activeFilters.value.minStock !== null) {
-    result = result.filter(
-      (p) => p.total_stock >= activeFilters.value.minStock
-    );
-  }
-  if (activeFilters.value.maxStock !== null) {
-    result = result.filter(
-      (p) => p.total_stock <= activeFilters.value.maxStock
-    );
-  }
-
-  // Sort - GUNAKAN activeFilters
-  switch (activeFilters.value.sortBy) {
-    case "oldest":
-      result.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-      break;
-    case "name_asc":
-      result.sort((a, b) => a.name.localeCompare(b.name));
-      break;
-    case "name_desc":
-      result.sort((a, b) => b.name.localeCompare(a.name));
-      break;
-    case "price_asc":
-      result.sort((a, b) => a.min_price - b.min_price);
-      break;
-    case "price_desc":
-      result.sort((a, b) => b.max_price - a.max_price);
-      break;
-    case "stock_asc":
-      result.sort((a, b) => a.total_stock - b.total_stock);
-      break;
-    case "stock_desc":
-      result.sort((a, b) => b.total_stock - a.total_stock);
-      break;
-    case "newest":
-    default:
-      result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      break;
-  }
-
-  return result;
+  return options;
 });
 
+// ✅ NEW: Computed active filter count (include all sorts)
 const activeFilterCount = computed(() => {
   let count = 0;
   if (activeFilters.value.status) count++;
@@ -436,85 +178,104 @@ const activeFilterCount = computed(() => {
   if (activeFilters.value.maxPrice !== null) count++;
   if (activeFilters.value.minStock !== null) count++;
   if (activeFilters.value.maxStock !== null) count++;
-  if (activeFilters.value.sortBy !== "newest") count++;
+  if (activeFilters.value.sortByDate) count++;
+  if (activeFilters.value.sortByName) count++;
+  if (activeFilters.value.sortByPrice) count++;
+  if (activeFilters.value.sortByStock) count++;
   return count;
 });
 
-const hasSelectedProducts = computed(() => selectedProducts.value.length > 0);
+// ✅ NEW: Build sort_by parameter untuk API
+const buildSortByParam = (filters) => {
+  // Priority: Date > Name > Price > Stock (gunakan yang pertama ada)
+  if (filters.sortByDate) return filters.sortByDate;
+  if (filters.sortByName) return filters.sortByName;
+  if (filters.sortByPrice) return filters.sortByPrice;
+  if (filters.sortByStock) return filters.sortByStock;
+  return "newest"; // default
+};
 
-// NEW: Selected products details
-const selectedProductsCount = computed(() => selectedProducts.value.length);
+// ✅ UPDATED: Load products dengan multi-sort
+const loadProducts = async () => {
+  try {
+    const sortBy = buildSortByParam(activeFilters.value);
 
-const selectedProductsData = computed(() => {
-  return products.value.filter((p) => selectedProducts.value.includes(p.id));
-});
-
-// Methods
-const fetchProducts = async () => {
-  loading.value = true;
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  products.value = dummyProducts;
-  totalItems.value = dummyProducts.length;
-  loading.value = false;
+    await fetchProducts({
+      searchQuery: searchQuery.value,
+      status: activeFilters.value.status,
+      category: activeFilters.value.category,
+      minPrice: activeFilters.value.minPrice,
+      maxPrice: activeFilters.value.maxPrice,
+      minStock: activeFilters.value.minStock,
+      maxStock: activeFilters.value.maxStock,
+      sortBy: sortBy,
+      perPage: perPage.value,
+      page: currentPage.value,
+    });
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Gagal memuat produk");
+  }
 };
 
 const handleSearch = () => {
-  currentPage.value = 1; // Reset ke halaman 1
-  fetchProducts();
+  currentPage.value = 1;
+  loadProducts();
 };
 
+// ✅ ADD: Missing method for toggling product selection
+const toggleProductSelection = (productId) => {
+  const index = selectedProducts.value.indexOf(productId);
+
+  if (index > -1) {
+    // Remove from selection
+    selectedProducts.value.splice(index, 1);
+  } else {
+    // Add to selection
+    selectedProducts.value.push(productId);
+  }
+
+  // Update selectAll checkbox state
+  selectAll.value = selectedProducts.value.length === products.value.length;
+};
+
+// ✅ UPDATE: toggleSelectAll method
 const toggleSelectAll = () => {
   if (selectAll.value) {
-    selectedProducts.value = filteredProducts.value.map((p) => p.id);
+    selectedProducts.value = products.value.map((p) => p.id);
   } else {
     selectedProducts.value = [];
   }
 };
 
-// NEW: Bulk Actions
+// ✅ Bulk Actions - Use real API
 const bulkDelete = () => {
-  if (
-    confirm(
-      `Hapus ${selectedProductsCount.value} produk yang dipilih?\n\nTindakan ini tidak dapat dibatalkan.`
-    )
-  ) {
-    products.value = products.value.filter(
-      (p) => !selectedProducts.value.includes(p.id)
-    );
-    totalItems.value = products.value.length;
+  showBulkDeleteModal.value = true;
+};
+
+// ✅ NEW: Confirm bulk delete
+const confirmBulkDelete = async () => {
+  try {
+    await bulkDeleteProducts(selectedProducts.value);
     toast.success(`${selectedProductsCount.value} produk berhasil dihapus`);
     selectedProducts.value = [];
     selectAll.value = false;
+    closeBulkDeleteModal();
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Gagal menghapus produk");
   }
 };
 
-const bulkUpdateStatus = (status) => {
-  const statusLabel = getStatusLabel(status);
-
-  if (
-    confirm(
-      `Ubah status ${selectedProductsCount.value} produk menjadi "${statusLabel}"?`
-    )
-  ) {
-    selectedProductsData.value.forEach((product) => {
-      product.status = status;
-    });
-
-    toast.success(
-      `${selectedProductsCount.value} produk berhasil diubah menjadi ${statusLabel}`
-    );
-    selectedProducts.value = [];
-    selectAll.value = false;
-    closeBulkActionModal();
-  }
+// ✅ NEW: Close bulk delete modal
+const closeBulkDeleteModal = () => {
+  showBulkDeleteModal.value = false;
 };
 
+// Modal methods (unchanged)
 const openExportModal = () => {
   showExportModal.value = true;
 };
 
 const openFilterModal = () => {
-  // Copy current active filters ke temp filters
   tempFilters.value = { ...activeFilters.value };
   showFilterModal.value = true;
 };
@@ -541,11 +302,15 @@ const cancelSelection = () => {
 };
 
 const applyFilters = () => {
-  // Copy tempFilters ke activeFilters
+  console.log("[Filter] Applying filters:", tempFilters.value);
+
   activeFilters.value = { ...tempFilters.value };
-  currentPage.value = 1; // Reset ke halaman 1
+  currentPage.value = 1;
   closeFilterModal();
-  // fetchProducts(); // OPTIONAL: jika data dari API
+
+  console.log("[Filter] Active filters:", activeFilters.value);
+
+  loadProducts();
 };
 
 const resetFilters = () => {
@@ -564,49 +329,178 @@ const resetFilters = () => {
   currentPage.value = 1;
   closeFilterModal();
   toast.success("Filter berhasil direset");
-  // fetchProducts(); // OPTIONAL: jika data dari API
+  loadProducts();
 };
 
-const exportPDF = () => {
-  closeExportModal();
-  toast.info("Export PDF dalam pengembangan");
+// Helper: buat URL params dari filter aktif
+const buildExportParams = () => {
+  const params = {
+    q: searchQuery.value || undefined,
+    status: activeFilters.value.status || undefined,
+    category_id: activeFilters.value.category || undefined,
+    min_price: activeFilters.value.minPrice ?? undefined,
+    max_price: activeFilters.value.maxPrice ?? undefined,
+    min_stock: activeFilters.value.minStock ?? undefined,
+    max_stock: activeFilters.value.maxStock ?? undefined,
+    sort_by: buildSortByParam(activeFilters.value) || "newest",
+  };
+  Object.keys(params).forEach(
+    (k) => params[k] === undefined && delete params[k]
+  );
+  return params;
 };
 
-const exportExcel = () => {
-  closeExportModal();
-  toast.info("Export Excel dalam pengembangan");
+// Helper: unduh Blob ke file
+const saveBlob = (blob, fallbackName) => {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fallbackName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+};
+
+// Export Excel (via BE)
+const exportExcel = async () => {
+  try {
+    const params = buildExportParams();
+    const res = await api.get("/products/export/excel", {
+      params,
+      responseType: "blob",
+    });
+
+    // Ambil nama file dari header jika ada
+    const disposition = res.headers["content-disposition"] || "";
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const filename =
+      match?.[1] ||
+      `products-${new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace(/[:T]/g, "")}.xlsx`;
+
+    saveBlob(res.data, filename);
+    toast.success("Export Excel berhasil diunduh");
+  } catch (err) {
+    toast.error(err.response?.data?.message || "Gagal export Excel");
+  } finally {
+    closeExportModal();
+  }
+};
+
+// Export PDF (via BE)
+const exportPDF = async () => {
+  try {
+    const params = buildExportParams();
+    const res = await api.get("/products/export/pdf", {
+      params,
+      responseType: "blob",
+    });
+
+    // Ambil nama file dari header jika ada
+    const disposition = res.headers["content-disposition"] || "";
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const filename =
+      match?.[1] ||
+      `products-${new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace(/[:T]/g, "")}.pdf`;
+
+    saveBlob(res.data, filename);
+    toast.success("Export PDF berhasil diunduh");
+  } catch (err) {
+    toast.error(err.response?.data?.message || "Gagal export PDF");
+  } finally {
+    closeExportModal();
+  }
 };
 
 const goToCreate = () => {
-  // toast.info("Navigasi ke halaman tambah produk");
-  router.push({
-    name: "Merchant - Buat Product",
-  });
+  router.push({ name: "Merchant - Buat Product" });
 };
 
 const goToEdit = (product) => {
   router.push({
     name: "Merchant - Product Edit",
-    // params: { merchantId: merchantId.value, productId: product.id },
     params: { id: product.id },
   });
 };
 
 const goToDetail = (product) => {
-  // toast.info(`Detail produk: ${product.name}`);
   router.push({
     name: "Merchant - Product Detail",
-    // params: { merchantId: merchantId.value, productId: product.id },
     params: { id: product.id },
   });
 };
 
-const deleteProduct = (product) => {
-  if (confirm(`Hapus produk "${product.name}"?`)) {
-    products.value = products.value.filter((p) => p.id !== product.id);
-    totalItems.value--;
+// ✅ Delete product - Use real API
+const deleteProductAction = (product) => {
+  selectedProductForDelete.value = product;
+  showDeleteModal.value = true;
+};
+
+// ✅ NEW: Confirm single delete
+const confirmDeleteProduct = async () => {
+  if (!selectedProductForDelete.value) return;
+
+  try {
+    await deleteProduct(selectedProductForDelete.value.id);
     toast.success("Produk berhasil dihapus");
+    closeDeleteModal();
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Gagal menghapus produk");
   }
+};
+
+const hasSelectedProducts = computed(() => {
+  return selectedProducts.value.length > 0;
+});
+
+const selectedProductsCount = computed(() => {
+  return selectedProducts.value.length;
+});
+
+// ✅ ADD: Computed untuk mendapatkan data produk yang dipilih (untuk modal preview)
+const selectedProductsData = computed(() => {
+  return products.value.filter((p) => selectedProducts.value.includes(p.id));
+});
+
+// ✅ ADD: Missing method - Close visibility modal
+const closeVisibilityModal = () => {
+  showVisibilityModal.value = false;
+  selectedProductForVisibility.value = null;
+};
+
+// ✅ NEW: Clear individual filter group
+const clearFilterGroup = (group) => {
+  switch (group) {
+    case "sort_date":
+      activeFilters.value.sortByDate = "";
+      tempFilters.value.sortByDate = "";
+      break;
+    case "sort_name":
+      activeFilters.value.sortByName = "";
+      tempFilters.value.sortByName = "";
+      break;
+    case "sort_price":
+      activeFilters.value.sortByPrice = "";
+      tempFilters.value.sortByPrice = "";
+      break;
+    case "sort_stock":
+      activeFilters.value.sortByStock = "";
+      tempFilters.value.sortByStock = "";
+      break;
+  }
+  loadProducts();
+};
+
+// ✅ NEW: Close delete modal
+const closeDeleteModal = () => {
+  showDeleteModal.value = false;
+  selectedProductForDelete.value = null;
 };
 
 // Add number formatter helper
@@ -620,7 +514,6 @@ const formatNumber = (num) => {
   return num.toString();
 };
 
-// Update formatPrice to handle very long numbers
 const formatPrice = (min, max) => {
   const formatter = new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -629,7 +522,6 @@ const formatPrice = (min, max) => {
     maximumFractionDigits: 0,
   });
 
-  // Compact format for very large numbers
   const formatCompact = (num) => {
     if (num >= 1000000000) {
       return "Rp " + (num / 1000000000).toFixed(1) + "M";
@@ -647,39 +539,10 @@ const formatPrice = (min, max) => {
   return `${formatCompact(min)} - ${formatCompact(max)}`;
 };
 
-// NEW: Generate page numbers untuk pagination
-const visiblePages = computed(() => {
-  const pages = [];
-  const total = totalPages.value;
-  const current = currentPage.value;
-
-  if (total <= 7) {
-    // Tampilkan semua halaman jika <= 7
-    for (let i = 1; i <= total; i++) {
-      pages.push(i);
-    }
-  } else {
-    // Tampilkan halaman dengan ellipsis
-    if (current <= 3) {
-      // Awal: 1 2 3 4 ... last
-      pages.push(1, 2, 3, 4, "...", total);
-    } else if (current >= total - 2) {
-      // Akhir: 1 ... last-3 last-2 last-1 last
-      pages.push(1, "...", total - 3, total - 2, total - 1, total);
-    } else {
-      // Tengah: 1 ... current-1 current current+1 ... last
-      pages.push(1, "...", current - 1, current, current + 1, "...", total);
-    }
-  }
-
-  return pages;
-});
-
-// NEW: Pagination methods
+// ✅ UPDATED: Pagination methods - sync dengan backend pagination
 const goToPage = (page) => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page;
-    // Scroll ke atas saat ganti halaman
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 };
@@ -696,15 +559,110 @@ const prevPage = () => {
   }
 };
 
-onMounted(() => {
-  fetchProducts();
+// Helper functions for status
+const getStatusLabel = (status) => {
+  const labels = {
+    published: "Dipublish",
+    archived: "Diarsipkan",
+    draft: "Draft",
+    out_of_stock: "Stok Habis",
+  };
+  return labels[status] || status;
+};
+
+// Toggle visibility method
+const toggleProductVisibility = (product) => {
+  selectedProductForVisibility.value = product;
+  showVisibilityModal.value = true;
+};
+
+// ✅ UPDATED: Confirm visibility change - Show final confirmation
+const confirmVisibilityChange = (newStatus) => {
+  if (!selectedProductForVisibility.value) return;
+
+  selectedProductForStatusChange.value = selectedProductForVisibility.value;
+  newStatusForChange.value = newStatus;
+  showVisibilityModal.value = false;
+  showStatusChangeModal.value = true;
+};
+
+// ✅ NEW: Confirm single status change (final step)
+const confirmSingleStatusChange = async () => {
+  if (!selectedProductForStatusChange.value || !newStatusForChange.value)
+    return;
+
+  try {
+    await updateProductStatus(
+      selectedProductForStatusChange.value.id,
+      newStatusForChange.value
+    );
+    const statusLabel = getStatusLabel(newStatusForChange.value);
+    toast.success(`Status produk berhasil diubah menjadi ${statusLabel}`);
+    closeStatusChangeModal();
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Gagal mengubah status");
+  }
+};
+
+// ✅ NEW: Close status change modal
+const closeStatusChangeModal = () => {
+  showStatusChangeModal.value = false;
+  selectedProductForStatusChange.value = null;
+  newStatusForChange.value = null;
+  selectedProductForVisibility.value = null;
+};
+
+// ✅ UPDATED: Bulk update status - Show selection modal first
+const bulkUpdateStatusAction = (status) => {
+  newBulkStatus.value = status;
+  showBulkActionModal.value = false;
+  showBulkStatusChangeModal.value = true;
+};
+
+// ✅ NEW: Confirm bulk status change
+const confirmBulkStatusChange = async () => {
+  if (!newBulkStatus.value) return;
+
+  try {
+    await bulkUpdateStatus(selectedProducts.value, newBulkStatus.value);
+    const statusLabel = getStatusLabel(newBulkStatus.value);
+    toast.success(
+      `${selectedProductsCount.value} produk berhasil diubah menjadi ${statusLabel}`
+    );
+    selectedProducts.value = [];
+    selectAll.value = false;
+    closeBulkStatusChangeModal();
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Gagal mengubah status");
+  }
+};
+
+// ✅ NEW: Close bulk status change modal
+const closeBulkStatusChangeModal = () => {
+  showBulkStatusChangeModal.value = false;
+  newBulkStatus.value = null;
+};
+
+// ✅ Watch currentPage untuk auto-load
+watch(currentPage, () => {
+  loadProducts();
+});
+
+// ✅ Initial load
+onMounted(async () => {
+  // Load categories for filter
+  await fetchLevel1Categories();
+
+  // Load products
+  loadProducts();
 });
 
 // Table Configuration
 const tableColumns = [
   { key: "name", label: "Produk", sortable: true },
   { key: "sku", label: "SKU", sortable: true, cellClass: "font-mono" },
-  { key: "categories.0.category_name", label: "Kategori", sortable: false },
+  // ✅ FIXED: Use sanitized key for slot name (dots are invalid in v-slot)
+  { key: "category", label: "Kategori", sortable: false },
   { key: "total_stock", label: "Stok", sortable: true },
   { key: "price", label: "Harga", sortable: true },
   { key: "status", label: "Status", sortable: true },
@@ -723,7 +681,6 @@ const tableActions = [
     handler: (product) => goToEdit(product),
     class: " text-merchant-primary hover:bg-merchant-primary/20",
   },
-  // UPDATED: Toggle Visibility Action - icon static
   {
     icon: "pi-cog",
     label: "Ubah Status",
@@ -733,66 +690,17 @@ const tableActions = [
   {
     icon: "pi-trash",
     label: "Hapus Produk",
-    handler: (product) => deleteProduct(product),
+    handler: (product) => deleteProductAction(product),
     class: "hover:bg-danger-background text-danger-foreground",
   },
 ];
-
-// NEW: Helper functions for status (masih dibutuhkan untuk modal visibility)
-const getStatusLabel = (status) => {
-  const labels = {
-    published: "Dipublish",
-    archived: "Diarsipkan",
-    out_of_stock: "Stok Habis",
-  };
-  return labels[status] || status;
-};
-
-// NEW: Toggle visibility method - open modal
-const toggleProductVisibility = (product) => {
-  selectedProductForVisibility.value = product;
-  showVisibilityModal.value = true;
-};
-
-// NEW: Confirm visibility change
-const confirmVisibilityChange = (newStatus) => {
-  if (selectedProductForVisibility.value) {
-    selectedProductForVisibility.value.status = newStatus;
-    const statusLabel = getStatusLabel(newStatus);
-    toast.success(`Status produk berhasil diubah menjadi ${statusLabel}`);
-  }
-  closeVisibilityModal();
-};
-
-// NEW: Close visibility modal
-const closeVisibilityModal = () => {
-  showVisibilityModal.value = false;
-  selectedProductForVisibility.value = null;
-};
-
-// ADD: Toggle product selection method
-const toggleProductSelection = (productId) => {
-  const index = selectedProducts.value.indexOf(productId);
-
-  if (index > -1) {
-    // Remove from selection
-    selectedProducts.value.splice(index, 1);
-  } else {
-    // Add to selection
-    selectedProducts.value.push(productId);
-  }
-
-  // Update selectAll state
-  selectAll.value =
-    selectedProducts.value.length === filteredProducts.value.length;
-};
 </script>
 
 <template>
   <div class="">
     <!-- Header - FIXED -->
     <div
-      class="fixed sm:static top-0 left-0 right-0 flex justify-between items-center py-6 px-4 sm:px-6 bg-white"
+      class="fixed sm:static top-0 left-0 right-0 flex justify-between items-center py-6 px-4 sm:px-6 bg-white z-10"
     >
       <div class="flex items-center gap-3">
         <!-- Hamburger Button (Mobile) -->
@@ -821,7 +729,7 @@ const toggleProductSelection = (productId) => {
           customClass="!hidden sm:!inline"
         >
           <i class="pi pi-plus"></i>
-          <span class="hidden sm:inline ml-2 text">Tambah Produk</span>
+          <span class="hidden sm:inline ml-2">Tambah Produk</span>
         </Button>
         <Button
           @click="goToCreate"
@@ -830,7 +738,6 @@ const toggleProductSelection = (productId) => {
           customClass="sm:!hidden"
         >
           <i class="pi pi-plus"></i>
-          <span class="hidden sm:inline ml-2 text">Tambah Produk</span>
         </Button>
         <Button
           @click="openExportModal"
@@ -848,7 +755,6 @@ const toggleProductSelection = (productId) => {
           customClass="sm:!hidden"
         >
           <i class="pi pi-download"></i>
-          <span class="hidden sm:inline ml-2">Export</span>
         </Button>
       </div>
     </div>
@@ -857,11 +763,12 @@ const toggleProductSelection = (productId) => {
     <div class="h-24 sm:h-0"></div>
 
     <!-- Search & Toolbar -->
-    <div class="px-4 sm:px-6 space-y-2 sm:space-y-4 mb-1 bg-white">
+    <div class="px-4 sm:px-6 space-y-2 sm:space-y-4 mb-4 bg-white">
       <!-- Search Bar -->
-      <div class="sm:flex sm:items-center sm:gap-4">
+      <div class="sm:flex sm:items-center sm:gap-4 pb-1">
         <div class="flex-1 mb-2 sm:mb-0">
           <TextField
+            name="search"
             variant="merchant"
             v-model="searchQuery"
             placeholder="Cari produk"
@@ -888,16 +795,197 @@ const toggleProductSelection = (productId) => {
         </Button>
       </div>
 
+      <!-- ✅ ADD: Active Filters Display (Debug) -->
+      <div v-if="activeFilterCount > 0" class="mb-4">
+        <div
+          class="bg-merchant-primary/5 rounded-xl p-4 border border-merchant-primary/20"
+        >
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <i class="pi pi-filter text-merchant-primary"></i>
+              <span class="text-sm font-semibold text-black">
+                {{ activeFilterCount }} Filter Aktif
+              </span>
+            </div>
+            <button
+              @click="resetFilters"
+              class="text-xs text-danger-foreground hover:underline font-medium flex items-center gap-1"
+            >
+              <i class="pi pi-times-circle"></i>
+              Reset Semua
+            </button>
+          </div>
+
+          <div class="flex flex-wrap gap-2">
+            <!-- Existing filters (status, category, price, stock) -->
+            <span
+              v-if="activeFilters.status"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-merchant-primary/30 text-merchant-primary rounded-lg text-xs font-medium"
+            >
+              <i class="pi pi-bookmark text-xs"></i>
+              Status:
+              {{
+                statusOptions.find((o) => o.value === activeFilters.status)
+                  ?.label
+              }}
+              <button
+                @click="
+                  activeFilters.status = '';
+                  loadProducts();
+                "
+                class="ml-1 hover:text-merchant-primary/80"
+              >
+                <i class="pi pi-times text-xs"></i>
+              </button>
+            </span>
+
+            <span
+              v-if="activeFilters.category"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-merchant-primary/30 text-merchant-primary rounded-lg text-xs font-medium"
+            >
+              <i class="pi pi-tag text-xs"></i>
+              Kategori:
+              {{
+                categoryOptions.find((o) => o.value === activeFilters.category)
+                  ?.label || "Unknown"
+              }}
+              <button
+                @click="
+                  activeFilters.category = '';
+                  loadProducts();
+                "
+                class="ml-1 hover:text-merchant-primary/80"
+              >
+                <i class="pi pi-times text-xs"></i>
+              </button>
+            </span>
+
+            <span
+              v-if="activeFilters.minPrice || activeFilters.maxPrice"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-merchant-primary/30 text-merchant-primary rounded-lg text-xs font-medium"
+            >
+              <i class="pi pi-money-bill text-xs"></i>
+              Harga: Rp{{ activeFilters.minPrice || 0 }} - Rp{{
+                activeFilters.maxPrice || "∞"
+              }}
+              <button
+                @click="
+                  activeFilters.minPrice = null;
+                  activeFilters.maxPrice = null;
+                  loadProducts();
+                "
+                class="ml-1 hover:text-merchant-primary/80"
+              >
+                <i class="pi pi-times text-xs"></i>
+              </button>
+            </span>
+
+            <span
+              v-if="
+                activeFilters.minStock !== null ||
+                activeFilters.maxStock !== null
+              "
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-merchant-primary/30 text-merchant-primary rounded-lg text-xs font-medium"
+            >
+              <i class="pi pi-box text-xs"></i>
+              Stok: {{ activeFilters.minStock || 0 }} -
+              {{ activeFilters.maxStock || "∞" }} pcs
+              <button
+                @click="
+                  activeFilters.minStock = null;
+                  activeFilters.maxStock = null;
+                  loadProducts();
+                "
+                class="ml-1 hover:text-merchant-primary/80"
+              >
+                <i class="pi pi-times text-xs"></i>
+              </button>
+            </span>
+
+            <!-- ✅ NEW: Sort Badges (Multiple) -->
+            <span
+              v-if="activeFilters.sortByDate"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-xs font-medium"
+            >
+              <i class="pi pi-calendar text-xs"></i>
+              {{
+                activeFilters.sortByDate === "newest" ? "Terbaru" : "Terlama"
+              }}
+              <button
+                @click="clearFilterGroup('sort_date')"
+                class="ml-1 hover:opacity-80"
+              >
+                <i class="pi pi-times text-xs"></i>
+              </button>
+            </span>
+
+            <span
+              v-if="activeFilters.sortByName"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 border border-purple-200 text-purple-700 rounded-lg text-xs font-medium"
+            >
+              <i class="pi pi-sort-alpha-down text-xs"></i>
+              {{
+                activeFilters.sortByName === "name_asc"
+                  ? "Nama A-Z"
+                  : "Nama Z-A"
+              }}
+              <button
+                @click="clearFilterGroup('sort_name')"
+                class="ml-1 hover:opacity-80"
+              >
+                <i class="pi pi-times text-xs"></i>
+              </button>
+            </span>
+
+            <span
+              v-if="activeFilters.sortByPrice"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-200 text-green-700 rounded-lg text-xs font-medium"
+            >
+              <i class="pi pi-dollar text-xs"></i>
+              {{
+                activeFilters.sortByPrice === "price_asc"
+                  ? "Harga Terendah"
+                  : "Harga Tertinggi"
+              }}
+              <button
+                @click="clearFilterGroup('sort_price')"
+                class="ml-1 hover:opacity-80"
+              >
+                <i class="pi pi-times text-xs"></i>
+              </button>
+            </span>
+
+            <span
+              v-if="activeFilters.sortByStock"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 border border-orange-200 text-orange-700 rounded-lg text-xs font-medium"
+            >
+              <i class="pi pi-box text-xs"></i>
+              {{
+                activeFilters.sortByStock === "stock_asc"
+                  ? "Stok Terendah"
+                  : "Stok Tertinggi"
+              }}
+              <button
+                @click="clearFilterGroup('sort_stock')"
+                class="ml-1 hover:opacity-80"
+              >
+                <i class="pi pi-times text-xs"></i>
+              </button>
+            </span>
+          </div>
+        </div>
+      </div>
+
       <!-- Mobile: Toolbar (Pilih Semua + Filter) -->
       <div
-        class="flex sm:hidden flex-row justify-between items-center px-3 rounded-lg gap-4"
+        class="flex sm:hidden flex-row justify-between items-center px-3 rounded-lg gap-4 pb-1"
       >
         <label class="flex items-center cursor-pointer group">
           <input
             type="checkbox"
             v-model="selectAll"
             @change="toggleSelectAll"
-            class="appearance-none w-4.5 h-4.5 border-1 border-muted-foreground rounded-sm bg-transparent cursor-pointer transition-all duration-200 checked:bg-merchant-primary checked:border-merchant-primary focus:outline-none focus:ring-2 focus:ring-merchant-primary focus:ring-offset-2 relative before:content-[''] before:absolute before:inset-0 before:bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOSIgdmlld0JveD0iMCAwIDEyIDkiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xIDQuNUw0LjUgOEwxMSAxIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K')] before:bg-center before:bg-no-repeat before:opacity-0 checked:before:opacity-100"
+            class="appearance-none w-5 h-5 border-2 border-muted-foreground rounded-md bg-transparent cursor-pointer transition-all duration-200 checked:bg-merchant-primary checked:border-merchant-primary focus:outline-none focus:ring-2 focus:ring-merchant-primary focus:ring-offset-2 relative before:content-[''] before:absolute before:inset-0 before:bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOSIgdmlld0JveD0iMCAwIDEyIDkiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xIDQuNUw0LjUgOEwxMSAxIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K')] before:bg-center before:bg-no-repeat before:opacity-0 checked:before:opacity-100"
           />
           <span
             class="ml-2 text-xs text-muted-foreground group-hover:text-merchant-primary transition-colors"
@@ -923,7 +1011,7 @@ const toggleProductSelection = (productId) => {
       </div>
     </div>
 
-    <!-- Loading State -->
+    <!-- ✅ FIXED: Loading State -->
     <div
       v-if="loading"
       class="flex justify-center items-center py-20 bg-white rounded-lg mx-4 sm:mx-6"
@@ -933,31 +1021,31 @@ const toggleProductSelection = (productId) => {
       ></div>
     </div>
 
-    <!-- Empty State -->
+    <!-- ✅ FIXED: Empty State -->
     <div
-      v-else-if="filteredProducts.length === 0"
+      v-else-if="products.length === 0 && !loading"
       class="flex flex-col items-center justify-center py-20 bg-white rounded-lg text-center mx-4 sm:mx-6"
     >
       <i class="pi pi-inbox text-5xl text-muted-foreground mb-4"></i>
+      <p class="text-lg font-semibold text-black mb-2">Tidak ada produk</p>
       <p class="text-muted-foreground mb-4">
-        Tidak ada produk yang sesuai dengan filter
+        Produk kosong atau tidak ditemukan
       </p>
-      <Button @click="resetFilters" variant="merchant">Reset Filter</Button>
     </div>
 
-    <!-- Product List -->
+    <!-- ✅ FIXED: Product List -->
     <div v-else class="px-4 sm:px-6">
-      <!-- Mobile: Card List - UPDATE action buttons -->
+      <!-- Mobile: Card List -->
       <div class="flex sm:hidden flex-col gap-2 py-2">
         <ProductCard
-          v-for="product in paginatedProducts"
+          v-for="product in products"
           :key="product.id"
           :product="product"
           :selected="selectedProducts.includes(product.id)"
-          @toggle-select="toggleProductSelection"
+          @toggle-select="toggleProductSelection(product.id)"
           @view-detail="goToDetail"
           @edit="goToEdit"
-          @delete="deleteProduct"
+          @delete="deleteProductAction"
           @toggle-visibility="toggleProductVisibility"
         />
       </div>
@@ -965,7 +1053,7 @@ const toggleProductSelection = (productId) => {
       <!-- Desktop: Use MerchantTable Component -->
       <div class="hidden sm:block mb-4">
         <MerchantTable
-          :items="paginatedProducts"
+          :items="products"
           :loading="loading"
           :columns="tableColumns"
           :selected-items="selectedProducts"
@@ -985,17 +1073,26 @@ const toggleProductSelection = (productId) => {
           @next-page="nextPage"
           @prev-page="prevPage"
         >
-          <!-- Custom Product Cell -->
+          <!-- ✅ FIXED: Custom Product Cell dengan image URL yang benar -->
           <template #cell-name="{ item }">
             <div class="flex items-center gap-3 cursor-pointer group">
               <div
                 class="w-12 h-12 rounded-lg overflow-hidden bg-muted-background flex-shrink-0"
               >
+                <!-- ✅ FIXED: Gunakan helper getImageUrl -->
                 <img
-                  :src="item.cover_image?.image_path"
+                  v-if="item.cover_image?.id"
+                  :src="getImageUrl(item.cover_image.id)"
                   :alt="item.name"
                   class="w-full h-full object-cover"
+                  @error="(e) => (e.target.style.display = 'none')"
                 />
+                <div
+                  v-else
+                  class="w-full h-full flex items-center justify-center bg-gray-200"
+                >
+                  <i class="pi pi-image text-gray-400"></i>
+                </div>
               </div>
               <div class="min-w-0 max-w-xs">
                 <p
@@ -1009,12 +1106,12 @@ const toggleProductSelection = (productId) => {
           </template>
 
           <!-- Custom SKU Cell -->
-          <template #cell-sku="{ value }">
+          <template #cell-sku="{ item }">
             <p
               class="text-sm text-muted-foreground font-mono truncate max-w-[150px]"
-              :title="value"
+              :title="item.sku || '-'"
             >
-              {{ value }}
+              {{ item.sku || "-" }}
             </p>
           </template>
 
@@ -1023,7 +1120,7 @@ const toggleProductSelection = (productId) => {
             <span
               class="inline-flex items-center px-2.5 py-1 bg-merchant-primary/10 text-merchant-primary rounded-md text-sm font-medium whitespace-nowrap"
             >
-              {{ formatNumber(value) }}
+              {{ formatNumber(value || 0) }}
             </span>
           </template>
 
@@ -1040,25 +1137,55 @@ const toggleProductSelection = (productId) => {
           <!-- Custom Status Cell -->
           <template #cell-status="{ item }">
             <div class="flex flex-col gap-1">
-              <StatusLabel :status="item.status" variant="product" size="sm" />
               <StatusLabel
-                v-if="item.variant_count > 0"
+                :status="item.status"
+                variant="product"
+                class="w-fit"
+              />
+              <StatusLabel
+                v-if="item.variants_count > 0 && item.total_stock === 0"
                 status="out_of_stock"
                 variant="product"
                 size="xs"
-                :label="`${item.variant_count} varian habis`"
+                label="Stok habis"
               />
             </div>
+          </template>
+
+          <!-- ✅ ADD: Custom Category Cell for better styling -->
+          <template #cell-category="{ item }">
+            <div v-if="item.categories && item.categories.length > 0">
+              <span
+                class="inline-flex items-center px-2.5 py-1 bg-merchant-primary/10 text-merchant-primary rounded-md text-xs font-medium truncate max-w-[150px]"
+                :title="item.categories.map((c) => c.name).join(', ')"
+              >
+                <i class="pi pi-tag text-xs mr-1.5"></i>
+                {{ item.categories[0].name }}
+              </span>
+              <!-- Show count jika ada multiple categories -->
+              <span
+                v-if="item.categories.length > 1"
+                class="ml-1 text-xs text-muted-foreground"
+                :title="
+                  item.categories
+                    .slice(1)
+                    .map((c) => c.name)
+                    .join(', ')
+                "
+              >
+                +{{ item.categories.length - 1 }}
+              </span>
+            </div>
+            <span v-else class="text-sm text-muted-foreground italic">
+              Tidak ada kategori
+            </span>
           </template>
         </MerchantTable>
       </div>
     </div>
 
-    <!-- Mobile Pagination (Bottom) - TAMBAHKAN INI -->
-    <div
-      v-if="!loading && filteredProducts.length > 0"
-      class="sm:hidden px-4 pb-4"
-    >
+    <!-- ✅ FIXED: Mobile Pagination (Bottom) -->
+    <div v-if="!loading && products.length > 0" class="sm:hidden px-4 pb-4">
       <MobilePagination
         :current-page="currentPage"
         :total-pages="totalPages"
@@ -1071,7 +1198,7 @@ const toggleProductSelection = (productId) => {
     <!-- Spacer untuk Floating Bulk Action Bar (Mobile) -->
     <div v-if="hasSelectedProducts" class="h-20 sm:h-0"></div>
 
-    <!-- UPDATED: Menggunakan BulkActionBar Component -->
+    <!-- BulkActionBar Component -->
     <BulkActionBar
       :selected-count="selectedProductsCount"
       :show="hasSelectedProducts"
@@ -1100,102 +1227,299 @@ const toggleProductSelection = (productId) => {
     <!-- UPDATED: Filter Modal - Single Footer untuk Mobile & Desktop -->
     <ResponsiveModal
       v-model:show="showFilterModal"
-      title="Filter Produk"
+      title="Filter & Urutkan Produk"
       show-footer
       @close="closeFilterModal"
     >
-      <!-- Content - BIND ke tempFilters -->
-      <div class="space-y-4">
-        <!-- Status Filter -->
-        <SelectField
-          variant="merchant"
-          v-model="tempFilters.status"
-          label="Status Produk"
-          :options="statusOptions"
-        />
+      <div class="space-y-6">
+        <!-- ===== FILTER SECTION ===== -->
+        <div class="space-y-4">
+          <h3
+            class="text-sm font-bold text-black uppercase tracking-wide flex items-center gap-2"
+          >
+            <i class="pi pi-filter text-merchant-primary"></i>
+            Filter Data
+          </h3>
 
-        <!-- Category Filter -->
-        <SelectField
-          variant="merchant"
-          v-model="tempFilters.category"
-          label="Kategori"
-          :options="categoryOptions"
-        />
+          <!-- Status Filter -->
+          <SelectField
+            name="filter_status"
+            variant="merchant"
+            v-model="tempFilters.status"
+            label="Status Produk"
+            :options="statusOptions"
+          />
 
-        <!-- Sort By -->
-        <SelectField
-          variant="merchant"
-          v-model="tempFilters.sortBy"
-          label="Urutkan Berdasarkan"
-          :options="sortOptions"
-        />
+          <!-- Category Filter -->
+          <SelectField
+            name="filter_category"
+            variant="merchant"
+            v-model="tempFilters.category"
+            label="Kategori"
+            :options="categoryOptions"
+            :disabled="loadingLevel1"
+          />
 
-        <!-- Price Range -->
-        <div class="w-full">
-          <label class="block text-sm font-bold text-black mb-2">
-            Rentang Harga
-          </label>
-          <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-            <TextField
-              variant="merchant"
-              v-model.number="tempFilters.minPrice"
-              type="number"
-              placeholder="Min"
-              prefix="Rp"
-              :hideLabel="true"
-              label="Harga Minimum"
-            />
-            <span class="text-muted-foreground font-bold px-1">-</span>
-            <TextField
-              variant="merchant"
-              v-model.number="tempFilters.maxPrice"
-              type="number"
-              placeholder="Max"
-              prefix="Rp"
-              :hideLabel="true"
-              label="Harga Maximum"
-            />
+          <!-- Price Range -->
+          <div class="w-full">
+            <label class="block text-sm font-bold text-black mb-2">
+              Rentang Harga
+            </label>
+            <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+              <TextField
+                name="filter_min_price"
+                variant="merchant"
+                v-model.number="tempFilters.minPrice"
+                type="number"
+                placeholder="Min"
+                prefix="Rp"
+                :hideLabel="true"
+                label="Harga Minimum"
+              />
+              <span class="text-muted-foreground font-bold px-1">-</span>
+              <TextField
+                name="filter_max_price"
+                variant="merchant"
+                v-model.number="tempFilters.maxPrice"
+                type="number"
+                placeholder="Max"
+                prefix="Rp"
+                :hideLabel="true"
+                label="Harga Maximum"
+              />
+            </div>
+          </div>
+
+          <!-- Stock Range -->
+          <div class="w-full">
+            <label class="block text-sm font-bold text-black mb-2">
+              Rentang Stok
+            </label>
+            <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+              <TextField
+                name="filter_min_stock"
+                variant="merchant"
+                v-model.number="tempFilters.minStock"
+                type="number"
+                placeholder="Min"
+                suffix="pcs"
+                :hideLabel="true"
+                label="Stok Minimum"
+              />
+              <span class="text-black font-bold px-1">-</span>
+              <TextField
+                name="filter_max_stock"
+                variant="merchant"
+                v-model.number="tempFilters.maxStock"
+                type="number"
+                placeholder="Max"
+                suffix="pcs"
+                :hideLabel="true"
+                label="Stok Maximum"
+              />
+            </div>
           </div>
         </div>
 
-        <!-- Stock Range -->
-        <div class="w-full">
-          <label class="block text-sm font-bold text-black mb-2">
-            Rentang Stok
-          </label>
-          <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-            <TextField
-              variant="merchant"
-              v-model.number="tempFilters.minStock"
-              type="number"
-              placeholder="Min"
-              suffix="pcs"
-              :hideLabel="true"
-              label="Stok Minimum"
-            />
-            <span class="text-black font-bold px-1">-</span>
-            <TextField
-              variant="merchant"
-              v-model.number="tempFilters.maxStock"
-              type="number"
-              placeholder="Max"
-              suffix="pcs"
-              :hideLabel="true"
-              label="Stok Maximum"
-            />
+        <!-- ===== SORT SECTION ===== -->
+        <div class="border-t pt-6 space-y-4">
+          <h3
+            class="text-sm font-bold text-black uppercase tracking-wide flex items-center gap-2"
+          >
+            <i class="pi pi-sort-alt text-merchant-primary"></i>
+            Urutkan Berdasarkan
+          </h3>
+
+          <!-- Sort by Date -->
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">
+              <i class="pi pi-calendar text-xs mr-1"></i>
+              Waktu Pembuatan
+            </label>
+            <div class="grid grid-cols-2 gap-2">
+              <button
+                @click="tempFilters.sortByDate = 'newest'"
+                type="button"
+                class="px-4 py-3 rounded-lg border-2 text-sm font-medium transition"
+                :class="
+                  tempFilters.sortByDate === 'newest'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300'
+                "
+              >
+                <i class="pi pi-sort-amount-down-alt text-xs mr-1"></i>
+                Terbaru
+              </button>
+              <button
+                @click="tempFilters.sortByDate = 'oldest'"
+                type="button"
+                class="px-4 py-3 rounded-lg border-2 text-sm font-medium transition"
+                :class="
+                  tempFilters.sortByDate === 'oldest'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300'
+                "
+              >
+                <i class="pi pi-sort-amount-up text-xs mr-1"></i>
+                Terlama
+              </button>
+            </div>
+            <button
+              v-if="tempFilters.sortByDate"
+              @click="tempFilters.sortByDate = ''"
+              type="button"
+              class="mt-2 text-xs text-danger-foreground hover:underline"
+            >
+              <i class="pi pi-times text-xs mr-1"></i>
+              Hapus urutan waktu
+            </button>
+          </div>
+
+          <!-- Sort by Name -->
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">
+              <i class="pi pi-sort-alpha-down text-xs mr-1"></i>
+              Nama Produk
+            </label>
+            <div class="grid grid-cols-2 gap-2">
+              <button
+                @click="tempFilters.sortByName = 'name_asc'"
+                type="button"
+                class="px-4 py-3 rounded-lg border-2 text-sm font-medium transition"
+                :class="
+                  tempFilters.sortByName === 'name_asc'
+                    ? 'border-purple-500 bg-purple-50 text-purple-700'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-purple-300'
+                "
+              >
+                A → Z
+              </button>
+              <button
+                @click="tempFilters.sortByName = 'name_desc'"
+                type="button"
+                class="px-4 py-3 rounded-lg border-2 text-sm font-medium transition"
+                :class="
+                  tempFilters.sortByName === 'name_desc'
+                    ? 'border-purple-500 bg-purple-50 text-purple-700'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-purple-300'
+                "
+              >
+                Z → A
+              </button>
+            </div>
+            <button
+              v-if="tempFilters.sortByName"
+              @click="tempFilters.sortByName = ''"
+              type="button"
+              class="mt-2 text-xs text-danger-foreground hover:underline"
+            >
+              <i class="pi pi-times text-xs mr-1"></i>
+              Hapus urutan nama
+            </button>
+          </div>
+
+          <!-- Sort by Price -->
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">
+              <i class="pi pi-dollar text-xs mr-1"></i>
+              Harga
+            </label>
+            <div class="grid grid-cols-2 gap-2">
+              <button
+                @click="tempFilters.sortByPrice = 'price_asc'"
+                type="button"
+                class="px-4 py-3 rounded-lg border-2 text-sm font-medium transition"
+                :class="
+                  tempFilters.sortByPrice === 'price_asc'
+                    ? 'border-green-500 bg-green-50 text-green-700'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-green-300'
+                "
+              >
+                <i class="pi pi-arrow-down text-xs mr-1"></i>
+                Terendah
+              </button>
+              <button
+                @click="tempFilters.sortByPrice = 'price_desc'"
+                type="button"
+                class="px-4 py-3 rounded-lg border-2 text-sm font-medium transition"
+                :class="
+                  tempFilters.sortByPrice === 'price_desc'
+                    ? 'border-green-500 bg-green-50 text-green-700'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-green-300'
+                "
+              >
+                <i class="pi pi-arrow-up text-xs mr-1"></i>
+                Tertinggi
+              </button>
+            </div>
+            <button
+              v-if="tempFilters.sortByPrice"
+              @click="tempFilters.sortByPrice = ''"
+              type="button"
+              class="mt-2 text-xs text-danger-foreground hover:underline"
+            >
+              <i class="pi pi-times text-xs mr-1"></i>
+              Hapus urutan harga
+            </button>
+          </div>
+
+          <!-- Sort by Stock -->
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">
+              <i class="pi pi-box text-xs mr-1"></i>
+              Stok
+            </label>
+            <div class="grid grid-cols-2 gap-2">
+              <button
+                @click="tempFilters.sortByStock = 'stock_asc'"
+                type="button"
+                class="px-4 py-3 rounded-lg border-2 text-sm font-medium transition"
+                :class="
+                  tempFilters.sortByStock === 'stock_asc'
+                    ? 'border-orange-500 bg-orange-50 text-orange-700'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-orange-300'
+                "
+              >
+                <i class="pi pi-arrow-down text-xs mr-1"></i>
+                Terendah
+              </button>
+              <button
+                @click="tempFilters.sortByStock = 'stock_desc'"
+                type="button"
+                class="px-4 py-3 rounded-lg border-2 text-sm font-medium transition"
+                :class="
+                  tempFilters.sortByStock === 'stock_desc'
+                    ? 'border-orange-500 bg-orange-50 text-orange-700'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-orange-300'
+                "
+              >
+                <i class="pi pi-arrow-up text-xs mr-1"></i>
+                Tertinggi
+              </button>
+            </div>
+            <button
+              v-if="tempFilters.sortByStock"
+              @click="tempFilters.sortByStock = ''"
+              type="button"
+              class="mt-2 text-xs text-danger-foreground hover:underline"
+            >
+              <i class="pi pi-times text-xs mr-1"></i>
+              Hapus urutan stok
+            </button>
           </div>
         </div>
       </div>
 
-      <!-- Footer Actions (Single for Mobile & Desktop) -->
+      <!-- Footer Actions -->
       <template #footer>
         <div class="flex gap-3">
           <Button @click="resetFilters" variant="muted-outline" block>
+            <i class="pi pi-refresh mr-2"></i>
             Reset
           </Button>
           <Button @click="applyFilters" block variant="merchant">
             <i class="pi pi-check mr-2"></i>
-            Terapkan Filter
+            Terapkan
           </Button>
         </div>
       </template>
@@ -1271,7 +1595,7 @@ const toggleProductSelection = (productId) => {
       <div class="space-y-3">
         <!-- Publish Action -->
         <button
-          @click="bulkUpdateStatus('published')"
+          @click="bulkUpdateStatusAction('published')"
           class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary transition text-left group"
         >
           <div
@@ -1291,7 +1615,7 @@ const toggleProductSelection = (productId) => {
 
         <!-- Archive Action -->
         <button
-          @click="bulkUpdateStatus('archived')"
+          @click="bulkUpdateStatusAction('archived')"
           class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary transition text-left group"
         >
           <div
@@ -1323,7 +1647,6 @@ const toggleProductSelection = (productId) => {
       v-model:show="showVisibilityModal"
       title="Ubah Status Produk"
       :subtitle="selectedProductForVisibility?.name"
-      size="md"
       show-footer
       footer-class="sm:hidden"
       @close="closeVisibilityModal"
@@ -1412,6 +1735,439 @@ const toggleProductSelection = (productId) => {
       </template>
     </ResponsiveModal>
 
+    <!-- ✅ NEW: Single Delete Confirmation Modal -->
+    <ResponsiveModal
+      v-model:show="showDeleteModal"
+      title="Hapus Produk"
+      :subtitle="selectedProductForDelete?.name"
+      show-footer
+      @close="closeDeleteModal"
+    >
+      <!-- Content -->
+      <div class="space-y-4">
+        <!-- Warning Banner -->
+        <div
+          class="flex items-start gap-3 p-4 bg-danger-background/10 border border-danger-foreground/20 rounded-xl"
+        >
+          <i
+            class="pi pi-exclamation-triangle text-danger-foreground text-xl flex-shrink-0 mt-0.5"
+          ></i>
+          <div>
+            <h4 class="text-sm font-semibold text-danger-foreground mb-1">
+              Peringatan!
+            </h4>
+            <p class="text-xs text-danger-foreground/80">
+              Tindakan ini tidak dapat dibatalkan. Produk akan dihapus permanen
+              dari sistem.
+            </p>
+          </div>
+        </div>
+
+        <!-- ✅ FIXED: Product Preview dengan image URL yang benar -->
+        <div
+          v-if="selectedProductForDelete"
+          class="flex items-center gap-3 p-4 bg-muted-background rounded-xl"
+        >
+          <div
+            class="w-16 h-16 rounded-lg overflow-hidden bg-white flex-shrink-0"
+          >
+            <!-- ✅ FIXED: Gunakan helper getImageUrl -->
+            <img
+              v-if="selectedProductForDelete.cover_image?.id"
+              :src="getImageUrl(selectedProductForDelete.cover_image.id)"
+              :alt="selectedProductForDelete.name"
+              class="w-full h-full object-cover"
+              @error="(e) => (e.target.style.display = 'none')"
+            />
+            <div
+              v-else
+              class="w-full h-full flex items-center justify-center bg-gray-200"
+            >
+              <i class="pi pi-image text-gray-400 text-xl"></i>
+            </div>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-black truncate">
+              {{ selectedProductForDelete.name }}
+            </p>
+            <p class="text-xs text-muted-foreground">
+              SKU: {{ selectedProductForDelete.sku || "-" }}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <template #footer>
+        <div class="flex gap-3">
+          <Button @click="closeDeleteModal" variant="muted-outline" block>
+            <i class="pi pi-times mr-2"></i>
+            Batal
+          </Button>
+          <Button
+            @click="confirmDeleteProduct"
+            variant="danger"
+            block
+            :loading="loading"
+          >
+            <i class="pi pi-trash mr-2"></i>
+            Hapus Produk
+          </Button>
+        </div>
+      </template>
+    </ResponsiveModal>
+
+    <!-- ✅ FIXED: Bulk Delete Confirmation Modal -->
+    <ResponsiveModal
+      v-model:show="showBulkDeleteModal"
+      title="Hapus Produk Massal"
+      :subtitle="`${selectedProductsCount} produk dipilih`"
+      show-footer
+      @close="closeBulkDeleteModal"
+    >
+      <!-- Content -->
+      <div class="space-y-4">
+        <!-- Warning Banner -->
+        <div
+          class="flex items-start gap-3 p-4 bg-danger-background/10 border border-danger-foreground/20 rounded-xl"
+        >
+          <i
+            class="pi pi-exclamation-triangle text-danger-foreground text-xl flex-shrink-0 mt-0.5"
+          ></i>
+          <div>
+            <h4 class="text-sm font-semibold text-danger-foreground mb-1">
+              Peringatan!
+            </h4>
+            <p class="text-xs text-danger-foreground/80">
+              Tindakan ini tidak dapat dibatalkan. Semua produk yang dipilih
+              akan dihapus permanen.
+            </p>
+          </div>
+        </div>
+
+        <!-- Selected Products Count -->
+        <div class="p-4 bg-muted-background rounded-xl text-center">
+          <div class="flex items-center justify-center gap-2 mb-2">
+            <i class="pi pi-box text-3xl text-merchant-primary"></i>
+            <span class="text-4xl font-bold text-merchant-primary">
+              {{ selectedProductsCount }}
+            </span>
+          </div>
+          <p class="text-sm text-muted-foreground">Produk akan dihapus</p>
+        </div>
+
+        <!-- ✅ FIXED: Product List Preview dengan image URL yang benar -->
+        <div
+          v-if="selectedProductsData.length > 0"
+          class="space-y-2 max-h-60 overflow-y-auto"
+        >
+          <div
+            v-for="product in selectedProductsData.slice(0, 5)"
+            :key="product.id"
+            class="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200"
+          >
+            <div
+              class="w-12 h-12 rounded-lg overflow-hidden bg-muted-background flex-shrink-0"
+            >
+              <!-- ✅ FIXED: Gunakan helper getImageUrl -->
+              <img
+                v-if="product.cover_image?.id"
+                :src="getImageUrl(product.cover_image.id)"
+                :alt="product.name"
+                class="w-full h-full object-cover"
+                @error="(e) => (e.target.style.display = 'none')"
+              />
+              <div
+                v-else
+                class="w-full h-full flex items-center justify-center bg-gray-200"
+              >
+                <i class="pi pi-image text-gray-400"></i>
+              </div>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-black truncate">
+                {{ product.name }}
+              </p>
+              <p class="text-xs text-muted-foreground">
+                SKU: {{ product.sku || "-" }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Show more indicator -->
+          <div v-if="selectedProductsData.length > 5" class="text-center py-2">
+            <p class="text-xs text-muted-foreground">
+              +{{ selectedProductsData.length - 5 }} produk lainnya
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <template #footer>
+        <div class="flex gap-3">
+          <Button @click="closeBulkDeleteModal" variant="muted-outline" block>
+            <i class="pi pi-times mr-2"></i>
+            Batal
+          </Button>
+          <Button
+            @click="confirmBulkDelete"
+            variant="danger"
+            block
+            :loading="loading"
+          >
+            <i class="pi pi-trash mr-2"></i>
+            Hapus {{ selectedProductsCount }} Produk
+          </Button>
+        </div>
+      </template>
+    </ResponsiveModal>
+
+    <!-- ✅ FIXED: Single Status Change Confirmation Modal -->
+    <ResponsiveModal
+      v-model:show="showStatusChangeModal"
+      title="Konfirmasi Ubah Status"
+      :subtitle="selectedProductForStatusChange?.name"
+      show-footer
+      @close="closeStatusChangeModal"
+    >
+      <!-- Content -->
+      <div class="space-y-4">
+        <!-- Warning Banner -->
+        <div
+          class="flex items-start gap-3 p-4 bg-warning-background/10 border border-warning-foreground/20 rounded-xl"
+        >
+          <i
+            class="pi pi-info-circle text-warning-foreground text-xl flex-shrink-0 mt-0.5"
+          ></i>
+          <div>
+            <h4 class="text-sm font-semibold text-warning-foreground mb-1">
+              Perhatian!
+            </h4>
+            <p class="text-xs text-warning-foreground/80">
+              Status produk akan diubah. Pastikan Anda telah memeriksa detail
+              produk.
+            </p>
+          </div>
+        </div>
+
+        <!-- ✅ FIXED: Product Preview dengan image URL yang benar -->
+        <div
+          v-if="selectedProductForStatusChange"
+          class="flex items-center gap-3 p-4 bg-muted-background rounded-xl"
+        >
+          <div
+            class="w-16 h-16 rounded-lg overflow-hidden bg-white flex-shrink-0"
+          >
+            <!-- ✅ FIXED: Gunakan helper getImageUrl -->
+            <img
+              v-if="selectedProductForStatusChange.cover_image?.id"
+              :src="getImageUrl(selectedProductForStatusChange.cover_image.id)"
+              :alt="selectedProductForStatusChange.name"
+              class="w-full h-full object-cover"
+              @error="(e) => (e.target.style.display = 'none')"
+            />
+            <div
+              v-else
+              class="w-full h-full flex items-center justify-center bg-gray-200"
+            >
+              <i class="pi pi-image text-gray-400 text-xl"></i>
+            </div>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-black truncate">
+              {{ selectedProductForStatusChange.name }}
+            </p>
+            <p class="text-xs text-muted-foreground">
+              SKU: {{ selectedProductForStatusChange.sku || "-" }}
+            </p>
+          </div>
+        </div>
+
+        <!-- Status Change Info -->
+        <div
+          class="grid grid-cols-[1fr_auto_1fr] items-center gap-3 p-4 bg-white rounded-xl border border-gray-200"
+        >
+          <div class="text-center">
+            <p class="text-xs text-muted-foreground mb-2">Status Saat Ini</p>
+            <StatusLabel
+              v-if="selectedProductForStatusChange"
+              :status="selectedProductForStatusChange.status"
+              variant="product"
+              size="md"
+            />
+          </div>
+
+          <div class="flex items-center justify-center">
+            <i class="pi pi-arrow-right text-merchant-primary text-xl"></i>
+          </div>
+
+          <div class="text-center">
+            <p class="text-xs text-muted-foreground mb-2">Status Baru</p>
+            <StatusLabel
+              v-if="newStatusForChange"
+              :status="newStatusForChange"
+              variant="product"
+              size="md"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <template #footer>
+        <div class="flex gap-3">
+          <Button @click="closeStatusChangeModal" variant="muted-outline" block>
+            <i class="pi pi-times mr-2"></i>
+            Batal
+          </Button>
+          <Button
+            @click="confirmSingleStatusChange"
+            variant="merchant"
+            block
+            :loading="loading"
+          >
+            <i class="pi pi-check mr-2"></i>
+            Ubah Status
+          </Button>
+        </div>
+      </template>
+    </ResponsiveModal>
+
+    <!-- ✅ FIXED: Bulk Status Change Confirmation Modal -->
+    <ResponsiveModal
+      v-model:show="showBulkStatusChangeModal"
+      title="Konfirmasi Ubah Status Massal"
+      :subtitle="`${selectedProductsCount} produk dipilih`"
+      show-footer
+      @close="closeBulkStatusChangeModal"
+    >
+      <!-- Content -->
+      <div class="space-y-4">
+        <!-- Warning Banner -->
+        <div
+          class="flex items-start gap-3 p-4 bg-warning-background/10 border border-warning-foreground/20 rounded-xl"
+        >
+          <i
+            class="pi pi-info-circle text-warning-foreground text-xl flex-shrink-0 mt-0.5"
+          ></i>
+          <div>
+            <h4 class="text-sm font-semibold text-warning-foreground mb-1">
+              Perhatian!
+            </h4>
+            <p class="text-xs text-warning-foreground/80">
+              Status semua produk yang dipilih akan diubah sekaligus.
+            </p>
+          </div>
+        </div>
+
+        <!-- Selected Products Count -->
+        <div class="p-4 bg-muted-background rounded-xl text-center">
+          <div class="flex items-center justify-center gap-2 mb-2">
+            <i class="pi pi-box text-3xl text-merchant-primary"></i>
+            <span class="text-4xl font-bold text-merchant-primary">
+              {{ selectedProductsCount }}
+            </span>
+          </div>
+          <p class="text-sm text-muted-foreground">Produk akan diubah</p>
+        </div>
+
+        <!-- New Status Preview -->
+        <div class="p-4 bg-white rounded-xl border border-gray-200">
+          <p class="text-xs text-muted-foreground mb-3 text-center">
+            Status Baru:
+          </p>
+          <div class="flex justify-center">
+            <StatusLabel
+              v-if="newBulkStatus"
+              :status="newBulkStatus"
+              variant="product"
+              size="lg"
+            />
+          </div>
+        </div>
+
+        <!-- ✅ FIXED: Product List Preview dengan image URL yang benar -->
+        <div
+          v-if="selectedProductsData.length > 0"
+          class="space-y-2 max-h-60 overflow-y-auto"
+        >
+          <div
+            v-for="product in selectedProductsData.slice(0, 5)"
+            :key="product.id"
+            class="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200"
+          >
+            <div
+              class="w-12 h-12 rounded-lg overflow-hidden bg-muted-background flex-shrink-0"
+            >
+              <!-- ✅ FIXED: Gunakan helper getImageUrl -->
+              <img
+                v-if="product.cover_image?.id"
+                :src="getImageUrl(product.cover_image.id)"
+                :alt="product.name"
+                class="w-full h-full object-cover"
+                @error="(e) => (e.target.style.display = 'none')"
+              />
+              <div
+                v-else
+                class="w-full h-full flex items-center justify-center bg-gray-200"
+              >
+                <i class="pi pi-image text-gray-400"></i>
+              </div>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-black truncate">
+                {{ product.name }}
+              </p>
+              <div class="flex items-center gap-2 mt-1">
+                <StatusLabel
+                  :status="product.status"
+                  variant="product"
+                  size="xs"
+                />
+                <i class="pi pi-arrow-right text-xs text-muted-foreground"></i>
+                <StatusLabel
+                  :status="newBulkStatus"
+                  variant="product"
+                  size="xs"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Show more indicator -->
+          <div v-if="selectedProductsData.length > 5" class="text-center py-2">
+            <p class="text-xs text-muted-foreground">
+              +{{ selectedProductsData.length - 5 }} produk lainnya
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <template #footer>
+        <div class="flex gap-3">
+          <Button
+            @click="closeBulkStatusChangeModal"
+            variant="muted-outline"
+            block
+          >
+            <i class="pi pi-times mr-2"></i>
+            Batal
+          </Button>
+          <Button
+            @click="confirmBulkStatusChange"
+            variant="merchant"
+            block
+            :loading="loading"
+          >
+            <i class="pi pi-check mr-2"></i>
+            Ubah {{ selectedProductsCount }} Produk
+          </Button>
+        </div>
+      </template>
+    </ResponsiveModal>
+
     <!-- UPDATED: Unified Backdrop -->
     <transition
       enter-active-class="transition-opacity duration-300"
@@ -1428,6 +2184,10 @@ const toggleProductSelection = (productId) => {
           showExportModal = false;
           showBulkActionModal = false;
           showVisibilityModal = false;
+          showDeleteModal = false;
+          showBulkDeleteModal = false;
+          showStatusChangeModal = false; // ✅ ADD
+          showBulkStatusChangeModal = false; // ✅ ADD
         "
         class="fixed inset-0 bg-black/30 z-40"
       ></div>

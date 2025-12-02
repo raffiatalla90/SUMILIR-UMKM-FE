@@ -228,7 +228,7 @@
 
             <!-- Indicators -->
             <div
-              class="text-xs p-4 rounded-xl bg-muted sm:col-span-2 col-span-1 flex flex-col gap-1"
+              class="text-xs p-4 rounded-xl bg-muted-background sm:col-span-2 col-span-1 flex flex-col gap-1"
               aria-live="polite"
             >
               <div
