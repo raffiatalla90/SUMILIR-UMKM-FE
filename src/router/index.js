@@ -38,36 +38,18 @@ const routes = [
         path: "",
         name: "Beranda",
         component: () => import("@/views/customer/Home.vue"),
-        meta: {
-          title: "Marketplace UMKM Lokal Banyuanyar",
-          description:
-            "Sumilir adalah marketplace UMKM lokal Banyuanyar. Temukan produk kuliner, toko, dan jasa UMKM. Pesan langsung via WhatsApp.",
-        },
+        meta: { title: "Beranda | SUMILIR" },
       },
       {
         path: "product-toko",
         name: "Product Toko",
-        component: () => import("@/views/customer/ProductTokoHome.vue"),
-        meta: {
-          title: "Produk Toko UMKM Lokal",
-          description:
-            "Produk kebutuhan toko dari UMKM lokal Banyuanyar. Praktis, dekat, dan terpercaya.",
-        },
-      },
-      {
-        path: "product-kuliner",
-        name: "Product Kuliner",
-        component: () => import("@/views/customer/ProductKulinerHome.vue"),
-        meta: {
-          title: "Produk Kuliner UMKM Banyuanyar",
-          description:
-            "Temukan produk kuliner UMKM Banyuanyar yang enak dan terjangkau. Pesan mudah via WhatsApp.",
-        },
+        component: () => import("@/views/customer/ProductToko.vue"),
+        meta: { title: "Semua Produk Toko | SUMILIR" },
       },
       {
         path: "merchant/:slug",
         name: "Merchant Detail",
-        component: () => import("@/views/customer/ProductTokoHome.vue"),
+        component: () => import("@/views/customer/ProductToko.vue"),
         meta: { title: "Detail Toko | SUMILIR" },
       },
 
@@ -105,17 +87,17 @@ const routes = [
         meta: { title: "Product Detail | SUMILIR" },
       },
       {
-        path: "cart",
+        path: "keranjang",
         name: "Keranjang",
         component: () => import("@/views/customer/Cart.vue"),
         meta: {
-          requiresAuth: true,
-          roles: ["customer"],
+          // requiresAuth: true,
+          // roles: ["customer"],
           title: "Keranjang | SUMILIR",
         },
       },
       {
-        path: "product-payment",
+        path: "pembayaran-product",
         name: "Pembayaran Produk",
         component: () => import("@/views/customer/PembayaranProduct.vue"),
         meta: {
@@ -123,12 +105,6 @@ const routes = [
           // roles: ["customer"],
           title: "Pembayaran | SUMILIR",
         },
-      },
-      {
-        path: "search/:keyword?",
-        name: "Search Page",
-        component: () => import("@/views/customer/SearchPage.vue"),
-        meta: { title: "Cari | SUMILIR" },
       },
 
       // Halaman Community

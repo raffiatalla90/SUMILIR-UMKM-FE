@@ -106,27 +106,24 @@ onUnmounted(() => {
 
 // LOAD DATA
 onMounted(async () => {
+  // ✅ Fetch random merchants
   try {
-    const [jasaRes, promoRes] = await Promise.all([
-      api.get("/public/jasas"),
-      api.get("/promos"),
-    ]);
+    isLoadingMerchants.value = true;
+    const merchantRes = await api.get("/public/merchants/random", {
+      params: { limit: 8 },
+    });
+    merchantList.value = merchantRes.data.data || [];
+  } catch (e) {
+    console.error("Gagal memuat data merchant:", e);
+  } finally {
+    isLoadingMerchants.value = false;
+  }
 
-    // Normalisasi image jasa ke /storage/jasa/*.png
-    jasaList.value = (jasaRes.data ?? []).map((item) => ({
-      ...item,
-      image: resolveJasaImage(item),
-    }));
-
-    promoList.value = (promoRes.data ?? []).map((p, i) => ({
-      ...p,
-      image: promoImages[i % promoImages.length],
-    }));
-
-    setTimeout(() => {
-      eventList.value = Array(5).fill({ id: 1 });
-      isLoadingEvent.value = false;
-    }, 1000);
+  // Fetch promo (ganti dengan API call sebenarnya)
+  try {
+    isLoadingPromo.value = true;
+    const promoRes = await api.get("/promos");
+    promoList.value = Array.isArray(promoRes.data) ? promoRes.data : [];
   } catch (e) {
     eventBannerList.value = [];
   }
@@ -320,12 +317,14 @@ watch(
       </div>
     </section>
 
-    <!-- REKOMENDASI -->
+    <!-- ✅ Section Rekomendasi UMKM -->
     <section id="umkm-recommendation" class="relative pt-6 sm:pt-24">
       <div class="pl-4 sm:pl-[54px]">
-        <span class="text-base sm:text-section-title font-semibold">
-          Rekomendasi Produk dan Jasa danasnansansq
-        </span>
+        <div class="inline-flex items-center gap-2.5 w-auto h-[35px] py-[5px]">
+          <span class="text-base sm:text-section-title font-semibold"
+            >Rekomendasi UMKM</span
+          >
+        </div>
       </div>
 
       <div class="px-4 lg:px-[52px] mt-6 lg:mt-10">
