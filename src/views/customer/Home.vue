@@ -3,6 +3,12 @@ import { ref, computed, onMounted } from "vue";
 import { Form } from "vee-validate";
 import TextField from "@/components/forms/TextField.vue";
 import CategoryCard from "@/components/Card/CategoryCard.vue";
+import ProductCard from "@/components/Card/ProductCard.vue";
+import ProductCardSkeleton from "@/components/Card/ProductCardSkeleton.vue";
+import PromoCard from "@/components/Card/PromoCard.vue";
+import PromoCardSkeleton from "@/components/Card/PromoCardSkeleton.vue";
+import EventCard from "@/components/Card/EventCard.vue";
+import EventCardSkeleton from "@/components/Card/EventCardSkeleton.vue";
 import jasaIcon from "@/assets/icons/Jasa.svg";
 import kulinerIcon from "@/assets/icons/Kuliner.svg";
 import tokoIcon from "@/assets/icons/Toko.svg";
@@ -11,6 +17,9 @@ import Button from "@/components/common/Button.vue";
 import api from "@/libs/axios.js";
 
 const searchQuery = ref("");
+const isLoadingJasa = ref(true);
+const isLoadingPromo = ref(true);
+const isLoadingEvent = ref(true);
 
 const categories = ref([
   {
@@ -35,23 +44,38 @@ const categories = ref([
   },
 ]);
 
-// ✅ Data dari API
 const jasaList = ref([]);
+const promoList = ref([]);
+const eventList = ref([]);
 
 const onSearch = () => {
   const q = (searchQuery.value || "").trim();
   // router.push({ name: "JasaTeknisi", query: q ? { q } : {} });
 };
 
-// ✅ Fetch data dari API
 onMounted(async () => {
+  // Fetch jasa
   try {
+    isLoadingJasa.value = true;
     const jasaRes = await api.get("/jasa");
     jasaList.value = Array.isArray(jasaRes.data) ? jasaRes.data : [];
   } catch (e) {
     console.error("Gagal memuat data jasa:", e);
-    // gunakan fallback dummy
+  } finally {
+    isLoadingJasa.value = false;
   }
+
+  // Simulasi loading promo (ganti dengan API call sebenarnya)
+  setTimeout(() => {
+    promoList.value = Array(5).fill({ id: 1 });
+    isLoadingPromo.value = false;
+  }, 1000);
+
+  // Simulasi loading event (ganti dengan API call sebenarnya)
+  setTimeout(() => {
+    eventList.value = Array(5).fill({ id: 1 });
+    isLoadingEvent.value = false;
+  }, 1000);
 });
 </script>
 
@@ -121,9 +145,22 @@ onMounted(async () => {
         class="overflow-x-auto overflow-y-hidden no-scrollbar mx-4 sm:mx-[57px] pt-3 sm:pt-[17px] scroll-smooth snap-x snap-mandatory"
       >
         <div class="flex gap-4 sm:gap-8 min-w-max">
-          <div v-for="i in 5" :key="i" class="snap-start shrink-0">
-            <PromoCard />
-          </div>
+          <!-- Skeleton loading -->
+          <template v-if="isLoadingPromo">
+            <div v-for="i in 5" :key="i" class="snap-start shrink-0">
+              <PromoCardSkeleton />
+            </div>
+          </template>
+          <!-- Actual content -->
+          <template v-else>
+            <div
+              v-for="(promo, i) in promoList"
+              :key="i"
+              class="snap-start shrink-0"
+            >
+              <PromoCard :promo="promo" />
+            </div>
+          </template>
         </div>
       </div>
     </section>
@@ -138,15 +175,20 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- Grid -->
-      <!-- Flex container untuk ProductCard -->
       <div class="px-4 sm:px-[52px] mt-6 sm:mt-10">
         <div class="flex flex-wrap gap-3 sm:gap-6">
-          <ProductCard
-            v-for="product in jasaList"
-            :key="product.id"
-            :product="product"
-          />
+          <!-- Skeleton loading -->
+          <template v-if="isLoadingJasa">
+            <ProductCardSkeleton v-for="i in 8" :key="i" />
+          </template>
+          <!-- Actual content -->
+          <template v-else>
+            <ProductCard
+              v-for="product in jasaList"
+              :key="product.id"
+              :product="product"
+            />
+          </template>
         </div>
 
         <!-- Tampilkan semua -->
@@ -173,9 +215,22 @@ onMounted(async () => {
         class="overflow-x-auto overflow-y-hidden no-scrollbar mx-4 sm:mx-[57px] pt-3 sm:pt-[17px] scroll-smooth snap-x snap-mandatory"
       >
         <div class="flex gap-4 sm:gap-8 min-w-max">
-          <div v-for="i in 5" :key="i" class="snap-start shrink-0">
-            <EventCard />
-          </div>
+          <!-- Skeleton loading -->
+          <template v-if="isLoadingEvent">
+            <div v-for="i in 5" :key="i" class="snap-start shrink-0">
+              <EventCardSkeleton />
+            </div>
+          </template>
+          <!-- Actual content -->
+          <template v-else>
+            <div
+              v-for="(event, i) in eventList"
+              :key="i"
+              class="snap-start shrink-0"
+            >
+              <EventCard :event="event" />
+            </div>
+          </template>
         </div>
       </div>
     </section>

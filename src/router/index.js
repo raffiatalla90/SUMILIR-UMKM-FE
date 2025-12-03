@@ -15,6 +15,8 @@ const routes = [
         component: () => import("@/views/customer/Home.vue"),
         meta: { title: "Beranda | SUMILIR" },
       },
+
+      // Halaman Jasa Teknisi & Pembayaran
       {
         path: "jasa-teknisi",
         name: "JasaTeknisi",
@@ -28,11 +30,26 @@ const routes = [
         meta: { title: "Detail Jasa | SUMILIR" },
       },
       {
-        path: "pembayaran",
-        name: "Pembayaran",
-        component: () => import("@/views/customer/Pembayaran.vue"),
+        path: "pembayaran-jasa",
+        name: "Pembayaran Jasa",
+        component: () => import("@/views/customer/PembayaranJasa.vue"),
         meta: { title: "Pembayaran | SUMILIR" },
       },
+
+      {
+        path: "products/:slug", // ✅ Changed from :id to :slug
+        name: "Product Detail",
+        component: () => import("@/views/customer/ProductDetail.vue"),
+        meta: { title: "Product Detail | SUMILIR" },
+      },
+      {
+        path: "pembayaran-product",
+        name: "Pembayaran Produk",
+        component: () => import("@/views/customer/PembayaranProduct.vue"),
+        meta: { title: "Pembayaran | SUMILIR" },
+      },
+
+      // Halaman Community
       {
         path: "community",
         name: "community",
