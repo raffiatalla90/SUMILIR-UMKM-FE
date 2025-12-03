@@ -62,6 +62,14 @@
               class="sm:col-span-2"
             />
 
+            <!-- Phone Number -->
+            <TextField
+              name="phone"
+              label="Nomor Telepon"
+              placeholder="Contoh: 081234567890"
+              class="sm:col-span-2"
+            />
+
             <!-- Jenis Usaha (dari API /segmentations) -->
             <SelectField
               name="segmentation_id"
@@ -219,6 +227,10 @@ const segmentationId = ref("");
 // Validation Schema (pakai objek address)
 const schema = yup.object({
   name: yup.string().required("Nama wajib diisi"),
+  phone: yup
+    .string()
+    .matches(/^[0-9+\-()\s]{8,20}$/, "Nomor telepon tidak valid")
+    .required("Nomor telepon wajib diisi"),
   segmentation_id: yup
     .number()
     .typeError("Jenis usaha wajib dipilih")
@@ -245,14 +257,14 @@ const schema = yup.object({
     latitude: yup
       .number()
       .typeError("Latitude tidak valid")
-      .min(-90, "Latitude minimal -90")
-      .max(90, "Latitude maksimal 90")
+      .min(-90)
+      .max(90)
       .required("Latitude wajib diisi"),
     longitude: yup
       .number()
       .typeError("Longitude tidak valid")
-      .min(-180, "Longitude minimal -180")
-      .max(180, "Longitude maksimal 180")
+      .min(-180)
+      .max(180)
       .required("Longitude wajib diisi"),
   }),
 });
@@ -386,6 +398,7 @@ const handleRegister = async (values) => {
   try {
     const payload = {
       name: values.name,
+      phone: values.phone, // NEW
       description: values.description,
       segmentation_id: Number(values.segmentation_id),
       address: {
@@ -398,7 +411,6 @@ const handleRegister = async (values) => {
         longitude: Number(values.address.longitude),
       },
     };
-
     await registerMerchant(payload);
 
     toast.success("Pendaftaran UMKM dikirim. Menunggu persetujuan admin.", {

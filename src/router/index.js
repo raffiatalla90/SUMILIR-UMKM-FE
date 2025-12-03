@@ -6,10 +6,28 @@ const routes = [
   {
     path: "",
     name: "Beranda",
-    component: () => import("@/views/Home.vue"),
+    component: () => import("@/views/customer/Home.vue"),
     meta: {
       title: "Beranda | SUMILIR",
     },
+  },
+  {
+    path: "/jasa-teknisi",
+    name: "JasaTeknisi",
+    component: () => import("@/views/customer/JasaTeknisi.vue"),
+    meta: { title: "Semua Jasa Teknisi | SUMILIR" },
+  },
+  {
+    path: "/jasa/:id",
+    name: "JasaDetail",
+    component: () => import("@/views/customer/JasaDetail.vue"),
+    meta: { title: "Detail Jasa | SUMILIR" },
+  },
+  {
+    path: "/pembayaran",
+    name: "Pembayaran",
+    component: () => import("@/views/customer/Pembayaran.vue"),
+    meta: { title: "Pembayaran | SUMILIR" },
   },
 
   // Grup halaman Auth pakai AuthLayout
@@ -118,9 +136,7 @@ const routes = [
         path: "products",
         name: "Merchant - Product UMKM",
         component: () => import("@/views/merchant/products/Index.vue"),
-        meta: {
-          title: "Product UMKM | SUMILIR",
-        },
+        meta: { title: "Product UMKM | SUMILIR" },
       },
       {
         path: "products/create",
