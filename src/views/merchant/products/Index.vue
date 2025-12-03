@@ -687,19 +687,21 @@ watch(currentPage, () => {
 
 // ✅ Initial load
 onMounted(async () => {
-  logCookies("onMounted"); // ✅ ADD: Log initial cookies
+  logCookies("onMounted");
 
-  // Validate merchantId before loading
-  if (!currentMerchantId.value) {
-    toast.error("Merchant ID tidak valid");
-    router.push("/merchant-center");
+  // ✅ Guard di FE juga: cegah akses jika merchant belum approved
+  const merchant =
+    authStore.getMerchantById(currentMerchantId.value) ||
+    authStore.activeMerchant;
+  if (!merchant || merchant.status !== "approved") {
+    toast.warning(
+      "UMKM Anda belum disetujui. Silakan menunggu persetujuan admin."
+    );
+    router.push("/merchant-register");
     return;
   }
 
-  // Load categories for filter
   await fetchLevel1Categories();
-
-  // Load products
   loadProducts();
 });
 

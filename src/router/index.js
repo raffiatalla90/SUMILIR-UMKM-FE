@@ -252,6 +252,40 @@ router.beforeEach((to, from, next) => {
     }
   }
 
+  // ✅ Require approved merchant for Merchant Center routes
+  if (to.path.startsWith("/merchant-center")) {
+    const merchantIdParam = to.params.merchantId
+      ? Number(to.params.merchantId)
+      : null;
+
+    // Wajib ada merchantId di URL
+    if (!merchantIdParam || Number.isNaN(merchantIdParam)) {
+      console.warn(
+        "⚠️ merchantId kosong/tidak valid, redirect ke /merchant-register"
+      );
+      return next("/merchant-register");
+    }
+
+    // Ambil merchant berdasarkan ID (tanpa fallback)
+    const merchant = authStore.getMerchantById(merchantIdParam);
+
+    // Jika tidak ditemukan di store (karena belum approved), blok akses
+    if (!merchant) {
+      console.warn(
+        "⚠️ Merchant tidak ditemukan/ belum approved, redirect ke /merchant-register"
+      );
+      return next("/merchant-register");
+    }
+
+    // Jika status bukan approved, blok akses
+    if (merchant.status !== "approved") {
+      console.warn(
+        "⚠️ Merchant belum approved, redirect ke /merchant-register"
+      );
+      return next("/merchant-register");
+    }
+  }
+
   next();
 });
 
