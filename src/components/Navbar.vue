@@ -36,7 +36,7 @@ function onMenuClick(m, e) {
 </script>
 
 <template>
-  <nav class="hidden md:block sticky top-0 z-50 w-full bg-white h-[91px] border-b border-[#D9D9D9]">
+  <nav class="hidden md:hidden lg:block sticky top-0 z-50 w-full bg-white h-[91px] border-b border-[#D9D9D9]">
     <div class="max-w-[1440px] mx-auto h-full px-4">
       <div class="h-full flex items-center">
         <!-- Brand -->
@@ -57,7 +57,6 @@ function onMenuClick(m, e) {
               :aria-current="isMenuActive(m) ? 'page' : null"
             >
               <span class="relative inline-block">
-                <!-- Base label (hitam) -->
                 <span class="block text-black select-none">
                   {{ m.label }}
                 </span>
