@@ -8,7 +8,7 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-0">
         <!-- Left Side - Illustration (Hidden on Mobile) -->
         <div
-          class="hidden sm:flex items-center justify-center bg-linear-to-br from-primary to-[#FFA30E] p-12"
+          class="hidden sm:flex items-center justify-center  from-secondary p-12"
         >
           <img
             :src="Illustration"
