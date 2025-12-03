@@ -3,13 +3,17 @@ import api from "@/libs/axios";
 
 export function useProducts() {
   const products = ref([]);
-  const loading = ref(true);
+  const loading = ref(false);
   const pagination = ref({
     current_page: 1,
     last_page: 1,
     per_page: 15,
     total: 0,
   });
+
+  // ✅ ADD: Track last request to prevent duplicates
+  let lastRequestParams = null;
+  let pendingRequest = null;
 
   // ✅ Fetch Product Detail from API
   const fetchProductDetail = async (productId) => {
@@ -46,45 +50,124 @@ export function useProducts() {
   /**
    * Fetch products dari backend
    */
-  const fetchProducts = async (filters = {}) => {
-    loading.value = true;
-    try {
-      // Map frontend filter keys to backend API keys
-      const params = {
-        q: filters.searchQuery || undefined,
-        status: filters.status || undefined,
-        category_id: filters.category || undefined, // FIXED: Use category_id
-        min_price: filters.minPrice || undefined,
-        max_price: filters.maxPrice || undefined,
-        min_stock: filters.minStock || undefined,
-        max_stock: filters.maxStock || undefined,
-        sort_by: filters.sortBy || "newest",
-        per_page: filters.perPage || 15,
-        page: filters.page || 1,
-      };
+  const fetchProducts = async ({
+    merchantId, // ✅ NEW: Required parameter
+    searchQuery = "",
+    status = "",
+    category = "",
+    minPrice = null,
+    maxPrice = null,
+    minStock = null,
+    maxStock = null,
+    sortBy = "newest",
+    perPage = 15,
+    page = 1,
+  } = {}) => {
+    // ✅ ADD: Validate merchantId
+    if (!merchantId) {
+      console.error("[fetchProducts] merchantId is required");
+      return;
+    }
 
-      // Remove undefined values
-      Object.keys(params).forEach((key) => {
-        if (params[key] === undefined) {
-          delete params[key];
-        }
+    // ✅ ADD: Create request signature
+    const requestSignature = JSON.stringify({
+      merchantId,
+      searchQuery,
+      status,
+      category,
+      minPrice,
+      maxPrice,
+      minStock,
+      maxStock,
+      sortBy,
+      perPage,
+      page,
+    });
+
+    // ✅ ADD: Check if same request is already in progress
+    if (loading.value && lastRequestParams === requestSignature) {
+      console.warn(
+        "[fetchProducts] Duplicate request detected, waiting for pending request..."
+      );
+      return pendingRequest;
+    }
+
+    // ✅ ADD: Check if request is identical to last completed request
+    if (lastRequestParams === requestSignature && !loading.value) {
+      console.log("[fetchProducts] Using cached result");
+      return { data: products.value, meta: pagination.value };
+    }
+
+    lastRequestParams = requestSignature;
+    loading.value = true;
+
+    const params = {
+      merchant_id: merchantId,
+      q: searchQuery || undefined,
+      status: status || undefined,
+      category_id: category || undefined,
+      min_price: minPrice ?? undefined,
+      max_price: maxPrice ?? undefined,
+      min_stock: minStock ?? undefined,
+      max_stock: maxStock ?? undefined,
+      sort_by: sortBy || "newest",
+      per_page: perPage,
+      page,
+    };
+
+    // Remove undefined values
+    Object.keys(params).forEach((key) => {
+      if (params[key] === undefined) {
+        delete params[key];
+      }
+    });
+
+    console.log("[fetchProducts] Request params:", params);
+
+    try {
+      // ✅ Store pending request promise
+      pendingRequest = api.get("/products", { params });
+      const { data } = await pendingRequest;
+
+      products.value = data.data || [];
+
+      if (data.meta) {
+        pagination.value = {
+          current_page: data.meta.current_page,
+          last_page: data.meta.last_page,
+          per_page: data.meta.per_page,
+          total: data.meta.total,
+        };
+      }
+
+      console.log("[fetchProducts] Success:", {
+        products: products.value.length,
+        total: pagination.value.total,
       });
 
-      const response = await api.get("/products", { params });
-
-      products.value = response.data.data || [];
-
-      // Update pagination info
-      pagination.value = {
-        current_page: response.data.meta.current_page || 1,
-        last_page: response.data.meta.last_page || 1,
-        per_page: response.data.meta.per_page || 15,
-        total: response.data.meta.total || 0,
-      };
-
-      return response.data;
+      return data;
     } catch (error) {
-      console.error("[useProducts] Error fetching products:", error);
+      console.error("[fetchProducts] Error:", error);
+      lastRequestParams = null; // Reset on error
+      throw error;
+    } finally {
+      loading.value = false;
+      pendingRequest = null;
+    }
+  };
+
+  /**
+   * Delete product
+   */
+  const deleteProduct = async (productId) => {
+    loading.value = true;
+    try {
+      await api.delete(`/products/${productId}`);
+      // Refresh products after delete
+      products.value = products.value.filter((p) => p.id !== productId);
+      pagination.value.total -= 1;
+    } catch (error) {
+      console.error("Error deleting product:", error);
       throw error;
     } finally {
       loading.value = false;
@@ -97,41 +180,19 @@ export function useProducts() {
   const updateProductStatus = async (productId, status) => {
     loading.value = true;
     try {
-      // ✅ UPDATED: Gunakan endpoint khusus /products/{id}/status
-      const response = await api.patch(`/products/${productId}/status`, {
+      const { data } = await api.patch(`/products/${productId}/status`, {
         status,
       });
 
-      // Update local state
+      // Update local product status
       const index = products.value.findIndex((p) => p.id === productId);
       if (index !== -1) {
         products.value[index].status = status;
       }
 
-      return response.data;
+      return data;
     } catch (error) {
-      console.error("[useProducts] Error updating status:", error);
-      throw error;
-    } finally {
-      loading.value = false;
-    }
-  };
-
-  /**
-   * Delete product
-   */
-  const deleteProduct = async (productId) => {
-    loading.value = true;
-    try {
-      await api.delete(`/products/${productId}`);
-
-      // Remove from local state
-      products.value = products.value.filter((p) => p.id !== productId);
-      pagination.value.total -= 1;
-
-      return true;
-    } catch (error) {
-      console.error("[useProducts] Error deleting product:", error);
+      console.error("Error updating product status:", error);
       throw error;
     } finally {
       loading.value = false;
@@ -144,16 +205,15 @@ export function useProducts() {
   const bulkDeleteProducts = async (productIds) => {
     loading.value = true;
     try {
-      // Backend doesn't have bulk delete endpoint, so delete one by one
-      await Promise.all(productIds.map((id) => api.delete(`/products/${id}`)));
+      await api.post("/products/bulk-delete", {
+        product_ids: productIds,
+      });
 
-      // Remove from local state
+      // Remove deleted products from local state
       products.value = products.value.filter((p) => !productIds.includes(p.id));
       pagination.value.total -= productIds.length;
-
-      return true;
     } catch (error) {
-      console.error("[useProducts] Error bulk deleting:", error);
+      console.error("Error bulk deleting products:", error);
       throw error;
     } finally {
       loading.value = false;
@@ -166,21 +226,19 @@ export function useProducts() {
   const bulkUpdateStatus = async (productIds, status) => {
     loading.value = true;
     try {
-      // ✅ UPDATED: Gunakan endpoint khusus /products/{id}/status
-      await Promise.all(
-        productIds.map((id) => api.patch(`/products/${id}/status`, { status }))
-      );
+      await api.post("/products/bulk-update-status", {
+        product_ids: productIds,
+        status,
+      });
 
-      // Update local state
+      // Update local product statuses
       products.value.forEach((product) => {
         if (productIds.includes(product.id)) {
           product.status = status;
         }
       });
-
-      return true;
     } catch (error) {
-      console.error("[useProducts] Error bulk updating status:", error);
+      console.error("Error bulk updating status:", error);
       throw error;
     } finally {
       loading.value = false;

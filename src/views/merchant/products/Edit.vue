@@ -1,10 +1,10 @@
 <!-- filepath: c:\laragon\www\KMI-SIMSLIFE-FE\src\views\merchant\products\Edit.vue -->
 <script setup>
-// filepath: c:\laragon\www\KMI-SIMSLIFE-FE\src\views\merchant\products\Edit.vue
-
+// filepath: /var/www/html/KMI-SIMSLIFE-FE/src/views/merchant/products/Edit.vue
 import { ref, computed, watch, onMounted, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
+import Breadcrumb from "@/components/merchant/Breadcrumb.vue"; // ✅ ADD
 import api from "@/libs/axios";
 import { Form, useForm } from "vee-validate";
 import * as yup from "yup";
@@ -19,6 +19,24 @@ import { getImageUrl } from "@/libs/getImageUrl.js"; // ADD THIS
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
+
+const productId = computed(() => route.params.id);
+
+// ✅ Get merchantId from route
+const currentMerchantId = computed(() => {
+  return route.params.merchantId ? Number(route.params.merchantId) : null;
+});
+
+// ✅ Breadcrumb items
+const breadcrumbItems = computed(() => [
+  {
+    label: "Produk",
+    path: `/merchant-center/${currentMerchantId.value}/products`,
+  },
+  {
+    label: "Edit Produk",
+  },
+]);
 
 // ✅ Use composables
 const {
@@ -35,7 +53,6 @@ const { loading: loadingProduct, fetchProductDetail } = useProducts();
 
 const loading = ref(false);
 const loadingData = ref(true);
-const productId = computed(() => route.params.id);
 
 // ✅ SAMA SEPERTI CREATE: State Management
 const useVariants = ref(false);
@@ -1071,7 +1088,9 @@ const onSubmit = veeHandleSubmit(
       });
 
       toast.success("Produk berhasil diperbarui");
-      router.push(`/merchant-center/products/${productId.value}`);
+      router.push(
+        `/merchant-center/${currentMerchantId.value}/products/${productId.value}`
+      );
     } catch (error) {
       console.error("[Edit] Error updating product:", error);
 
@@ -1323,12 +1342,12 @@ onMounted(async () => {
 
 <template>
   <div class="min-h-screen bg-gray-50 pb-20 sm:pb-0">
-    <!-- ✅ Mobile Header - ALWAYS SHOWN -->
+    <!-- Mobile Header -->
     <div
       class="fixed sm:hidden top-0 left-0 right-0 bg-merchant-primary text-white px-4 py-6 flex items-center justify-center z-50 rounded-b-2xl shadow-lg"
     >
       <button
-        @click="goBack"
+        @click="router.back()"
         class="absolute left-4 w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition"
       >
         <i class="pi pi-arrow-left"></i>
@@ -1336,40 +1355,22 @@ onMounted(async () => {
       <h1 class="text-lg font-semibold">Edit Produk</h1>
     </div>
 
-    <!-- ✅ Desktop Header - ALWAYS SHOWN -->
+    <!-- Desktop Header -->
     <div class="hidden sm:block sticky top-0 left-0 right-0 z-30 py-6">
       <div
         class="mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap gap-y-2 items-center justify-between gap-x-4"
       >
-        <!-- Left: Breadcrumb -->
         <div>
-          <nav class="flex items-center gap-2 text-sm">
-            <template v-for="(crumb, index) in breadcrumbs" :key="index">
-              <router-link
-                v-if="crumb.path"
-                :to="crumb.path"
-                class="text-muted-foreground hover:text-merchant-primary transition flex items-center gap-2 text-base lg:text-2xl"
-              >
-                {{ crumb.label }}
-              </router-link>
-              <span
-                v-else
-                class="text-merchant-primary font-bold text-base lg:text-2xl whitespace-nowrap"
-              >
-                {{ crumb.label }}
-              </span>
-              <i
-                v-if="index < breadcrumbs.length - 1"
-                class="pi pi-chevron-right text-gray-400 text-xs"
-              ></i>
-            </template>
-          </nav>
+          <!-- ✅ Use Breadcrumb Component -->
+          <Breadcrumb
+            :items="breadcrumbItems"
+            :merchantId="currentMerchantId"
+          />
           <p class="text-muted-foreground text-xs lg:text-sm">
             {{ loadingData ? "Memuat data produk..." : name || "Edit Produk" }}
           </p>
         </div>
 
-        <!-- Right: Action Buttons (Only show when not loading) -->
         <div v-if="!loadingData" class="flex items-center gap-3">
           <Button
             @click="onSubmit"

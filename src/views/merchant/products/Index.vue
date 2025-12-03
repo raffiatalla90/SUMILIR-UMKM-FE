@@ -2,9 +2,11 @@
 // =======================
 // 1. IMPORTS
 // =======================
-import { ref, computed, onMounted, watch } from "vue";
-import { useRouter } from "vue-router";
+import { ref, computed, onMounted, watch, watchEffect } from "vue";
+import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
+import { useAuthStore } from "@/stores/auth";
+import Breadcrumb from "@/components/merchant/Breadcrumb.vue"; // ✅ ADD
 import TextField from "@/components/forms/TextField.vue";
 import SelectField from "@/components/forms/SelectField.vue";
 import Button from "@/components/common/Button.vue";
@@ -21,7 +23,27 @@ import { getImageUrl } from "@/libs/getImageUrl.js";
 import api from "@/libs/axios";
 
 const router = useRouter();
+const route = useRoute();
 const toast = useToast();
+const authStore = useAuthStore();
+
+// ✅ Get merchantId from route
+const currentMerchantId = computed(() => {
+  return route.params.merchantId ? Number(route.params.merchantId) : null;
+});
+
+// ✅ Breadcrumb items
+const breadcrumbItems = computed(() => [
+  {
+    label: "List Produk",
+  },
+]);
+
+// ✅ ADD: Get merchant name for display
+const currentMerchantName = computed(() => {
+  const merchant = authStore.getMerchantById(currentMerchantId.value);
+  return merchant?.name || "UMKM";
+});
 
 // ✅ Use products composable
 const {
@@ -90,11 +112,10 @@ const tempFilters = ref({
   maxPrice: null,
   minStock: null,
   maxStock: null,
-  // ✅ NEW: Multiple sort filters (independent)
-  sortByDate: "", // 'newest' | 'oldest'
-  sortByName: "", // 'name_asc' | 'name_desc'
-  sortByPrice: "", // 'price_asc' | 'price_desc'
-  sortByStock: "", // 'stock_asc' | 'stock_desc'
+  sortByDate: "",
+  sortByName: "",
+  sortByPrice: "",
+  sortByStock: "",
 });
 
 const activeFilters = ref({
@@ -113,94 +134,42 @@ const activeFilters = ref({
 const currentPage = ref(1);
 const perPage = ref(10);
 
-// ✅ Use real data dari backend
-const totalItems = computed(() => pagination.value.total);
-const totalPages = computed(() => pagination.value.last_page);
-
-const paginationInfo = computed(() => {
-  const start =
-    (pagination.value.current_page - 1) * pagination.value.per_page + 1;
-  const end = Math.min(
-    pagination.value.current_page * pagination.value.per_page,
-    pagination.value.total
-  );
-  return {
-    start,
-    end,
-    total: pagination.value.total,
-  };
-});
-
-// Filter options (unchanged)
-const statusOptions = [
-  { label: "Semua Status", value: "" },
-  { label: "Dipublish", value: "published" },
-  { label: "Diarsipkan", value: "archived" },
-];
-
-const sortOptions = [
-  { label: "Terbaru", value: "newest" },
-  { label: "Terlama", value: "oldest" },
-  { label: "Nama A-Z", value: "name_asc" },
-  { label: "Nama Z-A", value: "name_desc" },
-  { label: "Harga Terendah", value: "price_asc" },
-  { label: "Harga Tertinggi", value: "price_desc" },
-  { label: "Stok Terendah", value: "stock_asc" },
-  { label: "Stok Tertinggi", value: "stock_desc" },
-];
-
-// ✅ SIMPLIFIED: categoryOptions sekarang data sudah normalized
-const categoryOptions = computed(() => {
-  const options = [{ label: "Semua Kategori", value: "" }];
-
-  if (!categoriesLevel1.value || !Array.isArray(categoriesLevel1.value)) {
-    return options;
-  }
-
-  categoriesLevel1.value
-    .filter((category) => category?.id && category?.name)
-    .forEach((category) => {
-      options.push({
-        label: category.name,
-        value: String(category.id),
-      });
-    });
-
-  return options;
-});
-
-// ✅ NEW: Computed active filter count (include all sorts)
-const activeFilterCount = computed(() => {
-  let count = 0;
-  if (activeFilters.value.status) count++;
-  if (activeFilters.value.category) count++;
-  if (activeFilters.value.minPrice !== null) count++;
-  if (activeFilters.value.maxPrice !== null) count++;
-  if (activeFilters.value.minStock !== null) count++;
-  if (activeFilters.value.maxStock !== null) count++;
-  if (activeFilters.value.sortByDate) count++;
-  if (activeFilters.value.sortByName) count++;
-  if (activeFilters.value.sortByPrice) count++;
-  if (activeFilters.value.sortByStock) count++;
-  return count;
-});
-
 // ✅ NEW: Build sort_by parameter untuk API
 const buildSortByParam = (filters) => {
-  // Priority: Date > Name > Price > Stock (gunakan yang pertama ada)
   if (filters.sortByDate) return filters.sortByDate;
   if (filters.sortByName) return filters.sortByName;
   if (filters.sortByPrice) return filters.sortByPrice;
   if (filters.sortByStock) return filters.sortByStock;
-  return "newest"; // default
+  return "newest";
 };
 
-// ✅ UPDATED: Load products dengan multi-sort
+// ✅ UPDATED: Load products dengan merchantId dari route
 const loadProducts = async () => {
+  // ✅ Validate merchantId exists
+  if (!currentMerchantId.value) {
+    toast.error("Merchant ID tidak ditemukan");
+    return;
+  }
+
+  // ✅ ADD: Prevent duplicate calls
+  if (loading.value) {
+    console.warn("[loadProducts] Already loading, skipping...");
+    return;
+  }
+
+  console.log("[loadProducts] Starting...", {
+    merchantId: currentMerchantId.value,
+    page: currentPage.value,
+    filters: activeFilters.value,
+  });
+
+  logCookies("BEFORE fetchProducts"); // ✅ Log before
+
   try {
     const sortBy = buildSortByParam(activeFilters.value);
 
     await fetchProducts({
+      merchantId: currentMerchantId.value,
       searchQuery: searchQuery.value,
       status: activeFilters.value.status,
       category: activeFilters.value.category,
@@ -212,7 +181,10 @@ const loadProducts = async () => {
       perPage: perPage.value,
       page: currentPage.value,
     });
+
+    logCookies("AFTER fetchProducts"); // ✅ Log after
   } catch (error) {
+    logCookies("ERROR in fetchProducts"); // ✅ Log on error
     toast.error(error.response?.data?.message || "Gagal memuat produk");
   }
 };
@@ -418,21 +390,33 @@ const exportPDF = async () => {
   }
 };
 
+// ✅ UPDATED: goToCreate with merchantId
 const goToCreate = () => {
-  router.push({ name: "Merchant - Buat Product" });
-};
-
-const goToEdit = (product) => {
   router.push({
-    name: "Merchant - Product Edit",
-    params: { id: product.id },
+    name: "Merchant - Buat Product",
+    params: { merchantId: currentMerchantId.value },
   });
 };
 
+// ✅ UPDATED: goToEdit with merchantId
+const goToEdit = (product) => {
+  router.push({
+    name: "Merchant - Product Edit",
+    params: {
+      merchantId: currentMerchantId.value,
+      id: product.id,
+    },
+  });
+};
+
+// ✅ UPDATED: goToDetail with merchantId
 const goToDetail = (product) => {
   router.push({
     name: "Merchant - Product Detail",
-    params: { id: product.id },
+    params: {
+      merchantId: currentMerchantId.value,
+      id: product.id,
+    },
   });
 };
 
@@ -643,13 +627,75 @@ const closeBulkStatusChangeModal = () => {
   newBulkStatus.value = null;
 };
 
+// ✅ IMPROVED: Cookie debugging utility
+const logCookies = (context) => {
+  if (import.meta.env.DEV) {
+    const cookies = document.cookie
+      .split(";")
+      .map((c) => c.trim())
+      .filter(Boolean);
+
+    const cookieObj = cookies.reduce((acc, cookie) => {
+      const [name, value] = cookie.split("=");
+      if (name) acc[name] = value?.substring(0, 20) + "...";
+      return acc;
+    }, {});
+
+    console.group(`🍪 Cookies - ${context}`);
+    console.log("Count:", cookies.length);
+    console.table(cookieObj);
+    console.groupEnd();
+  }
+};
+
+// ✅ Watch currentMerchantId changes (when switching merchant)
+watch(currentMerchantId, (newId, oldId) => {
+  if (newId && newId !== oldId) {
+    console.log("✅ Merchant changed, reloading products for:", newId);
+    logCookies("merchantId changed"); // ✅ ADD: Log cookies on merchant change
+
+    // Reset filters and pagination
+    currentPage.value = 1;
+    searchQuery.value = "";
+    activeFilters.value = {
+      status: "",
+      category: "",
+      minPrice: null,
+      maxPrice: null,
+      minStock: null,
+      maxStock: null,
+      sortByDate: "",
+      sortByName: "",
+      sortByPrice: "",
+      sortByStock: "",
+    };
+    loadProducts();
+  }
+});
+
 // ✅ Watch currentPage untuk auto-load
 watch(currentPage, () => {
+  logCookies("currentPage changed"); // ✅ ADD: Log cookies on page change
   loadProducts();
 });
 
+// ✅ REMOVE: Problematic watchEffect if exists
+// watchEffect(() => {
+//   // This might cause infinite loops
+//   loadProducts();
+// });
+
 // ✅ Initial load
 onMounted(async () => {
+  logCookies("onMounted"); // ✅ ADD: Log initial cookies
+
+  // Validate merchantId before loading
+  if (!currentMerchantId.value) {
+    toast.error("Merchant ID tidak valid");
+    router.push("/merchant-center");
+    return;
+  }
+
   // Load categories for filter
   await fetchLevel1Categories();
 
@@ -712,12 +758,26 @@ const tableActions = [
         </button>
 
         <div>
-          <h1 class="text-base sm:text-2xl font-semibold text-merchant-primary">
-            Daftar Produk
-          </h1>
-          <p class="text-xs sm:text-sm text-muted-foreground">
-            {{ totalItems }} Produk
-          </p>
+          <!-- ✅ Desktop: Show breadcrumb -->
+          <div class="hidden sm:block">
+            <Breadcrumb
+              :items="breadcrumbItems"
+              :merchantId="currentMerchantId"
+            />
+            <p class="text-xs sm:text-sm text-muted-foreground mt-1">
+              {{ currentMerchantName }} · {{ totalItems }} Produk
+            </p>
+          </div>
+
+          <!-- ✅ Mobile: Show simple title -->
+          <div class="sm:hidden">
+            <h1 class="text-base font-semibold text-merchant-primary">
+              Daftar Produk
+            </h1>
+            <p class="text-xs text-muted-foreground">
+              {{ currentMerchantName }} · {{ totalItems }} Produk
+            </p>
+          </div>
         </div>
       </div>
 

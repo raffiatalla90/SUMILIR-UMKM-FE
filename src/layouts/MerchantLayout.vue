@@ -1,58 +1,105 @@
 <script setup>
-import { ref } from "vue";
+// filepath: /var/www/html/KMI-SIMSLIFE-FE/src/layouts/MerchantLayout.vue
+import { ref, computed, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth.js";
 import Button from "@/components/common/Button.vue";
-import ResponsiveModal from "@/components/common/ResponsiveModal.vue"; // <= pastikan di-import
+import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 
 const authStore = useAuthStore();
-
 const router = useRouter();
 const route = useRoute();
 
-const isOpen = ref(false); // Mobile default: closed, Desktop default: open
+const isOpen = ref(false);
 const notificationCount = ref(12);
-const showLogoutModal = ref(false); // State untuk modal logout
-const menuItems = [
+const showLogoutModal = ref(false);
+
+// ✅ Get merchantId dari route params
+const currentMerchantId = computed(() => {
+  return route.params.merchantId
+    ? Number(route.params.merchantId)
+    : authStore.merchantId;
+});
+
+// ✅ Get merchant data berdasarkan merchantId di route
+const currentMerchant = computed(() => {
+  const merchantId = currentMerchantId.value;
+  if (!merchantId) return null;
+
+  return authStore.getMerchantById(merchantId);
+});
+
+// ✅ Display merchant name & type dari current merchant (bukan active merchant)
+const merchantName = computed(() => {
+  return currentMerchant.value?.name || authStore.user?.name || "Merchant";
+});
+
+const merchantType = computed(() => {
+  return currentMerchant.value?.segmentation?.name || "UMKM";
+});
+
+const merchantsCount = computed(() => authStore.merchantsCount);
+
+const userInitial = computed(() => {
+  const name = merchantName.value;
+  return name.charAt(0).toUpperCase();
+});
+
+const showMerchantSelector = computed(() => merchantsCount.value > 1);
+
+// ✅ Watch route changes untuk update active merchant
+watch(
+  () => route.params.merchantId,
+  (newMerchantId) => {
+    if (newMerchantId) {
+      authStore.setActiveMerchant(Number(newMerchantId));
+      console.log(
+        "✅ Merchant changed to ID:",
+        newMerchantId,
+        "Name:",
+        merchantName.value
+      );
+    }
+  },
+  { immediate: true }
+);
+
+// ✅ Menu items dengan dynamic merchantId
+const menuItems = computed(() => [
   {
     label: "Dashboard",
     icon: "pi-chart-bar",
-    route: "/merchant-center/dashboard",
+    route: `/merchant-center/${currentMerchantId.value}/dashboard`,
   },
   {
     label: "Pesanan",
     icon: "pi-shopping-bag",
-    route: "/merchant-center/orders",
+    route: `/merchant-center/${currentMerchantId.value}/orders`,
   },
   {
     label: "Produk",
     icon: "pi-box",
-    route: "/merchant-center/products",
+    route: `/merchant-center/${currentMerchantId.value}/products`,
   },
   {
     label: "Komunitas",
     icon: "pi-comments",
-    route: "/merchant-center/community",
+    route: `/merchant-center/${currentMerchantId.value}/community`,
   },
   {
     label: "Potongan Harga",
     icon: "pi-tag",
-    route: "/merchant-center/discounts",
+    route: `/merchant-center/${currentMerchantId.value}/discounts`,
   },
-];
+]);
 
-// Confirm logout via modal
 const logout = async () => {
   try {
-    // optionally show some loader here (not implemented)
     await authStore.logout();
     showLogoutModal.value = false;
-    // redirect to login (or landing) setelah logout
     router.push("/login");
   } catch (error) {
     console.error("Logout failed:", error);
-    // Pastikan modal tetap terbuka agar user tahu terjadi error,
-    // atau tutup modal dan berikan toast (jika ada)
     showLogoutModal.value = false;
   }
 };
@@ -67,28 +114,26 @@ const closeSidebar = () => {
 
 const navigateTo = (routePath) => {
   router.push(routePath);
-  // Mobile only: close sidebar after navigation
   if (window.innerWidth < 1024) {
     closeSidebar();
   }
 };
 
-// UPDATED: Check if route is active including child routes
 const isActive = (routePath) => {
-  // Exact match
   if (route.path === routePath) {
     return true;
   }
 
-  // Check if current route starts with the menu route path
-  // This will match child routes like:
-  // /merchant-center/products/create
-  // /merchant-center/products/123/edit
-  // /merchant-center/products/123
-  return route.path.startsWith(routePath + "/");
+  const currentPath = route.path;
+  const menuPath = routePath;
+
+  if (currentPath.startsWith(menuPath)) {
+    return true;
+  }
+
+  return false;
 };
 
-// Expose toggle function
 defineExpose({
   toggleSidebar,
 });
@@ -116,11 +161,8 @@ defineExpose({
     <aside
       :class="[
         'fixed top-0 left-0 h-full bg-white shadow-sm z-40 transition-all duration-300 flex flex-col',
-        // Mobile: Hidden or visible with animation
         isOpen ? 'translate-x-0' : '-translate-x-full',
-        // Desktop: Collapsed or expanded
         'sm:translate-x-0',
-        // Width
         isOpen ? 'w-64' : 'w-64 sm:w-16',
       ]"
     >
@@ -266,36 +308,64 @@ defineExpose({
           </span>
         </button>
 
-        <!-- Profile Card (Full) -->
+        <!-- ✅ Profile Card - Display current merchant based on route -->
         <div
           v-if="isOpen"
           class="bg-gradient-to-r from-merchant-primary to-merchant-primary/80 text-white rounded-xl p-4 mt-2 sm:block"
         >
           <div class="flex items-center gap-3">
             <div
-              class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0"
+              class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-lg"
             >
-              <i class="pi pi-user text-lg"></i>
+              {{ userInitial }}
             </div>
+
             <div class="flex-1 min-w-0">
-              <p class="text-sm font-semibold truncate">Sembako Sari Alam</p>
-              <p class="text-xs opacity-90 truncate">UKM Toko</p>
+              <!-- ✅ Merchant Name dari route ID -->
+              <p class="text-sm font-semibold truncate" :title="merchantName">
+                {{ merchantName }}
+              </p>
+              <!-- ✅ Merchant Type dari route ID -->
+              <p class="text-xs opacity-90 truncate" :title="merchantType">
+                {{ merchantType }}
+              </p>
+              <!-- Badge multiple merchants -->
+              <span
+                v-if="showMerchantSelector"
+                class="text-[10px] bg-white/20 px-2 py-0.5 rounded-full inline-block mt-1"
+              >
+                {{ merchantsCount }} Merchant
+              </span>
             </div>
+
             <button
               class="w-6 h-6 hover:bg-white/20 rounded-full flex items-center justify-center transition flex-shrink-0"
+              title="Pengaturan"
             >
               <i class="pi pi-ellipsis-v text-sm"></i>
             </button>
           </div>
+
+          <!-- ✅ Debug info (remove after testing) -->
+          <div
+            v-if="false"
+            class="mt-2 pt-2 border-t border-white/20 text-xs opacity-75"
+          >
+            <div>Route Merchant ID: {{ currentMerchantId }}</div>
+            <div>Merchant Name: {{ merchantName }}</div>
+            <div>Merchant Type: {{ merchantType }}</div>
+          </div>
         </div>
 
-        <!-- Profile Icon (Collapsed - Desktop Only) -->
+        <!-- Collapsed State -->
         <button
           v-else
           class="hidden sm:flex w-full justify-center items-center p-3 bg-merchant-primary/10 rounded-lg hover:bg-merchant-primary/20 transition"
-          title="Profile"
+          :title="`${merchantName} - ${merchantType}`"
         >
-          <i class="pi pi-user text-lg text-merchant-primary"></i>
+          <span class="text-lg font-bold text-merchant-primary">
+            {{ userInitial }}
+          </span>
         </button>
       </div>
     </aside>
@@ -307,7 +377,6 @@ defineExpose({
         !isOpen ? 'sm:ml-16' : 'sm:ml-64',
       ]"
     >
-      <!-- Router View -->
       <router-view v-slot="{ Component }">
         <transition
           name="fade"
@@ -323,11 +392,41 @@ defineExpose({
         </transition>
       </router-view>
     </div>
+
+    <ResponsiveModal
+      v-model:show="showLogoutModal"
+      title="Konfirmasi Logout"
+      size="sm"
+    >
+      <div class="text-center py-4">
+        <i
+          class="pi pi-exclamation-triangle text-5xl text-warning-foreground mb-4"
+        ></i>
+        <p class="text-base text-gray-700 mb-2">
+          Apakah Anda yakin ingin keluar?
+        </p>
+        <p class="text-sm text-muted-foreground">
+          Anda akan diarahkan ke halaman login
+        </p>
+      </div>
+
+      <template #footer>
+        <div class="flex gap-3">
+          <Button
+            @click="showLogoutModal = false"
+            variant="muted-outline"
+            block
+          >
+            Batal
+          </Button>
+          <Button @click="logout" variant="danger" block> Ya, Logout </Button>
+        </div>
+      </template>
+    </ResponsiveModal>
   </div>
 </template>
 
 <style scoped>
-/* Custom scrollbar */
 nav::-webkit-scrollbar {
   width: 6px;
 }
@@ -345,7 +444,6 @@ nav::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
 
-/* Smooth transitions */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease;

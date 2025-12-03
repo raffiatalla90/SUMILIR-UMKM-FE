@@ -1,9 +1,10 @@
 <script setup>
-// filepath: c:\laragon\www\KMI-SIMSLIFE-FE\src\views\merchant\products\Detail.vue
+// filepath: /var/www/html/KMI-SIMSLIFE-FE/src/views/merchant/products/Detail.vue
 
 import { ref, computed, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
+import Breadcrumb from "@/components/merchant/Breadcrumb.vue"; // ✅ ADD
 import Button from "@/components/common/Button.vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
@@ -15,6 +16,22 @@ const { fetchProductDetail } = useProducts();
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
+
+// ✅ Get merchantId from route
+const currentMerchantId = computed(() => {
+  return route.params.merchantId ? Number(route.params.merchantId) : null;
+});
+
+// ✅ Breadcrumb items
+const breadcrumbItems = computed(() => [
+  {
+    label: "Produk",
+    path: `/merchant-center/${currentMerchantId.value}/products`,
+  },
+  {
+    label: "Detail Produk",
+  },
+]);
 
 const loading = ref(false);
 const product = ref(null);
@@ -229,7 +246,9 @@ const goBack = () => {
 };
 
 const editProduct = () => {
-  router.push(`/merchant-center/products/${route.params.id}/edit`);
+  router.push(
+    `/merchant-center/${currentMerchantId.value}/products/${route.params.id}/edit`
+  );
 };
 
 const getSelectionTypeLabel = (group) => {
@@ -293,13 +312,12 @@ onMounted(() => {
 
 <template>
   <div class="min-h-screen bg-gray-50 pb-20 sm:pb-0">
-    <!-- Header - RESPONSIVE -->
-    <!-- Mobile Header (< 640px) -->
+    <!-- Mobile Header -->
     <div
       class="fixed sm:hidden top-0 left-0 right-0 bg-merchant-primary text-white px-4 py-6 flex items-center justify-center z-50 rounded-b-2xl shadow-lg"
     >
       <button
-        @click="goBack"
+        @click="router.back()"
         class="absolute left-4 w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition"
       >
         <i class="pi pi-arrow-left"></i>
@@ -307,40 +325,22 @@ onMounted(() => {
       <h1 class="text-lg font-semibold">Detail Produk</h1>
     </div>
 
-    <!-- Desktop Header (>= 640px) -->
+    <!-- Desktop Header -->
     <div class="hidden sm:block sticky top-0 left-0 right-0 z-30 py-6">
       <div
         class="mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap gap-y-2 items-center justify-between gap-x-4"
       >
-        <!-- Left: Breadcrumb -->
         <div>
-          <nav class="flex items-center gap-2 text-sm">
-            <template v-for="(crumb, index) in breadcrumbs" :key="index">
-              <router-link
-                v-if="crumb.path"
-                :to="crumb.path"
-                class="text-muted-foreground hover:text-merchant-primary transition flex items-center gap-2 text-base lg:text-2xl"
-              >
-                {{ crumb.label }}
-              </router-link>
-              <span
-                v-else
-                class="text-merchant-primary font-bold text-base lg:text-2xl whitespace-nowrap"
-              >
-                {{ crumb.label }}
-              </span>
-              <i
-                v-if="index < breadcrumbs.length - 1"
-                class="pi pi-chevron-right text-gray-400 text-xs"
-              ></i>
-            </template>
-          </nav>
+          <!-- ✅ Use Breadcrumb Component -->
+          <Breadcrumb
+            :items="breadcrumbItems"
+            :merchantId="currentMerchantId"
+          />
           <p class="text-muted-foreground text-xs lg:text-sm">
             {{ product?.name || "Loading..." }}
           </p>
         </div>
 
-        <!-- Right: Action Buttons -->
         <div v-if="product" class="flex items-center gap-3">
           <Button @click="editProduct" variant="merchant" size="md">
             <i class="pi pi-pencil"></i>

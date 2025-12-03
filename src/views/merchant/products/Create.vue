@@ -1,7 +1,10 @@
 <script setup>
+// filepath: /var/www/html/KMI-SIMSLIFE-FE/src/views/merchant/products/Create.vue
 import { ref, computed, watch, onMounted } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
+import { useAuthStore } from "@/stores/auth"; // ✅ ADD: Import auth store
+import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
 import { Form, Field, useForm } from "vee-validate";
 import * as yup from "yup";
 import TextField from "@/components/forms/TextField.vue";
@@ -13,7 +16,34 @@ import api from "@/libs/axios";
 import { useCategories } from "@/composables/useCategories";
 
 const router = useRouter();
+const route = useRoute();
 const toast = useToast();
+const authStore = useAuthStore(); // ✅ ADD: Get auth store
+
+// ✅ FIXED: Get merchantId from route params
+const currentMerchantId = computed(() => {
+  return route.params.merchantId ? Number(route.params.merchantId) : null;
+});
+
+// ✅ ADD: Validate merchant ownership
+const isValidMerchant = computed(() => {
+  if (!currentMerchantId.value) return false;
+
+  // Check if user owns this merchant
+  const merchant = authStore.getMerchantById(currentMerchantId.value);
+  return !!merchant;
+});
+
+// ✅ Breadcrumb items
+const breadcrumbItems = computed(() => [
+  {
+    label: "Produk",
+    path: `/merchant-center/${currentMerchantId.value}/products`,
+  },
+  {
+    label: "Tambah Produk",
+  },
+]);
 
 // ✅ Use categories composable
 const {
@@ -30,11 +60,10 @@ const {
 // ============================================================
 const loading = ref(false);
 const useVariants = ref(false);
-// ✅ FIXED: Gunakan 0 dan 1 bukan boolean
 const variantUsesImages = ref({});
 
-// ✅ merchant_id (TODO: Get from auth store)
-const merchantId = ref(1);
+// ✅ REMOVED: Hardcoded merchantId
+// const merchantId = ref(1); // ❌ DELETE THIS
 
 const name = ref("");
 const description = ref("");
@@ -141,6 +170,22 @@ const {
 // ============================================================
 onMounted(async () => {
   console.log("[Create Product] Component mounted");
+  console.log("[Create Product] Merchant ID:", currentMerchantId.value);
+
+  // ✅ ADD: Validate merchantId on mount
+  if (!currentMerchantId.value) {
+    toast.error("Merchant ID tidak valid");
+    router.push("/merchant-center");
+    return;
+  }
+
+  // ✅ ADD: Validate merchant ownership
+  if (!isValidMerchant.value) {
+    toast.error("Anda tidak memiliki akses ke merchant ini");
+    router.push("/merchant-center");
+    return;
+  }
+
   await fetchLevel1Categories();
 });
 
@@ -642,23 +687,32 @@ const isAddOnGroupExpanded = (groupId) => {
 const onSubmit = veeHandleSubmit(
   async (values) => {
     console.log("[Submit] Form values:", values);
+    console.log("[Submit] Current Merchant ID:", currentMerchantId.value); // ✅ ADD: Debug log
 
-    // === 1) Validasi dengan Yup langsung (deterministik, gak tergantung field registration) ===
+    // ✅ ADD: Validate merchantId before submission
+    if (!currentMerchantId.value) {
+      toast.error("Merchant ID tidak ditemukan");
+      return;
+    }
+
+    // ✅ ADD: Validate merchant ownership before submission
+    if (!isValidMerchant.value) {
+      toast.error("Anda tidak memiliki akses ke merchant ini");
+      return;
+    }
+
+    // === 1) Validasi dengan Yup ===
     try {
-      // validasi semua field di values berdasarkan schema
       await schema.validate(values, { abortEarly: false });
     } catch (yupError) {
-      // yupError adalah ValidationError
       const messages = (yupError.inner || [])
         .map((e) => e.message)
         .filter(Boolean);
 
-      // fallback jika inner kosong tapi ada message tunggal
       if (messages.length === 0 && yupError.message) {
         messages.push(yupError.message);
       }
 
-      // pastikan yang dikirim ke toast adalah string (hindari passing object)
       const firstMsg = String(
         messages[0] || "Mohon lengkapi semua field yang wajib diisi"
       );
@@ -666,7 +720,7 @@ const onSubmit = veeHandleSubmit(
       return;
     }
 
-    // === 2) Lanjut validasi kustom yang tergantung UI (gambar, variants, add-ons) ===
+    // === 2) Validasi kustom ===
     if (productImages.value.length === 0) {
       toast.error("Minimal tambahkan 1 foto produk");
       return;
@@ -706,7 +760,6 @@ const onSubmit = veeHandleSubmit(
       }
     }
 
-    // Validasi add-on groups
     if (addOnGroups.value.length > 0) {
       const hasInvalidGroup = addOnGroups.value.some((group) => {
         if (!group.name.trim()) return true;
@@ -736,8 +789,8 @@ const onSubmit = veeHandleSubmit(
     try {
       const formData = new FormData();
 
-      // Basic Info
-      formData.append("merchant_id", merchantId.value);
+      // ✅ FIXED: Use merchantId from route params
+      formData.append("merchant_id", currentMerchantId.value);
       formData.append("name", values.name);
       formData.append("description", values.description);
       formData.append("category_id", values.category_id);
@@ -749,7 +802,7 @@ const onSubmit = veeHandleSubmit(
         formData.append(`sub_categories[${index}]`, subCat);
       });
 
-      // ✅ UPDATED: Product Images dengan struktur baru
+      // Product Images
       productImages.value.forEach((img, index) => {
         formData.append(`images[${index}][file]`, img.file);
         formData.append(`images[${index}][order]`, index);
@@ -758,7 +811,6 @@ const onSubmit = veeHandleSubmit(
 
       // Variants or Direct Pricing
       if (useVariants.value) {
-        // Append variants
         variants.value.forEach((variant, vIndex) => {
           formData.append(`variants[${vIndex}][name]`, variant.name);
           formData.append(
@@ -766,7 +818,6 @@ const onSubmit = veeHandleSubmit(
             variantUsesImages.value[variant.id] || 0
           );
 
-          // Append variant options
           variant.options.forEach((opt, oIndex) => {
             if (opt.name.trim()) {
               formData.append(
@@ -774,7 +825,6 @@ const onSubmit = veeHandleSubmit(
                 opt.name.trim()
               );
 
-              // Append option images jika uses_images = 1
               if (
                 variantUsesImages.value[variant.id] === 1 &&
                 opt.images.length > 0
@@ -790,7 +840,6 @@ const onSubmit = veeHandleSubmit(
           });
         });
 
-        // Append combinations
         combinations.value.forEach((combo, cIndex) => {
           formData.append(
             `combinations[${cIndex}][combination]`,
@@ -800,7 +849,6 @@ const onSubmit = veeHandleSubmit(
           formData.append(`combinations[${cIndex}][price]`, combo.price);
           formData.append(`combinations[${cIndex}][stock]`, combo.stock);
 
-          // Append attributes
           combo.attributes.forEach((attr, aIndex) => {
             formData.append(
               `combinations[${cIndex}][attributes][${aIndex}][name]`,
@@ -813,7 +861,6 @@ const onSubmit = veeHandleSubmit(
           });
         });
       } else {
-        // Direct pricing (no variants)
         if (values.sku) {
           formData.append("sku", values.sku);
         }
@@ -834,7 +881,6 @@ const onSubmit = veeHandleSubmit(
             group.max_selection
           );
 
-          // Append addon options
           group.options.forEach((opt, oIndex) => {
             if (opt.name.trim()) {
               formData.append(
@@ -849,6 +895,9 @@ const onSubmit = veeHandleSubmit(
           });
         }
       });
+
+      // ✅ ADD: Debug log FormData
+      console.log("[FormData] merchant_id:", currentMerchantId.value);
 
       // Debug FormData (development only)
       if (import.meta.env.DEV) {
@@ -872,15 +921,18 @@ const onSubmit = veeHandleSubmit(
       console.log("[Create Product] Success:", response.data);
 
       toast.success("Produk berhasil ditambahkan");
-      router.push("/merchant-center/products");
+
+      // ✅ FIXED: Redirect dengan merchantId yang benar
+      router.push(`/merchant-center/${currentMerchantId.value}/products`);
     } catch (error) {
       console.error("[Create Product] Error:", error);
 
-      // Handle validation errors
       if (error.response?.status === 422) {
         const errors = error.response.data.errors || {};
         const firstError = Object.values(errors)[0];
         toast.error(firstError?.[0] || "Validasi gagal");
+      } else if (error.response?.status === 403) {
+        toast.error("Anda tidak memiliki akses ke merchant ini");
       } else {
         toast.error(
           error.response?.data?.message || "Gagal menambahkan produk"
@@ -893,14 +945,10 @@ const onSubmit = veeHandleSubmit(
   (errorsFromVee) => {
     console.log("[Validation] Errors (handler):", errorsFromVee);
 
-    // Helper: ambil pesan string pertama dari berbagai shape error
     function getFirstErrorMessage(errObj) {
       if (!errObj) return null;
-
-      // jika sudah string
       if (typeof errObj === "string") return errObj;
 
-      // jika ada field 'errors' yang berupa object mapping field -> message(s)
       if (errObj.errors && typeof errObj.errors === "object") {
         const vals = Object.values(errObj.errors);
         for (const v of vals) {
@@ -910,18 +958,15 @@ const onSubmit = veeHandleSubmit(
         }
       }
 
-      // jika ada 'results' (vee-validate might provide nested result objects)
       if (errObj.results && typeof errObj.results === "object") {
         const vals = Object.values(errObj.results);
         for (const r of vals) {
-          // many shapes: r may have .errors (array) or .message
           if (r && r.errors && Array.isArray(r.errors) && r.errors.length)
             return String(r.errors[0]);
           if (r && r.message) return String(r.message);
         }
       }
 
-      // fallback: try to flatten top-level object values
       if (typeof errObj === "object") {
         const vals = Object.values(errObj);
         for (const v of vals) {
@@ -929,7 +974,6 @@ const onSubmit = veeHandleSubmit(
           if (Array.isArray(v) && v.length && typeof v[0] === "string")
             return v[0];
           if (v && typeof v === "object") {
-            // dive one level
             const inner = Object.values(v).find(
               (iv) => typeof iv === "string" || (Array.isArray(iv) && iv.length)
             );
@@ -946,7 +990,6 @@ const onSubmit = veeHandleSubmit(
       getFirstErrorMessage(errorsFromVee) ||
       "Mohon lengkapi semua field yang wajib diisi";
 
-    // Pastikan kita kirim string, bukan object
     toast.error(String(firstMsg));
   }
 );
@@ -957,21 +1000,18 @@ const onSubmit = veeHandleSubmit(
 const goBack = () => {
   router.back();
 };
-
-const breadcrumbs = [
-  { label: "Produk", path: "/merchant-center/products" },
-  { label: "Tambah Produk", path: null },
-];
 </script>
 
+<!-- Template unchanged, just ensure mobile header back button uses dynamic route -->
 <template>
   <div class="min-h-screen bg-gray-50 pb-20 sm:pb-0">
     <!-- Mobile Header -->
     <div
       class="fixed sm:hidden top-0 left-0 right-0 bg-merchant-primary text-white px-4 py-6 flex items-center justify-center z-50 rounded-b-2xl"
     >
+      <!-- ✅ FIXED: Back button dengan dynamic route -->
       <button
-        @click="goBack"
+        @click="router.push(`/merchant-center/${currentMerchantId}/products`)"
         class="absolute left-4 w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition"
       >
         <i class="pi pi-arrow-left"></i>
@@ -985,34 +1025,16 @@ const breadcrumbs = [
         class="mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap gap-y-2 items-center justify-between gap-x-4"
       >
         <div>
-          <!-- Breadcrumb -->
-          <nav class="flex items-center gap-2 text-sm">
-            <template v-for="(crumb, index) in breadcrumbs" :key="index">
-              <router-link
-                v-if="crumb.path"
-                :to="crumb.path"
-                class="text-muted-foreground hover:text-merchant-primary transition flex items-center gap-2 text-base lg:text-2xl"
-              >
-                {{ crumb.label }}
-              </router-link>
-              <span
-                v-else
-                class="text-merchant-primary font-bold text-base lg:text-2xl whitespace-nowrap"
-              >
-                {{ crumb.label }}
-              </span>
-              <i
-                v-if="index < breadcrumbs.length - 1"
-                class="pi pi-chevron-right text-gray-400 text-xs"
-              ></i>
-            </template>
-          </nav>
+          <!-- ✅ Use Breadcrumb Component -->
+          <Breadcrumb
+            :items="breadcrumbItems"
+            :merchantId="currentMerchantId"
+          />
           <p class="text-muted-foreground text-xs lg:text-sm">
             Lengkapi informasi produk Anda.
           </p>
         </div>
 
-        <!-- ✅ FIXED: Call onSubmit directly -->
         <div class="flex items-center gap-3">
           <Button
             @click="onSubmit"
@@ -1713,6 +1735,7 @@ const breadcrumbs = [
                       Wajib
                     </span>
                     <span
+                      v-if="group.max_selection > 0"
                       class="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full flex items-center gap-1"
                     >
                       <i class="pi pi-list text-[10px]"></i>

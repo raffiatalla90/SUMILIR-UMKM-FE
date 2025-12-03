@@ -90,15 +90,22 @@ const routes = [
 
   // Halaman merchant
   {
-    path: "/merchant-center",
+    path: "/merchant-center/:merchantId",
     name: "Merchant",
     component: () => import("@/layouts/MerchantLayout.vue"),
     meta: {
       requiresAuth: true,
       roles: ["umkm-owner"],
+      requiresMerchantId: true,
     },
     children: [
-      { path: "", redirect: { name: "Merchant - Dashboard" } },
+      {
+        path: "",
+        redirect: (to) => ({
+          name: "Merchant - Dashboard",
+          params: { merchantId: to.params.merchantId },
+        }),
+      },
       {
         path: "dashboard",
         name: "Merchant - Dashboard",
@@ -116,19 +123,19 @@ const routes = [
         },
       },
       {
-        path: "products/:id",
-        name: "Merchant - Product Detail",
-        component: () => import("@/views/merchant/products/Detail.vue"),
-        meta: {
-          title: "Product Detail UMKM | SUMILIR",
-        },
-      },
-      {
         path: "products/create",
         name: "Merchant - Buat Product",
         component: () => import("@/views/merchant/products/Create.vue"),
         meta: {
           title: "Buat Product UMKM | SUMILIR",
+        },
+      },
+      {
+        path: "products/:id",
+        name: "Merchant - Product Detail",
+        component: () => import("@/views/merchant/products/Detail.vue"),
+        meta: {
+          title: "Product Detail UMKM | SUMILIR",
         },
       },
       {
@@ -183,20 +190,26 @@ const router = createRouter({
   routes,
 });
 
-// ✅ Navigation Guard
+// ✅ Track navigation to prevent excessive calls
+let lastNavigationPath = null;
+
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore();
   document.title = to.meta.title || "SUMILIR";
+
+  // ✅ ADD: Skip if navigating to same path
+  if (to.path === lastNavigationPath) {
+    console.log("[Router] Same path navigation detected, skipping...");
+    next();
+    return;
+  }
+
+  lastNavigationPath = to.path;
 
   console.log("🔍 [Router Guard]", {
     to: to.path,
     from: from.path,
     isAuthenticated: authStore.isAuthenticated,
-    user: authStore.user,
-    userRoles: authStore.user?.roles,
-    requiresAuth: to.meta.requiresAuth,
-    requiredRoles: to.meta.roles,
-    isGuestRoute: to.meta.guest,
   });
 
   // ✅ 1. Jika route butuh auth tapi user belum login
@@ -205,25 +218,18 @@ router.beforeEach((to, from, next) => {
     return next("/login");
   }
 
-  // ✅ 2. Jika user sudah login dan akses halaman guest (login/register)
+  // ✅ 2. Jika user sudah login dan akses halaman guest
   if (to.meta.guest && authStore.isAuthenticated) {
     const userRoles = (authStore.user?.roles || [])
       .map((r) => (typeof r === "string" ? r : r.name))
       .filter(Boolean)
       .map((r) => r.toLowerCase());
 
-    console.log("✅ Already authenticated, checking roles:", userRoles);
-
-    // ✅ Redirect berdasarkan role
     if (userRoles.includes("admin") || userRoles.includes("umkm-owner")) {
-      console.log("✅ Redirecting to /merchant-center");
       return next("/merchant-center");
     } else if (userRoles.includes("customer")) {
-      console.log("✅ Redirecting to / (Beranda)");
       return next("/");
     } else {
-      // Fallback ke beranda
-      console.log("✅ Redirecting to / (default)");
       return next("/");
     }
   }
@@ -236,23 +242,16 @@ router.beforeEach((to, from, next) => {
       .filter(Boolean)
       .map((r) => r.toLowerCase());
 
-    console.log("🔍 [Role Check]", {
-      userRoles,
-      requiredRoles,
-    });
-
     const hasRequiredRole = requiredRoles.some((requiredRole) =>
       userRoles.includes(requiredRole.toLowerCase())
     );
 
     if (!hasRequiredRole) {
-      console.warn("⚠️ Role not allowed, redirecting to / (Beranda)");
-      // ✅ PERBAIKAN: Redirect ke beranda, bukan unauthorized
+      console.warn("⚠️ Role not allowed, redirecting to /");
       return next("/");
     }
   }
 
-  console.log("✅ Access granted, proceeding to:", to.path);
   next();
 });
 
