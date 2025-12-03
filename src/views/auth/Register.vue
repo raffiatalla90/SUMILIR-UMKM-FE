@@ -389,7 +389,7 @@
                 Sudah punya akun?
                 <router-link
                   to="login"
-                  class="text-primary underline cursor-pointer hover:text-[#ff8c00] transition-colors font-semibold"
+                  class="text-primary underline cursor-pointer hover:text-secondary-hover transition-colors font-semibold"
                 >
                   Masuk
                 </router-link>

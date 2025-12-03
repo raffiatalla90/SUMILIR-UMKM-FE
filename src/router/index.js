@@ -1,33 +1,52 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+import CommunityView from "@/views/CommunityView.vue";
+import CommunityDetailView from "@/views/CommunityDetailView.vue";
 
 const routes = [
   // ✅ Halaman Beranda (Public/Customer)
   {
-    path: "",
-    name: "Beranda",
-    component: () => import("@/views/customer/Home.vue"),
-    meta: {
-      title: "Beranda | SUMILIR",
-    },
-  },
-  {
-    path: "/jasa-teknisi",
-    name: "JasaTeknisi",
-    component: () => import("@/views/customer/JasaTeknisi.vue"),
-    meta: { title: "Semua Jasa Teknisi | SUMILIR" },
-  },
-  {
-    path: "/jasa/:id",
-    name: "JasaDetail",
-    component: () => import("@/views/customer/JasaDetail.vue"),
-    meta: { title: "Detail Jasa | SUMILIR" },
-  },
-  {
-    path: "/pembayaran",
-    name: "Pembayaran",
-    component: () => import("@/views/customer/Pembayaran.vue"),
-    meta: { title: "Pembayaran | SUMILIR" },
+    path: "/",
+    component: () => import("@/layouts/CustomerLayout.vue"),
+    children: [
+      {
+        path: "",
+        name: "Beranda",
+        component: () => import("@/views/customer/Home.vue"),
+        meta: { title: "Beranda | SUMILIR" },
+      },
+      {
+        path: "jasa-teknisi",
+        name: "JasaTeknisi",
+        component: () => import("@/views/customer/JasaTeknisi.vue"),
+        meta: { title: "Semua Jasa Teknisi | SUMILIR" },
+      },
+      {
+        path: "jasa/:id",
+        name: "JasaDetail",
+        component: () => import("@/views/customer/JasaDetail.vue"),
+        meta: { title: "Detail Jasa | SUMILIR" },
+      },
+      {
+        path: "pembayaran",
+        name: "Pembayaran",
+        component: () => import("@/views/customer/Pembayaran.vue"),
+        meta: { title: "Pembayaran | SUMILIR" },
+      },
+      {
+        path: "community",
+        name: "community",
+        component: CommunityView,
+        meta: { title: "Community | SUMILIR" },
+      },
+      {
+        path: "community/:slug",
+        name: "community-detail",
+        component: CommunityDetailView,
+        props: true,
+        meta: { title: "Community Detail | SUMILIR" },
+      },
+    ],
   },
 
   // Grup halaman Auth pakai AuthLayout
@@ -199,6 +218,19 @@ const routes = [
 
   // Fallback
   { path: "/:pathMatch(.*)*", redirect: "/" },
+
+  // {
+  //   path: "/community",
+  //   name: "community",
+  //   component: CommunityView,
+  // },
+  // {
+  //   path: "/community/:slug",
+  //   name: "community-detail",
+  //   component: CommunityDetailView,
+  //   props: true,
+  // },
+  // { path: "/:pathMatch(.*)*", redirect: "/" },
 ];
 
 const router = createRouter({

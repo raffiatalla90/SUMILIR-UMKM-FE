@@ -88,6 +88,8 @@ const variantClasses = {
   primary:
     "bg-primary text-white hover:bg-primary/90 disabled:bg-gray-400 shadow-sm hover:shadow-lg duration-200 active:scale-95 focus:ring-primary",
 
+  secondary:
+    "bg-secondary text-white hover:bg-secondary/90 disabled:bg-gray-400 shadow-sm hover:shadow-lg duration-200 active:scale-95 focus:ring-secondary",
   // Blue Merchant Primary
   merchant:
     "bg-merchant-primary text-white hover:bg-merchant-primary/90 disabled:bg-gray-400 shadow-sm hover:shadow-lg duration-200 active:scale-95 focus:ring-merchant-primary",

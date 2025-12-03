@@ -47,13 +47,14 @@ const props = defineProps({
   alignWithPassword: { type: Boolean, default: true },
   rows: { type: Number, default: 3 },
   readonly: { type: Boolean, default: false },
-  variant: { type: String, default: "primary" }, // "primary" | "merchant" | "muted"
+  variant: { type: String, default: "primary" },
   required: { type: Boolean, default: false },
   prefix: { type: String, default: "" },
   suffix: { type: String, default: "" },
   labelBold: { type: Boolean, default: true },
-  hideLabel: { type: Boolean, default: false }, // NEW
+  hideLabel: { type: Boolean, default: false },
   customClass: { type: String, default: "" },
+  wrapperClass: { type: String, default: "" }, // NEW: class untuk wrapper utama
 });
 const emit = defineEmits(["update:modelValue"]);
 
@@ -154,7 +155,8 @@ const inputClasses = (invalid, isTextarea) => {
 </script>
 
 <template>
-  <div>
+  <div :class="wrapperClass">
+    <!-- Terapkan wrapperClass di sini -->
     <!-- Label - Always render for accessibility, hide visually if hideLabel=true -->
     <label v-if="label || hideLabel" :for="name" :class="labelClasses">
       {{ label || name }}
