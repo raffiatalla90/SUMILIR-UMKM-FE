@@ -2,11 +2,13 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import api from "@/libs/axios";
 import { useToast } from "vue-toastification";
+import { useProfileStore } from "@/stores/profile";
 
 export const useAuthStore = defineStore("auth", () => {
   const toast = useToast();
   const user = ref(null);
   const token = ref(localStorage.getItem("token"));
+  const profileStore = useProfileStore();
 
   const isAuthenticated = computed(() => !!token.value);
 
@@ -59,6 +61,7 @@ export const useAuthStore = defineStore("auth", () => {
       user.value = null;
       localStorage.removeItem("token");
       localStorage.removeItem("user");
+      profileStore.$reset();
     }
   }
 

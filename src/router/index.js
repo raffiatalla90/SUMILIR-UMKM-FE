@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import CommunityView from "@/views/CommunityView.vue";
 import CommunityDetailView from "@/views/CommunityDetailView.vue";
+import ProfileView from "@/views/ProfileView.vue";
+import MyOrderLayout from "@/views/CustomerOrder/MyOrderLayout.vue";
 
 const routes = [
   {
@@ -50,7 +52,6 @@ const routes = [
   },
 
   // Halaman non-auth (tanpa AuthLayout)
-
   {
     path: "/merchant-register",
     name: "Merchant Register",
@@ -82,6 +83,65 @@ const routes = [
     component: CommunityDetailView,
     props: true,
   },
+  
+  // My Order History
+  {
+  path: "/my-order",
+  component: MyOrderLayout,   // ← parent WRAPPER
+  children: [
+    {
+      path: "",
+      name: "MyOrder",
+      component: () => import("@/views/CustomerOrder/MyOrderView.vue"),
+      meta: { title: "My Order | SUMILIR" }
+    },
+    {
+      path: "give-review/:orderId?",
+      name: "GiveReview",
+      component: () => import("@/views/CustomerOrder/GiveReviewView.vue"),
+      meta: { title: "Beri Nilai | SUMILIR" }
+    },
+    {
+      path: "review",
+      name: "Review",
+      component: () => import("@/views/CustomerOrder/ReviewView.vue"),
+      meta: { title: "Lihat Penilaian | SUMILIR" }
+    },
+    {
+      path: "review/edit-review",
+      name: "EditReview",
+      component: () => import("@/views/CustomerOrder/EditReviewView.vue"),
+      meta: { title: "Lihat Penilaian | SUMILIR" }
+    }
+  ]
+},
+
+  // Profile management
+{
+  path: "/profile",
+  component: () => import("@/views/ProfileLayout.vue"), // parent wrapper
+  children: [
+    {
+      path: "",
+      name: "Profile",
+      component: () => import("@/views/ProfileView.vue"),
+      meta: { title: "Profile | SUMILIR" },
+    },
+    {
+      path: "edit",
+      name: "EditProfile",
+      component: () => import("@/views/EditProfileView.vue"),
+      meta: { title: "Edit Profile | SUMILIR" },
+    },
+    {
+      path: "change-password",
+      name: "ChangePassword",
+      component: () => import("@/views/ChangePasswordView.vue"),
+      meta: { title: "Ubah Kata Sandi | SUMILIR" },
+    },
+  ],
+},
+
 ];
 
 const router = createRouter({
