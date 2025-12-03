@@ -16,6 +16,18 @@ const routes = [
         component: () => import("@/views/customer/Home.vue"),
         meta: { title: "Beranda | SUMILIR" },
       },
+      {
+        path: "product-toko",
+        name: "Product Toko",
+        component: () => import("@/views/customer/ProductToko.vue"),
+        meta: { title: "Semua Produk Toko | SUMILIR" },
+      },
+      {
+        path: "merchant/:slug",
+        name: "Merchant Detail",
+        component: () => import("@/views/customer/ProductToko.vue"),
+        meta: { title: "Detail Toko | SUMILIR" },
+      },
 
       // Halaman Jasa Teknisi & Pembayaran
       {
@@ -50,10 +62,24 @@ const routes = [
         meta: { title: "Product Detail | SUMILIR" },
       },
       {
+        path: "keranjang",
+        name: "Keranjang",
+        component: () => import("@/views/customer/Cart.vue"),
+        meta: {
+          // requiresAuth: true,
+          // roles: ["customer"],
+          title: "Keranjang | SUMILIR",
+        },
+      },
+      {
         path: "pembayaran-product",
         name: "Pembayaran Produk",
         component: () => import("@/views/customer/PembayaranProduct.vue"),
-        meta: { title: "Pembayaran | SUMILIR" },
+        meta: {
+          // requiresAuth: true,
+          // roles: ["customer"],
+          title: "Pembayaran | SUMILIR",
+        },
       },
 
       // Halaman Community
