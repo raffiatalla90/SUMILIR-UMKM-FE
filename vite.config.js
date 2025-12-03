@@ -16,8 +16,8 @@ export default defineConfig(({ mode }) => {
         registerType: "autoUpdate",
         devOptions: { enabled: true },
         manifest: {
-          name: "SIMSLIFE",
-          short_name: "SIMSLIFE",
+          name: "SUMILIR",
+          short_name: "SUMILIR",
           description: "UMKM App",
           theme_color: "#ff9800",
           background_color: "#ffffff",

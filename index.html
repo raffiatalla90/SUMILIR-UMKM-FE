@@ -26,18 +26,17 @@
           Roboto, Arial, sans-serif;
         color: #fff;
         text-transform: uppercase;
-        animation: breathe 1.8s ease-in-out infinite;
+        animation: breathe 3s ease-in-out infinite;
         will-change: transform, opacity;
       }
 
       @keyframes breathe {
         0%,
-        49% {
-          opacity: 1;
-        }
-        50%,
         100% {
-          opacity: 0;
+          opacity: 0.4;
+        }
+        50% {
+          opacity: 1;
         }
       }
 

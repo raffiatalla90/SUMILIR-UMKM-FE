@@ -1,0 +1,259 @@
+import { ref } from "vue";
+import api from "@/libs/axios";
+
+export function useProducts() {
+  const products = ref([]);
+  const loading = ref(false);
+  const pagination = ref({
+    current_page: 1,
+    last_page: 1,
+    per_page: 15,
+    total: 0,
+  });
+
+  // ✅ ADD: Track last request to prevent duplicates
+  let lastRequestParams = null;
+  let pendingRequest = null;
+
+  // ✅ Fetch Product Detail from API
+  const fetchProductDetail = async (productId) => {
+    // NOTE: composable tidak boleh mengakses router/toast/mounted state yang spesifik UI
+    try {
+      const response = await api.get(`/products/${productId}`);
+      // backend mungkin mengembalikan object langsung atau wrapper. Normalisasi:
+      const payload = response.data?.data ?? response.data;
+
+      if (!payload) {
+        throw new Error("Product data tidak ditemukan pada response");
+      }
+
+      // Transformasi ringan: addon_groups -> addonGroups (agar consumer konsisten)
+      if (payload.addon_groups) {
+        payload.addonGroups = payload.addon_groups;
+        // optional: delete payload.addon_groups;
+      }
+
+      // Pastikan images adalah array (komponen mengandalkan images[])
+      if (!Array.isArray(payload.images)) {
+        payload.images = payload.images ? [payload.images] : [];
+      }
+
+      // Return raw payload; komponen akan memproses/menambahkan getImageUrl
+      return payload;
+    } catch (err) {
+      console.error("[useProducts] fetchProductDetail error:", err);
+      // biarkan error dilempar agar komponen dapat menanganinya (toast / redirect)
+      throw err;
+    }
+  };
+
+  /**
+   * Fetch products dari backend
+   */
+  const fetchProducts = async ({
+    merchantId, // ✅ NEW: Required parameter
+    searchQuery = "",
+    status = "",
+    category = "",
+    minPrice = null,
+    maxPrice = null,
+    minStock = null,
+    maxStock = null,
+    sortBy = "newest",
+    perPage = 15,
+    page = 1,
+  } = {}) => {
+    // ✅ ADD: Validate merchantId
+    if (!merchantId) {
+      console.error("[fetchProducts] merchantId is required");
+      return;
+    }
+
+    // ✅ ADD: Create request signature
+    const requestSignature = JSON.stringify({
+      merchantId,
+      searchQuery,
+      status,
+      category,
+      minPrice,
+      maxPrice,
+      minStock,
+      maxStock,
+      sortBy,
+      perPage,
+      page,
+    });
+
+    // ✅ ADD: Check if same request is already in progress
+    if (loading.value && lastRequestParams === requestSignature) {
+      console.warn(
+        "[fetchProducts] Duplicate request detected, waiting for pending request..."
+      );
+      return pendingRequest;
+    }
+
+    // ✅ ADD: Check if request is identical to last completed request
+    if (lastRequestParams === requestSignature && !loading.value) {
+      console.log("[fetchProducts] Using cached result");
+      return { data: products.value, meta: pagination.value };
+    }
+
+    lastRequestParams = requestSignature;
+    loading.value = true;
+
+    const params = {
+      merchant_id: merchantId,
+      q: searchQuery || undefined,
+      status: status || undefined,
+      category_id: category || undefined,
+      min_price: minPrice ?? undefined,
+      max_price: maxPrice ?? undefined,
+      min_stock: minStock ?? undefined,
+      max_stock: maxStock ?? undefined,
+      sort_by: sortBy || "newest",
+      per_page: perPage,
+      page,
+    };
+
+    // Remove undefined values
+    Object.keys(params).forEach((key) => {
+      if (params[key] === undefined) {
+        delete params[key];
+      }
+    });
+
+    console.log("[fetchProducts] Request params:", params);
+
+    try {
+      // ✅ Store pending request promise
+      pendingRequest = api.get("/products", { params });
+      const { data } = await pendingRequest;
+
+      products.value = data.data || [];
+
+      if (data.meta) {
+        pagination.value = {
+          current_page: data.meta.current_page,
+          last_page: data.meta.last_page,
+          per_page: data.meta.per_page,
+          total: data.meta.total,
+        };
+      }
+
+      console.log("[fetchProducts] Success:", {
+        products: products.value.length,
+        total: pagination.value.total,
+      });
+
+      return data;
+    } catch (error) {
+      console.error("[fetchProducts] Error:", error);
+      lastRequestParams = null; // Reset on error
+      throw error;
+    } finally {
+      loading.value = false;
+      pendingRequest = null;
+    }
+  };
+
+  /**
+   * Delete product
+   */
+  const deleteProduct = async (productId) => {
+    loading.value = true;
+    try {
+      await api.delete(`/products/${productId}`);
+      // Refresh products after delete
+      products.value = products.value.filter((p) => p.id !== productId);
+      pagination.value.total -= 1;
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      throw error;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  /**
+   * Update product status (single)
+   */
+  const updateProductStatus = async (productId, status) => {
+    loading.value = true;
+    try {
+      const { data } = await api.patch(`/products/${productId}/status`, {
+        status,
+      });
+
+      // Update local product status
+      const index = products.value.findIndex((p) => p.id === productId);
+      if (index !== -1) {
+        products.value[index].status = status;
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Error updating product status:", error);
+      throw error;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  /**
+   * Bulk delete products
+   */
+  const bulkDeleteProducts = async (productIds) => {
+    loading.value = true;
+    try {
+      await api.post("/products/bulk-delete", {
+        product_ids: productIds,
+      });
+
+      // Remove deleted products from local state
+      products.value = products.value.filter((p) => !productIds.includes(p.id));
+      pagination.value.total -= productIds.length;
+    } catch (error) {
+      console.error("Error bulk deleting products:", error);
+      throw error;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  /**
+   * Bulk update status
+   */
+  const bulkUpdateStatus = async (productIds, status) => {
+    loading.value = true;
+    try {
+      await api.post("/products/bulk-update-status", {
+        product_ids: productIds,
+        status,
+      });
+
+      // Update local product statuses
+      products.value.forEach((product) => {
+        if (productIds.includes(product.id)) {
+          product.status = status;
+        }
+      });
+    } catch (error) {
+      console.error("Error bulk updating status:", error);
+      throw error;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  return {
+    products,
+    loading,
+    pagination,
+    fetchProducts,
+    fetchProductDetail,
+    updateProductStatus,
+    deleteProduct,
+    bulkDeleteProducts,
+    bulkUpdateStatus,
+  };
+}

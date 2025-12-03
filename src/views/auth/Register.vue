@@ -6,7 +6,7 @@
       class="sm:hidden flex flex-col flex-1/3 justify-end sm:px-0 px-4 py-2 sm:pt-0 pt-8"
     >
       <h2
-        class="sm:hidden inline text-2xl sm:text-3xl font-bold text-center sm:text-left mb-2 text-muted"
+        class="sm:hidden inline text-2xl sm:text-3xl font-bold text-center sm:text-left mb-2 text-white"
       >
         Daftar
       </h2>
@@ -228,7 +228,7 @@
 
             <!-- Indicators -->
             <div
-              class="text-xs p-4 rounded-xl bg-muted sm:col-span-2 col-span-1 flex flex-col gap-1"
+              class="text-xs p-4 rounded-xl bg-muted-background sm:col-span-2 col-span-1 flex flex-col gap-1"
               aria-live="polite"
             >
               <div
