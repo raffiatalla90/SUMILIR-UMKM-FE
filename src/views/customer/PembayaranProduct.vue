@@ -1,12 +1,7 @@
 <template>
   <div class="min-h-screen bg-gray-50 pb-28 max-w-7xl mx-auto">
-    <!-- AppBar -->
-    <header
-      class="sm:hidden sticky top-0 z-10 bg-[#FFA30E] text-white px-4 py-6 flex items-center gap-8"
-    >
-      <button @click="goBack" class="text-xl">←</button>
-      <h1 class="font-semibold">Checkout Pesanan</h1>
-    </header>
+    <!-- Mobile Header -->
+    <MobileHeader title="Checkout Pesanan" variant="primary" @back="goBack" />
 
     <main class="px-4 space-y-4 mt-4">
       <!-- Detail Pesanan -->
@@ -14,8 +9,11 @@
         <h2 class="font-semibold text-gray-800 mb-3">Detail Pesanan</h2>
 
         <div class="space-y-3">
-          <!-- Product Item -->
-          <div class="flex items-center gap-3 pb-3 border-b border-gray-100">
+          <!-- Single Product Item -->
+          <div
+            v-if="!isFromCart"
+            class="flex items-center gap-3 pb-3 border-b border-gray-100"
+          >
             <div
               class="w-20 h-20 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0"
             >
@@ -34,17 +32,56 @@
               </div>
               <div class="flex items-center justify-between mt-2">
                 <span class="text-sm font-semibold text-gray-900">
-                  Rp {{ formatIDR(order.price) }}
+                  Rp {{ formatIDR(order.price / order.quantity) }}
                 </span>
-                <span class="text-sm text-gray-600">
-                  x{{ order.quantity }}
-                </span>
+                <span class="text-sm text-gray-600">x{{ order.quantity }}</span>
               </div>
             </div>
           </div>
 
-          <!-- Addons jika ada -->
-          <div v-if="order.addons && order.addons.length > 0" class="space-y-2">
+          <!-- Multiple Cart Items -->
+          <div v-else class="space-y-3 divide-y divide-gray-100">
+            <div
+              v-for="(item, idx) in cartItems"
+              :key="idx"
+              class="flex items-center gap-3 pt-3 first:pt-0"
+            >
+              <div
+                class="w-16 h-16 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0"
+              >
+                <img
+                  :src="item.image || 'https://via.placeholder.com/80'"
+                  class="w-full h-full object-cover"
+                />
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-semibold text-gray-800 mb-1">
+                  {{ item.name }}
+                </div>
+                <div class="text-xs text-gray-600 space-y-0.5">
+                  <div v-if="item.size">Ukuran: {{ item.size }}</div>
+                  <div v-if="item.variant">Varian: {{ item.variant }}</div>
+                  <div v-if="item.addons && item.addons.length > 0">
+                    Tambahan: {{ item.addons.join(", ") }}
+                  </div>
+                </div>
+                <div class="flex items-center justify-between mt-1">
+                  <span class="text-sm font-semibold text-gray-900">
+                    Rp {{ formatIDR(item.unitPrice) }}
+                  </span>
+                  <span class="text-sm text-gray-600"
+                    >x{{ item.quantity }}</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Addons jika ada (untuk single product) -->
+          <div
+            v-if="!isFromCart && order.addons && order.addons.length > 0"
+            class="space-y-2"
+          >
             <div class="text-xs font-semibold text-gray-700">Tambahan:</div>
             <div
               v-for="(addon, idx) in order.addons"
@@ -57,17 +94,17 @@
           </div>
 
           <!-- Catatan Produk -->
-          <div>
-            <label class="text-xs font-semibold text-gray-700 mb-1 block">
-              Catatan untuk produk ini (opsional)
-            </label>
-            <textarea
-              v-model="form.catatanProduk"
-              rows="2"
-              placeholder="Contoh: jangan terlalu pedas"
-              class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFA30E]"
-            ></textarea>
-          </div>
+          <TextField
+            name="catatanProduk"
+            label="Catatan untuk pesanan ini (opsional)"
+            textarea
+            :rows="3"
+            placeholder="Contoh: jangan terlalu pedas"
+            v-model="form.catatanProduk"
+            :labelBold="false"
+            variant="muted"
+            customClass="text-sm"
+          />
         </div>
       </section>
 
@@ -111,7 +148,7 @@
           </button>
         </div>
 
-        <div v-if="selectedAddress" class="space-y-2">
+        <div v-if="selectedAddress" class="space-y-3">
           <div class="flex items-start gap-2 text-sm">
             <span class="text-lg mt-0.5">📍</span>
             <div class="flex-1">
@@ -126,12 +163,6 @@
               </p>
             </div>
           </div>
-          <input
-            v-model="form.catatanAlamat"
-            type="text"
-            placeholder="Catatan alamat (mis: rumah cat hijau)"
-            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFA30E]"
-          />
         </div>
 
         <div v-else class="text-sm text-gray-500 text-center py-4">
@@ -300,7 +331,7 @@
 
     <!-- Bottom bar (Total + Pesan button) -->
     <footer
-      class="fixed left-0 right-0 bottom-16 z-20 bg-white border-t border-gray-200 shadow-lg"
+      class="fixed left-0 right-0 bottom-16 sm:bottom-0 z-20 bg-white border-t border-gray-200 shadow-lg"
     >
       <div class="px-4 py-3 space-y-2 max-w-7xl mx-auto">
         <div
@@ -447,9 +478,16 @@
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
+import TextField from "@/components/forms/TextField.vue";
+import MobileHeader from "@/components/customer/MobileHeader.vue";
 
 const route = useRoute();
 const router = useRouter();
+
+// ===== Detect if from cart or direct purchase =====
+const isFromCart = route.query.type === "cart";
+const cartItems =
+  isFromCart && route.query.items ? JSON.parse(route.query.items) : [];
 
 // ===== Data dari query =====
 const order = {
@@ -462,9 +500,12 @@ const order = {
   addons: route.query.addons ? JSON.parse(route.query.addons) : [],
   quantity: Number(route.query.quantity || 1),
   store: {
-    name: "Sumber Rejeki",
-    address: "Jl. Cendrawasih No 5 Rt 1 Rw 1, Banyumanik, Semarang",
-    phone: "6285764134767", // Nomor WA merchant
+    id: route.query.storeId || null,
+    name: route.query.storeName || "Sumber Rejeki",
+    address:
+      route.query.storeAddress ||
+      "Jl. Cendrawasih No 5 Rt 1 Rw 1, Banyumanik, Semarang",
+    phone: route.query.storePhone || "6285764134767",
   },
 };
 
@@ -615,7 +656,6 @@ function clearPromo() {
 
 // ===== Validasi Form =====
 const isFormValid = computed(() => {
-  if (!form.value.nama || !form.value.tel) return false;
   if (form.value.metodePengiriman === "delivery" && !selectedAddress.value)
     return false;
   return true;
@@ -628,15 +668,40 @@ const openWhatsapp = () => {
     return;
   }
 
-  const productDetails = [
-    `Produk: ${order.title}`,
-    order.size ? `Ukuran: ${order.size}` : "",
-    order.variant ? `Varian: ${order.variant}` : "",
-    order.addons.length > 0 ? `Tambahan: ${order.addons.join(", ")}` : "",
-    `Jumlah: ${order.quantity}x`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  let productDetails = "";
+
+  if (isFromCart && cartItems.length > 0) {
+    // Multiple items dari cart
+    productDetails = cartItems
+      .map((item, idx) => {
+        const details = [
+          `*Produk ${idx + 1}:* ${item.name}`,
+          item.size ? `- Ukuran: ${item.size}` : "",
+          item.variant ? `- Varian: ${item.variant}` : "",
+          item.addons && item.addons.length > 0
+            ? `- Tambahan: ${item.addons.join(", ")}`
+            : "",
+          `- Harga: Rp ${formatIDR(item.unitPrice)}`,
+          `- Jumlah: ${item.quantity}x`,
+          `- Subtotal: Rp ${formatIDR(item.unitPrice * item.quantity)}`,
+        ]
+          .filter(Boolean)
+          .join("\n");
+        return details;
+      })
+      .join("\n\n");
+  } else {
+    // Single product
+    productDetails = [
+      `Produk: ${order.title}`,
+      order.size ? `Ukuran: ${order.size}` : "",
+      order.variant ? `Varian: ${order.variant}` : "",
+      order.addons.length > 0 ? `Tambahan: ${order.addons.join(", ")}` : "",
+      `Jumlah: ${order.quantity}x`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
 
   const deliveryInfo =
     form.value.metodePengiriman === "delivery"
@@ -666,7 +731,7 @@ const openWhatsapp = () => {
     "",
     "*DETAIL PESANAN*",
     productDetails,
-    form.value.catatanProduk ? `Catatan: ${form.value.catatanProduk}` : "",
+    form.value.catatanProduk ? `\nCatatan: ${form.value.catatanProduk}` : "",
     deliveryInfo,
     "",
     "*PEMBAYARAN*",

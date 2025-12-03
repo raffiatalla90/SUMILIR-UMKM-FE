@@ -370,19 +370,123 @@
       <div class="bg-white sm:rounded-2xl sm:shadow-lg overflow-hidden">
         <!-- Layout Desktop: Grid 2 kolom -->
         <div class="sm:grid sm:grid-cols-2 sm:gap-8 sm:p-8">
-          <!-- Kolom Kiri: Gambar -->
+          <!-- Kolom Kiri: Image Gallery -->
           <div class="sm:sticky sm:top-8 sm:self-start">
-            <!-- Gambar Produk -->
+            <!-- Main Image Display with Swipe Support -->
             <div
-              class="w-full aspect-square bg-gray-100 flex items-center justify-center sm:rounded-2xl overflow-hidden"
+              class="w-full aspect-square flex items-center justify-center sm:rounded-2xl overflow-hidden mb-4 relative group"
+              @touchstart="handleTouchStart"
+              @touchmove="handleTouchMove"
+              @touchend="handleTouchEnd"
             >
               <img
-                v-if="product?.image"
-                :src="product.image"
-                :alt="product.name"
-                class="w-full h-full object-contain p-4 sm:p-8 rounded-2xl"
+                v-if="selectedImage"
+                :src="selectedImage"
+                :alt="product?.name"
+                class="w-full h-full object-contain sm:rounded-2xl transition-transform duration-300 group-hover:scale-105 select-none"
+                draggable="false"
               />
               <div v-else class="text-gray-400">No Image</div>
+
+              <!-- ✅ UPDATED: Navigation Arrows - DESKTOP ONLY (hidden on mobile) -->
+              <button
+                v-if="productImages.length > 1"
+                @click.stop="prevImage"
+                class="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg items-center justify-center hover:bg-white transition-all active:scale-95 opacity-0 group-hover:opacity-100"
+              >
+                <svg
+                  class="w-6 h-6 text-gray-800"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+              </button>
+              <button
+                v-if="productImages.length > 1"
+                @click.stop="nextImage"
+                class="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg items-center justify-center hover:bg-white transition-all active:scale-95 opacity-0 group-hover:opacity-100"
+              >
+                <svg
+                  class="w-6 h-6 text-gray-800"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+
+              <!-- ✅ Image Counter - DESKTOP ONLY (simple version without swipe hint) -->
+              <div
+                v-if="productImages.length > 1"
+                class="hidden sm:block absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-sm text-white text-sm font-medium"
+              >
+                {{ currentImageIndex + 1 }} / {{ productImages.length }}
+              </div>
+            </div>
+            <!-- Dot indicators (alternative) - MOBILE ONLY -->
+            <div
+              v-if="productImages.length > 1 && productImages.length <= 5"
+              class="flex justify-center gap-1.5 my-3"
+            >
+              <button
+                v-for="(_, index) in productImages"
+                :key="index"
+                @click="selectImage(index)"
+                class="transition-all rounded-full"
+                :class="
+                  currentImageIndex === index
+                    ? 'w-6 h-2 bg-primary'
+                    : 'w-2 h-2 bg-gray-300 hover:bg-gray-400'
+                "
+              ></button>
+            </div>
+            <!-- Thumbnail Gallery -->
+            <div
+              v-if="productImages.length > 1"
+              class="flex gap-2 overflow-x-auto no-scrollbar px-4 sm:px-2 py-2"
+            >
+              <button
+                v-for="(image, index) in productImages"
+                :key="index"
+                @click="selectImage(index)"
+                class="flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border-2 transition-all relative group/thumb"
+                :class="
+                  currentImageIndex === index
+                    ? 'border-primary ring-2 ring-primary/20 scale-105'
+                    : 'border-gray-200 hover:border-gray-300 hover:scale-105'
+                "
+              >
+                <img
+                  :src="image"
+                  :alt="`${product?.name} - ${index + 1}`"
+                  class="w-full h-full object-cover"
+                />
+
+                <!-- Active indicator overlay -->
+                <div
+                  v-if="currentImageIndex === index"
+                  class="absolute inset-0 bg-primary/10 flex items-center justify-center backdrop-blur-xs rounded-lg backdrop-opacity-80"
+                ></div>
+
+                <!-- Hover effect for non-active thumbnails -->
+                <div
+                  v-else
+                  class="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/10 transition-colors"
+                ></div>
+              </button>
             </div>
           </div>
 
@@ -804,28 +908,6 @@
               <span class="hidden lg:inline">Keranjang</span>
             </button>
 
-            <!-- Share Button Desktop -->
-            <button
-              @click="shareProduct"
-              class="px-4 py-3 rounded-xl border-2 border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition flex items-center gap-2"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="2"
-                stroke="currentColor"
-                class="w-5 h-5"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z"
-                />
-              </svg>
-              <span class="hidden lg:inline">Share</span>
-            </button>
-
             <!-- Tombol Beli Sekarang -->
             <button
               @click="buyNow"
@@ -1106,6 +1188,148 @@
         </button>
       </template>
     </ResponsiveModal>
+
+    <!-- Image Modal (Full Screen) -->
+    <ResponsiveModal
+      :show="showImageModal"
+      @close="showImageModal = false"
+      :show-header="false"
+      :show-footer="false"
+      max-width="max-w-6xl"
+    >
+      <div
+        class="relative"
+        @touchstart="handleTouchStart"
+        @touchmove="handleTouchMove"
+        @touchend="handleTouchEnd"
+      >
+        <!-- Close Button -->
+        <button
+          @click="showImageModal = false"
+          class="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center hover:bg-white transition"
+        >
+          <svg
+            class="w-6 h-6 text-gray-800"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+
+        <!-- Large Image -->
+        <div
+          class="w-full aspect-square bg-gray-100 flex items-center justify-center"
+        >
+          <img
+            :src="selectedImage"
+            :alt="product?.name"
+            class="w-full h-full object-contain select-none"
+            draggable="false"
+          />
+        </div>
+
+        <!-- ✅ Navigation - ALWAYS VISIBLE IN MODAL (both mobile & desktop) -->
+        <button
+          v-if="productImages.length > 1"
+          @click="prevImage"
+          class="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center hover:bg-white transition active:scale-95"
+        >
+          <svg
+            class="w-6 h-6 text-gray-800"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+        </button>
+        <button
+          v-if="productImages.length > 1"
+          @click="nextImage"
+          class="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center hover:bg-white transition active:scale-95"
+        >
+          <svg
+            class="w-6 h-6 text-gray-800"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
+        </button>
+
+        <!-- Image Counter -->
+        <div
+          class="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-black/60 backdrop-blur-sm text-white text-sm font-medium"
+        >
+          {{ currentImageIndex + 1 }} / {{ productImages.length }}
+        </div>
+
+        <!-- Clickable Dot Indicators -->
+        <div
+          v-if="productImages.length > 1"
+          class="absolute bottom-16 left-1/2 -translate-x-1/2 flex gap-2 px-4"
+        >
+          <button
+            v-for="(image, index) in productImages"
+            :key="index"
+            @click="selectImage(index)"
+            class="transition-all rounded-full focus:outline-none focus:ring-2 focus:ring-white/50"
+            :class="
+              currentImageIndex === index
+                ? 'bg-white w-8 h-2'
+                : 'bg-white/50 hover:bg-white/75 w-2 h-2'
+            "
+            :title="`Gambar ${index + 1}`"
+          ></button>
+        </div>
+
+        <!-- Thumbnail strip at bottom (for many images) -->
+        <div
+          v-if="productImages.length > 5"
+          class="absolute bottom-4 left-1/2 -translate-x-1/2 w-full max-w-md px-4"
+        >
+          <div
+            class="flex gap-2 overflow-x-auto no-scrollbar bg-black/40 backdrop-blur-sm rounded-lg p-2"
+          >
+            <button
+              v-for="(image, index) in productImages"
+              :key="index"
+              @click="selectImage(index)"
+              class="flex-shrink-0 w-12 h-12 rounded overflow-hidden border-2 transition-all"
+              :class="
+                currentImageIndex === index
+                  ? 'border-white scale-110'
+                  : 'border-transparent hover:border-white/50'
+              "
+            >
+              <img
+                :src="image"
+                :alt="`Thumbnail ${index + 1}`"
+                class="w-full h-full object-cover"
+              />
+            </button>
+          </div>
+        </div>
+      </div>
+    </ResponsiveModal>
   </div>
 </template>
 
@@ -1114,6 +1338,7 @@ import { ref, onMounted, computed, watch, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import api from "@/libs/axios.js";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
+import { useBodyScrollLock } from "@/composables/useBodyScrollLock.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -1123,6 +1348,14 @@ const product = ref(null);
 const quantity = ref(1);
 const showAddonModal = ref(false);
 const showShareModal = ref(false);
+const showImageModal = ref(false); // ✅ NEW
+
+// ✅ NEW: Image Gallery State
+const productImages = ref([]);
+const currentImageIndex = ref(0);
+const selectedImage = computed(
+  () => productImages.value[currentImageIndex.value]
+);
 
 // Scroll state
 const showScrollHeader = ref(false);
@@ -1130,6 +1363,14 @@ const lastScrollY = ref(0);
 
 // Simulasi jumlah item di keranjang (nanti bisa pakai Pinia store)
 const cartItemsCount = ref(3);
+
+// ✅ ADDED: Track if any modal is open
+const isAnyModalOpen = computed(
+  () => showAddonModal.value || showShareModal.value || showImageModal.value
+);
+
+// ✅ ADDED: Use body scroll lock for modals
+useBodyScrollLock(isAnyModalOpen);
 
 // Ukuran dengan harga tambahan - TANPA stock di sini
 const sizes = ref([
@@ -1540,33 +1781,40 @@ const addToCart = () => {
   if (!validateSelection()) return;
 
   const cartItem = {
+    productSlug: getProductSlug(),
     productId: product.value?.id,
     name: product.value?.name,
     image: product.value?.image,
+    basePrice: getBasePrice(),
     size: selectedSize.value,
     variant: selectedVariant.value,
     addons: selectedAddons.value,
     quantity: quantity.value,
+    unitPrice: calculateTotalPrice() / quantity.value,
     totalPrice: calculateTotalPrice(),
   };
 
+  // TODO: Implement cart store dengan Pinia
   console.log("Add to cart:", cartItem);
-  alert("Produk berhasil ditambahkan ke keranjang!");
+
+  // Simulasi success
+  alert(`${product.value?.name} berhasil ditambahkan ke keranjang!`);
+
+  // Update cart count (nanti pakai Pinia store)
+  cartItemsCount.value++;
 };
 
-// ✅ CHANGED: Get slug from route params instead of id
 const getProductSlug = () => {
   return route.params.slug;
 };
 
-// ✅ CHANGED: Update buyNow to use slug
 const buyNow = () => {
   if (!validateSelection()) return;
 
   router.push({
     name: "Pembayaran Produk",
     query: {
-      slug: getProductSlug(), // ✅ Changed from id to slug
+      slug: getProductSlug(),
       type: "product",
       title: product.value?.name || "Nama Produk",
       price: calculateTotalPrice(),
@@ -1578,9 +1826,8 @@ const buyNow = () => {
   });
 };
 
-// ✅ CHANGED: Update viewProduct to use slug
 const viewProduct = (slug) => {
-  router.push({ name: "Product Detail", params: { slug } }); // ✅ Changed from id to slug
+  router.push({ name: "Product Detail", params: { slug } });
 };
 
 // Handle scroll event
@@ -1647,10 +1894,72 @@ const copyLink = async () => {
   }
 };
 
+// ✅ NEW: Touch/Swipe handling
+const touchStartX = ref(0);
+const touchEndX = ref(0);
+const isDragging = ref(false);
+
+// ✅ NEW: Image Gallery Functions
+const selectImage = (index) => {
+  currentImageIndex.value = index;
+};
+
+const nextImage = () => {
+  if (currentImageIndex.value < productImages.value.length - 1) {
+    currentImageIndex.value++;
+  } else {
+    currentImageIndex.value = 0; // Loop back to first
+  }
+};
+
+const prevImage = () => {
+  if (currentImageIndex.value > 0) {
+    currentImageIndex.value--;
+  } else {
+    currentImageIndex.value = productImages.value.length - 1; // Loop to last
+  }
+};
+
+const openImageModal = () => {
+  showImageModal.value = true;
+};
+
+// ✅ NEW: Touch/Swipe handlers
+const handleTouchStart = (e) => {
+  touchStartX.value = e.touches[0].clientX;
+  isDragging.value = false;
+};
+
+const handleTouchMove = (e) => {
+  if (Math.abs(e.touches[0].clientX - touchStartX.value) > 10) {
+    isDragging.value = true;
+  }
+};
+
+const handleTouchEnd = (e) => {
+  if (!isDragging.value) return;
+
+  touchEndX.value = e.changedTouches[0].clientX;
+  handleSwipe();
+};
+
+const handleSwipe = () => {
+  const swipeThreshold = 50; // Minimum swipe distance
+  const diff = touchStartX.value - touchEndX.value;
+
+  if (Math.abs(diff) > swipeThreshold) {
+    if (diff > 0) {
+      // Swipe left - next image
+      nextImage();
+    } else {
+      // Swipe right - previous image
+      prevImage();
+    }
+  }
+};
+
 onMounted(async () => {
   loading.value = true;
-
-  // Add scroll listener
   window.addEventListener("scroll", handleScroll);
 
   addonGroups.value.forEach((group) => {
@@ -1665,10 +1974,24 @@ onMounted(async () => {
   tempSelectedAddons.value = [...selectedAddons.value];
 
   try {
-    // ✅ CHANGED: Use slug instead of id
     const productSlug = getProductSlug();
     const { data } = await api.get(`/public/products/${productSlug}`);
     product.value = data;
+
+    // ✅ NEW: Initialize images array
+    if (data.images && data.images.length > 0) {
+      productImages.value = data.images.map((img) => img.url || img.path);
+    } else if (data.image) {
+      // Fallback to single image
+      productImages.value = [data.image];
+    } else {
+      // Default placeholder
+      productImages.value = [
+        "https://picsum.photos/seed/mainproduct/600/600",
+        "https://picsum.photos/seed/product2/600/600",
+        "https://picsum.photos/seed/product3/600/600",
+      ];
+    }
 
     if (data.sizes && data.sizes.length > 0) {
       sizes.value = data.sizes;
@@ -1692,18 +2015,25 @@ onMounted(async () => {
       addonGroups.value = data.addonGroups;
     }
   } catch (e) {
+    // ✅ NEW: Fallback with multiple images
     product.value = {
       id: 1,
       name: "Nama Produk",
       price: 15000,
-      image: "https://picsum.photos/seed/mainproduct/600/600",
-      description:
-        "Minuman susu fermentasi dengan rasa lembut, segar, dan sedikit asam yang menyehatkan. Diproses dari susu murni pilihan dengan kultur bakteri baik Lactobacillus yang membantu menjaga kesehatan pencernaan",
+      description: "Deskripsi produk...",
       store: {
         name: "Sumber Rejeki",
         logo: "https://picsum.photos/seed/store/100/100",
       },
     };
+
+    productImages.value = [
+      "https://picsum.photos/seed/mainproduct/600/600",
+      "https://picsum.photos/seed/product2/600/600",
+      "https://picsum.photos/seed/product3/600/600",
+      "https://picsum.photos/seed/product4/600/600",
+    ];
+
     console.warn("API produk belum tersedia, menggunakan data fallback.");
   } finally {
     loading.value = false;
@@ -1725,13 +2055,27 @@ onUnmounted(() => {
   display: none;
 }
 
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+/* Smooth transitions for image changes */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
-input[type="number"] {
-  -moz-appearance: textfield;
+.group img {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Prevent text selection during swipe */
+.select-none {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 </style>

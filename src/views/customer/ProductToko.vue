@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { Form } from "vee-validate";
 import TextField from "@/components/forms/TextField.vue";
 import CategoryCard from "@/components/Card/CategoryCard.vue";
@@ -9,7 +9,6 @@ import PromoCard from "@/components/Card/PromoCard.vue";
 import PromoCardSkeleton from "@/components/Card/PromoCardSkeleton.vue";
 import EventCard from "@/components/Card/EventCard.vue";
 import EventCardSkeleton from "@/components/Card/EventCardSkeleton.vue";
-import MerchantCard from "@/components/Card/MerchantCard.vue"; // ✅ NEW
 import jasaIcon from "@/assets/icons/Jasa.svg";
 import kulinerIcon from "@/assets/icons/Kuliner.svg";
 import tokoIcon from "@/assets/icons/Toko.svg";
@@ -18,7 +17,7 @@ import Button from "@/components/common/Button.vue";
 import api from "@/libs/axios.js";
 
 const searchQuery = ref("");
-const isLoadingMerchants = ref(true);
+const isLoadingJasa = ref(true);
 const isLoadingPromo = ref(true);
 const isLoadingEvent = ref(true);
 
@@ -45,39 +44,32 @@ const categories = ref([
   },
 ]);
 
-const merchantList = ref([]);
+const jasaList = ref([]);
 const promoList = ref([]);
 const eventList = ref([]);
 
 const onSearch = () => {
   const q = (searchQuery.value || "").trim();
-  // router.push({ name: "Search", query: q ? { q } : {} });
+  // router.push({ name: "JasaTeknisi", query: q ? { q } : {} });
 };
 
 onMounted(async () => {
-  // ✅ Fetch random merchants
+  // Fetch jasa
   try {
-    isLoadingMerchants.value = true;
-    const merchantRes = await api.get("/public/merchants/random", {
-      params: { limit: 8 },
-    });
-    merchantList.value = merchantRes.data.data || [];
+    isLoadingJasa.value = true;
+    const jasaRes = await api.get("/jasa");
+    jasaList.value = Array.isArray(jasaRes.data) ? jasaRes.data : [];
   } catch (e) {
-    console.error("Gagal memuat data merchant:", e);
+    console.error("Gagal memuat data jasa:", e);
   } finally {
-    isLoadingMerchants.value = false;
+    isLoadingJasa.value = false;
   }
 
-  // Fetch promo (ganti dengan API call sebenarnya)
-  try {
-    isLoadingPromo.value = true;
-    const promoRes = await api.get("/promos");
-    promoList.value = Array.isArray(promoRes.data) ? promoRes.data : [];
-  } catch (e) {
-    console.error("Gagal memuat data promo:", e);
-  } finally {
+  // Simulasi loading promo (ganti dengan API call sebenarnya)
+  setTimeout(() => {
+    promoList.value = Array(5).fill({ id: 1 });
     isLoadingPromo.value = false;
-  }
+  }, 1000);
 
   // Simulasi loading event (ganti dengan API call sebenarnya)
   setTimeout(() => {
@@ -163,7 +155,7 @@ onMounted(async () => {
           <template v-else>
             <div
               v-for="(promo, i) in promoList"
-              :key="promo.id || i"
+              :key="i"
               class="snap-start shrink-0"
             >
               <PromoCard :promo="promo" />
@@ -173,43 +165,39 @@ onMounted(async () => {
       </div>
     </section>
 
-    <!-- ✅ Section Rekomendasi UMKM -->
+    <!-- Section Rekomendasi UMKM -->
     <section id="umkm-recommendation" class="relative pt-6 sm:pt-24">
       <div class="pl-4 sm:pl-[54px]">
         <div class="inline-flex items-center gap-2.5 w-auto h-[35px] py-[5px]">
           <span class="text-base sm:text-section-title font-semibold"
-            >Rekomendasi UMKM</span
+            >Rekomendasi Produk dan Jasa</span
           >
         </div>
       </div>
 
       <div class="px-4 sm:px-[52px] mt-6 sm:mt-10">
-        <div
-          class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6"
-        >
+        <div class="flex flex-wrap gap-3 sm:gap-6">
           <!-- Skeleton loading -->
-          <template v-if="isLoadingMerchants">
+          <template v-if="isLoadingJasa">
             <ProductCardSkeleton v-for="i in 8" :key="i" />
           </template>
-          <!-- Actual merchants -->
+          <!-- Actual content -->
           <template v-else>
-            <MerchantCard
-              v-for="merchant in merchantList"
-              :key="merchant.id"
-              :merchant="merchant"
+            <ProductCard
+              v-for="product in jasaList"
+              :key="product.id"
+              :product="product"
             />
           </template>
         </div>
 
         <!-- Tampilkan semua -->
-        <!-- <div class="mt-4 sm:mt-6 flex justify-center">
-          <router-link
-            :to="{ name: 'MerchantList' }"
-            class="text-sm sm:text-base text-gray-600 hover:text-primary transition-colors"
+        <div class="mt-4 sm:mt-6 flex justify-center">
+          <span
+            class="text-sm sm:text-base text-gray-600 cursor-pointer hover:text-primary transition-colors"
+            >Tampilkan semua</span
           >
-            Tampilkan semua
-          </router-link>
-        </div> -->
+        </div>
       </div>
     </section>
 

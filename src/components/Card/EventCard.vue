@@ -1,6 +1,6 @@
 <template>
   <div
-    class="relative bg-white border border-gray-200 rounded-[10px] overflow-hidden box-border w-full aspect-[437/257] max-w-xs sm:w-[437px] sm:h-[257px] sm:aspect-auto transition duration-300 motion-safe:hover:-translate-y-1 motion-safe:hover:shadow-[0_10px_25px_rgba(0,0,0,0.06)]"
+    class="relative sm:max-w-none max-w-xs bg-white border border-gray-200 rounded-[10px] overflow-hidden box-border w-full aspect-[437/257] sm:w-[437px] sm:h-[257px] sm:aspect-auto transition duration-300 motion-safe:hover:-translate-y-1 motion-safe:hover:shadow-[0_10px_25px_rgba(0,0,0,0.06)]"
   >
     <div class="overflow-hidden w-full h-[60%] sm:h-[159px]">
       <img

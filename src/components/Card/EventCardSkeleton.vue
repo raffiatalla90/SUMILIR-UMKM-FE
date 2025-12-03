@@ -1,6 +1,6 @@
 <template>
   <div
-    class="relative bg-white border border-gray-200 rounded-[10px] overflow-hidden box-border w-[318px] h-[188px] sm:w-[437px] sm:h-[257px]"
+    class="relative sm:max-w-none max-w-xs bg-white border border-gray-200 rounded-[10px] overflow-hidden box-border w-[318px] h-[188px] sm:w-[437px] sm:h-[257px]"
   >
     <!-- Skeleton gambar -->
     <div class="w-full h-[100px] sm:h-[159px] bg-gray-200 animate-pulse"></div>
