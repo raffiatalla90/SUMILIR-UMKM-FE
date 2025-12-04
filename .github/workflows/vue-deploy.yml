@@ -3,6 +3,7 @@ name: Vue (Vite) CI/CD -> FTPS
 on:
   push:
     branches: [staging]
+  workflow_dispatch:
 
 jobs:
   deploy-frontend:
@@ -55,7 +56,13 @@ jobs:
           VITE_FEATURE_ECHO: ${{ vars.VITE_FEATURE_ECHO || 'true' }}
         run: npm run build
 
-      - name: Deploy dist (FTPS)
+      - name: List build output
+        run: |
+          echo "Build completed!"
+          ls -la dist/
+          du -sh dist/
+
+      - name: Deploy to FTPS
         uses: SamKirkland/FTP-Deploy-Action@4.3.0
         with:
           server: ${{ secrets.FTP_SERVER }}
@@ -66,3 +73,19 @@ jobs:
           passive: true
           local-dir: dist/
           server-dir: ${{ secrets.FTP_PATH_FRONTEND }}/
+          dangerous-clean-slate: false
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/.DS_Store
+
+      - name: Deployment summary
+        run: |
+          echo "### ✅ Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Server:** ${{ secrets.FTP_SERVER }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployed to:** ${{ secrets.FTP_PATH_FRONTEND }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date -u)" >> $GITHUB_STEP_SUMMARY
