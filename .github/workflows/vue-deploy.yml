@@ -22,8 +22,37 @@ jobs:
 
       - name: Build production
         env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
-          VITE_BASE_URL: ${{ secrets.VITE_BASE_URL }}
+          VITE_APP_NAME: ${{ vars.VITE_APP_NAME || 'SUMILIR' }}
+          VITE_APP_URL: ${{ vars.VITE_APP_URL || 'http://localhost:5173' }}
+          VITE_PUBLIC_BASE_PATH: ${{ vars.VITE_PUBLIC_BASE_PATH || '/' }}
+
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || 'http://localhost:8000/api' }}
+          VITE_BASE_URL: ${{ secrets.VITE_BASE_URL || 'http://localhost:8000' }}
+          VITE_API_PREFIX: ${{ secrets.VITE_API_PREFIX || '/api' }}
+          VITE_SANCTUM_ENDPOINT: ${{ secrets.VITE_SANCTUM_ENDPOINT || '/sanctum/csrf-cookie' }}
+          VITE_WITH_CREDENTIALS: "true"
+          VITE_HTTP_TIMEOUT_MS: "20000"
+
+          VITE_ECHO_DRIVER: ${{ vars.VITE_ECHO_DRIVER || 'pusher' }}
+          VITE_ECHO_AUTH_ENDPOINT: ${{ secrets.VITE_ECHO_AUTH_ENDPOINT || '/broadcasting/auth' }}
+          VITE_ECHO_WITH_CREDENTIALS: "true"
+          VITE_ECHO_NAMESPACE: "App.Events"
+
+          VITE_PUSHER_APP_KEY: ${{ secrets.VITE_PUSHER_APP_KEY || 'local' }}
+          VITE_PUSHER_CLUSTER: ${{ vars.VITE_PUSHER_CLUSTER || 'mt1' }}
+          VITE_PUSHER_HOST: ${{ vars.VITE_PUSHER_HOST || 'localhost' }}
+          VITE_PUSHER_PORT: ${{ vars.VITE_PUSHER_PORT || '6001' }}
+          VITE_PUSHER_WSS_PORT: "443"
+          VITE_PUSHER_SCHEME: "http"
+          VITE_PUSHER_FORCE_TLS: "false"
+          VITE_PUSHER_DISABLE_STATS: "true"
+          VITE_PUSHER_WS_ENABLED: "true"
+
+          VITE_MAP_TILE_URL: ${{ vars.VITE_MAP_TILE_URL || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png' }}
+          VITE_MAP_ATTRIBUTION: ${{ vars.VITE_MAP_ATTRIBUTION || '&copy; OpenStreetMap contributors' }}
+          VITE_MAP_MAX_ZOOM: "19"
+
+          VITE_FEATURE_ECHO: ${{ vars.VITE_FEATURE_ECHO || 'true' }}
         run: npm run build
 
       - name: Deploy dist (FTPS)
