@@ -9,8 +9,8 @@ export default defineConfig(({ mode }) => {
   const apiBase = env.VITE_API_BASE_URL || "/api";
 
   return {
-    // ✅ Set base path untuk subfolder /build/
-    base: mode === "production" ? "/build/" : "/",
+    // ✅ Vue di root, tidak perlu /build/
+    base: "/",
 
     plugins: [
       vue(),
@@ -25,14 +25,25 @@ export default defineConfig(({ mode }) => {
           theme_color: "#ff9800",
           background_color: "#ffffff",
           display: "standalone",
-          start_url: "/build/",
-          scope: "/build/",
-          icons: [],
+          start_url: "/", // ✅ Root
+          scope: "/", // ✅ Root
+          icons: [
+            {
+              src: "/icon-192.png",
+              sizes: "192x192",
+              type: "image/png",
+            },
+            {
+              src: "/icon-512.png",
+              sizes: "512x512",
+              type: "image/png",
+            },
+          ],
         },
         workbox: {
           cleanupOutdatedCaches: true,
-          navigateFallback: "/build/index.html",
-          navigateFallbackDenylist: [/^\/api\//],
+          navigateFallback: "/index.html", // ✅ Root
+          navigateFallbackDenylist: [/^\/api\//], // ✅ Exclude /api/
           runtimeCaching: [
             {
               urlPattern: ({ request, sameOrigin }) =>
@@ -41,7 +52,7 @@ export default defineConfig(({ mode }) => {
                   request.destination
                 ),
               handler: "StaleWhileRevalidate",
-              options: { cacheName: "assets-v1" },
+              options: { cacheName: "assets-cache-v1" },
             },
             {
               urlPattern: new RegExp(
@@ -84,6 +95,11 @@ export default defineConfig(({ mode }) => {
       proxy: {
         "/api": {
           target: env.VITE_API_BASE_URL || "http://localhost:8000",
+          changeOrigin: true,
+          secure: false,
+        },
+        "/sanctum": {
+          target: env.VITE_BASE_URL || "http://localhost:8000",
           changeOrigin: true,
           secure: false,
         },
