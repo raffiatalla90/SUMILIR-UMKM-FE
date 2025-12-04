@@ -9,14 +9,16 @@ export default defineConfig(({ mode }) => {
   const apiBase = env.VITE_API_BASE_URL || "/api";
   const isDev = mode === 'development';
 
-  const plugins = [
-    vue(),
-    tailwindcss(),
-  ];
-
-  // Only add PWA plugin in production
-  if (!isDev) {
-    plugins.push(
+  return {
+    plugins: [
+      laravel({
+        // Path entry point js Anda
+        input: "resources/js/app.js",
+        // Direktori output publik Anda
+        refresh: true,
+      }),
+      vue(),
+      tailwindcss(),
       VitePWA({
         registerType: "autoUpdate",
         devOptions: { enabled: false },
