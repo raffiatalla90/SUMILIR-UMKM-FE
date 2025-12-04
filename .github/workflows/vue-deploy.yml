@@ -1,4 +1,4 @@
-name: Vue (Vite) CI/CD -> SFTP (zip upload)
+name: Vue (Vite) CI/CD -> FTPS
 
 on:
   push:
@@ -7,20 +7,10 @@ on:
 jobs:
   deploy-frontend:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.FTP_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          echo "SSH key configured ✓"
 
       - name: Use Node.js
         uses: actions/setup-node@v4
@@ -36,29 +26,13 @@ jobs:
           VITE_BASE_URL: ${{ secrets.VITE_BASE_URL }}
         run: npm run build
 
-      - name: Zip dist
-        run: |
-          cd dist
-          zip -r ../dist.zip . >/dev/null
-          cd ..
-          ls -lh dist.zip
-
-      - name: Upload dist.zip to server (SCP, no host check)
-        run: |
-          # write key
-          echo "${{ secrets.FTP_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          # upload with scp, ignore host key check
-          scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P "${{ secrets.FTP_PORT }}" dist.zip "${{ secrets.FTP_USERNAME }}@${{ secrets.FTP_SERVER }}:/tmp"
-
-      - name: Unzip frontend to public_html (via ssh, no host check)
-        run: |
-          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa -p "${{ secrets.FTP_PORT }}" "${{ secrets.FTP_USERNAME }}@${{ secrets.FTP_SERVER }}" <<'SSH_EOF'
-            set -e
-            TARGET="${{ secrets.FTP_PATH_FRONTEND }}"
-            mkdir -p "$TARGET"
-            rm -rf "$TARGET"/* || true
-            unzip -o /tmp/dist.zip -d "$TARGET"
-            rm -f /tmp/dist.zip
-            echo "Deployed frontend to $TARGET"
-          SSH_EOF
+      - name: Deploy dist (FTPS)
+        uses: SamKirkland/FTP-Deploy-Action@4.3.0
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASS }}
+          port: ${{ secrets.FTP_PORT || 21 }}
+          protocol: ftps
+          local-dir: dist
+          server-dir: ${{ secrets.FTP_PATH_FRONTEND }}
