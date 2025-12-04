@@ -10,6 +10,12 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [
+      laravel({
+        // Path entry point js Anda
+        input: "resources/js/app.js",
+        // Direktori output publik Anda
+        refresh: true,
+      }),
       vue(),
       tailwindcss(),
       VitePWA({
