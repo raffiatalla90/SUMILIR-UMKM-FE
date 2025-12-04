@@ -2,7 +2,6 @@ import { defineConfig, loadEnv } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { fileURLToPath, URL } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
-import laravel from "laravel-vite-plugin";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ mode }) => {
@@ -11,18 +10,15 @@ export default defineConfig(({ mode }) => {
   const isDev = mode === 'development';
 
   return {
+    // ✅ Set base path untuk subfolder /build/
+    base: mode === "production" ? "/build/" : "/",
+
     plugins: [
-      laravel({
-        // Path entry point js Anda
-        input: "resources/js/app.js",
-        // Direktori output publik Anda
-        refresh: true,
-      }),
       vue(),
       tailwindcss(),
       VitePWA({
         registerType: "autoUpdate",
-        devOptions: { enabled: false },
+        devOptions: { enabled: mode === "development" },
         manifest: {
           name: "SUMILIR",
           short_name: "SUMILIR",
@@ -30,25 +26,15 @@ export default defineConfig(({ mode }) => {
           theme_color: "#ff9800",
           background_color: "#ffffff",
           display: "standalone",
-          start_url: "/",
-          scope: "/",
-          icons: [
-            // { src: "/pwa-192x192.png", sizes: "192x192", type: "image/png" },
-            // { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png" },
-            // {
-            //   src: "/pwa-512x512-maskable.png",
-            //   sizes: "512x512",
-            //   type: "image/png",
-            //   purpose: "any maskable",
-            // },
-          ],
+          start_url: "/build/",
+          scope: "/build/",
+          icons: [],
         },
         workbox: {
           cleanupOutdatedCaches: true,
-          navigateFallback: "/index.html",
+          navigateFallback: "/build/index.html",
           navigateFallbackDenylist: [/^\/api\//],
           runtimeCaching: [
-            // cache assets statis
             {
               urlPattern: ({ request, sameOrigin }) =>
                 sameOrigin &&
@@ -58,7 +44,6 @@ export default defineConfig(({ mode }) => {
               handler: "StaleWhileRevalidate",
               options: { cacheName: "assets-v1" },
             },
-            // cache GET API (bukan navigasi)
             {
               urlPattern: new RegExp(
                 `^${apiBase.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}/.*`
@@ -91,6 +76,32 @@ export default defineConfig(({ mode }) => {
         protocol: 'ws',
         host: 'localhost',
         port: 5173,
+      },
+    },
+    build: {
+      outDir: "dist",
+      assetsDir: "assets",
+      sourcemap: false,
+      minify: "terser",
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            "vendor-vue": ["vue", "vue-router", "pinia"],
+            "vendor-ui": ["@headlessui/vue"],
+          },
+        },
+      },
+    },
+    server: {
+      port: 3000,
+      host: true,
+      proxy: {
+        "/api": {
+          target: env.VITE_API_BASE_URL || "http://localhost:8000",
+          changeOrigin: true,
+          secure: false,
+        },
       },
     },
   };
