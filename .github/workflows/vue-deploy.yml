@@ -15,12 +15,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Add SSH known hosts
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -p "${{ secrets.FTP_PORT }}" "${{ secrets.FTP_SERVER }}" >> ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
-
       - name: Setup SSH key
         run: |
           echo "${{ secrets.FTP_SSH_KEY }}" > ~/.ssh/id_rsa
@@ -47,30 +41,22 @@ jobs:
           cd ..
           ls -lh dist.zip
 
-      - name: Upload dist.zip to server (SCP)
-        uses: appleboy/scp-action@v0.1.4
-        with:
-          host: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          key: ${{ secrets.FTP_SSH_KEY }}
-          port: ${{ secrets.FTP_PORT }}
-          source: "dist.zip"
-          target: "/tmp"
+      - name: Upload dist.zip to server (SCP, no host check)
+        run: |
+          # write key
+          echo "${{ secrets.FTP_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          # upload with scp, ignore host key check
+          scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P "${{ secrets.FTP_PORT }}" dist.zip "${{ secrets.FTP_USERNAME }}@${{ secrets.FTP_SERVER }}:/tmp"
 
-      - name: Unzip frontend to public_html
-        uses: appleboy/ssh-action@v0.1.6
-        with:
-          host: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          key: ${{ secrets.FTP_SSH_KEY }}
-          port: ${{ secrets.FTP_PORT }}
-          script: |
+      - name: Unzip frontend to public_html (via ssh, no host check)
+        run: |
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa -p "${{ secrets.FTP_PORT }}" "${{ secrets.FTP_USERNAME }}@${{ secrets.FTP_SERVER }}" <<'SSH_EOF'
             set -e
-            TARGET="${{ secrets.FTP_PATH_FRONTEND }}"   # ex: /public_html
+            TARGET="${{ secrets.FTP_PATH_FRONTEND }}"
             mkdir -p "$TARGET"
-            # remove existing files in target (optional)
             rm -rf "$TARGET"/* || true
             unzip -o /tmp/dist.zip -d "$TARGET"
             rm -f /tmp/dist.zip
-            # ensure index.html not cached too long
             echo "Deployed frontend to $TARGET"
+          SSH_EOF
