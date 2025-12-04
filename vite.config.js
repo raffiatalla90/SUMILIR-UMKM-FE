@@ -10,18 +10,15 @@ export default defineConfig(({ mode }) => {
   const isDev = mode === 'development';
 
   return {
+    // ✅ Set base path untuk subfolder /build/
+    base: mode === "production" ? "/build/" : "/",
+
     plugins: [
-      laravel({
-        // Path entry point js Anda
-        input: "resources/js/app.js",
-        // Direktori output publik Anda
-        refresh: true,
-      }),
       vue(),
       tailwindcss(),
       VitePWA({
         registerType: "autoUpdate",
-        devOptions: { enabled: false },
+        devOptions: { enabled: mode === "development" },
         manifest: {
           name: "Sumilir",
           short_name: "Sumilir",
@@ -29,25 +26,14 @@ export default defineConfig(({ mode }) => {
           theme_color: "#ff9800",
           background_color: "#ffffff",
           display: "standalone",
-          start_url: "/", // ✅ Root
-          scope: "/", // ✅ Root
-          icons: [
-            {
-              src: "/icon192.png",
-              sizes: "192x192",
-              type: "image/png",
-            },
-            {
-              src: "/icon512.png",
-              sizes: "512x512",
-              type: "image/png",
-            },
-          ],
+          start_url: "/build/",
+          scope: "/build/",
+          icons: [],
         },
         workbox: {
           cleanupOutdatedCaches: true,
-          navigateFallback: "/index.html", // ✅ Root
-          navigateFallbackDenylist: [/^\/api\//], // ✅ Exclude /api/
+          navigateFallback: "/build/index.html",
+          navigateFallbackDenylist: [/^\/api\//],
           runtimeCaching: [
             {
               urlPattern: ({ request, sameOrigin }) =>
@@ -90,6 +76,32 @@ export default defineConfig(({ mode }) => {
         protocol: 'ws',
         host: 'localhost',
         port: 5173,
+      },
+    },
+    build: {
+      outDir: "dist",
+      assetsDir: "assets",
+      sourcemap: false,
+      minify: "terser",
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            "vendor-vue": ["vue", "vue-router", "pinia"],
+            "vendor-ui": ["@headlessui/vue"],
+          },
+        },
+      },
+    },
+    server: {
+      port: 3000,
+      host: true,
+      proxy: {
+        "/api": {
+          target: env.VITE_API_BASE_URL || "http://localhost:8000",
+          changeOrigin: true,
+          secure: false,
+        },
       },
     },
   };
