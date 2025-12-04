@@ -1,74 +1,80 @@
-name: Deploy Vue FE to Server
+name: Vue (Vite) CI/CD -> SFTP (zip upload)
 
 on:
   push:
     branches: [staging]
 
 jobs:
-  deploy:
+  deploy-frontend:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
+      - name: Add SSH known hosts
+        run: |
+          mkdir -p ~/.ssh
+          if [ -n "${{ secrets.SSH_KNOWN_HOSTS }}" ]; then
+            echo "${{ secrets.SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p "${{ secrets.FTP_PORT }}" "${{ secrets.FTP_SERVER }}" >> ~/.ssh/known_hosts
+          fi
+          chmod 644 ~/.ssh/known_hosts
 
-      - name: Setup Node.js
+      - name: Setup SSH key
+        run: |
+          echo "${{ secrets.FTP_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "pnpm"
+          node-version: "18"
 
-      - name: Create .env.production
-        env:
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
-        run: |
-          HOST=${SERVER_HOST:-sumilir.indonesiacentral.cloudapp.azure.com}
-          cat > .env.production << EOF
-          VITE_APP_NAME="SUMILIR"
-          VITE_APP_URL=https://$HOST
-          VITE_PUBLIC_BASE_PATH=/
-          VITE_API_BASE_URL=/api
-          VITE_API_PREFIX=/api
-          VITE_HTTP_TIMEOUT_MS=20000
-          VITE_FORGOT_PASSWORD_COOLDOWN=60
-          EOF
-
-      # Gunakan no-frozen-lockfile karena pnpm-lock.yaml belum di-commit dengan dependensi PWA
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: npm ci
 
-      # Tidak perlu lagi jika workbox-window sudah ada di package.json
-      - name: Ensure workbox-window exists (skip)
-        if: ${{ false }}
-        run: pnpm add workbox-window@^7 --no-save
-
-      - name: Build project (PWA)
+      - name: Build production
         env:
-          NODE_OPTIONS: --max_old_space_size=4096
-        run: pnpm run build --mode production
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_BASE_URL: ${{ secrets.VITE_BASE_URL }}
+        run: npm run build
 
-      - name: Clean remote dist
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Zip dist
+        run: |
+          cd dist
+          zip -r ../dist.zip . >/dev/null
+          cd ..
+          ls -lh dist.zip
+
+      - name: Upload dist.zip to server (SCP)
+        uses: appleboy/scp-action@v0.1.4
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
+          host: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          key: ${{ secrets.FTP_SSH_KEY }}
+          port: ${{ secrets.FTP_PORT }}
+          source: "dist.zip"
+          target: "/tmp"
+
+      - name: Unzip frontend to public_html
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          key: ${{ secrets.FTP_SSH_KEY }}
+          port: ${{ secrets.FTP_PORT }}
           script: |
-            mkdir -p /var/www/KMI-SIMSLIFE-FE/dist
-            rm -rf /var/www/KMI-SIMSLIFE-FE/dist/*
-
-      - name: Deploy via SCP
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "dist/**"
-          target: "/var/www/KMI-SIMSLIFE-FE/dist"
-          strip_components: 1
-          overwrite: true
+            set -e
+            TARGET="${{ secrets.FTP_PATH_FRONTEND }}"   # ex: /public_html
+            mkdir -p "$TARGET"
+            # remove existing files in target (optional)
+            rm -rf "$TARGET"/* || true
+            unzip -o /tmp/dist.zip -d "$TARGET"
+            rm -f /tmp/dist.zip
+            # ensure index.html not cached too long
+            echo "Deployed frontend to $TARGET"
