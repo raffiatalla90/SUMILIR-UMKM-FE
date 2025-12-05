@@ -43,15 +43,15 @@ const routes = [
       {
         path: "product-toko",
         name: "Product Toko",
-        component: () => import("@/views/customer/ProductToko.vue"),
+        component: () => import("@/views/customer/ProductTokoHome.vue"),
         meta: { title: "Semua Produk Toko | SUMILIR" },
       },
-      // {
-      //   path: "product-kuliner",
-      //   name: "Product Kuliner",
-      //   component: () => import("@/views/customer/ProductKuliner.vue"),
-      //   meta: { title: "Semua Produk Kuliner | SUMILIR" },
-      // },
+      {
+        path: "product-kuliner",
+        name: "Product Kuliner",
+        component: () => import("@/views/customer/ProductKulinerHome.vue"),
+        meta: { title: "Semua Produk Kuliner | SUMILIR" },
+      },
       {
         path: "products/:slug",
         name: "Product Detail",
@@ -61,7 +61,7 @@ const routes = [
       {
         path: "merchant/:slug",
         name: "Merchant Detail",
-        component: () => import("@/views/customer/ProductToko.vue"),
+        component: () => import("@/views/customer/ProductTokoHome.vue"),
         meta: { title: "Detail Toko | SUMILIR" },
       },
 

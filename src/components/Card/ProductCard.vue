@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed, watch } from "vue";
-
-const imageError = ref(false);
+import { computed } from "vue";
+import { getImageUrl } from "@/libs/getImageUrl";
+import starIcon from "@/assets/icons/Bintang.png";
+import lokasiIcon from "@/assets/icons/TitikLokasi.png";
 
 const props = defineProps({
   product: {
@@ -10,7 +11,12 @@ const props = defineProps({
     default: () => ({
       id: 1,
       name: "Nama Produk",
+      name: "Nama Produk",
       description: "Deskripsi produk singkat",
+      min_price: 0,
+      max_price: 0,
+      cover_image: null,
+      merchant: null,
       min_price: 0,
       max_price: 0,
       cover_image: null,
@@ -19,15 +25,15 @@ const props = defineProps({
       distance: 2,
     }),
   },
-  customClass: {
-    type: String,
-    default: "max-w-xs",
-  },
 });
 
 // Format harga ke Rupiah
-const formatIDR = (v) =>
-  Number(v || 0).toLocaleString("id-ID", { minimumFractionDigits: 0 });
+const formatHarga = (value) => {
+  if (!value) return "0";
+  const numValue = typeof value === "string" ? parseFloat(value) : value;
+  return new Intl.NumberFormat("id-ID").format(numValue);
+};
+
 // Format harga dengan range
 const formattedPrice = computed(() => {
   const minPrice = props.product.min_price;
@@ -35,8 +41,8 @@ const formattedPrice = computed(() => {
 
   if (!minPrice && !maxPrice) return "Rp 0";
 
-  const minFormatted = formatIDR(minPrice);
-  const maxFormatted = formatIDR(maxPrice);
+  const minFormatted = formatHarga(minPrice);
+  const maxFormatted = formatHarga(maxPrice);
 
   // Jika harga sama, tampilkan sekali saja
   if (minPrice === maxPrice) {
@@ -49,70 +55,50 @@ const formattedPrice = computed(() => {
 
 // Get image URL
 const productImageUrl = computed(() => {
-  if (imageError.value) return null;
-
-  if (props.product.cover_image) {
-    return props.product.cover_image.src_url || props.product.cover_image;
+  if (props.product.cover_image?.id) {
+    return getImageUrl(props.product.cover_image.id);
   }
   return null;
 });
-
-watch(
-  () => props.product?.id,
-  () => {
-    imageError.value = false;
-  }
-);
 </script>
 
 <template>
   <div
-    :class="`    group
-    flex flex-col rounded-2xl
-    border border-gray-200
-    bg-white
-    shadow-sm
-    overflow-hidden
-    transition-transform duration-300 ease-out
-    hover:-translate-y-1 hover:shadow-md
-    cursor-pointer
-    min-w-[161px]
-    ${customClass} `"
+    class="flex flex-col rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden hover:shadow-lg transition w-full max-w-xs cursor-pointer"
   >
     <!-- Product Image (1:1 aspect ratio) -->
-    <div
-      class="relative w-full overflow-hidden bg-muted-background aspect-square"
-    >
+    <div class="relative w-full aspect-square bg-gray-200 overflow-hidden">
       <img
         v-if="productImageUrl"
         :src="productImageUrl"
         :alt="product.name"
-        class="absolute inset-0 object-cover w-full h-full transition-transform duration-300 ease-out group-hover:scale-105"
-        @error="imageError = true"
+        class="absolute inset-0 w-full h-full object-cover"
+        @error="(e) => (e.target.style.display = 'none')"
       />
       <div
         v-else
-        class="absolute inset-0 flex items-center justify-center w-full h-full bg-muted-background"
+        class="absolute inset-0 w-full h-full flex items-center justify-center bg-gray-100"
       >
-        <i class="text-4xl pi pi-shopping-bag text-primary"></i>
+        <i class="pi pi-image text-4xl text-gray-400"></i>
       </div>
     </div>
 
     <!-- Product Info -->
+    <!-- Product Info -->
     <div
-      class="flex flex-col flex-1 px-3 sm:px-4 py-2 sm:py-3 bg-white min-h-[120px]"
+      class="flex flex-col flex-1 px-3 sm:px-4 py-2 sm:py-3 bg-white min-h-[120px] sm:min-h-[140px]"
     >
       <!-- Product Name -->
       <h3
-        class="mb-1 text-xs font-semibold text-gray-900 line-clamp-2"
+        class="text-sm sm:text-base font-semibold text-gray-900 line-clamp-2 mb-1"
         :title="product.name"
       >
         {{ product.name }}
       </h3>
 
-      <!-- Price -->
-      <p class="mb-2 text-xs font-bold text-primary">
-        {{ formattedPrice }}
+      <!-- Merchant Name -->
+      <p class="text-xs sm:text-sm text-gray-500 line-clamp-1 mb-2">
+        {{ product.merchant?.name || "UMKM" }}
       </p>
 
       <!-- Rating & Distance (auto push to bottom) -->
@@ -127,5 +113,6 @@ watch(
         </span>
       </div>
     </div>
+  </div>
   </div>
 </template>

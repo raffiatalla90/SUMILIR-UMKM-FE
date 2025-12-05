@@ -194,26 +194,25 @@ const getNestedValue = (obj, path) => {
           </tr>
         </thead>
 
-        <tbody class="bg-white divide-y divide-gray-200">
-          <tr
-            v-for="item in items"
-            :key="item.id"
-            @click="handleRowClick(item)"
-            class="hover:bg-gray-50 cursor-pointer transition"
-          >
-            <!-- Checkbox Cell -->
-            <td
-              v-if="showCheckbox"
-              class="px-6 py-4 whitespace-nowrap"
-              @click.stop
+          <!-- Body -->
+          <tbody class="divide-y divide-muted-background">
+            <tr
+              v-for="item in items"
+              :key="item.id"
+              class="hover:bg-muted-background transition"
+              @click="handleRowClick(item)"
             >
-              <input
-                type="checkbox"
-                :checked="isItemSelected(item.slug)"
-                @change="toggleItemSelection(item.slug)"
-                class="w-4 h-4 text-admin-primary rounded border-gray-300 focus:ring-admin-primary"
-              />
-            </td>
+              <!-- Checkbox -->
+              <td v-if="showCheckbox" class="px-6 py-4" @click.stop>
+                <label class="cursor-pointer inline-block">
+                  <input
+                    type="checkbox"
+                    :checked="isItemSelected(item.slug)"
+                    @change="toggleItemSelection(item.slug)"
+                    class="appearance-none w-5 h-5 border-2 border-muted-foreground rounded-md bg-transparent cursor-pointer transition-all duration-200 checked:bg-merchant-primary checked:border-merchant-primary focus:outline-none focus:ring-2 focus:ring-merchant-primary focus:ring-offset-2 relative before:content-[''] before:absolute before:inset-0 before:bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOSIgdmlld0JveD0iMCAwIDEyIDkiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xIDQuNUw0LjUgOEwxMSAxIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K')] before:bg-center before:bg-no-repeat before:opacity-0 checked:before:opacity-100"
+                  />
+                </label>
+              </td>
 
             <!-- Dynamic Columns with Slots -->
             <td
