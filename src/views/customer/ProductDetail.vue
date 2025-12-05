@@ -392,7 +392,7 @@
               <button
                 v-if="productImages.length > 1"
                 @click.stop="prevImage"
-                class="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg items-center justify-center hover:bg-white transition-all active:scale-95 opacity-0 group-hover:opacity-100"
+                class="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg items-center justify-center hover:bg-white transition-all active:scale-95"
               >
                 <svg
                   class="w-6 h-6 text-gray-800"
@@ -411,7 +411,7 @@
               <button
                 v-if="productImages.length > 1"
                 @click.stop="nextImage"
-                class="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg items-center justify-center hover:bg-white transition-all active:scale-95 opacity-0 group-hover:opacity-100"
+                class="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg items-center justify-center hover:bg-white transition-all active:scale-95"
               >
                 <svg
                   class="w-6 h-6 text-gray-800"
@@ -454,39 +454,22 @@
               ></button>
             </div>
             <!-- Thumbnail Gallery -->
-            <div
-              v-if="productImages.length > 1"
-              class="flex gap-2 overflow-x-auto no-scrollbar px-4 sm:px-2 py-2"
-            >
-              <button
-                v-for="(image, index) in productImages"
-                :key="index"
-                @click="selectImage(index)"
-                class="flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border-2 transition-all relative group/thumb"
-                :class="
-                  currentImageIndex === index
-                    ? 'border-primary ring-2 ring-primary/20 scale-105'
-                    : 'border-gray-200 hover:border-gray-300 hover:scale-105'
-                "
-              >
-                <img
-                  :src="image"
-                  :alt="`${product?.name} - ${index + 1}`"
-                  class="w-full h-full object-cover"
-                />
-
-                <!-- Active indicator overlay -->
-                <div
-                  v-if="currentImageIndex === index"
-                  class="absolute inset-0 bg-primary/10 flex items-center justify-center backdrop-blur-xs rounded-lg backdrop-opacity-80"
-                ></div>
-
-                <!-- Hover effect for non-active thumbnails -->
-                <div
-                  v-else
-                  class="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/10 transition-colors"
-                ></div>
-              </button>
+            <div v-if="productImages.length > 1" class="px-4 sm:px-2 py-2">
+              <div class="thumb-strip">
+                <button
+                  v-for="(image, index) in productImages"
+                  :key="index"
+                  @click="selectImage(index)"
+                  class="thumb-item"
+                  :class="currentImageIndex === index ? 'active' : ''"
+                >
+                  <img
+                    :src="image"
+                    :alt="`${product?.name} - ${index + 1}`"
+                    class="w-full h-full object-cover"
+                  />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -498,7 +481,8 @@
                 {{ product?.name || "Nama Produk" }}
               </h1>
               <p class="text-lg sm:text-2xl font-semibold text-gray-900">
-                Rp {{ formatIDR(calculateTotalPrice()) }}
+                Rp {{ formatIDR(getCurrentPrice()) }}
+                <!-- ✅ gunakan harga kombinasi -->
               </p>
 
               <!-- Stok Info -->
@@ -511,14 +495,12 @@
                   >
                     {{ getCurrentStock() }} tersisa
                   </span>
-                  <!-- Badge untuk low stock -->
                   <span
                     v-if="isLowStock()"
                     class="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700"
                   >
                     Stok terbatas
                   </span>
-                  <!-- Badge untuk out of stock -->
                   <span
                     v-if="getCurrentStock() === 0"
                     class="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700"
@@ -527,22 +509,33 @@
                   </span>
                 </div>
               </div>
+
+              <!-- Banner archived -->
+              <div
+                v-if="isArchived"
+                class="mt-3 p-3 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm"
+              >
+                Produk ini telah diarsipkan dan tidak tersedia untuk dibeli.
+              </div>
             </div>
 
-            <!-- Ukuran/Varian -->
-            <div class="py-4 border-b border-gray-200">
+            <!-- Ukuran/Varian (Option 1) -->
+            <div v-if="sizes.length > 0" class="py-4 border-b border-gray-200">
               <h3 class="text-sm font-semibold text-gray-900 mb-3">
-                Ukuran <span class="text-red-500">*</span>
+                {{ option1Label }} <span class="text-red-500">*</span>
               </h3>
               <div class="flex flex-wrap gap-2">
                 <button
                   v-for="size in sizes"
                   :key="size.name"
-                  @click="selectedSize = size"
+                  @click="
+                    selectedSize = size;
+                    validateQuantity();
+                  "
                   :disabled="!isSizeAvailable(size.name)"
                   class="px-4 py-2 rounded-lg border text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
                   :class="
-                    selectedSize.name === size.name
+                    selectedSize?.name === size.name
                       ? 'border-primary bg-primary/5 text-primary'
                       : 'border-gray-300 text-gray-700 hover:border-gray-400'
                   "
@@ -559,30 +552,30 @@
                           : 'text-gray-500'
                       "
                     >
-                      {{
-                        getSizeStock(size.name) === 0
-                          ? "Habis"
-                          : `Total: ${getSizeStock(size.name)}`
-                      }}
+                      {{ getSizeStock(size.name) === 0 ? "Habis" : `` }}
                     </span>
                   </div>
                 </button>
               </div>
             </div>
 
-            <!-- Varian (Warna/Rasa) -->
+            <!-- Varian (Option 2) -->
             <div
               v-if="variants.length > 0"
               class="py-4 border-b border-gray-200"
             >
               <h3 class="text-sm font-semibold text-gray-900 mb-3">
-                Varian <span class="text-red-500">*</span>
+                {{ option2Label }} <span class="text-red-500">*</span>
+                <!-- ✅ label dinamis -->
               </h3>
               <div class="flex flex-wrap gap-2">
                 <button
                   v-for="variant in variants"
                   :key="variant.id"
-                  @click="selectedVariant = variant"
+                  @click="
+                    selectedVariant = variant;
+                    validateQuantity();
+                  "
                   :disabled="!isVariantAvailable(variant.id)"
                   class="px-4 py-2 rounded-lg border text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
                   :class="
@@ -666,7 +659,15 @@
             <!-- Jumlah -->
             <div class="py-4 border-b border-gray-200">
               <div class="flex items-center justify-between mb-3">
-                <h3 class="text-sm font-semibold text-gray-900">Jumlah</h3>
+                <h3 class="text-sm font-semibold text-gray-900">
+                  Jumlah
+                  <span
+                    v-if="minPurchase > 1"
+                    class="mt-1 text-sm font-normal text-muted-foreground"
+                    >(Minimal beli: {{ minPurchase }} item)</span
+                  >
+                </h3>
+
                 <span
                   v-if="getCurrentStock() > 0"
                   class="text-xs text-gray-500"
@@ -766,11 +767,7 @@
                     </span>
                   </div>
                 </div>
-                <button
-                  class="px-4 py-2 rounded-lg bg-[#FFA30E] hover:bg-[#e5920d] text-white text-sm font-semibold transition"
-                >
-                  Kunjungi
-                </button>
+                <Button variant="primary-outline"> Kunjungi </Button>
               </div>
             </div>
 
@@ -841,18 +838,19 @@
               stroke-linecap="round"
               stroke-linejoin="round"
               d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"
-            />
+            ></path>
           </svg>
         </button>
 
         <!-- Tombol Beli Sekarang -->
-        <button
+        <Button
           @click="buyNow"
-          class="flex-1 h-12 rounded-xl bg-[#FFA30E] hover:bg-[#e5920d] text-white font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+          variant="primary"
+          customClass="w-full"
           :disabled="getCurrentStock() === 0"
         >
           {{ getCurrentStock() === 0 ? "Stok Habis" : "Beli Sekarang" }}
-        </button>
+        </Button>
       </div>
     </div>
 
@@ -882,10 +880,33 @@
             </p>
           </div>
           <div class="flex items-center gap-3">
+            <!-- Tombol Share Desktop (baru) -->
+            <Button
+              @click="showShareModal = true"
+              variant="muted-outline"
+              title="Bagikan Produk"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z"
+                />
+              </svg>
+              <span class="hidden lg:inline">Bagikan</span>
+            </Button>
+
             <!-- Tombol Keranjang Desktop -->
-            <button
+            <Button
               @click="addToCart"
-              class="px-4 py-3 rounded-xl border-2 border-[#FFA30E] text-[#FFA30E] font-semibold hover:bg-orange-50 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              variant="primary-outline"
               :disabled="getCurrentStock() === 0"
               :title="
                 getCurrentStock() === 0 ? 'Stok Habis' : 'Tambah ke Keranjang'
@@ -906,16 +927,16 @@
                 />
               </svg>
               <span class="hidden lg:inline">Keranjang</span>
-            </button>
+            </Button>
 
             <!-- Tombol Beli Sekarang -->
-            <button
+            <Button
               @click="buyNow"
-              class="px-6 py-3 rounded-xl bg-[#FFA30E] hover:bg-[#e5920d] text-white font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
               :disabled="getCurrentStock() === 0"
+              variant="primary"
             >
               {{ getCurrentStock() === 0 ? "Stok Habis" : "Beli Sekarang" }}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -924,7 +945,7 @@
     <!-- Addon Modal -->
     <ResponsiveModal
       :show="showAddonModal"
-      @close="closeAddonModal"
+      @close="showAddonModal = false"
       title="Pilih Tambahan"
       subtitle="Pilih tambahan sesuai keinginan Anda"
       :show-footer="true"
@@ -1140,7 +1161,7 @@
               viewBox="0 0 24 24"
             >
               <path
-                d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"
+                d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0 .42-.015.63A9.935 9.935 0 0024 4.59z"
               />
             </svg>
           </div>
@@ -1168,7 +1189,7 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 stroke-width="2"
-                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"
               />
             </svg>
           </div>
@@ -1202,6 +1223,10 @@
         @touchstart="handleTouchStart"
         @touchmove="handleTouchMove"
         @touchend="handleTouchEnd"
+        @mousedown="handleMouseDown"
+        @mousemove="handleMouseMove"
+        @mouseup="handleMouseUp"
+        @mouseleave="handleMouseLeave"
       >
         <!-- Close Button -->
         <button
@@ -1339,7 +1364,9 @@ import { useRoute, useRouter } from "vue-router";
 import api from "@/libs/axios.js";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock.js";
-
+import { getImageUrl } from "@/libs/getImageUrl.js";
+import Button from "@/components/common/Button.vue";
+import { useCheckoutStore } from "@/stores/checkout";
 const route = useRoute();
 const router = useRouter();
 
@@ -1348,18 +1375,197 @@ const product = ref(null);
 const quantity = ref(1);
 const showAddonModal = ref(false);
 const showShareModal = ref(false);
-const showImageModal = ref(false); // ✅ NEW
+const showImageModal = ref(false);
 
-// ✅ NEW: Image Gallery State
+const isMouseDown = ref(false);
+const mouseStartX = ref(0);
+const mouseDeltaX = ref(0);
+const swipeThreshold = 50; // px threshold untuk ganti gambar
+
+const hasOneOption = computed(
+  () => (product.value?.options?.length || 0) === 1
+);
+const hasTwoOptions = computed(
+  () => (product.value?.options?.length || 0) >= 2
+);
+
+function isAddonSelected(addon) {
+  return tempSelectedAddons.value.some(
+    (a) => Number(a.id) === Number(addon.id)
+  );
+}
+
+// Toggle untuk group multiple (checkbox)
+function toggleAddon(addon, group) {
+  const idx = tempSelectedAddons.value.findIndex(
+    (a) => Number(a.id) === Number(addon.id)
+  );
+  if (idx >= 0) {
+    // hapus
+    tempSelectedAddons.value.splice(idx, 1);
+  } else {
+    // tambahkan jika belum mencapai maxSelection
+    const currentCountInGroup = tempSelectedAddons.value.filter((a) =>
+      group.items.some((gi) => Number(gi.id) === Number(a.id))
+    ).length;
+    if (currentCountInGroup < Number(group.maxSelection || 1)) {
+      tempSelectedAddons.value.push(addon);
+    }
+  }
+}
+
+// Pilih single untuk group maxSelection === 1 (radio)
+function selectSingleAddon(addon, group) {
+  // hapus semua addon dari group ini
+  tempSelectedAddons.value = tempSelectedAddons.value.filter(
+    (a) => !group.items.some((gi) => Number(gi.id) === Number(a.id))
+  );
+  // tambahkan addon terpilih jika tersedia
+  if (addon.available !== false) {
+    tempSelectedAddons.value.push(addon);
+  }
+}
+
+// Cek apakah group sudah mencapai batas pilihan (dipakai di template disable checkbox)
+function isGroupMaxed(group, addon) {
+  const count = tempSelectedAddons.value.filter((a) =>
+    group.items.some((gi) => Number(gi.id) === Number(a.id))
+  ).length;
+  const maxSel = Number(group.maxSelection || 1);
+  // jika addon belum dipilih dan count sudah max, maka group maxed
+  const alreadySelected = isAddonSelected(addon);
+  return !alreadySelected && count >= maxSel;
+}
+
+// Harga total sementara di modal
+function calculateTempAddonPrice() {
+  return tempSelectedAddons.value.reduce(
+    (sum, a) => sum + Number(a.price || 0),
+    0
+  );
+}
+
+// Reset pilihan di modal (kosongkan semua atau kembalikan default wajib)
+function resetAddons() {
+  // kosongkan sementara
+  tempSelectedAddons.value = [];
+  // jika ada group wajib (min_selection > 0) dengan single pilihan, pilih item pertama yang available
+  addonGroups.value.forEach((group) => {
+    const minSel = Number(group.required ? 1 : group.minSelection ?? 0);
+    const maxSel = Number(group.maxSelection || 1);
+    if (
+      minSel > 0 &&
+      maxSel === 1 &&
+      Array.isArray(group.items) &&
+      group.items.length
+    ) {
+      const firstAvailable = group.items.find(
+        (item) => item.available !== false
+      );
+      if (firstAvailable) {
+        tempSelectedAddons.value.push(firstAvailable);
+      }
+    }
+  });
+}
+
+// Terapkan pilihan modal ke pilihan final
+function applyAddons() {
+  selectedAddons.value = [...tempSelectedAddons.value];
+  showAddonModal.value = false;
+}
+
+function handleMouseDown(e) {
+  // hanya tombol kiri mouse
+  if (e.button !== 0) return;
+  isMouseDown.value = true;
+  mouseStartX.value = e.clientX;
+  mouseDeltaX.value = 0;
+}
+
+function handleMouseMove(e) {
+  if (!isMouseDown.value) return;
+  mouseDeltaX.value = e.clientX - mouseStartX.value;
+}
+
+function handleMouseUp() {
+  if (!isMouseDown.value) return;
+  // Tentukan arah berdasarkan deltaX
+  if (mouseDeltaX.value > swipeThreshold) {
+    prevImage();
+  } else if (mouseDeltaX.value < -swipeThreshold) {
+    nextImage();
+  }
+  // reset
+  isMouseDown.value = false;
+  mouseStartX.value = 0;
+  mouseDeltaX.value = 0;
+}
+
+function handleMouseLeave() {
+  // Jika keluar area saat drag, anggap mouse up
+  if (!isMouseDown.value) return;
+  handleMouseUp();
+}
+
+function selectImage(index) {
+  if (!Array.isArray(productImages.value) || productImages.value.length === 0)
+    return;
+  const max = productImages.value.length - 1;
+  currentImageIndex.value = Math.min(Math.max(Number(index) || 0, 0), max);
+}
+
+function prevImage() {
+  if (!Array.isArray(productImages.value) || productImages.value.length === 0)
+    return;
+  currentImageIndex.value =
+    (currentImageIndex.value - 1 + productImages.value.length) %
+    productImages.value.length;
+}
+
+function nextImage() {
+  if (!Array.isArray(productImages.value) || productImages.value.length === 0)
+    return;
+  currentImageIndex.value =
+    (currentImageIndex.value + 1) % productImages.value.length;
+}
+
+// ✅ REMOVE DUMMY: Inisialisasi kosong, akan diisi dari API
 const productImages = ref([]);
 const currentImageIndex = ref(0);
 const selectedImage = computed(
   () => productImages.value[currentImageIndex.value]
 );
 
+// ✅ REMOVE DUMMY: sizes/variants/stock dari API
+const sizes = ref([]);
+const selectedSize = ref(null);
+
+const variants = ref([]);
+const selectedVariant = ref(null);
+
+// Kombinasi stok pakai ID option value, bukan nama
+const stockCombinations = ref([]);
+
+// ✅ REMOVE DUMMY: addons dari API
+const selectedAddons = ref([]);
+const tempSelectedAddons = ref([]);
+const addonGroups = ref([]);
+
 // Scroll state
 const showScrollHeader = ref(false);
 const lastScrollY = ref(0);
+
+// ✅ Add missing scroll handler (minimal, tidak mengubah UI/logic lain)
+function handleScroll() {
+  const y = window.scrollY || document.documentElement.scrollTop || 0;
+
+  // Tampilkan sticky header saat user scroll turun melewati 80px
+  showScrollHeader.value = y > 80;
+
+  // Simpan posisi terakhir (opsional untuk future use)
+  lastScrollY.value = y;
+}
 
 // Simulasi jumlah item di keranjang (nanti bisa pakai Pinia store)
 const cartItemsCount = ref(3);
@@ -1372,669 +1578,357 @@ const isAnyModalOpen = computed(
 // ✅ ADDED: Use body scroll lock for modals
 useBodyScrollLock(isAnyModalOpen);
 
-// Ukuran dengan harga tambahan - TANPA stock di sini
-const sizes = ref([
-  { name: "250 Ml", priceAdd: 0 },
-  { name: "750 Ml", priceAdd: 5000 },
-  { name: "1 L", priceAdd: 10000 },
-]);
-const selectedSize = ref(sizes.value[0]);
-
-// Varian (warna/rasa) dengan harga tambahan - TANPA stock di sini
-const variants = ref([
-  { id: 1, name: "Original", priceAdd: 0 },
-  { id: 2, name: "Strawberry", priceAdd: 2000 },
-  { id: 3, name: "Coklat", priceAdd: 2000 },
-  { id: 4, name: "Vanilla", priceAdd: 2000 },
-]);
-const selectedVariant = ref(variants.value[0]);
-
-// Stock Combinations - Kombinasi size + variant
-const stockCombinations = ref([
-  // 250 Ml combinations
-  { sizeId: "250 Ml", variantId: 1, stock: 150 },
-  { sizeId: "250 Ml", variantId: 2, stock: 8 }, // Low stock
-  { sizeId: "250 Ml", variantId: 3, stock: 25 },
-  { sizeId: "250 Ml", variantId: 4, stock: 0 }, // Out of stock
-
-  // 750 Ml combinations
-  { sizeId: "750 Ml", variantId: 1, stock: 50 },
-  { sizeId: "750 Ml", variantId: 2, stock: 0 }, // Out of stock
-  { sizeId: "750 Ml", variantId: 3, stock: 15 },
-  { sizeId: "750 Ml", variantId: 4, stock: 5 }, // Low stock
-
-  // 1 L combinations
-  { sizeId: "1 L", variantId: 1, stock: 0 }, // Out of stock
-  { sizeId: "1 L", variantId: 2, stock: 12 },
-  { sizeId: "1 L", variantId: 3, stock: 0 }, // Out of stock
-  { sizeId: "1 L", variantId: 4, stock: 8 }, // Low stock
-]);
-
-// Addon Groups dengan berbagai tipe
-const selectedAddons = ref([]);
-const tempSelectedAddons = ref([]);
-
-const addonGroups = ref([
-  {
-    id: 1,
-    name: "Tingkat Kepedasan",
-    description: "Wajib pilih salah satu",
-    required: true,
-    maxSelection: 1,
-    items: [
-      {
-        id: 101,
-        name: "Tidak Pedas",
-        price: 0,
-        description: null,
-        available: true,
-      },
-      {
-        id: 102,
-        name: "Sedang",
-        price: 0,
-        description: "Level kepedasan sedang",
-        available: true,
-      },
-      {
-        id: 103,
-        name: "Pedas",
-        price: 1000,
-        description: "Untuk pecinta pedas",
-        available: true,
-      },
-      {
-        id: 104,
-        name: "Extra Pedas",
-        price: 2000,
-        description: "Sangat pedas!",
-        available: true,
-      },
-    ],
-  },
-  {
-    id: 2,
-    name: "Topping",
-    description: "Pilih hingga 3 topping",
-    required: false,
-    maxSelection: 3,
-    items: [
-      {
-        id: 201,
-        name: "Topping Meses",
-        price: 3000,
-        description: "Taburan meses coklat premium",
-        available: true,
-      },
-      {
-        id: 202,
-        name: "Keju Parut",
-        price: 4000,
-        description: "Keju cheddar parut segar",
-        available: true,
-      },
-      {
-        id: 203,
-        name: "Whipped Cream",
-        price: 6000,
-        description: "Krim kocok segar",
-        available: false,
-      },
-      {
-        id: 204,
-        name: "Oreo Crumble",
-        price: 5000,
-        description: "Remahan oreo",
-        available: true,
-      },
-    ],
-  },
-  {
-    id: 3,
-    name: "Extra",
-    description: "Tambahan opsional lainnya",
-    required: false,
-    maxSelection: 999,
-    items: [
-      {
-        id: 301,
-        name: "Extra Susu",
-        price: 5000,
-        description: "Tambahan susu full cream",
-        available: true,
-      },
-      {
-        id: 302,
-        name: "Extra Es Batu",
-        price: 1000,
-        description: null,
-        available: true,
-      },
-      {
-        id: 303,
-        name: "Cup Besar",
-        price: 3000,
-        description: "Upgrade ke cup size L",
-        available: true,
-      },
-    ],
-  },
-]);
-
-const relatedProducts = ref([
-  {
-    id: 1,
-    name: "Beras Wangliku",
-    price: 70000,
-    image: "https://picsum.photos/seed/product1/300/300",
-  },
-  {
-    id: 2,
-    name: "MinyakKita",
-    price: 15000,
-    image: "https://picsum.photos/seed/product2/300/300",
-  },
-  {
-    id: 3,
-    name: "Beras Wangliku",
-    price: 70000,
-    image: "https://picsum.photos/seed/product3/300/300",
-  },
-]);
-
-const goBack = () => {
-  router.back();
-};
-
-const goToCart = () => {
-  router.push({ name: "Keranjang" });
-};
-
-const formatIDR = (value) => {
-  return Number(value || 0).toLocaleString("id-ID");
-};
-
-const getBasePrice = () => {
-  return product.value?.price || 15000;
-};
-
-// Get current stock based on COMBINATION of selected size AND variant
-const getCurrentStock = () => {
-  if (!selectedSize.value || !selectedVariant.value) return 0;
-
-  const combination = stockCombinations.value.find(
-    (combo) =>
-      combo.sizeId === selectedSize.value.name &&
-      combo.variantId === selectedVariant.value.id
-  );
-
-  return combination ? combination.stock : 0;
-};
-
-// Get stock for specific size (total across all variants)
-const getSizeStock = (sizeName) => {
-  const combinations = stockCombinations.value.filter(
-    (combo) => combo.sizeId === sizeName
-  );
-  return combinations.reduce((total, combo) => total + combo.stock, 0);
-};
-
-// Get stock for specific variant with current size
-const getVariantStock = (variantId) => {
-  if (!selectedSize.value) return 0;
-
-  const combination = stockCombinations.value.find(
-    (combo) =>
-      combo.sizeId === selectedSize.value.name && combo.variantId === variantId
-  );
-
-  return combination ? combination.stock : 0;
-};
-
-// Check if variant is available for current size
-const isVariantAvailable = (variantId) => {
-  return getVariantStock(variantId) > 0;
-};
-
-// Check if size has any stock across all variants
-const isSizeAvailable = (sizeName) => {
-  return getSizeStock(sizeName) > 0;
-};
-
-// Check if stock is low (less than or equal to 10)
-const isLowStock = () => {
+// Helper: format currency
+const formatIDR = (v) => Number(v || 0).toLocaleString("id-ID");
+function validateQuantity() {
   const stock = getCurrentStock();
-  return stock > 0 && stock <= 10;
-};
+  let q = Number(quantity.value || 0);
 
-// Get color class based on stock level
-const getStockColorClass = () => {
+  // Jika stok 0, paksa qty jadi 0 dan disable tombol beli/keranjang via template
+  if (stock <= 0) {
+    quantity.value = 0;
+    return;
+  }
+
+  // Minimal pembelian
+  const min = Math.max(1, Number(minPurchase.value || 1));
+
+  // Clamp qty ke [min, stock]
+  if (isNaN(q) || q < min) q = min;
+  if (q > stock) q = stock;
+
+  quantity.value = q;
+}
+
+function increaseQuantity() {
   const stock = getCurrentStock();
-  if (stock === 0) return "text-red-600";
-  if (stock <= 10) return "text-amber-600";
-  return "text-green-600";
-};
+  if (stock <= 0) return;
+  const next = Number(quantity.value || 0) + 1;
+  quantity.value = Math.min(next, stock);
+}
 
-// Validate quantity doesn't exceed stock
-const validateQuantity = () => {
-  const maxStock = getCurrentStock();
-  if (quantity.value > maxStock) {
-    quantity.value = maxStock;
+function decreaseQuantity() {
+  const stock = getCurrentStock();
+  if (stock <= 0) {
+    quantity.value = 0;
+    return;
   }
-  if (quantity.value < 1) {
-    quantity.value = 1;
-  }
-};
+  const min = Math.max(1, Number(minPurchase.value || 1));
+  const next = Number(quantity.value || 0) - 1;
+  quantity.value = Math.max(next, min);
+}
 
-// Watch for size/variant changes and reset quantity if needed
-watch([selectedSize, selectedVariant], () => {
-  const maxStock = getCurrentStock();
-  if (quantity.value > maxStock) {
-    quantity.value = Math.max(1, maxStock);
-  }
-});
+// ✅ Reset qty saat pilihan size/variant berubah agar tidak melebihi stok baru
+watch(
+  [selectedSize, selectedVariant, stockCombinations],
+  () => {
+    // Jika stok baru < qty, sesuaikan
+    validateQuantity();
+  },
+  { immediate: true }
+);
 
-const calculateAddonOnlyPrice = () => {
-  return selectedAddons.value.reduce((sum, addon) => sum + addon.price, 0);
-};
-
-const calculateAddonPrice = () => {
-  let sizePrice = selectedSize.value?.priceAdd || 0;
-  let variantPrice = selectedVariant.value?.priceAdd || 0;
-  let addonsPrice = calculateAddonOnlyPrice();
-
-  return sizePrice + variantPrice + addonsPrice;
-};
+// ✅ Restore: total price calculator (base + addons) × quantity
+const calculateAddonOnlyPrice = () =>
+  selectedAddons.value.reduce((sum, a) => sum + Number(a.price), 0);
 
 const calculateTotalPrice = () => {
-  const basePrice = getBasePrice();
-  const addonPrice = calculateAddonPrice();
-
-  return (basePrice + addonPrice) * quantity.value;
+  const base = getCurrentPrice();
+  const addons = calculateAddonOnlyPrice();
+  return Math.max(0, (base + addons) * Number(quantity.value || 1));
 };
 
-const calculateTempAddonPrice = () => {
-  return tempSelectedAddons.value.reduce((sum, addon) => sum + addon.price, 0);
-};
+// ✅ Restore: archived flag (used by banner)
+const isArchived = computed(() => product.value?.status === "archived");
 
-const increaseQuantity = () => {
-  const maxStock = getCurrentStock();
-  if (quantity.value < maxStock) {
-    quantity.value++;
+// ✅ Helper: ambil stok kombinasi saat ini (size + variant)
+function getCurrentStock() {
+  // Jika tidak ada kombinasi, anggap 0
+  if (
+    !Array.isArray(stockCombinations.value) ||
+    stockCombinations.value.length === 0
+  ) {
+    return 0;
   }
-};
+  const sizeKey = selectedSize?.value?.id ?? 0;
+  const variantKey = selectedVariant?.value?.id ?? 0;
 
-const decreaseQuantity = () => {
-  if (quantity.value > 1) {
-    quantity.value--;
+  const found = stockCombinations.value.find(
+    (c) =>
+      Number(c.sizeId) === Number(sizeKey) &&
+      Number(c.variantId) === Number(variantKey)
+  );
+  return Number(found?.stock ?? 0);
+}
+
+// Map helper: name → id untuk size
+function getSizeIdByName(name) {
+  const found = sizes.value.find((s) => String(s.name) === String(name));
+  return found?.id ?? null;
+}
+
+// Map helper: id → name (opsional jika perlu)
+function getSizeNameById(id) {
+  const found = sizes.value.find((s) => Number(s.id) === Number(id));
+  return found?.name ?? null;
+}
+
+function getCurrentPrice() {
+  // Jika tidak ada kombinasi, fallback ke min price atau product.price
+  if (
+    !Array.isArray(stockCombinations.value) ||
+    stockCombinations.value.length === 0
+  ) {
+    return Number(product.value?.price || 0);
   }
-};
+  const sizeKey = selectedSize?.value?.id ?? 0;
+  const variantKey = selectedVariant?.value?.id ?? 0;
 
-// Addon Modal Functions
-const isAddonSelected = (addon) => {
-  return tempSelectedAddons.value.some((a) => a.id === addon.id);
-};
-
-const isGroupMaxed = (group, excludeAddon) => {
-  if (group.maxSelection === 999) return false;
-
-  const groupAddons = tempSelectedAddons.value.filter((a) =>
-    group.items.some((item) => item.id === a.id)
-  );
-
-  return (
-    groupAddons.length >= group.maxSelection &&
-    !groupAddons.some((a) => a.id === excludeAddon.id)
-  );
-};
-
-const toggleAddon = (addon, group) => {
-  const index = tempSelectedAddons.value.findIndex((a) => a.id === addon.id);
-
-  if (index > -1) {
-    tempSelectedAddons.value.splice(index, 1);
-  } else {
-    const groupAddons = tempSelectedAddons.value.filter((a) =>
-      group.items.some((item) => item.id === a.id)
+  // Cari kombinasi cocok (prioritas stok > 0, jika tidak ada ambil yang cocok saja)
+  let found =
+    stockCombinations.value.find(
+      (c) =>
+        Number(c.sizeId) === Number(sizeKey) &&
+        Number(c.variantId) === Number(variantKey) &&
+        Number(c.stock) > 0
+    ) ||
+    stockCombinations.value.find(
+      (c) =>
+        Number(c.sizeId) === Number(sizeKey) &&
+        Number(c.variantId) === Number(variantKey)
     );
 
-    if (groupAddons.length < group.maxSelection) {
-      tempSelectedAddons.value.push(addon);
-    }
+  // Fallback terakhir ke price_range.min atau product.price
+  if (!found) {
+    const min = Number(product.value?.price || 0);
+    return min;
   }
-};
+  return Number(found.price ?? product.value?.price ?? 0);
+}
 
-const selectSingleAddon = (addon, group) => {
-  tempSelectedAddons.value = tempSelectedAddons.value.filter(
-    (a) => !group.items.some((item) => item.id === a.id)
+// Total stok untuk suatu size (dipanggil oleh template dengan size.name)
+function getSizeStock(sizeNameOrId) {
+  const sizeId =
+    typeof sizeNameOrId === "string"
+      ? getSizeIdByName(sizeNameOrId)
+      : sizeNameOrId;
+  if (!Array.isArray(stockCombinations.value) || sizeId == null) return 0;
+  return stockCombinations.value
+    .filter((c) => Number(c.sizeId) === Number(sizeId))
+    .reduce((sum, c) => sum + Number(c.stock || 0), 0);
+}
+
+// Stok untuk variant tertentu pada size terpilih (template memanggil dengan variant.id)
+function getVariantStock(variantId) {
+  if (!Array.isArray(stockCombinations.value)) return 0;
+  const sizeKey = selectedSize?.value?.id ?? 0;
+  const found = stockCombinations.value.find(
+    (c) =>
+      Number(c.sizeId) === Number(sizeKey) &&
+      Number(c.variantId) === Number(variantId)
   );
-  tempSelectedAddons.value.push(addon);
-};
+  return Number(found?.stock ?? 0);
+}
 
-const resetAddons = () => {
-  tempSelectedAddons.value = [];
-};
+// Availability helpers: kompatibel dengan template (size.name dipakai)
+function isSizeAvailable(sizeNameOrId) {
+  return getSizeStock(sizeNameOrId) > 0;
+}
+function isVariantAvailable(variantId) {
+  return getVariantStock(variantId) > 0;
+}
 
-const applyAddons = () => {
-  for (const group of addonGroups.value) {
-    if (group.required) {
-      const hasSelection = tempSelectedAddons.value.some((a) =>
-        group.items.some((item) => item.id === a.id)
-      );
+// ✅ Low stock helper (threshold 10 seperti UI)
+function isLowStock() {
+  const s = getCurrentStock();
+  return s > 0 && s <= 10;
+}
 
-      if (!hasSelection) {
-        alert(`Harap pilih ${group.name}`);
-        return;
-      }
-    }
-  }
+// ✅ Color class untuk stok saat ini (dipakai di template)
+function getStockColorClass() {
+  const s = getCurrentStock();
+  if (s === 0) return "text-red-600";
+  if (s <= 10) return "text-amber-700";
+  return "text-gray-900";
+}
 
-  selectedAddons.value = [...tempSelectedAddons.value];
-  showAddonModal.value = false;
-};
-
-const closeAddonModal = () => {
-  tempSelectedAddons.value = [...selectedAddons.value];
-  showAddonModal.value = false;
-};
-
-const validateSelection = () => {
-  if (!selectedSize.value) {
-    alert("Silakan pilih ukuran terlebih dahulu");
-    return false;
-  }
-
-  if (variants.value.length > 0 && !selectedVariant.value) {
-    alert("Silakan pilih varian terlebih dahulu");
-    return false;
-  }
-
-  if (getCurrentStock() === 0) {
-    alert(
-      `Maaf, kombinasi ${selectedSize.value.name} - ${selectedVariant.value.name} sedang habis`
-    );
-    return false;
-  }
-
-  if (quantity.value > getCurrentStock()) {
-    alert(`Maaf, stok hanya tersisa ${getCurrentStock()} item`);
-    return false;
-  }
-
-  for (const group of addonGroups.value) {
-    if (group.required) {
-      const hasSelection = selectedAddons.value.some((a) =>
-        group.items.some((item) => item.id === a.id)
-      );
-
-      if (!hasSelection) {
-        alert(`Harap pilih ${group.name}`);
-        return false;
-      }
-    }
-  }
-
-  return true;
-};
-
-const addToCart = () => {
-  if (!validateSelection()) return;
-
-  const cartItem = {
-    productSlug: getProductSlug(),
-    productId: product.value?.id,
-    name: product.value?.name,
-    image: product.value?.image,
-    basePrice: getBasePrice(),
-    size: selectedSize.value,
-    variant: selectedVariant.value,
-    addons: selectedAddons.value,
-    quantity: quantity.value,
-    unitPrice: calculateTotalPrice() / quantity.value,
-    totalPrice: calculateTotalPrice(),
-  };
-
-  // TODO: Implement cart store dengan Pinia
-  console.log("Add to cart:", cartItem);
-
-  // Simulasi success
-  alert(`${product.value?.name} berhasil ditambahkan ke keranjang!`);
-
-  // Update cart count (nanti pakai Pinia store)
-  cartItemsCount.value++;
-};
-
-const getProductSlug = () => {
+// ✅ Helper: ambil slug dari route
+function getProductSlug() {
   return route.params.slug;
-};
+}
 
-const buyNow = () => {
-  if (!validateSelection()) return;
-
-  router.push({
-    name: "Pembayaran Produk",
-    query: {
-      slug: getProductSlug(),
-      type: "product",
-      title: product.value?.name || "Nama Produk",
-      price: calculateTotalPrice(),
-      size: selectedSize.value?.name,
-      variant: selectedVariant.value?.name,
-      addons: JSON.stringify(selectedAddons.value.map((a) => a.name)),
-      quantity: quantity.value,
-    },
-  });
-};
-
-const viewProduct = (slug) => {
-  router.push({ name: "Product Detail", params: { slug } });
-};
-
-// Handle scroll event
-const handleScroll = () => {
-  const currentScrollY = window.scrollY;
-
-  // Show header saat scroll lebih dari 200px
-  if (currentScrollY > 200) {
-    showScrollHeader.value = true;
-  } else {
-    showScrollHeader.value = false;
+// ✅ Helper: bangun URL gambar dari objek/path yang dikirim backend
+function buildImageUrl(img) {
+  if (!img) return "";
+  // Jika backend kirim object image dengan id → gunakan getImageUrl
+  if (typeof img === "object") {
+    // prioritas: id → getImageUrl, fallback ke url/path/image_path jika ada
+    if (img.id) return getImageUrl(img.id);
+    return img.url || img.path || img.image_path || "";
   }
-
-  lastScrollY.value = currentScrollY;
-};
-
-// Share Functions
-const shareProduct = () => {
-  showShareModal.value = true;
-};
-
-const getShareUrl = () => {
-  return window.location.href;
-};
-
-const getShareText = () => {
-  const productName = product.value?.name || "Produk Menarik";
-  const productPrice = formatIDR(getBasePrice());
-  return `Lihat ${productName} seharga Rp ${productPrice} di Sumilir! ${getShareUrl()}`;
-};
-
-const shareVia = (platform) => {
-  const url = encodeURIComponent(getShareUrl());
-  const text = encodeURIComponent(getShareText());
-
-  let shareUrl = "";
-
-  switch (platform) {
-    case "whatsapp":
-      shareUrl = `https://wa.me/?text=${text}`;
-      break;
-    case "facebook":
-      shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${url}`;
-      break;
-    case "twitter":
-      shareUrl = `https://twitter.com/intent/tweet?url=${url}&text=${text}`;
-      break;
-  }
-
-  if (shareUrl) {
-    window.open(shareUrl, "_blank", "width=600,height=400");
-    showShareModal.value = false;
-  }
-};
-
-const copyLink = async () => {
-  try {
-    await navigator.clipboard.writeText(getShareUrl());
-    alert("Link berhasil disalin!");
-    showShareModal.value = false;
-  } catch (err) {
-    console.error("Failed to copy:", err);
-    alert("Gagal menyalin link");
-  }
-};
-
-// ✅ NEW: Touch/Swipe handling
-const touchStartX = ref(0);
-const touchEndX = ref(0);
-const isDragging = ref(false);
-
-// ✅ NEW: Image Gallery Functions
-const selectImage = (index) => {
-  currentImageIndex.value = index;
-};
-
-const nextImage = () => {
-  if (currentImageIndex.value < productImages.value.length - 1) {
-    currentImageIndex.value++;
-  } else {
-    currentImageIndex.value = 0; // Loop back to first
-  }
-};
-
-const prevImage = () => {
-  if (currentImageIndex.value > 0) {
-    currentImageIndex.value--;
-  } else {
-    currentImageIndex.value = productImages.value.length - 1; // Loop to last
-  }
-};
-
-const openImageModal = () => {
-  showImageModal.value = true;
-};
-
-// ✅ NEW: Touch/Swipe handlers
-const handleTouchStart = (e) => {
-  touchStartX.value = e.touches[0].clientX;
-  isDragging.value = false;
-};
-
-const handleTouchMove = (e) => {
-  if (Math.abs(e.touches[0].clientX - touchStartX.value) > 10) {
-    isDragging.value = true;
-  }
-};
-
-const handleTouchEnd = (e) => {
-  if (!isDragging.value) return;
-
-  touchEndX.value = e.changedTouches[0].clientX;
-  handleSwipe();
-};
-
-const handleSwipe = () => {
-  const swipeThreshold = 50; // Minimum swipe distance
-  const diff = touchStartX.value - touchEndX.value;
-
-  if (Math.abs(diff) > swipeThreshold) {
-    if (diff > 0) {
-      // Swipe left - next image
-      nextImage();
-    } else {
-      // Swipe right - previous image
-      prevImage();
-    }
-  }
-};
+  // Jika string (sudah berupa URL)
+  return img;
+}
 
 onMounted(async () => {
   loading.value = true;
   window.addEventListener("scroll", handleScroll);
 
-  addonGroups.value.forEach((group) => {
-    if (group.required && group.maxSelection === 1 && group.items.length > 0) {
-      const firstAvailable = group.items.find((item) => item.available);
-      if (firstAvailable) {
-        selectedAddons.value.push(firstAvailable);
-      }
-    }
-  });
-
-  tempSelectedAddons.value = [...selectedAddons.value];
-
   try {
     const productSlug = getProductSlug();
     const { data } = await api.get(`/public/products/${productSlug}`);
-    product.value = data;
 
-    // ✅ NEW: Initialize images array
-    if (data.images && data.images.length > 0) {
-      productImages.value = data.images.map((img) => img.url || img.path);
-    } else if (data.image) {
-      // Fallback to single image
-      productImages.value = [data.image];
-    } else {
-      // Default placeholder
-      productImages.value = [
-        "https://picsum.photos/seed/mainproduct/600/600",
-        "https://picsum.photos/seed/product2/600/600",
-        "https://picsum.photos/seed/product3/600/600",
-      ];
+    const payload = data;
+    const p = payload?.product;
+    if (!p) {
+      router.replace({ name: "Beranda" });
+      return;
     }
 
-    if (data.sizes && data.sizes.length > 0) {
-      sizes.value = data.sizes;
-      const availableSize = data.sizes.find((s) => isSizeAvailable(s.name));
-      selectedSize.value = availableSize || data.sizes[0];
-    }
-
-    if (data.variants && data.variants.length > 0) {
-      variants.value = data.variants;
-      const availableVariant = data.variants.find((v) =>
-        isVariantAvailable(v.id)
-      );
-      selectedVariant.value = availableVariant || data.variants[0];
-    }
-
-    if (data.stockCombinations) {
-      stockCombinations.value = data.stockCombinations;
-    }
-
-    if (data.addonGroups) {
-      addonGroups.value = data.addonGroups;
-    }
-  } catch (e) {
-    // ✅ NEW: Fallback with multiple images
+    // Map ke state existing
     product.value = {
-      id: 1,
-      name: "Nama Produk",
-      price: 15000,
-      description: "Deskripsi produk...",
+      ...p,
       store: {
-        name: "Sumber Rejeki",
-        logo: "https://picsum.photos/seed/store/100/100",
+        id: p?.merchant?.id || null,
+        name: p?.merchant?.name || "Toko",
+        logo: p?.merchant?.logo_url || null,
+        address: p?.merchant?.address || "",
+        phone: p?.merchant?.phone || "",
       },
+      price: Number(payload?.price_range?.min ?? p?.price ?? 0),
+      min_purchase: Number(payload?.min_purchase ?? p?.min_purchase ?? 1),
     };
 
-    productImages.value = [
-      "https://picsum.photos/seed/mainproduct/600/600",
-      "https://picsum.photos/seed/product2/600/600",
-      "https://picsum.photos/seed/product3/600/600",
-      "https://picsum.photos/seed/product4/600/600",
-    ];
+    // Gambar
+    const imgs = Array.isArray(p?.images) ? p.images.slice() : [];
+    imgs.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+    productImages.value = imgs.length
+      ? imgs.map((img) => buildImageUrl(img))
+      : p?.cover_image
+      ? [buildImageUrl(p.cover_image)]
+      : [];
 
-    console.warn("API produk belum tersedia, menggunakan data fallback.");
+    // Options (maks 2), gunakan option_name dari backend
+    const options = Array.isArray(p?.options) ? p.options : [];
+    const optSize = options[0]; // opsi 1
+    const optVariant = options[1] || null; // opsi 2 (mungkin null)
+
+    // Sizes dari values opsi 1 (pakai id)
+    if (optSize?.values?.length) {
+      // optional: urutkan berdasarkan id agar konsisten
+      const sizeVals = optSize.values
+        .slice()
+        .sort((a, b) => Number(a.id) - Number(b.id));
+      sizes.value = sizeVals.map((v) => ({
+        id: v.id,
+        name: v.option_value,
+        priceAdd: 0,
+      }));
+    } else {
+      sizes.value = [];
+    }
+
+    // Variants dari values opsi 2 (pakai id) — jika tidak ada opsi 2, kosong
+    if (optVariant?.values?.length) {
+      const variantVals = optVariant.values
+        .slice()
+        .sort((a, b) => Number(a.id) - Number(b.id));
+      variants.value = variantVals.map((v) => ({
+        id: v.id,
+        name: v.option_value,
+        priceAdd: 0,
+      }));
+    } else {
+      variants.value = [];
+    }
+
+    // ✅ Gunakan combinations dari API langsung untuk stok & harga kombinasi
+    // format: { sizeId, variantId (0 jika tidak ada opsi 2), price, stock, product_variant_id, sku }
+    const combos = Array.isArray(payload?.combinations)
+      ? payload.combinations
+      : [];
+    stockCombinations.value = combos.map((c) => ({
+      sizeId: Number(c.sizeId ?? 0),
+      variantId: Number(c.variantId ?? 0),
+      price: Number(c.price ?? product.value?.price ?? 0),
+      stock: Number(c.stock ?? 0),
+      productVariantId: c.product_variant_id ?? null,
+      sku: c.sku ?? null,
+    }));
+
+    // Pilihan default: size dengan stok > 0
+    const sizeWithStock = sizes.value.find((s) =>
+      stockCombinations.value.some(
+        (c) => Number(c.sizeId) === Number(s.id) && Number(c.stock) > 0
+      )
+    );
+    selectedSize.value = sizeWithStock || sizes.value[0] || null;
+
+    // Pilihan default variant: pada size terpilih cari variant dengan stok > 0, jika tidak ada pakai pertama
+    if (variants.value.length > 0) {
+      const sizeKey = selectedSize.value?.id ?? 0;
+      const variantWithStock = variants.value.find((v) =>
+        stockCombinations.value.some(
+          (c) =>
+            Number(c.sizeId) === Number(sizeKey) &&
+            Number(c.variantId) === Number(v.id) &&
+            Number(c.stock) > 0
+        )
+      );
+      selectedVariant.value = variantWithStock || variants.value[0] || null;
+    } else {
+      selectedVariant.value = null;
+    }
+
+    // Addon groups (tetap sama)
+    if (Array.isArray(p?.addon_groups) && p.addon_groups.length) {
+      addonGroups.value = p.addon_groups.map((g) => ({
+        id: g.id,
+        name: g.addon_group_name || g.name,
+        description: g.description || null,
+        required: Number(g.min_selection ?? 0) > 0,
+        maxSelection: Number(g.max_selection ?? 1),
+        items: Array.isArray(g.options)
+          ? g.options.map((opt) => ({
+              id: opt.id,
+              name: opt.addon?.addon_name || opt.name,
+              price: Number(opt.addon_price ?? 0),
+              description: opt.description || null,
+              available: opt.addon_stock == null || Number(opt.addon_stock) > 0,
+            }))
+          : [],
+      }));
+      // Default untuk group wajib (single)
+      addonGroups.value.forEach((group) => {
+        if (group.required && group.maxSelection === 1 && group.items.length) {
+          const firstAvailable = group.items.find((item) => item.available);
+          if (
+            firstAvailable &&
+            !selectedAddons.value.some((a) => a.id === firstAvailable.id)
+          ) {
+            selectedAddons.value.push(firstAvailable);
+          }
+        }
+      });
+      tempSelectedAddons.value = [...selectedAddons.value];
+    } else {
+      addonGroups.value = [];
+      selectedAddons.value = [];
+      tempSelectedAddons.value = [];
+    }
+
+    // Guard draft (defensive)
+    if (product.value?.status === "draft") {
+      alert("Produk draft tidak tersedia untuk ditampilkan.");
+      router.replace({ name: "Beranda" });
+      return;
+    }
+  } catch (e) {
+    if (e?.response?.status === 404) {
+      router.replace({ name: "Beranda" });
+      return;
+    }
+    console.error("Gagal memuat produk:", e);
   } finally {
     loading.value = false;
   }
@@ -2044,17 +1938,70 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener("scroll", handleScroll);
 });
+
+// ✅ Gunakan label opsi dari product.options agar tidak hardcode
+const option1Label = computed(
+  () => product.value?.options?.[0]?.option_name || "Opsi 1"
+);
+const option2Label = computed(
+  () => product.value?.options?.[1]?.option_name || "Opsi 2"
+);
+
+// ✅ Min pembelian (dipakai di template)
+const minPurchase = computed(() => Number(product.value?.min_purchase ?? 1));
+
+// Helper stok & harga (tetap, sudah pakai ID)
+// getCurrentStock(), getSizeStock(), getVariantStock(), getCurrentPrice() tetap bekerja,
+// karena stockCombinations kini berasal dari payload.combinations dan variantId bisa 0 untuk produk 1 opsi.
+
+function buyNow() {
+  const qty = Number(quantity.value || 1);
+  // ✅ unitPrice dijamin terisi dari getCurrentPrice, fallback ke product.price
+  const unitPrice =
+    Number(getCurrentPrice()) || Number(product.value?.price || 0);
+
+  const sizeId = selectedSize.value?.id ?? null;
+  const sizeName = selectedSize.value?.name || "";
+  const variantId = selectedVariant.value?.id ?? null;
+  const variantName = selectedVariant.value?.name || "";
+  const stock = getCurrentStock();
+
+  const store = product.value?.merchant || product.value?.store || {};
+
+  const checkout = useCheckoutStore();
+  checkout.setFromProductDetail({
+    slug: product.value?.slug,
+    title: product.value?.name,
+    image: selectedImage.value || productImages.value?.[0] || "",
+    store: {
+      id: store.id ?? null,
+      slug: store.slug ?? null,
+      name: store.name ?? "",
+      address: store.address ?? "",
+      phone: store.phone ?? "",
+    },
+    qty,
+    sizeId,
+    sizeName,
+    variantId,
+    variantName,
+    unitPrice, // ✅ dijamin terisi
+    stock,
+    addons: selectedAddons.value,
+  });
+
+  router.push({
+    path: "/product-payment",
+    query: {
+      slug: product.value?.slug || "",
+      storeId: store.id ? String(store.id) : "",
+      storeSlug: store.slug || "",
+    },
+  });
+}
 </script>
 
 <style scoped>
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
 /* Smooth transitions for image changes */
 @keyframes fadeIn {
   from {
@@ -2071,11 +2018,44 @@ onUnmounted(() => {
   animation: fadeIn 0.3s ease-out;
 }
 
-/* Prevent text selection during swipe */
-.select-none {
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
+/* ✅ Strip horizontal scroll */
+.thumb-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch; /* smooth on iOS */
+  scroll-behavior: smooth;
+}
+
+/* Hide scrollbar (Chrome/Edge) */
+.thumb-strip::-webkit-scrollbar {
+  height: 0;
+}
+
+/* Hide scrollbar (Firefox) */
+.thumb-strip {
+  scrollbar-width: none;
+}
+
+/* Item gaya konsisten */
+.thumb-item {
+  flex: 0 0 auto;
+  width: 80px;
+  height: 80px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid #e5e7eb; /* gray-200 */
+  transition: all 0.2s ease;
+}
+.thumb-item:hover {
+  transform: scale(1.05);
+  border-color: #d1d5db; /* gray-300 */
+}
+.thumb-item.active {
+  border-color: var(--color-primary, #ffa30e);
+  box-shadow: 0 0 0 4px rgba(255, 163, 14, 0.15);
+  transform: scale(1.05);
 }
 </style>

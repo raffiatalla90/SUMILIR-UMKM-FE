@@ -202,16 +202,18 @@ defineExpose({
             : 'justify-between px-4 sm:justify-center sm:px-4',
         ]"
       >
-        <h2
-          :class="[
-            'text-lg font-bold text-gray-800 transition-all duration-300',
-            isOpen
-              ? 'opacity-100'
-              : 'opacity-100 sm:opacity-0 sm:w-0 sm:hidden',
-          ]"
-        >
-          Sumilir Logo
-        </h2>
+        <router-link to="/">
+          <h2
+            :class="[
+              'text-lg font-bold text-gray-800 transition-all duration-300',
+              isOpen
+                ? 'opacity-100'
+                : 'opacity-100 sm:opacity-0 sm:w-0 sm:hidden',
+            ]"
+          >
+            Sumilir Logo
+          </h2>
+        </router-link>
 
         <!-- Hamburger Button -->
         <button

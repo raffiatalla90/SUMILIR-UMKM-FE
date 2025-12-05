@@ -22,6 +22,18 @@ const routes = [
         component: () => import("@/views/customer/ProductToko.vue"),
         meta: { title: "Semua Produk Toko | SUMILIR" },
       },
+      // {
+      //   path: "product-kuliner",
+      //   name: "Product Kuliner",
+      //   component: () => import("@/views/customer/ProductKuliner.vue"),
+      //   meta: { title: "Semua Produk Kuliner | SUMILIR" },
+      // },
+      {
+        path: "products/:slug",
+        name: "Product Detail",
+        component: () => import("@/views/customer/ProductDetail.vue"),
+        meta: { title: "Product Detail | SUMILIR" },
+      },
       {
         path: "merchant/:slug",
         name: "Merchant Detail",
@@ -56,13 +68,7 @@ const routes = [
       },
 
       {
-        path: "products/:slug",
-        name: "Product Detail",
-        component: () => import("@/views/customer/ProductDetail.vue"),
-        meta: { title: "Product Detail | SUMILIR" },
-      },
-      {
-        path: "keranjang",
+        path: "cart",
         name: "Keranjang",
         component: () => import("@/views/customer/Cart.vue"),
         meta: {
@@ -72,7 +78,7 @@ const routes = [
         },
       },
       {
-        path: "pembayaran-product",
+        path: "product-payment",
         name: "Pembayaran Produk",
         component: () => import("@/views/customer/PembayaranProduct.vue"),
         meta: {
@@ -217,16 +223,18 @@ const routes = [
           title: "Buat Product UMKM | SUMILIR",
         },
       },
+      // ✅ UPDATED: Use slug instead of id
       {
-        path: "products/:id",
+        path: "products/:slug",
         name: "Merchant - Product Detail",
         component: () => import("@/views/merchant/products/Detail.vue"),
         meta: {
           title: "Product Detail UMKM | SUMILIR",
         },
       },
+      // ✅ UPDATED: Use slug instead of id
       {
-        path: "products/:id/edit",
+        path: "products/:slug/edit",
         name: "Merchant - Product Edit",
         component: () => import("@/views/merchant/products/Edit.vue"),
         meta: {
