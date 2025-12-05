@@ -65,7 +65,7 @@ const { categoriesLevel1, loadingLevel1, fetchLevel1Categories } =
 const emit = defineEmits(["toggle-sidebar"]);
 
 // State
-const selectedProducts = ref([]);
+const selectedProducts = ref([]); // Array of slugs
 const selectAll = ref(false);
 
 // Modals
@@ -194,26 +194,26 @@ const handleSearch = () => {
   loadProducts();
 };
 
-// ✅ ADD: Missing method for toggling product selection
-const toggleProductSelection = (productId) => {
-  const index = selectedProducts.value.indexOf(productId);
+// ✅ Toggle product selection using slug
+const toggleProductSelection = (productSlug) => {
+  const index = selectedProducts.value.indexOf(productSlug);
 
   if (index > -1) {
     // Remove from selection
     selectedProducts.value.splice(index, 1);
   } else {
     // Add to selection
-    selectedProducts.value.push(productId);
+    selectedProducts.value.push(productSlug);
   }
 
   // Update selectAll checkbox state
   selectAll.value = selectedProducts.value.length === products.value.length;
 };
 
-// ✅ UPDATE: toggleSelectAll method
+// ✅ Toggle select all using slug
 const toggleSelectAll = () => {
   if (selectAll.value) {
-    selectedProducts.value = products.value.map((p) => p.id);
+    selectedProducts.value = products.value.map((p) => p.slug);
   } else {
     selectedProducts.value = [];
   }
@@ -450,7 +450,7 @@ const selectedProductsCount = computed(() => {
 
 // ✅ ADD: Computed untuk mendapatkan data produk yang dipilih (untuk modal preview)
 const selectedProductsData = computed(() => {
-  return products.value.filter((p) => selectedProducts.value.includes(p.id));
+  return products.value.filter((p) => selectedProducts.value.includes(p.slug));
 });
 
 // ✅ ADD: Missing method - Close visibility modal
@@ -618,7 +618,9 @@ const confirmBulkStatusChange = async () => {
     selectAll.value = false;
     closeBulkStatusChangeModal();
   } catch (error) {
-    toast.error(error.response?.data?.message || "Gagal mengubah status");
+    toast.error(
+      error.response?.data?.message || "Gagal mengubah status produk"
+    );
   }
 };
 
@@ -725,7 +727,7 @@ const categoryOptions = computed(() => {
   return base.concat(items);
 });
 
-// ✅ COUNT: Jumlah filter aktif (dikembalikan)
+// ✅ COUNT: Jumlah filter aktif (dikembalikan agar komponen table & mobile pagination bekerja)
 const activeFilterCount = computed(() => {
   let count = 0;
   if (activeFilters.value.status) count++;
@@ -1154,8 +1156,8 @@ const tableActions = [
           v-for="product in products"
           :key="product.id"
           :product="product"
-          :selected="selectedProducts.includes(product.id)"
-          @toggle-select="toggleProductSelection(product.id)"
+          :selected="selectedProducts.includes(product.slug)"
+          @toggle-select="toggleProductSelection(product.slug)"
           @view-detail="goToDetail"
           @edit="goToEdit"
           @delete="deleteProductAction"

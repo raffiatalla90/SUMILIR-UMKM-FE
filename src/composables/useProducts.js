@@ -185,16 +185,18 @@ export function useProducts() {
   /**
    * Bulk delete products
    */
-  const bulkDeleteProducts = async (productIds) => {
+  const bulkDeleteProducts = async (productSlugs) => {
     loading.value = true;
     try {
       await api.post("/products/bulk-delete", {
-        product_ids: productIds,
+        product_slugs: productSlugs, // ✅ FIXED: use slugs not ids
       });
 
       // Remove deleted products from local state
-      products.value = products.value.filter((p) => !productIds.includes(p.id));
-      pagination.value.total -= productIds.length;
+      products.value = products.value.filter(
+        (p) => !productSlugs.includes(p.slug) // ✅ FIXED: compare with slug
+      );
+      pagination.value.total -= productSlugs.length;
     } catch (error) {
       console.error("Error bulk deleting products:", error);
       throw error;
@@ -206,17 +208,17 @@ export function useProducts() {
   /**
    * Bulk update status
    */
-  const bulkUpdateStatus = async (productIds, status) => {
+  const bulkUpdateStatus = async (productSlugs, status) => {
     loading.value = true;
     try {
       await api.post("/products/bulk-update-status", {
-        product_ids: productIds,
+        product_slugs: productSlugs, // ✅ FIXED: use slugs not ids
         status,
       });
 
       // Update local product statuses
       products.value.forEach((product) => {
-        if (productIds.includes(product.id)) {
+        if (productSlugs.includes(product.slug)) {
           product.status = status;
         }
       });
@@ -228,15 +230,56 @@ export function useProducts() {
     }
   };
 
+  /**
+   * Fetch random products for Toko homepage
+   */
+  const fetchProductsToko = async (limit = 12) => {
+    loading.value = true;
+    try {
+      const { data } = await api.get("/public/products/toko", {
+        params: { limit },
+      });
+
+      return data.data || [];
+    } catch (error) {
+      console.error("[fetchProductsToko] Error:", error);
+      throw error;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  /**
+   * Fetch random products for Kuliner homepage
+   */
+  const fetchProductsKuliner = async (limit = 12) => {
+    loading.value = true;
+    try {
+      const { data } = await api.get("/public/products/kuliner", {
+        params: { limit },
+      });
+
+      return data.data || [];
+    } catch (error) {
+      console.error("[fetchProductsKuliner] Error:", error);
+      throw error;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  // ✅ SINGLE RETURN STATEMENT AT THE END
   return {
     products,
     loading,
     pagination,
     fetchProducts,
-    fetchProductDetail, // ✅ now expects slug
-    updateProductStatus, // ✅ now expects slug
-    deleteProduct, // ✅ now expects slug
+    fetchProductDetail,
+    updateProductStatus,
+    deleteProduct,
     bulkDeleteProducts,
     bulkUpdateStatus,
+    fetchProductsToko,
+    fetchProductsKuliner,
   };
 }

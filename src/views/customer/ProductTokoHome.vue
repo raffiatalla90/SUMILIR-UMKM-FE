@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { Form } from "vee-validate";
 import TextField from "@/components/forms/TextField.vue";
 import CategoryCard from "@/components/Card/CategoryCard.vue";
@@ -9,18 +10,22 @@ import PromoCard from "@/components/Card/PromoCard.vue";
 import PromoCardSkeleton from "@/components/Card/PromoCardSkeleton.vue";
 import EventCard from "@/components/Card/EventCard.vue";
 import EventCardSkeleton from "@/components/Card/EventCardSkeleton.vue";
-import MerchantCard from "@/components/Card/MerchantCard.vue"; // ✅ NEW
 import jasaIcon from "@/assets/icons/Jasa.svg";
 import kulinerIcon from "@/assets/icons/Kuliner.svg";
 import tokoIcon from "@/assets/icons/Toko.svg";
 import komunitasIcon from "@/assets/icons/Komunitas.svg";
 import Button from "@/components/common/Button.vue";
 import api from "@/libs/axios.js";
+import { useProducts } from "@/composables/useProducts";
+import { getImageUrl } from "@/libs/getImageUrl"; // ✅ ADD
 
+const router = useRouter();
 const searchQuery = ref("");
-const isLoadingMerchants = ref(true);
+const isLoadingProducts = ref(true);
 const isLoadingPromo = ref(true);
 const isLoadingEvent = ref(true);
+
+const { fetchProductsToko } = useProducts();
 
 const categories = ref([
   {
@@ -45,7 +50,7 @@ const categories = ref([
   },
 ]);
 
-const merchantList = ref([]);
+const productList = ref([]);
 const promoList = ref([]);
 const eventList = ref([]);
 
@@ -54,21 +59,31 @@ const onSearch = () => {
   // router.push({ name: "Search", query: q ? { q } : {} });
 };
 
+const goToProductDetail = (product) => {
+  router.push({
+    name: "Product Detail",
+    params: { slug: product.slug },
+  });
+};
+
+// ✅ ADD: Helper to get product image URL
+const getProductImageUrl = (product) => {
+  if (product.cover_image?.id) {
+    return getImageUrl(product.cover_image.id);
+  }
+  return null;
+};
+
 onMounted(async () => {
-  // ✅ Fetch random merchants
   try {
-    isLoadingMerchants.value = true;
-    const merchantRes = await api.get("/public/merchants/random", {
-      params: { limit: 8 },
-    });
-    merchantList.value = merchantRes.data.data || [];
+    isLoadingProducts.value = true;
+    productList.value = await fetchProductsToko(8);
   } catch (e) {
-    console.error("Gagal memuat data merchant:", e);
+    console.error("Gagal memuat data produk toko:", e);
   } finally {
-    isLoadingMerchants.value = false;
+    isLoadingProducts.value = false;
   }
 
-  // Fetch promo (ganti dengan API call sebenarnya)
   try {
     isLoadingPromo.value = true;
     const promoRes = await api.get("/promos");
@@ -79,7 +94,6 @@ onMounted(async () => {
     isLoadingPromo.value = false;
   }
 
-  // Simulasi loading event (ganti dengan API call sebenarnya)
   setTimeout(() => {
     eventList.value = Array(5).fill({ id: 1 });
     isLoadingEvent.value = false;
@@ -173,12 +187,12 @@ onMounted(async () => {
       </div>
     </section>
 
-    <!-- ✅ Section Rekomendasi UMKM -->
-    <section id="umkm-recommendation" class="relative pt-6 sm:pt-24">
+    <!-- ✅ Section Rekomendasi Produk Toko -->
+    <section id="product-recommendation" class="relative pt-6 sm:pt-24">
       <div class="pl-4 sm:pl-[54px]">
         <div class="inline-flex items-center gap-2.5 w-auto h-[35px] py-[5px]">
           <span class="text-base sm:text-section-title font-semibold"
-            >Rekomendasi UMKM</span
+            >Rekomendasi Produk Toko</span
           >
         </div>
       </div>
@@ -188,28 +202,54 @@ onMounted(async () => {
           class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6"
         >
           <!-- Skeleton loading -->
-          <template v-if="isLoadingMerchants">
+          <template v-if="isLoadingProducts">
             <ProductCardSkeleton v-for="i in 8" :key="i" />
           </template>
-          <!-- Actual merchants -->
+          <!-- ✅ Actual products (clickable) with image -->
           <template v-else>
-            <MerchantCard
-              v-for="merchant in merchantList"
-              :key="merchant.id"
-              :merchant="merchant"
-            />
+            <div
+              v-for="product in productList"
+              :key="product.id"
+              @click="goToProductDetail(product)"
+              class="cursor-pointer hover:shadow-lg transition-shadow bg-white rounded-lg overflow-hidden border border-gray-200"
+            >
+              <!-- Product Image -->
+              <div class="relative w-full aspect-square bg-gray-100">
+                <img
+                  v-if="getProductImageUrl(product)"
+                  :src="getProductImageUrl(product)"
+                  :alt="product.name"
+                  class="w-full h-full object-cover"
+                  @error="(e) => (e.target.style.display = 'none')"
+                />
+                <div
+                  v-else
+                  class="w-full h-full flex items-center justify-center"
+                >
+                  <i class="pi pi-image text-4xl text-gray-400"></i>
+                </div>
+              </div>
+
+              <!-- Product Info -->
+              <div class="p-3">
+                <h3
+                  class="text-sm font-semibold text-gray-900 line-clamp-2 mb-1"
+                >
+                  {{ product.name }}
+                </h3>
+                <p class="text-xs text-gray-500 mb-2">
+                  {{ product.merchant?.name || "UMKM" }}
+                </p>
+                <p class="text-sm font-bold text-primary">
+                  Rp {{ product.min_price?.toLocaleString("id-ID") || "0" }}
+                  <span v-if="product.min_price !== product.max_price">
+                    - Rp {{ product.max_price?.toLocaleString("id-ID") }}
+                  </span>
+                </p>
+              </div>
+            </div>
           </template>
         </div>
-
-        <!-- Tampilkan semua -->
-        <!-- <div class="mt-4 sm:mt-6 flex justify-center">
-          <router-link
-            :to="{ name: 'MerchantList' }"
-            class="text-sm sm:text-base text-gray-600 hover:text-primary transition-colors"
-          >
-            Tampilkan semua
-          </router-link>
-        </div> -->
       </div>
     </section>
 

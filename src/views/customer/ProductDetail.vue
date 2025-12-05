@@ -2025,6 +2025,8 @@ function buyNow() {
   overflow-x: auto;
   overflow-y: hidden;
   padding-bottom: 4px;
+  padding-top: 4px;
+  padding-left: 4px;
   -webkit-overflow-scrolling: touch; /* smooth on iOS */
   scroll-behavior: smooth;
 }

@@ -1,5 +1,6 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { Form } from "vee-validate";
 import TextField from "@/components/forms/TextField.vue";
 import CategoryCard from "@/components/Card/CategoryCard.vue";
@@ -15,22 +16,27 @@ import tokoIcon from "@/assets/icons/Toko.svg";
 import komunitasIcon from "@/assets/icons/Komunitas.svg";
 import Button from "@/components/common/Button.vue";
 import api from "@/libs/axios.js";
+import { useProducts } from "@/composables/useProducts";
+import { getImageUrl } from "@/libs/getImageUrl"; // ✅ ADD
 
+const router = useRouter();
 const searchQuery = ref("");
-const isLoadingJasa = ref(true);
+const isLoadingProducts = ref(true);
 const isLoadingPromo = ref(true);
 const isLoadingEvent = ref(true);
+
+const { fetchProductsKuliner } = useProducts();
 
 const categories = ref([
   {
     label: "Kuliner",
     icon: kulinerIcon,
-    to: { name: "" },
+    to: { name: "Product Kuliner" },
   },
   {
     label: "Toko",
     icon: tokoIcon,
-    to: { name: "" },
+    to: { name: "Product Toko" },
   },
   {
     label: "Jasa",
@@ -44,34 +50,50 @@ const categories = ref([
   },
 ]);
 
-const jasaList = ref([]);
+const productList = ref([]);
 const promoList = ref([]);
 const eventList = ref([]);
 
 const onSearch = () => {
   const q = (searchQuery.value || "").trim();
-  // router.push({ name: "JasaTeknisi", query: q ? { q } : {} });
+  // router.push({ name: "Search", query: q ? { q } : {} });
+};
+
+const goToProductDetail = (product) => {
+  router.push({
+    name: "Product Detail",
+    params: { slug: product.slug },
+  });
+};
+
+// ✅ ADD: Helper to get product image URL
+const getProductImageUrl = (product) => {
+  if (product.cover_image?.id) {
+    return getImageUrl(product.cover_image.id);
+  }
+  return null;
 };
 
 onMounted(async () => {
-  // Fetch jasa
   try {
-    isLoadingJasa.value = true;
-    const jasaRes = await api.get("/jasa");
-    jasaList.value = Array.isArray(jasaRes.data) ? jasaRes.data : [];
+    isLoadingProducts.value = true;
+    productList.value = await fetchProductsKuliner(8);
   } catch (e) {
-    console.error("Gagal memuat data jasa:", e);
+    console.error("Gagal memuat data produk kuliner:", e);
   } finally {
-    isLoadingJasa.value = false;
+    isLoadingProducts.value = false;
   }
 
-  // Simulasi loading promo (ganti dengan API call sebenarnya)
-  setTimeout(() => {
-    promoList.value = Array(5).fill({ id: 1 });
+  try {
+    isLoadingPromo.value = true;
+    const promoRes = await api.get("/promos");
+    promoList.value = Array.isArray(promoRes.data) ? promoRes.data : [];
+  } catch (e) {
+    console.error("Gagal memuat data promo:", e);
+  } finally {
     isLoadingPromo.value = false;
-  }, 1000);
+  }
 
-  // Simulasi loading event (ganti dengan API call sebenarnya)
   setTimeout(() => {
     eventList.value = Array(5).fill({ id: 1 });
     isLoadingEvent.value = false;
@@ -155,7 +177,7 @@ onMounted(async () => {
           <template v-else>
             <div
               v-for="(promo, i) in promoList"
-              :key="i"
+              :key="promo.id || i"
               class="snap-start shrink-0"
             >
               <PromoCard :promo="promo" />
@@ -165,38 +187,68 @@ onMounted(async () => {
       </div>
     </section>
 
-    <!-- Section Rekomendasi UMKM -->
-    <section id="umkm-recommendation" class="relative pt-6 sm:pt-24">
+    <!-- ✅ Section Rekomendasi Kuliner -->
+    <section id="product-recommendation" class="relative pt-6 sm:pt-24">
       <div class="pl-4 sm:pl-[54px]">
         <div class="inline-flex items-center gap-2.5 w-auto h-[35px] py-[5px]">
           <span class="text-base sm:text-section-title font-semibold"
-            >Rekomendasi Produk dan Jasa</span
+            >Rekomendasi Kuliner</span
           >
         </div>
       </div>
 
       <div class="px-4 sm:px-[52px] mt-6 sm:mt-10">
-        <div class="flex flex-wrap gap-3 sm:gap-6">
+        <div
+          class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6"
+        >
           <!-- Skeleton loading -->
-          <template v-if="isLoadingJasa">
+          <template v-if="isLoadingProducts">
             <ProductCardSkeleton v-for="i in 8" :key="i" />
           </template>
-          <!-- Actual content -->
+          <!-- ✅ Actual products (clickable) with image -->
           <template v-else>
-            <ProductCard
-              v-for="product in jasaList"
+            <div
+              v-for="product in productList"
               :key="product.id"
-              :product="product"
-            />
-          </template>
-        </div>
+              @click="goToProductDetail(product)"
+              class="cursor-pointer hover:shadow-lg transition-shadow bg-white rounded-lg overflow-hidden border border-gray-200"
+            >
+              <!-- Product Image -->
+              <div class="relative w-full aspect-square bg-gray-100">
+                <img
+                  v-if="getProductImageUrl(product)"
+                  :src="getProductImageUrl(product)"
+                  :alt="product.name"
+                  class="w-full h-full object-cover"
+                  @error="(e) => (e.target.style.display = 'none')"
+                />
+                <div
+                  v-else
+                  class="w-full h-full flex items-center justify-center"
+                >
+                  <i class="pi pi-image text-4xl text-gray-400"></i>
+                </div>
+              </div>
 
-        <!-- Tampilkan semua -->
-        <div class="mt-4 sm:mt-6 flex justify-center">
-          <span
-            class="text-sm sm:text-base text-gray-600 cursor-pointer hover:text-primary transition-colors"
-            >Tampilkan semua</span
-          >
+              <!-- Product Info -->
+              <div class="p-3">
+                <h3
+                  class="text-sm font-semibold text-gray-900 line-clamp-2 mb-1"
+                >
+                  {{ product.name }}
+                </h3>
+                <p class="text-xs text-gray-500 mb-2">
+                  {{ product.merchant?.name || "UMKM" }}
+                </p>
+                <p class="text-sm font-bold text-primary">
+                  Rp {{ product.min_price?.toLocaleString("id-ID") || "0" }}
+                  <span v-if="product.min_price !== product.max_price">
+                    - Rp {{ product.max_price?.toLocaleString("id-ID") }}
+                  </span>
+                </p>
+              </div>
+            </div>
+          </template>
         </div>
       </div>
     </section>
