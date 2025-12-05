@@ -1,8 +1,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
-import { ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { Form } from "vee-validate";
-
 import TextField from "@/components/forms/TextField.vue";
 import CategoryCard from "@/components/Card/CategoryCard.vue";
 import ProductCard from "@/components/Card/ProductCard.vue";
@@ -11,19 +10,22 @@ import PromoCard from "@/components/Card/PromoCard.vue";
 import PromoCardSkeleton from "@/components/Card/PromoCardSkeleton.vue";
 import EventCard from "@/components/Card/EventCard.vue";
 import EventCardSkeleton from "@/components/Card/EventCardSkeleton.vue";
-import MerchantCard from "@/components/Card/MerchantCard.vue"; // ✅ NEW
 import jasaIcon from "@/assets/icons/Jasa.svg";
 import kulinerIcon from "@/assets/icons/Kuliner.svg";
 import tokoIcon from "@/assets/icons/Toko.svg";
 import komunitasIcon from "@/assets/icons/Komunitas.svg";
-
 import Button from "@/components/common/Button.vue";
 import api from "@/libs/axios.js";
+import { useProducts } from "@/composables/useProducts";
+import { getImageUrl } from "@/libs/getImageUrl"; // ✅ ADD
 
+const router = useRouter();
 const searchQuery = ref("");
-const isLoadingMerchants = ref(true);
+const isLoadingProducts = ref(true);
 const isLoadingPromo = ref(true);
 const isLoadingEvent = ref(true);
+
+const { fetchProductsToko } = useProducts();
 
 const categories = ref([
   {
@@ -48,102 +50,40 @@ const categories = ref([
   },
 ]);
 
-const merchantList = ref([]);
+const productList = ref([]);
 const promoList = ref([]);
 const eventList = ref([]);
-const promoScroller = ref(null);
 
-const categories = ref([
-  { label: "Kuliner", icon: kulinerIcon, to: { name: "JasaTeknisi" } },
-  { label: "Toko", icon: tokoIcon, to: { name: "JasaTeknisi" } },
-  { label: "Jasa", icon: jasaIcon, to: { name: "JasaTeknisi" } },
-  { label: "Komunitas", icon: komunitasIcon, to: { name: "community" } },
-]);
-
-// === AUTO IMPORT PROMO BANNER ===
-const promoImagesFiles = import.meta.glob("@/assets/banner/*.png", {
-  eager: true,
-});
-const promoImages = Object.values(promoImagesFiles).map((img) => img.default);
-
-// Format harga
-const formatHarga = (value) => {
-  if (!value) return "0";
-  return Number(value).toLocaleString("id-ID");
-};
-
-// Normalisasi URL gambar jasa dari backend -> public/storage/jasa/*.png
-const resolveJasaImage = (jasa) => {
-  // Cek relasi images (array) terlebih dahulu
-  if (jasa.images && jasa.images.length > 0) {
-    const coverImage = jasa.images.find((img) => img.is_cover) || jasa.images[0];
-    const path = coverImage.path || coverImage.url || coverImage.image;
-    if (path) {
-      if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/storage/')) {
-        return path;
-      }
-      if (path.startsWith('jasa/')) {
-        return `/storage/${path}`;
-      }
-      return `/storage/jasa/${path}`;
-    }
-  }
-  
-  // Fallback ke field image langsung
-  const img = jasa.image;
-  if (!img) return null;
-  const s = String(img);
-
-  // Jika sudah URL penuh atau sudah diawali /storage, pakai apa adanya
-  if (
-    s.startsWith("http://") ||
-    s.startsWith("https://") ||
-    s.startsWith("/storage/")
-  ) {
-    return s;
-  }
-
-  // Jika sudah ada prefix "jasa/..." cukup tambahkan /storage di depan
-  if (s.startsWith("jasa/")) {
-    return `/storage/${s}`;
-  }
-
-  // Default: anggap nama file di folder public/storage/jasa
-  return `/storage/jasa/${s}`;
-};
-
-// Scroll promo
-const scrollPromo = (dir = 1) => {
-  const el = promoScroller.value;
-  if (!el) return;
-  const gap = 16;
-  const card = el.querySelector(":scope > *");
-  const step = (card?.clientWidth || el.clientWidth * 0.5) + gap;
-  el.scrollBy({ left: dir * step, behavior: "smooth" });
-};
-
-// Submit search
 const onSearch = () => {
   const q = (searchQuery.value || "").trim();
   // router.push({ name: "Search", query: q ? { q } : {} });
 };
 
-// LOAD DATA
+const goToProductDetail = (product) => {
+  router.push({
+    name: "Product Detail",
+    params: { slug: product.slug },
+  });
+};
+
+// ✅ ADD: Helper to get product image URL
+const getProductImageUrl = (product) => {
+  if (product.cover_image?.id) {
+    return getImageUrl(product.cover_image.id);
+  }
+  return null;
+};
+
 onMounted(async () => {
-  // ✅ Fetch random merchants
   try {
-    isLoadingMerchants.value = true;
-    const merchantRes = await api.get("/public/merchants/random", {
-      params: { limit: 8 },
-    });
-    merchantList.value = merchantRes.data.data || [];
+    isLoadingProducts.value = true;
+    productList.value = await fetchProductsToko(8);
   } catch (e) {
-    console.error("Gagal memuat data merchant:", e);
+    console.error("Gagal memuat data produk toko:", e);
   } finally {
-    isLoadingMerchants.value = false;
+    isLoadingProducts.value = false;
   }
 
-  // Fetch promo (ganti dengan API call sebenarnya)
   try {
     isLoadingPromo.value = true;
     const promoRes = await api.get("/promos");
@@ -154,7 +94,6 @@ onMounted(async () => {
     isLoadingPromo.value = false;
   }
 
-  // Simulasi loading event (ganti dengan API call sebenarnya)
   setTimeout(() => {
     eventList.value = Array(5).fill({ id: 1 });
     isLoadingEvent.value = false;
@@ -164,7 +103,7 @@ onMounted(async () => {
 
 <template>
   <div class="app-container relative">
-    <!-- HERO -->
+    <!-- Section: Hero + Menu Box -->
     <section id="hero" class="relative pb-2">
       <div class="h-[240px] sm:h-[370px] w-full bg-secondary"></div>
 
@@ -173,7 +112,7 @@ onMounted(async () => {
           <div
             class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
           >
-            <!-- SEARCH -->
+            <!-- Search -->
             <div class="p-4 sm:p-5 border-b border-gray-100">
               <Form @submit="onSearch">
                 <div class="flex w-full items-center gap-2 sm:gap-3">
@@ -197,7 +136,7 @@ onMounted(async () => {
               </Form>
             </div>
 
-            <!-- KATEGORI -->
+            <!-- Kategori -->
             <div class="p-4 sm:p-5">
               <div class="grid grid-cols-4 gap-3 sm:gap-4">
                 <CategoryCard
@@ -214,25 +153,29 @@ onMounted(async () => {
       </div>
     </section>
 
-    <!-- PROMO -->
+    <!-- Section Promo -->
     <section id="promo" class="relative pt-6 sm:pt-24">
       <div class="pl-4 sm:pl-[54px]">
-        <span class="text-base sm:text-section-title font-semibold">
-          Cek Promo Menarik
-        </span>
+        <div class="inline-flex items-center gap-2.5 w-auto h-[35px] py-[5px]">
+          <span class="text-base sm:text-section-title font-semibold"
+            >Cek Promo Menarik</span
+          >
+        </div>
       </div>
 
       <div
-        ref="promoScroller"
-        class="overflow-x-auto no-scrollbar mx-4 sm:mx-[57px] pt-3 sm:pt-[17px] scroll-smooth snap-x snap-mandatory"
+        class="overflow-x-auto overflow-y-hidden no-scrollbar mx-4 sm:mx-[57px] pt-3 sm:pt-[17px] scroll-smooth snap-x snap-mandatory"
       >
         <div class="flex gap-4 sm:gap-8 min-w-max">
+          <!-- Skeleton loading -->
           <template v-if="isLoadingPromo">
-            <PromoCardSkeleton v-for="i in 5" :key="i" />
+            <div v-for="i in 5" :key="i" class="snap-start shrink-0">
+              <PromoCardSkeleton />
+            </div>
           </template>
-
+          <!-- Actual content -->
           <template v-else>
-            <PromoCard
+            <div
               v-for="(promo, i) in promoList"
               :key="promo.id || i"
               class="snap-start shrink-0"
@@ -244,12 +187,12 @@ onMounted(async () => {
       </div>
     </section>
 
-    <!-- ✅ Section Rekomendasi UMKM -->
-    <section id="umkm-recommendation" class="relative pt-6 sm:pt-24">
+    <!-- ✅ Section Rekomendasi Produk Toko -->
+    <section id="product-recommendation" class="relative pt-6 sm:pt-24">
       <div class="pl-4 sm:pl-[54px]">
         <div class="inline-flex items-center gap-2.5 w-auto h-[35px] py-[5px]">
           <span class="text-base sm:text-section-title font-semibold"
-            >Rekomendasi UMKM</span
+            >Rekomendasi Produk Toko</span
           >
         </div>
       </div>
@@ -259,53 +202,86 @@ onMounted(async () => {
           class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6"
         >
           <!-- Skeleton loading -->
-          <template v-if="isLoadingMerchants">
+          <template v-if="isLoadingProducts">
             <ProductCardSkeleton v-for="i in 8" :key="i" />
           </template>
-          <!-- Actual merchants -->
+          <!-- ✅ Actual products (clickable) with image -->
           <template v-else>
-            <MerchantCard
-              v-for="merchant in merchantList"
-              :key="merchant.id"
-              :merchant="merchant"
-            />
+            <div
+              v-for="product in productList"
+              :key="product.id"
+              @click="goToProductDetail(product)"
+              class="cursor-pointer hover:shadow-lg transition-shadow bg-white rounded-lg overflow-hidden border border-gray-200"
+            >
+              <!-- Product Image -->
+              <div class="relative w-full aspect-square bg-gray-100">
+                <img
+                  v-if="getProductImageUrl(product)"
+                  :src="getProductImageUrl(product)"
+                  :alt="product.name"
+                  class="w-full h-full object-cover"
+                  @error="(e) => (e.target.style.display = 'none')"
+                />
+                <div
+                  v-else
+                  class="w-full h-full flex items-center justify-center"
+                >
+                  <i class="pi pi-image text-4xl text-gray-400"></i>
+                </div>
+              </div>
+
+              <!-- Product Info -->
+              <div class="p-3">
+                <h3
+                  class="text-sm font-semibold text-gray-900 line-clamp-2 mb-1"
+                >
+                  {{ product.name }}
+                </h3>
+                <p class="text-xs text-gray-500 mb-2">
+                  {{ product.merchant?.name || "UMKM" }}
+                </p>
+                <p class="text-sm font-bold text-primary">
+                  Rp {{ product.min_price?.toLocaleString("id-ID") || "0" }}
+                  <span v-if="product.min_price !== product.max_price">
+                    - Rp {{ product.max_price?.toLocaleString("id-ID") }}
+                  </span>
+                </p>
+              </div>
+            </div>
           </template>
         </div>
-
-        <!-- Tampilkan semua -->
-        <!-- <div class="mt-4 sm:mt-6 flex justify-center">
-          <router-link
-            :to="{ name: 'MerchantList' }"
-            class="text-sm sm:text-base text-gray-600 hover:text-primary transition-colors"
-          >
-            Tampilkan semua
-          </router-link>
-        </div> -->
       </div>
     </section>
 
-    <!-- EVENT -->
+    <!-- Section Event -->
     <section id="event" class="relative pt-6 sm:pt-24 pb-6 sm:pb-12">
       <div class="pl-4 sm:pl-[54px]">
-        <span class="text-base sm:text-section-title font-semibold">
-          Event
-        </span>
+        <div class="inline-flex items-center gap-2.5 w-auto h-[35px] py-[5px]">
+          <span class="text-base sm:text-section-title font-semibold"
+            >Event</span
+          >
+        </div>
       </div>
 
       <div
-        class="overflow-x-auto no-scrollbar mx-4 sm:mx-[57px] pt-3 sm:pt-[17px] scroll-smooth snap-x snap-mandatory"
+        class="overflow-x-auto overflow-y-hidden no-scrollbar mx-4 sm:mx-[57px] pt-3 sm:pt-[17px] scroll-smooth snap-x snap-mandatory"
       >
         <div class="flex gap-4 sm:gap-8 min-w-max">
+          <!-- Skeleton loading -->
           <template v-if="isLoadingEvent">
-            <EventCardSkeleton v-for="i in 5" :key="i" />
+            <div v-for="i in 5" :key="i" class="snap-start shrink-0">
+              <EventCardSkeleton />
+            </div>
           </template>
-
+          <!-- Actual content -->
           <template v-else>
-            <EventCard
+            <div
               v-for="(event, i) in eventList"
               :key="i"
-              :event="event"
-            />
+              class="snap-start shrink-0"
+            >
+              <EventCard :event="event" />
+            </div>
           </template>
         </div>
       </div>
