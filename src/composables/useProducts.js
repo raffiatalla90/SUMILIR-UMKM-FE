@@ -15,34 +15,23 @@ export function useProducts() {
   let lastRequestParams = null;
   let pendingRequest = null;
 
-  // ✅ Fetch Product Detail from API
-  const fetchProductDetail = async (productId) => {
-    // NOTE: composable tidak boleh mengakses router/toast/mounted state yang spesifik UI
+  // ✅ Fetch Product Detail dari API menggunakan slug
+  const fetchProductDetail = async (productSlug) => {
     try {
-      const response = await api.get(`/products/${productId}`);
-      // backend mungkin mengembalikan object langsung atau wrapper. Normalisasi:
+      const response = await api.get(`/products/${productSlug}`); // ✅ slug
       const payload = response.data?.data ?? response.data;
-
-      if (!payload) {
+      if (!payload)
         throw new Error("Product data tidak ditemukan pada response");
-      }
 
-      // Transformasi ringan: addon_groups -> addonGroups (agar consumer konsisten)
       if (payload.addon_groups) {
         payload.addonGroups = payload.addon_groups;
-        // optional: delete payload.addon_groups;
       }
-
-      // Pastikan images adalah array (komponen mengandalkan images[])
       if (!Array.isArray(payload.images)) {
         payload.images = payload.images ? [payload.images] : [];
       }
-
-      // Return raw payload; komponen akan memproses/menambahkan getImageUrl
       return payload;
     } catch (err) {
       console.error("[useProducts] fetchProductDetail error:", err);
-      // biarkan error dilempar agar komponen dapat menanganinya (toast / redirect)
       throw err;
     }
   };
@@ -159,13 +148,12 @@ export function useProducts() {
   /**
    * Delete product
    */
-  const deleteProduct = async (productId) => {
+  const deleteProduct = async (productSlug) => {
     loading.value = true;
     try {
-      await api.delete(`/products/${productId}`);
-      // Refresh products after delete
-      products.value = products.value.filter((p) => p.id !== productId);
-      pagination.value.total -= 1;
+      await api.delete(`/products/${productSlug}`); // ✅ slug
+      products.value = products.value.filter((p) => p.slug !== productSlug);
+      pagination.value.total = Math.max(0, pagination.value.total - 1);
     } catch (error) {
       console.error("Error deleting product:", error);
       throw error;
@@ -177,19 +165,14 @@ export function useProducts() {
   /**
    * Update product status (single)
    */
-  const updateProductStatus = async (productId, status) => {
+  const updateProductStatus = async (productSlug, status) => {
     loading.value = true;
     try {
-      const { data } = await api.patch(`/products/${productId}/status`, {
+      const { data } = await api.patch(`/products/${productSlug}/status`, {
         status,
-      });
-
-      // Update local product status
-      const index = products.value.findIndex((p) => p.id === productId);
-      if (index !== -1) {
-        products.value[index].status = status;
-      }
-
+      }); // ✅ slug
+      const index = products.value.findIndex((p) => p.slug === productSlug);
+      if (index !== -1) products.value[index].status = status;
       return data;
     } catch (error) {
       console.error("Error updating product status:", error);
@@ -202,16 +185,18 @@ export function useProducts() {
   /**
    * Bulk delete products
    */
-  const bulkDeleteProducts = async (productIds) => {
+  const bulkDeleteProducts = async (productSlugs) => {
     loading.value = true;
     try {
       await api.post("/products/bulk-delete", {
-        product_ids: productIds,
+        product_slugs: productSlugs, // ✅ FIXED: use slugs not ids
       });
 
       // Remove deleted products from local state
-      products.value = products.value.filter((p) => !productIds.includes(p.id));
-      pagination.value.total -= productIds.length;
+      products.value = products.value.filter(
+        (p) => !productSlugs.includes(p.slug) // ✅ FIXED: compare with slug
+      );
+      pagination.value.total -= productSlugs.length;
     } catch (error) {
       console.error("Error bulk deleting products:", error);
       throw error;
@@ -223,17 +208,17 @@ export function useProducts() {
   /**
    * Bulk update status
    */
-  const bulkUpdateStatus = async (productIds, status) => {
+  const bulkUpdateStatus = async (productSlugs, status) => {
     loading.value = true;
     try {
       await api.post("/products/bulk-update-status", {
-        product_ids: productIds,
+        product_slugs: productSlugs, // ✅ FIXED: use slugs not ids
         status,
       });
 
       // Update local product statuses
       products.value.forEach((product) => {
-        if (productIds.includes(product.id)) {
+        if (productSlugs.includes(product.slug)) {
           product.status = status;
         }
       });
@@ -245,6 +230,45 @@ export function useProducts() {
     }
   };
 
+  /**
+   * Fetch random products for Toko homepage
+   */
+  const fetchProductsToko = async (limit = 12) => {
+    loading.value = true;
+    try {
+      const { data } = await api.get("/public/products/toko", {
+        params: { limit },
+      });
+
+      return data.data || [];
+    } catch (error) {
+      console.error("[fetchProductsToko] Error:", error);
+      throw error;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  /**
+   * Fetch random products for Kuliner homepage
+   */
+  const fetchProductsKuliner = async (limit = 12) => {
+    loading.value = true;
+    try {
+      const { data } = await api.get("/public/products/kuliner", {
+        params: { limit },
+      });
+
+      return data.data || [];
+    } catch (error) {
+      console.error("[fetchProductsKuliner] Error:", error);
+      throw error;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  // ✅ SINGLE RETURN STATEMENT AT THE END
   return {
     products,
     loading,
@@ -255,5 +279,7 @@ export function useProducts() {
     deleteProduct,
     bulkDeleteProducts,
     bulkUpdateStatus,
+    fetchProductsToko,
+    fetchProductsKuliner,
   };
 }

@@ -65,7 +65,7 @@ const { categoriesLevel1, loadingLevel1, fetchLevel1Categories } =
 const emit = defineEmits(["toggle-sidebar"]);
 
 // State
-const selectedProducts = ref([]);
+const selectedProducts = ref([]); // Array of slugs
 const selectAll = ref(false);
 
 // Modals
@@ -194,26 +194,26 @@ const handleSearch = () => {
   loadProducts();
 };
 
-// ✅ ADD: Missing method for toggling product selection
-const toggleProductSelection = (productId) => {
-  const index = selectedProducts.value.indexOf(productId);
+// ✅ Toggle product selection using slug
+const toggleProductSelection = (productSlug) => {
+  const index = selectedProducts.value.indexOf(productSlug);
 
   if (index > -1) {
     // Remove from selection
     selectedProducts.value.splice(index, 1);
   } else {
     // Add to selection
-    selectedProducts.value.push(productId);
+    selectedProducts.value.push(productSlug);
   }
 
   // Update selectAll checkbox state
   selectAll.value = selectedProducts.value.length === products.value.length;
 };
 
-// ✅ UPDATE: toggleSelectAll method
+// ✅ Toggle select all using slug
 const toggleSelectAll = () => {
   if (selectAll.value) {
-    selectedProducts.value = products.value.map((p) => p.id);
+    selectedProducts.value = products.value.map((p) => p.slug);
   } else {
     selectedProducts.value = [];
   }
@@ -307,6 +307,7 @@ const resetFilters = () => {
 // Helper: buat URL params dari filter aktif
 const buildExportParams = () => {
   const params = {
+    merchant_id: currentMerchantId.value ?? undefined, // ✅ pastikan export untuk merchant yang aktif
     q: searchQuery.value || undefined,
     status: activeFilters.value.status || undefined,
     category_id: activeFilters.value.category || undefined,
@@ -398,24 +399,24 @@ const goToCreate = () => {
   });
 };
 
-// ✅ UPDATED: goToEdit with merchantId
+// ✅ UPDATED: goToEdit with merchantId and slug
 const goToEdit = (product) => {
   router.push({
     name: "Merchant - Product Edit",
     params: {
       merchantId: currentMerchantId.value,
-      id: product.id,
+      slug: product.slug, // ✅ gunakan slug
     },
   });
 };
 
-// ✅ UPDATED: goToDetail with merchantId
+// ✅ UPDATED: goToDetail with merchantId and slug
 const goToDetail = (product) => {
   router.push({
     name: "Merchant - Product Detail",
     params: {
       merchantId: currentMerchantId.value,
-      id: product.id,
+      slug: product.slug, // ✅ gunakan slug
     },
   });
 };
@@ -431,7 +432,7 @@ const confirmDeleteProduct = async () => {
   if (!selectedProductForDelete.value) return;
 
   try {
-    await deleteProduct(selectedProductForDelete.value.id);
+    await deleteProduct(selectedProductForDelete.value.slug); // ✅ slug
     toast.success("Produk berhasil dihapus");
     closeDeleteModal();
   } catch (error) {
@@ -449,7 +450,7 @@ const selectedProductsCount = computed(() => {
 
 // ✅ ADD: Computed untuk mendapatkan data produk yang dipilih (untuk modal preview)
 const selectedProductsData = computed(() => {
-  return products.value.filter((p) => selectedProducts.value.includes(p.id));
+  return products.value.filter((p) => selectedProducts.value.includes(p.slug));
 });
 
 // ✅ ADD: Missing method - Close visibility modal
@@ -577,7 +578,7 @@ const confirmSingleStatusChange = async () => {
 
   try {
     await updateProductStatus(
-      selectedProductForStatusChange.value.id,
+      selectedProductForStatusChange.value.slug, // ✅ slug
       newStatusForChange.value
     );
     const statusLabel = getStatusLabel(newStatusForChange.value);
@@ -617,7 +618,9 @@ const confirmBulkStatusChange = async () => {
     selectAll.value = false;
     closeBulkStatusChangeModal();
   } catch (error) {
-    toast.error(error.response?.data?.message || "Gagal mengubah status");
+    toast.error(
+      error.response?.data?.message || "Gagal mengubah status produk"
+    );
   }
 };
 
@@ -705,6 +708,56 @@ onMounted(async () => {
   loadProducts();
 });
 
+// ✅ OPTIONS: Status filter options (dikembalikan)
+const statusOptions = [
+  { label: "Semua", value: "" },
+  { label: "Dipublish", value: "published" },
+  { label: "Diarsipkan", value: "archived" },
+  { label: "Draft", value: "draft" },
+];
+
+// ✅ OPTIONS: Category options dari categoriesLevel1 (dikembalikan)
+const categoryOptions = computed(() => {
+  const base = [{ label: "Semua", value: "" }];
+  const items =
+    (categoriesLevel1.value || []).map((c) => ({
+      label: c.name || c.label,
+      value: c.id || c.value,
+    })) ?? [];
+  return base.concat(items);
+});
+
+// ✅ COUNT: Jumlah filter aktif (dikembalikan agar komponen table & mobile pagination bekerja)
+const activeFilterCount = computed(() => {
+  let count = 0;
+  if (activeFilters.value.status) count++;
+  if (activeFilters.value.category) count++;
+  if (
+    activeFilters.value.minPrice != null ||
+    activeFilters.value.maxPrice != null
+  )
+    count++;
+  if (
+    activeFilters.value.minStock != null ||
+    activeFilters.value.maxStock != null
+  )
+    count++;
+  if (activeFilters.value.sortByDate) count++;
+  if (activeFilters.value.sortByName) count++;
+  if (activeFilters.value.sortByPrice) count++;
+  if (activeFilters.value.sortByStock) count++;
+  return count;
+});
+
+// ✅ PAGINATION INFO (dikembalikan agar komponen table & mobile pagination bekerja)
+const totalItems = computed(() => pagination.value?.meta?.total ?? 0);
+const totalPages = computed(() => pagination.value?.meta?.last_page ?? 1);
+const paginationInfo = computed(() => ({
+  current_page: pagination.value?.meta?.current_page ?? currentPage.value,
+  total: pagination.value?.meta?.total ?? 0,
+  per_page: pagination.value?.meta?.per_page ?? perPage.value,
+}));
+
 // Table Configuration
 const tableColumns = [
   { key: "name", label: "Produk", sortable: true },
@@ -767,7 +820,7 @@ const tableActions = [
               :merchantId="currentMerchantId"
             />
             <p class="text-xs sm:text-sm text-muted-foreground mt-1">
-              {{ currentMerchantName }} · {{ totalItems }} Produk
+              {{ currentMerchantName }}
             </p>
           </div>
 
@@ -777,7 +830,7 @@ const tableActions = [
               Daftar Produk
             </h1>
             <p class="text-xs text-muted-foreground">
-              {{ currentMerchantName }} · {{ totalItems }} Produk
+              {{ currentMerchantName }}
             </p>
           </div>
         </div>
@@ -1103,8 +1156,8 @@ const tableActions = [
           v-for="product in products"
           :key="product.id"
           :product="product"
-          :selected="selectedProducts.includes(product.id)"
-          @toggle-select="toggleProductSelection(product.id)"
+          :selected="selectedProducts.includes(product.slug)"
+          @toggle-select="toggleProductSelection(product.slug)"
           @view-detail="goToDetail"
           @edit="goToEdit"
           @delete="deleteProductAction"
@@ -2083,6 +2136,7 @@ const tableActions = [
             <i class="pi pi-times mr-2"></i>
             Batal
           </Button>
+
           <Button
             @click="confirmSingleStatusChange"
             variant="merchant"
