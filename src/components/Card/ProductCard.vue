@@ -26,7 +26,7 @@ const formatHarga = (value) => {
 <template>
   <router-link
     :to="{ name: 'JasaDetail', params: { id: product.id } }"
-    class="flex flex-col rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden hover:shadow-lg transition w-[calc(50%-0.375rem)] sm:w-[calc(25%-1.125rem)] max-w-72"
+    class="flex flex-col rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden hover:shadow-lg transition w-[calc(50%-0.375rem)] sm:w-full max-w-xs"
   >
     <!-- gambar 1:1 dengan aspect-square -->
     <div class="relative w-full aspect-square bg-gray-200 overflow-hidden">

@@ -20,7 +20,7 @@ const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 
-const productId = computed(() => route.params.id);
+const productSlug = computed(() => route.params.slug); // ✅ gunakan slug
 
 // ✅ Get merchantId from route
 const currentMerchantId = computed(() => {
@@ -465,12 +465,8 @@ const fetchProductData = async () => {
   isInitialLoad.value = true;
 
   try {
-    console.log("[Edit] Fetching product (via composable):", productId.value);
-
-    // gunakan composable yang sudah dibuat — dia return payload bersih
-    const payload = await fetchProductDetail(productId.value);
-
-    // payload mungkin berada di response.data (sudah dinormalisasi oleh composable)
+    console.log("[Edit] Fetching product (via composable):", productSlug.value);
+    const payload = await fetchProductDetail(productSlug.value); // ✅ pakai slug
     const productData = payload;
 
     console.log("[Edit] Product loaded (composable):", productData);
@@ -618,11 +614,17 @@ const removeVariant = (index) => {
 };
 
 const addOption = (variantIndex) => {
-  variants.value[variantIndex].options.push({
-    id: Date.now() + Math.random(),
+  const variant = variants.value[variantIndex];
+  const opts = Array.isArray(variant.options) ? variant.options : [];
+
+  opts.push({
+    id: null, // ✅ penting: null supaya BE tidak mencoba update record yang tidak ada
+    clientKey: Date.now() + Math.random(), // hanya untuk key v-for
     name: "",
     images: [],
   });
+
+  variants.value[variantIndex].options = opts; // reaktif
 };
 
 const removeOption = (variantIndex, optionIndex) => {
@@ -1081,16 +1083,15 @@ const onSubmit = veeHandleSubmit(
       }
 
       // ✅ API Call
-      await api.post(`/products/${productId.value}`, formData, {
+      await api.post(`/products/${productSlug.value}`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
       });
 
       toast.success("Produk berhasil diperbarui");
-      router.push(
-        `/merchant-center/${currentMerchantId.value}/products/${productId.value}`
-      );
+      // Redirect setelah update
+      router.push(`/merchant-center/${currentMerchantId.value}/products`);
     } catch (error) {
       console.error("[Edit] Error updating product:", error);
 

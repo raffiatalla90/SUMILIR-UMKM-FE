@@ -15,34 +15,23 @@ export function useProducts() {
   let lastRequestParams = null;
   let pendingRequest = null;
 
-  // ✅ Fetch Product Detail from API
-  const fetchProductDetail = async (productId) => {
-    // NOTE: composable tidak boleh mengakses router/toast/mounted state yang spesifik UI
+  // ✅ Fetch Product Detail dari API menggunakan slug
+  const fetchProductDetail = async (productSlug) => {
     try {
-      const response = await api.get(`/products/${productId}`);
-      // backend mungkin mengembalikan object langsung atau wrapper. Normalisasi:
+      const response = await api.get(`/products/${productSlug}`); // ✅ slug
       const payload = response.data?.data ?? response.data;
-
-      if (!payload) {
+      if (!payload)
         throw new Error("Product data tidak ditemukan pada response");
-      }
 
-      // Transformasi ringan: addon_groups -> addonGroups (agar consumer konsisten)
       if (payload.addon_groups) {
         payload.addonGroups = payload.addon_groups;
-        // optional: delete payload.addon_groups;
       }
-
-      // Pastikan images adalah array (komponen mengandalkan images[])
       if (!Array.isArray(payload.images)) {
         payload.images = payload.images ? [payload.images] : [];
       }
-
-      // Return raw payload; komponen akan memproses/menambahkan getImageUrl
       return payload;
     } catch (err) {
       console.error("[useProducts] fetchProductDetail error:", err);
-      // biarkan error dilempar agar komponen dapat menanganinya (toast / redirect)
       throw err;
     }
   };
@@ -159,13 +148,12 @@ export function useProducts() {
   /**
    * Delete product
    */
-  const deleteProduct = async (productId) => {
+  const deleteProduct = async (productSlug) => {
     loading.value = true;
     try {
-      await api.delete(`/products/${productId}`);
-      // Refresh products after delete
-      products.value = products.value.filter((p) => p.id !== productId);
-      pagination.value.total -= 1;
+      await api.delete(`/products/${productSlug}`); // ✅ slug
+      products.value = products.value.filter((p) => p.slug !== productSlug);
+      pagination.value.total = Math.max(0, pagination.value.total - 1);
     } catch (error) {
       console.error("Error deleting product:", error);
       throw error;
@@ -177,19 +165,14 @@ export function useProducts() {
   /**
    * Update product status (single)
    */
-  const updateProductStatus = async (productId, status) => {
+  const updateProductStatus = async (productSlug, status) => {
     loading.value = true;
     try {
-      const { data } = await api.patch(`/products/${productId}/status`, {
+      const { data } = await api.patch(`/products/${productSlug}/status`, {
         status,
-      });
-
-      // Update local product status
-      const index = products.value.findIndex((p) => p.id === productId);
-      if (index !== -1) {
-        products.value[index].status = status;
-      }
-
+      }); // ✅ slug
+      const index = products.value.findIndex((p) => p.slug === productSlug);
+      if (index !== -1) products.value[index].status = status;
       return data;
     } catch (error) {
       console.error("Error updating product status:", error);
@@ -250,9 +233,9 @@ export function useProducts() {
     loading,
     pagination,
     fetchProducts,
-    fetchProductDetail,
-    updateProductStatus,
-    deleteProduct,
+    fetchProductDetail, // ✅ now expects slug
+    updateProductStatus, // ✅ now expects slug
+    deleteProduct, // ✅ now expects slug
     bulkDeleteProducts,
     bulkUpdateStatus,
   };

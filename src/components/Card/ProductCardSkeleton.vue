@@ -1,6 +1,6 @@
 <template>
   <div
-    class="flex flex-col rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden w-[calc(50%-0.375rem)] sm:w-[calc(25%-1.125rem)]"
+    class="flex flex-col rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden sm:max-w-xs w-full"
   >
     <!-- Skeleton gambar 1:1 -->
     <div class="relative w-full aspect-square bg-gray-200 animate-pulse"></div>

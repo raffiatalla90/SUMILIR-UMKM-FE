@@ -247,7 +247,7 @@ const goBack = () => {
 
 const editProduct = () => {
   router.push(
-    `/merchant-center/${currentMerchantId.value}/products/${route.params.id}/edit`
+    `/merchant-center/${currentMerchantId.value}/products/${route.params.slug}/edit`
   );
 };
 
@@ -272,13 +272,10 @@ const loadDetail = async () => {
   loading.value = true;
   product.value = null;
   try {
-    const productId = route.params.id;
-    console.log("[Detail] Loading product", productId);
+    const slug = route.params.slug; // ✅ gunakan slug
+    console.log("[Detail] Loading product", slug);
 
-    const data = await fetchProductDetail(productId);
-    // data adalah objek product dari backend (normalized in composable)
-    // jika ingin, map image URL di sini agar template bisa pakai getImageUrl() atau data.url
-    // kita tetap menggunakan getImageUrl(image.id) di template, jadi cukup assign
+    const data = await fetchProductDetail(slug); // ✅ composable akan pakai slug
     product.value = data;
 
     // reset index jika ada images
