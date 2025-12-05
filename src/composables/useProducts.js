@@ -22,7 +22,30 @@ export function useProducts() {
   let lastRequestParams = null;
   let pendingRequest = null;
 
-  // Admin UMKM
+  // ✅ Fetch Product Detail dari API menggunakan slug
+  const fetchProductDetail = async (productSlug) => {
+    try {
+      const response = await api.get(`/products/${productSlug}`); // ✅ slug
+      const payload = response.data?.data ?? response.data;
+      if (!payload)
+        throw new Error("Product data tidak ditemukan pada response");
+
+      if (payload.addon_groups) {
+        payload.addonGroups = payload.addon_groups;
+      }
+      if (!Array.isArray(payload.images)) {
+        payload.images = payload.images ? [payload.images] : [];
+      }
+      return payload;
+    } catch (err) {
+      console.error("[useProducts] fetchProductDetail error:", err);
+      throw err;
+    }
+  };
+
+  /**
+   * Fetch products dari backend
+   */
   const fetchProducts = async ({
     merchantId,
     searchQuery = "",
@@ -200,12 +223,15 @@ export function useProducts() {
     }
   };
 
-  const updateProductStatus = async (productSlug, status) => {
+  /**
+   * Delete product
+   */
+  const deleteProduct = async (productSlug) => {
     loading.value = true;
     try {
-      await ProductService.editStatus(productSlug, status);
-      const index = products.value.findIndex((p) => p.slug === productSlug);
-      if (index !== -1) products.value[index].status = status;
+      await api.delete(`/products/${productSlug}`); // ✅ slug
+      products.value = products.value.filter((p) => p.slug !== productSlug);
+      pagination.value.total = Math.max(0, pagination.value.total - 1);
     } catch (error) {
       toast.error("Gagal memperbarui status produk");
       throw error;
@@ -214,17 +240,18 @@ export function useProducts() {
     }
   };
 
-  const bulkDeleteProducts = async (productSlugs) => {
+  /**
+   * Update product status (single)
+   */
+  const updateProductStatus = async (productSlug, status) => {
     loading.value = true;
     try {
-      await ProductService.deleteBulk(productSlugs);
-      products.value = products.value.filter(
-        (p) => !productSlugs.includes(p.slug)
-      );
-      pagination.value.total = Math.max(
-        0,
-        pagination.value.total - productSlugs.length
-      );
+      const { data } = await api.patch(`/products/${productSlug}/status`, {
+        status,
+      }); // ✅ slug
+      const index = products.value.findIndex((p) => p.slug === productSlug);
+      if (index !== -1) products.value[index].status = status;
+      return data;
     } catch (error) {
       toast.error("Gagal menghapus produk secara massal");
       throw error;
@@ -569,10 +596,9 @@ export function useProducts() {
     loading,
     pagination,
     fetchProducts,
-    fetchProductDetail,
-    fetchPublicProductDetail,
-    updateProductStatus,
-    deleteProduct,
+    fetchProductDetail, // ✅ now expects slug
+    updateProductStatus, // ✅ now expects slug
+    deleteProduct, // ✅ now expects slug
     bulkDeleteProducts,
     bulkUpdateStatus,
     fetchProductsToko,

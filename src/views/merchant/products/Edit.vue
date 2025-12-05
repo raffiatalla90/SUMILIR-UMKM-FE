@@ -32,23 +32,12 @@ const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 
-const MAX_IMAGES = 6;
-const MAX_IMAGE_SIZE_MB = 5;
-const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
-const MAX_COMBINATIONS = 50;
-const maxVariants = 2;
-const maxOptions = 50;
-const maxAddOnGroups = 10;
-const maxAddOnOptions = 10;
+const productSlug = computed(() => route.params.slug); // ✅ gunakan slug
 
-const productSlug = computed(() => route.params.slug);
-const currentMerchantId = ref(null);
-
-watch(
-  () => route.params?.merchantId,
-  (v) => (currentMerchantId.value = v ? Number(v) : null),
-  { immediate: true }
-);
+// ✅ Get merchantId from route
+const currentMerchantId = computed(() => {
+  return route.params.merchantId ? Number(route.params.merchantId) : null;
+});
 
 // ======================================================
 // STATE
@@ -333,42 +322,374 @@ const populateFormFromProduct = async (product) => {
 const fetchProductData = async () => {
   loadingData.value = true;
   try {
-    const product = await fetchProductDetail(productSlug.value);
-    await populateFormFromProduct(product);
+    console.log("[Edit] Fetching product (via composable):", productSlug.value);
+    const payload = await fetchProductDetail(productSlug.value); // ✅ pakai slug
+    const productData = payload;
+
+    console.log("[Edit] Product loaded (composable):", productData);
+
+    // Fetch sub categories jika ada main category
+    if (productData.categories && productData.categories.length > 0) {
+      await fetchSubCategories(productData.categories[0].id);
+    }
+
+    // Normalisasi: pastikan images adalah array
+    if (!Array.isArray(productData.images)) {
+      productData.images = productData.images ? [productData.images] : [];
+    }
+
+    productImages.value = (productData.images || []).map((img, idx) => ({
+      id: img.id,
+      preview: absoluteImagePath(img), // <- penting: pakai absolute URL
+      is_cover: !!img.is_cover,
+      existing: true,
+    }));
+
+    // set coverImageIndex
+    coverImageIndex.value = productImages.value.findIndex(
+      (img) => img.is_cover
+    );
+    if (coverImageIndex.value === -1 && productImages.value.length > 0) {
+      coverImageIndex.value = 0;
+      // mark first as cover if none flagged
+      productImages.value[0].is_cover = true;
+    }
+
+    // Populate rest of the form + variants/addons using helper yang sudah ada
+    populateFormFromProduct(productData);
   } catch (error) {
     console.error("Fetch product error:", error);
     toast.error("Gagal memuat produk");
     router.push(`/merchant-center/${currentMerchantId.value}/products`);
   } finally {
     loadingData.value = false;
+
+    // Release initial load flag setelah tick supaya watcher tidak auto-trigger saat populate
+    await nextTick();
+    setTimeout(() => {
+      isInitialLoad.value = false;
+      console.log("[Edit] ✅ Initial load complete, watchers now active");
+    }, 300);
   }
 };
 
-// ======================================================
-// SUBMIT (LOGIC LAMA DIPERTAHANKAN)
-// ======================================================
-const onSubmit = handleSubmit(
-  async (values) => {
-    combinations.value.forEach((combo) => {
-      const hasNewOption = combo.attributes.some((a) => !a.option_value_id);
+// ✅ SAMA SEPERTI CREATE: Image Methods
+const triggerFileInput = () => {
+  fileInput.value?.click();
+};
 
-      if (hasNewOption) {
-        combo.id = null; // 🔥 FORCE CREATE
-      }
+const handleImageUpload = (event) => {
+  const files = Array.from(event.target.files);
+  files.forEach((file) => {
+    if (file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        productImages.value.push({
+          id: Date.now() + Math.random(),
+          file,
+          preview: e.target.result,
+          is_cover: productImages.value.length === 0,
+          existing: false,
+        });
+        if (productImages.value.length === 1) coverImageIndex.value = 0;
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+  event.target.value = "";
+};
+
+const removeImage = (index) => {
+  productImages.value.splice(index, 1);
+  if (coverImageIndex.value >= productImages.value.length) {
+    coverImageIndex.value = Math.max(0, productImages.value.length - 1);
+  }
+};
+
+const onDragStart = (event, index) => {
+  draggedImageIndex.value = index;
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/html", event.target);
+};
+
+const onDragOver = (event) => {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "move";
+};
+
+const onDrop = (event, index) => {
+  event.preventDefault();
+  if (draggedImageIndex.value === null || draggedImageIndex.value === index)
+    return;
+
+  const draggedItem = productImages.value[draggedImageIndex.value];
+  productImages.value.splice(draggedImageIndex.value, 1);
+  productImages.value.splice(index, 0, draggedItem);
+
+  if (draggedImageIndex.value === coverImageIndex.value) {
+    coverImageIndex.value = index;
+  } else if (
+    draggedImageIndex.value < coverImageIndex.value &&
+    index >= coverImageIndex.value
+  ) {
+    coverImageIndex.value--;
+  } else if (
+    draggedImageIndex.value > coverImageIndex.value &&
+    index <= coverImageIndex.value
+  ) {
+    coverImageIndex.value++;
+  }
+
+  draggedImageIndex.value = null;
+};
+
+const onDragEnd = () => {
+  draggedImageIndex.value = null;
+};
+
+// ✅ SAMA SEPERTI CREATE: Variant Methods
+const addVariant = () => {
+  if (canAddVariant.value) {
+    const variantId = Date.now() + Math.random();
+    variants.value.push({
+      id: variantId,
+      name: "",
+      options: [{ id: Date.now(), name: "", images: [] }],
     });
+    variantNames.value[variantId] = "";
+    variantUsesImages.value[variantId] = 0; // ✅ Default 0
+    expandedVariants.value.add(variantId);
+  }
+};
 
-    if (useVariants.value && totalCombinations.value > MAX_COMBINATIONS) {
-      toast.error(`Kombinasi varian maksimal ${MAX_COMBINATIONS}`);
-      return;
+const removeVariant = (index) => {
+  const variantId = variants.value[index].id;
+  delete variantNames.value[variantId];
+  delete variantUsesImages.value[variantId];
+  variants.value.splice(index, 1);
+};
+
+const addOption = (variantIndex) => {
+  const variant = variants.value[variantIndex];
+  const opts = Array.isArray(variant.options) ? variant.options : [];
+
+  opts.push({
+    id: null, // ✅ penting: null supaya BE tidak mencoba update record yang tidak ada
+    clientKey: Date.now() + Math.random(), // hanya untuk key v-for
+    name: "",
+    images: [],
+  });
+
+  variants.value[variantIndex].options = opts; // reaktif
+};
+
+const removeOption = (variantIndex, optionIndex) => {
+  variants.value[variantIndex].options.splice(optionIndex, 1);
+};
+
+// ✅ SAMA SEPERTI CREATE: Toggle antara 0 dan 1
+const toggleVariantImages = (variantId) => {
+  variantUsesImages.value[variantId] = variantUsesImages.value[variantId]
+    ? 0
+    : 1;
+
+  if (variantUsesImages.value[variantId] === 0) {
+    const variant = variants.value.find((v) => v.id === variantId);
+    if (variant) {
+      variant.options.forEach((opt) => (opt.images = []));
     }
-    const hasTooManyAddonOptions = addOnGroups.value.some(
-      (group) => group.options.length > maxAddOnOptions
+  }
+};
+
+const handleOptionImageUpload = (variantIndex, optionIndex, event) => {
+  const files = Array.from(event.target.files);
+  const option = variants.value[variantIndex].options[optionIndex];
+
+  if (option.images.length >= 1) {
+    toast.warning("Maksimal 1 foto per opsi");
+    event.target.value = "";
+    return;
+  }
+
+  const file = files[0];
+  if (file && file.type.startsWith("image/")) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      option.images = [
+        {
+          id: Date.now(),
+          file,
+          preview: e.target.result,
+          existing: false,
+        },
+      ];
+    };
+    reader.readAsDataURL(file);
+  }
+  event.target.value = "";
+};
+
+const removeOptionImage = (variantIndex, optionIndex, imageIndex) => {
+  variants.value[variantIndex].options[optionIndex].images.splice(
+    imageIndex,
+    1
+  );
+};
+
+const toggleVariantExpand = (variantId) => {
+  if (expandedVariants.value.has(variantId)) {
+    expandedVariants.value.delete(variantId);
+  } else {
+    expandedVariants.value.add(variantId);
+  }
+};
+
+const isVariantExpanded = (variantId) => {
+  return expandedVariants.value.has(variantId);
+};
+
+const openCombinationsModal = () => {
+  if (totalCombinations.value === 0) {
+    toast.warning(
+      "Belum ada kombinasi. Tambahkan varian dan opsi terlebih dahulu."
     );
+    return;
+  }
+  showCombinationsModal.value = true;
+};
 
-    if (hasTooManyAddonOptions) {
-      toast.error(`Setiap grup add-on maksimal ${maxAddOnOptions} opsi`);
-      return;
+const closeCombinationsModal = () => {
+  showCombinationsModal.value = false;
+  bulkPrice.value = 0;
+  bulkStock.value = 0;
+  selectedCombinations.value.clear();
+};
+
+const toggleCombinationSelection = (index) => {
+  if (selectedCombinations.value.has(index)) {
+    selectedCombinations.value.delete(index);
+  } else {
+    selectedCombinations.value.add(index);
+  }
+};
+
+const toggleAllCombinations = () => {
+  if (allCombinationsSelected.value) {
+    selectedCombinations.value.clear();
+  } else {
+    combinations.value.forEach((_, index) => {
+      selectedCombinations.value.add(index);
+    });
+  }
+};
+
+const applyBulkEdit = () => {
+  if (selectedCombinations.value.size === 0) {
+    toast.warning("Pilih minimal 1 kombinasi");
+    return;
+  }
+
+  let updated = false;
+  let hasError = false;
+
+  if (bulkPrice.value !== null && bulkPrice.value !== "") {
+    if (bulkPrice.value < 0) {
+      toast.error("Harga tidak boleh kurang dari 0");
+      hasError = true;
+    } else {
+      selectedCombinations.value.forEach((index) => {
+        combinations.value[index].price = bulkPrice.value;
+      });
+      updated = true;
     }
+  }
+
+  if (!hasError && bulkStock.value !== null && bulkStock.value !== "") {
+    if (bulkStock.value < 0) {
+      toast.error("Stok tidak boleh kurang dari 0");
+      hasError = true;
+    } else {
+      selectedCombinations.value.forEach((index) => {
+        combinations.value[index].stock = bulkStock.value;
+      });
+      updated = true;
+    }
+  }
+
+  if (hasError) return;
+
+  if (updated) {
+    toast.success(
+      `Perubahan diterapkan ke ${selectedCombinations.value.size} kombinasi`
+    );
+    bulkPrice.value = 0;
+    bulkStock.value = 0;
+  } else {
+    toast.warning("Masukkan minimal harga atau stok");
+  }
+};
+
+// ✅ SAMA SEPERTI CREATE: Add-on Group Methods
+const addAddOnGroup = () => {
+  if (canAddAddOnGroup.value) {
+    const groupId = Date.now() + Math.random();
+    addOnGroups.value.push({
+      id: groupId,
+      name: "",
+      is_required: false,
+      min_selection: 0,
+      max_selection: 1,
+      options: [
+        {
+          id: Date.now(),
+          name: "",
+          price: 0,
+        },
+      ],
+    });
+    expandedAddOnGroups.value.add(groupId);
+  }
+};
+
+const removeAddOnGroup = (index) => {
+  addOnGroups.value.splice(index, 1);
+};
+
+const addAddOnOption = (groupIndex) => {
+  const group = addOnGroups.value[groupIndex];
+  if (group.options.length < maxAddOnOptions) {
+    group.options.push({
+      id: Date.now() + Math.random(),
+      name: "",
+      price: 0,
+    });
+  }
+};
+
+const removeAddOnOption = (groupIndex, optionIndex) => {
+  const group = addOnGroups.value[groupIndex];
+  if (group.options.length > 1) {
+    group.options.splice(optionIndex, 1);
+  }
+};
+
+const toggleAddOnGroupExpand = (groupId) => {
+  if (expandedAddOnGroups.value.has(groupId)) {
+    expandedAddOnGroups.value.delete(groupId);
+  } else {
+    expandedAddOnGroups.value.add(groupId);
+  }
+};
+
+const isAddOnGroupExpanded = (groupId) => {
+  return expandedAddOnGroups.value.has(groupId);
+};
+
+// ✅ SAMA SEPERTI CREATE: Submit Handler
+const onSubmit = veeHandleSubmit(
+  async (values) => {
+    console.log("[Submit] Form values:", values);
+
     // === 1) Validasi dengan Yup langsung (deterministik, gak tergantung field registration) ===
     try {
       // validasi semua field di values berdasarkan schema
@@ -648,7 +969,7 @@ const onSubmit = handleSubmit(
       });
 
       // ✅ API Call
-      await api.post(`/api/products/${productSlug.value}`, formData, {
+      await api.post(`/products/${productSlug.value}`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
