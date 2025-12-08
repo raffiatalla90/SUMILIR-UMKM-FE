@@ -8,7 +8,7 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-0">
         <!-- Left Side - Illustration (Hidden on Mobile) -->
         <div
-          class="hidden sm:flex items-center justify-center  from-secondary p-12"
+          class="hidden sm:flex items-center justify-center bg-gradient-to-br from-primary to-[#FFA30E] p-12"
         >
           <img
             :src="Illustration"
@@ -148,14 +148,37 @@ const handleLogin = async (values) => {
   errorMessage.value = "";
 
   try {
-    await authStore.login({
+    // 1. Login via authStore
+    const userData = await authStore.login({
       email: values.email,
       password: values.password,
     });
 
-    router.push("/dashboard");
+    console.log("✅ Login successful, user data:", userData);
+
+    // 2. ✅ Tunggu sebentar agar state terupdate
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    // 3. ✅ Redirect berdasarkan role
+    const userRoles = (userData.roles || [])
+      .map((r) => (typeof r === "string" ? r : r.name))
+      .filter(Boolean)
+      .map((r) => r.toLowerCase());
+
+    console.log("✅ User roles:", userRoles);
+
+    if (userRoles.includes("umkm-owner")) {
+      console.log("🚀 Redirecting to /merchant-center");
+      await router.replace("/merchant-center");
+    } else if (userRoles.includes("customer")) {
+      console.log("🚀 Redirecting to /");
+      await router.push("/");
+    } else {
+      console.log("🚀 Redirecting to /dashboard (default)");
+      await router.replace("/admin/dashboard");
+    }
   } catch (error) {
-    console.error("Login error:", error);
+    console.error("❌ Login error:", error);
     errorMessage.value =
       error.response?.data?.message || "Login gagal. Silakan coba lagi.";
   } finally {

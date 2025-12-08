@@ -7,9 +7,10 @@ Contoh pakai:
   <SelectField
     name="province_id"
     label="Provinsi"
-    :options="provinces"          // [{ value: 11, label: 'ACEH' }, ...]
+    :options="provinces"
     :loading="loadingProvinces"
     placeholder="Pilih Provinsi"
+    variant="merchant"
   />
 </Form>
 
@@ -23,11 +24,13 @@ Props:
 - placeholder: string (default "Pilih")
 - emptyText: string (default "Tidak ada data")
 - skeleton: boolean (default true) => tampilkan skeleton saat loading
+- variant: string (default "primary") => "primary" | "merchant"
 
 Events:
 - update:modelValue => emit saat nilai berubah
 */
 import { Field, ErrorMessage } from "vee-validate";
+import { computed } from "vue";
 
 const props = defineProps({
   name: { type: String, required: true },
@@ -39,16 +42,30 @@ const props = defineProps({
   placeholder: { type: String, default: "Pilih" },
   emptyText: { type: String, default: "Tidak ada data" },
   skeleton: { type: Boolean, default: true },
+  variant: { type: String, default: "primary" },
+  required: { type: Boolean, default: false }, // NEW
 });
 const emit = defineEmits(["update:modelValue"]);
+
+const focusRingClass = computed(() => {
+  return props.variant === "merchant"
+    ? "focus:ring-merchant-primary"
+    : "focus:ring-primary";
+});
+
+const borderClass = computed(() => {
+  return props.variant === "merchant"
+    ? "border-merchant-primary"
+    : "border-primary";
+});
 
 const selectClasses = (invalid) =>
   [
     "w-full px-4 py-2.5 pr-10 text-sm border rounded-xl bg-white text-black transition-all",
     "placeholder:text-muted-foreground appearance-none",
     invalid
-      ? "border-red-500 focus:ring-2 focus:ring-red-500"
-      : "border-primary focus:ring-2 focus:ring-primary",
+      ? "border-danger-foreground focus:ring-2 focus:ring-danger-foreground"
+      : `${borderClass.value} focus:ring-2 ${focusRingClass.value}`,
     "cursor-pointer disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed focus:outline-none",
   ].join(" ");
 </script>
@@ -61,6 +78,7 @@ const selectClasses = (invalid) =>
       class="block text-sm font-bold text-black mb-2"
     >
       {{ label }}
+      <span v-if="required" class="text-danger-foreground">*</span>
     </label>
 
     <!-- Skeleton saat loading -->
@@ -122,7 +140,12 @@ const selectClasses = (invalid) =>
       <!-- Chevron -->
       <svg
         aria-hidden="true"
-        class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+        :class="[
+          'pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4',
+          variant === 'merchant'
+            ? 'text-merchant-primary/60'
+            : 'text-muted-foreground',
+        ]"
         viewBox="0 0 20 20"
         fill="currentColor"
       >
@@ -136,9 +159,9 @@ const selectClasses = (invalid) =>
 
     <!-- Sembunyikan error saat skeleton -->
     <ErrorMessage
-      v-if="!(skeleton || loading)"
+      v-if="!(skeleton && loading)"
       :name="name"
-      class="text-red-500 text-xs mt-1"
+      class="text-danger-foreground text-xs mt-1"
     />
   </div>
 </template>

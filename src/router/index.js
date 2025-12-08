@@ -6,52 +6,140 @@ import ProfileView from "@/views/ProfileView.vue";
 import MyOrderLayout from "@/views/CustomerOrder/MyOrderLayout.vue";
 
 const routes = [
+  // ✅ Halaman Beranda (Public/Customer)
   {
     path: "/",
-    name: "Home",
-    component: () => import("@/views/HomeView.vue"),
+    component: () => import("@/layouts/CustomerLayout.vue"),
+    children: [
+      {
+        path: "",
+        name: "Beranda",
+        component: () => import("@/views/customer/Home.vue"),
+        meta: { title: "Beranda | SUMILIR" },
+      },
+      {
+        path: "product-toko",
+        name: "Product Toko",
+        component: () => import("@/views/customer/ProductTokoHome.vue"),
+        meta: { title: "Semua Produk Toko | SUMILIR" },
+      },
+      {
+        path: "product-kuliner",
+        name: "Product Kuliner",
+        component: () => import("@/views/customer/ProductKulinerHome.vue"),
+        meta: { title: "Semua Produk Kuliner | SUMILIR" },
+      },
+      {
+        path: "products/:slug",
+        name: "Product Detail",
+        component: () => import("@/views/customer/ProductDetail.vue"),
+        meta: { title: "Product Detail | SUMILIR" },
+      },
+      {
+        path: "merchant/:slug",
+        name: "Merchant Detail",
+        component: () => import("@/views/customer/ProductTokoHome.vue"),
+        meta: { title: "Detail Toko | SUMILIR" },
+      },
+
+      // Halaman Jasa Teknisi & Pembayaran
+      {
+        path: "jasa-teknisi",
+        name: "JasaTeknisi",
+        component: () => import("@/views/customer/JasaTeknisi.vue"),
+        meta: { title: "Semua Jasa Teknisi | SUMILIR" },
+      },
+      {
+        path: "jasa/:id",
+        name: "JasaDetail",
+        component: () => import("@/views/customer/JasaDetail.vue"),
+        meta: { title: "Detail Jasa | SUMILIR" },
+      },
+      {
+        path: "pembayaran-jasa",
+        name: "Pembayaran Jasa",
+        component: () => import("@/views/customer/PembayaranJasa.vue"),
+        meta: { title: "Pembayaran | SUMILIR" },
+      },
+
+      {
+        path: "cart",
+        name: "Keranjang",
+        component: () => import("@/views/customer/Cart.vue"),
+        meta: {
+          // requiresAuth: true,
+          // roles: ["customer"],
+          title: "Keranjang | SUMILIR",
+        },
+      },
+      {
+        path: "product-payment",
+        name: "Pembayaran Produk",
+        component: () => import("@/views/customer/PembayaranProduct.vue"),
+        meta: {
+          // requiresAuth: true,
+          // roles: ["customer"],
+          title: "Pembayaran | SUMILIR",
+        },
+      },
+
+      // Halaman Community
+      {
+        path: "community",
+        name: "community",
+        component: CommunityView,
+        meta: { title: "Community | SUMILIR" },
+      },
+      {
+        path: "community/:slug",
+        name: "community-detail",
+        component: CommunityDetailView,
+        props: true,
+        meta: { title: "Community Detail | SUMILIR" },
+      },
+    ],
   },
+
   // Grup halaman Auth pakai AuthLayout
   {
-    path: "/auth",
+    path: "/",
     component: () => import("@/layouts/AuthLayout.vue"),
+    meta: { guest: true },
     children: [
-
       {
         path: "login",
         name: "Login",
         component: () => import("@/views/auth/Login.vue"),
-        meta: { guest: true, title: "Login | SUMILIR" },
+        meta: { title: "Login | SUMILIR" },
       },
       {
         path: "register",
         name: "Register",
         component: () => import("@/views/auth/Register.vue"),
-        meta: { guest: true, title: "Register | SUMILIR" },
+        meta: { title: "Register | SUMILIR" },
       },
       {
         path: "forgot-password",
         name: "Forgot Password",
         component: () => import("@/views/auth/ForgotPassword.vue"),
-        meta: { guest: true, title: "Forgot Password | SUMILIR" },
+        meta: { title: "Forgot Password | SUMILIR" },
       },
       {
         path: "reset-password/:token?",
         name: "Reset Password",
         component: () => import("@/views/auth/ResetPassword.vue"),
-        meta: { guest: true, title: "Reset Password | SUMILIR" },
+        meta: { title: "Reset Password | SUMILIR" },
       },
       {
         path: "verify-email",
         name: "Email Verification",
         component: () => import("@/views/auth/EmailVerification.vue"),
-        meta: { guest: true, title: "Email Verification | SUMILIR" },
+        meta: { title: "Email Verification | SUMILIR" },
       },
-      { path: "", redirect: { name: "Login" } },
     ],
   },
 
-  // Halaman non-auth (tanpa AuthLayout)
+  // Halaman merchant register
   {
     path: "/merchant-register",
     name: "Merchant Register",
@@ -62,86 +150,204 @@ const routes = [
       title: "Merchant Register | SUMILIR",
     },
   },
+
+  // Halaman admin
   {
-    path: "/dashboard",
-    name: "Dashboard",
-    component: () => import("@/views/dashboard/Index.vue"),
-    meta: { requiresAuth: true },
+    path: "/admin",
+    name: "Admin",
+    component: () => import("@/views/admin/Dashboard.vue"),
+    meta: {
+      requiresAuth: true,
+      roles: ["admin"],
+    },
+    children: [
+      {
+        path: "",
+        redirect: { name: "Admin Dashboard" },
+      },
+      {
+        path: "dashboard",
+        name: "Admin Dashboard",
+        component: () => import("@/views/merchant/dashboard/Index.vue"),
+        meta: {
+          title: "Admin Dashboard | SUMILIR",
+        },
+      },
+    ],
   },
+
+  // Halaman merchant
+  {
+    path: "/merchant-center/:merchantId",
+    name: "Merchant",
+    component: () => import("@/layouts/MerchantLayout.vue"),
+    meta: {
+      requiresAuth: true,
+      roles: ["umkm-owner"],
+      requiresMerchantId: true,
+    },
+    children: [
+      {
+        path: "",
+        redirect: (to) => ({
+          name: "Merchant - Dashboard",
+          params: { merchantId: to.params.merchantId },
+        }),
+      },
+      {
+        path: "dashboard",
+        name: "Merchant - Dashboard",
+        component: () => import("@/views/merchant/dashboard/Index.vue"),
+        meta: {
+          title: "Merchant Dashboard | SUMILIR",
+        },
+      },
+      {
+        path: "products",
+        name: "Merchant - Product UMKM",
+        component: () => import("@/views/merchant/products/Index.vue"),
+        meta: { title: "Product UMKM | SUMILIR" },
+      },
+      {
+        path: "products/create",
+        name: "Merchant - Buat Product",
+        component: () => import("@/views/merchant/products/Create.vue"),
+        meta: {
+          title: "Buat Product UMKM | SUMILIR",
+        },
+      },
+      // ✅ UPDATED: Use slug instead of id
+      {
+        path: "products/:slug",
+        name: "Merchant - Product Detail",
+        component: () => import("@/views/merchant/products/Detail.vue"),
+        meta: {
+          title: "Product Detail UMKM | SUMILIR",
+        },
+      },
+      // ✅ UPDATED: Use slug instead of id
+      {
+        path: "products/:slug/edit",
+        name: "Merchant - Product Edit",
+        component: () => import("@/views/merchant/products/Edit.vue"),
+        meta: {
+          title: "Edit Product UMKM | SUMILIR",
+        },
+      },
+      {
+        path: "community",
+        name: "Merchant - Community",
+        component: () => import("@/views/merchant/community/Index.vue"),
+        meta: {
+          title: "Community | SUMILIR",
+        },
+      },
+      {
+        path: "discounts",
+        name: "Merchant - Discounts",
+        component: () => import("@/views/merchant/discounts/Index.vue"),
+        meta: {
+          title: "Discounts | SUMILIR",
+        },
+      },
+      {
+        path: "orders",
+        name: "Merchant - Orders",
+        component: () => import("@/views/merchant/orders/Index.vue"),
+        meta: {
+          title: "Orders | SUMILIR",
+        },
+      },
+    ],
+  },
+
+  // // ✅ Halaman Unauthorized
+  // {
+  //   path: "/unauthorized",
+  //   name: "Unauthorized",
+  //   component: () => import("@/views/errors/Unauthorized.vue"),
+  //   meta: { title: "Unauthorized | SUMILIR" },
+  // },
+
+  // My Order History (dari kodemu)
+  {
+    path: "/my-order",
+    component: MyOrderLayout, // ← dari kodemu
+    meta: {
+      requiresAuth: true,
+      roles: ["customer"], // ← dari kodemu
+    },
+    children: [
+      {
+        path: "",
+        name: "MyOrder",
+        component: () => import("@/views/CustomerOrder/MyOrderView.vue"),
+        meta: { title: "My Order | SUMILIR" }, // ← dari kodemu
+      },
+      {
+        path: "give-review/:orderId?",
+        name: "GiveReview",
+        component: () => import("@/views/CustomerOrder/GiveReviewView.vue"),
+        meta: { title: "Beri Nilai | SUMILIR" }, // ← dari kodemu
+      },
+      {
+        path: "review",
+        name: "Review",
+        component: () => import("@/views/CustomerOrder/ReviewView.vue"),
+        meta: { title: "Lihat Penilaian | SUMILIR" }, // ← dari kodemu
+      },
+      {
+        path: "review/edit-review",
+        name: "EditReview",
+        component: () => import("@/views/CustomerOrder/EditReviewView.vue"),
+        meta: { title: "Edit Penilaian | SUMILIR" }, // ← dari kodemu
+      },
+    ],
+  },
+
+  // Profile management (dari kodemu)
+  {
+    path: "/profile",
+    component: () => import("@/views/ProfileLayout.vue"),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: "",
+        name: "Profile",
+        component: () => import("@/views/ProfileView.vue"),
+        meta: { title: "Profile | SUMILIR" }, // ← dari kodemu
+      },
+      {
+        path: "edit",
+        name: "EditProfile",
+        component: () => import("@/views/EditProfileView.vue"),
+        meta: { title: "Edit Profile | SUMILIR" }, // ← dari kodemu
+      },
+      {
+        path: "change-password",
+        name: "ChangePassword",
+        component: () => import("@/views/ChangePasswordView.vue"),
+        meta: { title: "Ubah Kata Sandi | SUMILIR" }, // ← dari kodemu
+      },
+    ],
+  },
+
 
   // Fallback
   { path: "/:pathMatch(.*)*", redirect: "/" },
 
-  {
-    path: "/community",
-    name: "community",
-    component: CommunityView,
-  },
-  {
-    path: "/community/:slug",
-    name: "community-detail",
-    component: CommunityDetailView,
-    props: true,
-  },
-  
-  // My Order History
-  {
-  path: "/my-order",
-  component: MyOrderLayout,   // ← parent WRAPPER
-  children: [
-    {
-      path: "",
-      name: "MyOrder",
-      component: () => import("@/views/CustomerOrder/MyOrderView.vue"),
-      meta: { title: "My Order | SUMILIR" }
-    },
-    {
-      path: "give-review/:orderId?",
-      name: "GiveReview",
-      component: () => import("@/views/CustomerOrder/GiveReviewView.vue"),
-      meta: { title: "Beri Nilai | SUMILIR" }
-    },
-    {
-      path: "review",
-      name: "Review",
-      component: () => import("@/views/CustomerOrder/ReviewView.vue"),
-      meta: { title: "Lihat Penilaian | SUMILIR" }
-    },
-    {
-      path: "review/edit-review",
-      name: "EditReview",
-      component: () => import("@/views/CustomerOrder/EditReviewView.vue"),
-      meta: { title: "Lihat Penilaian | SUMILIR" }
-    }
-  ]
-},
-
-  // Profile management
-{
-  path: "/profile",
-  component: () => import("@/views/ProfileLayout.vue"), // parent wrapper
-  children: [
-    {
-      path: "",
-      name: "Profile",
-      component: () => import("@/views/ProfileView.vue"),
-      meta: { title: "Profile | SUMILIR" },
-    },
-    {
-      path: "edit",
-      name: "EditProfile",
-      component: () => import("@/views/EditProfileView.vue"),
-      meta: { title: "Edit Profile | SUMILIR" },
-    },
-    {
-      path: "change-password",
-      name: "ChangePassword",
-      component: () => import("@/views/ChangePasswordView.vue"),
-      meta: { title: "Ubah Kata Sandi | SUMILIR" },
-    },
-  ],
-},
-
+  // {
+  //   path: "/community",
+  //   name: "community",
+  //   component: CommunityView,
+  // },
+  // {
+  //   path: "/community/:slug",
+  //   name: "community-detail",
+  //   component: CommunityDetailView,
+  //   props: true,
+  // },
+  // { path: "/:pathMatch(.*)*", redirect: "/" },
 ];
 
 const router = createRouter({
@@ -149,33 +355,102 @@ const router = createRouter({
   routes,
 });
 
-// Navigation Guard
+// ✅ Track navigation to prevent excessive calls
+let lastNavigationPath = null;
+
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore();
   document.title = to.meta.title || "SUMILIR";
 
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) return next("/login");
+  // ✅ ADD: Skip if navigating to same path
+  if (to.path === lastNavigationPath) {
+    console.log("[Router] Same path navigation detected, skipping...");
+    next();
+    return;
+  }
 
-  const requiredRoles = to.meta.roles || [];
-  if (requiredRoles.length) {
+  lastNavigationPath = to.path;
+
+  console.log("🔍 [Router Guard]", {
+    to: to.path,
+    from: from.path,
+    isAuthenticated: authStore.isAuthenticated,
+  });
+
+  // ✅ 1. Jika route butuh auth tapi user belum login
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    console.warn("⚠️ Not authenticated, redirecting to /login");
+    return next("/login");
+  }
+
+  // ✅ 2. Jika user sudah login dan akses halaman guest
+  if (to.meta.guest && authStore.isAuthenticated) {
     const userRoles = (authStore.user?.roles || [])
       .map((r) => (typeof r === "string" ? r : r.name))
       .filter(Boolean)
       .map((r) => r.toLowerCase());
-    const abilities = (
-      authStore.user?.abilities ||
-      authStore.abilities ||
-      []
-    ).map((a) => a.toLowerCase());
-    const allowed = requiredRoles.some(
-      (rr) =>
-        userRoles.includes(rr.toLowerCase()) ||
-        abilities.includes(`role:${rr.toLowerCase()}`)
-    );
-    if (!allowed) return next("/dashboard");
+
+    if (userRoles.includes("admin") || userRoles.includes("umkm-owner")) {
+      return next("/merchant-center");
+    } else if (userRoles.includes("customer")) {
+      return next("/");
+    } else {
+      return next("/");
+    }
   }
 
-  if (to.meta.guest && authStore.isAuthenticated) return next("/dashboard");
+  // ✅ 3. Role-based access control
+  const requiredRoles = to.meta.roles || [];
+  if (requiredRoles.length && authStore.isAuthenticated) {
+    const userRoles = (authStore.user?.roles || [])
+      .map((r) => (typeof r === "string" ? r : r.name))
+      .filter(Boolean)
+      .map((r) => r.toLowerCase());
+
+    const hasRequiredRole = requiredRoles.some((requiredRole) =>
+      userRoles.includes(requiredRole.toLowerCase())
+    );
+
+    if (!hasRequiredRole) {
+      console.warn("⚠️ Role not allowed, redirecting to /");
+      return next("/");
+    }
+  }
+
+  // ✅ Require approved merchant for Merchant Center routes
+  if (to.path.startsWith("/merchant-center")) {
+    const merchantIdParam = to.params.merchantId
+      ? Number(to.params.merchantId)
+      : null;
+
+    // Wajib ada merchantId di URL
+    if (!merchantIdParam || Number.isNaN(merchantIdParam)) {
+      console.warn(
+        "⚠️ merchantId kosong/tidak valid, redirect ke /merchant-register"
+      );
+      return next("/merchant-register");
+    }
+
+    // Ambil merchant berdasarkan ID (tanpa fallback)
+    const merchant = authStore.getMerchantById(merchantIdParam);
+
+    // Jika tidak ditemukan di store (karena belum approved), blok akses
+    if (!merchant) {
+      console.warn(
+        "⚠️ Merchant tidak ditemukan/ belum approved, redirect ke /merchant-register"
+      );
+      return next("/merchant-register");
+    }
+
+    // Jika status bukan approved, blok akses
+    if (merchant.status !== "approved") {
+      console.warn(
+        "⚠️ Merchant belum approved, redirect ke /merchant-register"
+      );
+      return next("/merchant-register");
+    }
+  }
+
   next();
 });
 

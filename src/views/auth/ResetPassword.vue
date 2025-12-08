@@ -63,7 +63,7 @@
 
           <AppButton
             type="button"
-            variant="outline"
+            variant="primary-outline"
             size="md"
             block
             @click="goToLogin"

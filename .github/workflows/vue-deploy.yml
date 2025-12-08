@@ -1,74 +1,91 @@
-name: Deploy Vue FE to Server
+name: Vue (Vite) CI/CD -> FTPS
 
 on:
   push:
     branches: [staging]
+  workflow_dispatch:
 
 jobs:
-  deploy:
+  deploy-frontend:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Setup Node.js
+      - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "pnpm"
+          node-version: "24"
 
-      - name: Create .env.production
-        env:
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
-        run: |
-          HOST=${SERVER_HOST:-sumilir.indonesiacentral.cloudapp.azure.com}
-          cat > .env.production << EOF
-          VITE_APP_NAME="SUMILIR"
-          VITE_APP_URL=https://$HOST
-          VITE_PUBLIC_BASE_PATH=/
-          VITE_API_BASE_URL=/api
-          VITE_API_PREFIX=/api
-          VITE_HTTP_TIMEOUT_MS=20000
-          VITE_FORGOT_PASSWORD_COOLDOWN=60
-          EOF
-
-      # Gunakan no-frozen-lockfile karena pnpm-lock.yaml belum di-commit dengan dependensi PWA
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: npm install
 
-      # Tidak perlu lagi jika workbox-window sudah ada di package.json
-      - name: Ensure workbox-window exists (skip)
-        if: ${{ false }}
-        run: pnpm add workbox-window@^7 --no-save
-
-      - name: Build project (PWA)
+      - name: Build production
         env:
-          NODE_OPTIONS: --max_old_space_size=4096
-        run: pnpm run build --mode production
+          VITE_APP_NAME: ${{ vars.VITE_APP_NAME || 'SUMILIR' }}
+          VITE_APP_URL: ${{ vars.VITE_APP_URL || 'http://localhost:5173' }}
+          VITE_PUBLIC_BASE_PATH: ${{ vars.VITE_PUBLIC_BASE_PATH || '/' }}
 
-      - name: Clean remote dist
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          script: |
-            mkdir -p /var/www/KMI-SIMSLIFE-FE/dist
-            rm -rf /var/www/KMI-SIMSLIFE-FE/dist/*
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || 'http://localhost:8000/api' }}
+          VITE_BASE_URL: ${{ secrets.VITE_BASE_URL || 'http://localhost:8000' }}
+          VITE_API_PREFIX: ${{ secrets.VITE_API_PREFIX || '/api' }}
+          VITE_SANCTUM_ENDPOINT: ${{ secrets.VITE_SANCTUM_ENDPOINT || '/sanctum/csrf-cookie' }}
+          VITE_WITH_CREDENTIALS: "true"
+          VITE_HTTP_TIMEOUT_MS: "20000"
 
-      - name: Deploy via SCP
-        uses: appleboy/scp-action@v0.1.7
+          VITE_ECHO_DRIVER: ${{ vars.VITE_ECHO_DRIVER || 'pusher' }}
+          VITE_ECHO_AUTH_ENDPOINT: ${{ secrets.VITE_ECHO_AUTH_ENDPOINT || '/broadcasting/auth' }}
+          VITE_ECHO_WITH_CREDENTIALS: "true"
+          VITE_ECHO_NAMESPACE: "App.Events"
+
+          VITE_PUSHER_APP_KEY: ${{ secrets.VITE_PUSHER_APP_KEY || 'local' }}
+          VITE_PUSHER_CLUSTER: ${{ vars.VITE_PUSHER_CLUSTER || 'mt1' }}
+          VITE_PUSHER_HOST: ${{ vars.VITE_PUSHER_HOST || 'localhost' }}
+          VITE_PUSHER_PORT: ${{ vars.VITE_PUSHER_PORT || '6001' }}
+          VITE_PUSHER_WSS_PORT: "443"
+          VITE_PUSHER_SCHEME: "http"
+          VITE_PUSHER_FORCE_TLS: "false"
+          VITE_PUSHER_DISABLE_STATS: "true"
+          VITE_PUSHER_WS_ENABLED: "true"
+
+          VITE_MAP_TILE_URL: ${{ vars.VITE_MAP_TILE_URL || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png' }}
+          VITE_MAP_ATTRIBUTION: ${{ vars.VITE_MAP_ATTRIBUTION || '&copy; OpenStreetMap contributors' }}
+          VITE_MAP_MAX_ZOOM: "19"
+
+          VITE_FEATURE_ECHO: ${{ vars.VITE_FEATURE_ECHO || 'true' }}
+        run: npm run build
+
+      - name: List build output
+        run: |
+          echo "Build completed!"
+          ls -la dist/
+          du -sh dist/
+
+      - name: Deploy to FTPS
+        uses: SamKirkland/FTP-Deploy-Action@4.3.0
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "dist/**"
-          target: "/var/www/KMI-SIMSLIFE-FE/dist"
-          strip_components: 1
-          overwrite: true
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASS }}
+          port: ${{ secrets.FTP_PORT || 21 }}
+          protocol: ftp
+          passive: true
+          local-dir: dist/
+          server-dir: ${{ secrets.FTP_PATH_FRONTEND }}/
+          dangerous-clean-slate: false
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/.DS_Store
+
+      - name: Deployment summary
+        run: |
+          echo "### ✅ Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Server:** ${{ secrets.FTP_SERVER }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployed to:** ${{ secrets.FTP_PATH_FRONTEND }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date -u)" >> $GITHUB_STEP_SUMMARY

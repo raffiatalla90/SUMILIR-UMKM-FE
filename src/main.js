@@ -10,7 +10,6 @@ import { useAuthStore } from "@/stores/auth"; // import ini ditambahkan
 import ProductCard from "@/components/Card/ProductCard.vue";
 import EventCard from "@/components/Card/EventCard.vue";
 import PromoCard from "@/components/Card/PromoCard.vue";
-import Navbar from "./components/Navbar.vue";
 
 const updateSW = registerSW({
   immediate: true,
@@ -43,7 +42,6 @@ app.use(router);
 app.component("ProductCard", ProductCard);
 app.component("EventCard", EventCard);
 app.component("PromoCard", PromoCard);
-app.component("Navbar", Navbar);
 
 // Init auth state (non-blocking)
 try {

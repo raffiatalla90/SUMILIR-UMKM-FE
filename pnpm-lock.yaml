@@ -17,6 +17,9 @@ importers:
       laravel-echo:
         specifier: ^2.2.4
         version: 2.2.4(pusher-js@8.4.0)(socket.io-client@4.8.1)
+      laravel-vite-plugin:
+        specifier: ^2.0.1
+        version: 2.0.1(vite@7.1.11(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0))
       leaflet:
         specifier: ^1.9.4
         version: 1.9.4
@@ -29,9 +32,6 @@ importers:
       vee-validate:
         specifier: ^4.15.1
         version: 4.15.1(vue@3.5.22)
-      vite-plugin-pwa:
-        specifier: ^1.1.0
-        version: 1.1.0(vite@7.1.11(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0))(workbox-build@7.3.0)(workbox-window@7.3.0)
       vue:
         specifier: ^3.5.22
         version: 3.5.22
@@ -63,6 +63,9 @@ importers:
       vite:
         specifier: ^7.1.7
         version: 7.1.11(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0)
+      vite-plugin-pwa:
+        specifier: ^1.1.0
+        version: 1.1.0(vite@7.1.11(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0))(workbox-build@7.3.0)(workbox-window@7.3.0)
 
 packages:
 
@@ -1615,6 +1618,13 @@ packages:
       pusher-js: '*'
       socket.io-client: '*'
 
+  laravel-vite-plugin@2.0.1:
+    resolution: {integrity: sha512-zQuvzWfUKQu9oNVi1o0RZAJCwhGsdhx4NEOyrVQwJHaWDseGP9tl7XUPLY2T8Cj6+IrZ6lmyxlR1KC8unf3RLA==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    hasBin: true
+    peerDependencies:
+      vite: ^7.0.0
+
   leaflet@1.9.4:
     resolution: {integrity: sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA==}
 
@@ -2109,6 +2119,9 @@ packages:
     resolution: {integrity: sha512-DkFsiTwEKau8VIxyZBGdO6tOudD+QoUBPuHj3e6QFqmbfCRj1ArmYWue9lEp6jLSWBIw4XPlDLjFIZNLdRAMSg==}
     peerDependencies:
       vue: ^3.4.26
+
+  vite-plugin-full-reload@1.2.0:
+    resolution: {integrity: sha512-kz18NW79x0IHbxRSHm0jttP4zoO9P9gXh+n6UTwlNKnviTTEpOlum6oS9SmecrTtSr+muHEn5TUuC75UovQzcA==}
 
   vite-plugin-pwa@1.1.0:
     resolution: {integrity: sha512-VsSpdubPzXhHWVINcSx6uHRMpOHVHQcHsef1QgkOlEoaIDAlssFEW88LBq1a59BuokAhsh2kUDJbaX1bZv4Bjw==}
@@ -3954,6 +3967,12 @@ snapshots:
       pusher-js: 8.4.0
       socket.io-client: 4.8.1
 
+  laravel-vite-plugin@2.0.1(vite@7.1.11(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0)):
+    dependencies:
+      picocolors: 1.1.1
+      vite: 7.1.11(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0)
+      vite-plugin-full-reload: 1.2.0
+
   leaflet@1.9.4: {}
 
   leven@3.1.0: {}
@@ -4487,6 +4506,11 @@ snapshots:
       '@vue/devtools-api': 7.7.7
       type-fest: 4.41.0
       vue: 3.5.22
+
+  vite-plugin-full-reload@1.2.0:
+    dependencies:
+      picocolors: 1.1.1
+      picomatch: 2.3.1
 
   vite-plugin-pwa@1.1.0(vite@7.1.11(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0))(workbox-build@7.3.0)(workbox-window@7.3.0):
     dependencies:
