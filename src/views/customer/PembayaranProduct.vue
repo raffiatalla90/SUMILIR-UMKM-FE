@@ -259,14 +259,14 @@
       </section>
 
       <!-- Ringkasan Pembayaran -->
-      <section class="bg-white rounded-xl border border-gray-200 p-4">
+      <section class="bg-white rounded-xl border border-gray-200 p-4 mb-4">
         <h2 class="font-semibold text-gray-800 mb-3">Ringkasan Pembayaran</h2>
 
         <div class="space-y-3">
           <!-- Metode Pembayaran -->
           <div>
             <div class="text-sm text-gray-600 mb-2">Metode Pembayaran</div>
-            <div class="flex items-center gap-6 text-sm">
+            <div class="flex flex-wrap items-center gap-6 text-sm">
               <label
                 class="flex items-center gap-2"
                 :class="
@@ -361,6 +361,7 @@
     </main>
 
     <!-- Bottom bar (Total + Pesan button) -->
+    <!-- bottom-16 di mobile agar di atas footer global/bottom nav; di layar besar bottom-0 -->
     <footer
       class="fixed left-0 right-0 bottom-16 sm:bottom-0 z-20 bg-white border-t border-gray-200 shadow-lg"
     >

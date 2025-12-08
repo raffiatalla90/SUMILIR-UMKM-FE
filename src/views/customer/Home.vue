@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { Form } from "vee-validate";
+
 import TextField from "@/components/forms/TextField.vue";
 import CategoryCard from "@/components/Card/CategoryCard.vue";
 import ProductCardSkeleton from "@/components/Card/ProductCardSkeleton.vue";
@@ -13,6 +14,7 @@ import jasaIcon from "@/assets/icons/Jasa.svg";
 import kulinerIcon from "@/assets/icons/Kuliner.svg";
 import tokoIcon from "@/assets/icons/Toko.svg";
 import komunitasIcon from "@/assets/icons/Komunitas.svg";
+
 import Button from "@/components/common/Button.vue";
 import api from "@/libs/axios.js";
 import { useRoute, useRouter } from "vue-router";
@@ -102,6 +104,7 @@ onUnmounted(() => {
   if (bannerInterval) clearInterval(bannerInterval);
 });
 
+// LOAD DATA
 onMounted(async () => {
   // ✅ Fetch random merchants
   try {
@@ -285,7 +288,7 @@ watch(
               </Form>
             </div>
 
-            <!-- Kategori -->
+            <!-- KATEGORI -->
             <div class="p-4 sm:p-5">
               <div class="grid grid-cols-4 gap-3 sm:gap-4">
                 <CategoryCard
@@ -317,15 +320,12 @@ watch(
         class="overflow-x-auto overflow-y-hidden no-scrollbar mx-4 lg:mx-[57px] pt-3 sm:pt-[17px] scroll-smooth snap-x snap-mandatory"
       >
         <div class="flex gap-4 sm:gap-8 min-w-max">
-          <!-- Skeleton loading -->
           <template v-if="isLoadingPromo">
-            <div v-for="i in 5" :key="i" class="snap-start shrink-0">
-              <PromoCardSkeleton />
-            </div>
+            <PromoCardSkeleton v-for="i in 5" :key="i" />
           </template>
-          <!-- Actual content -->
+
           <template v-else>
-            <div
+            <PromoCard
               v-for="(promo, i) in promoList"
               :key="promo.id || i"
               class="snap-start shrink-0"

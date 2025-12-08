@@ -1,8 +1,15 @@
 <template>
-  <div class="min-h-screen bg-gray-50 pb-28">
+  <div class="min-h-screen bg-gray-50 pb-32 sm:pb-28">
     <!-- AppBar -->
-    <header class="sticky top-0 z-10 bg-blue-600 text-white px-4 py-3 flex items-center gap-3">
-      <router-link :to="{ name: 'JasaDetail', params: { id: order.id } }" class="text-xl">←</router-link>
+    <header
+      class="sticky top-0 z-10 bg-blue-600 text-white px-4 py-3 flex items-center gap-3"
+    >
+      <router-link
+        :to="{ name: 'JasaDetail', params: { id: order.id } }"
+        class="text-xl"
+      >
+        ←
+      </router-link>
       <h1 class="font-semibold">Pesananmu</h1>
     </header>
 
@@ -100,7 +107,9 @@
       </section>
 
       <!-- Promo -->
-      <section class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <section
+        class="bg-white rounded-xl border border-gray-200 overflow-hidden"
+      >
         <div class="px-4 py-3 flex items-center justify-between bg-lime-100">
           <div class="text-sm font-semibold text-gray-800">
             {{ selectedPromo ? selectedPromo.title : 'Diskon 5%' }}
@@ -170,9 +179,11 @@
       </section>
     </main>
 
-    <!-- Bottom bar (Total + WA button) -->
-    <footer class="fixed left-0 right-0 bottom-0 z-20 bg-white border-t border-gray-200">
-      <div class="px-4 py-3 space-y-2">
+    <!-- Bottom bar (Total + WA button, versi seperti "Booking Sekarang") -->
+    <div
+      class="fixed left-0 right-0 bottom-16 sm:bottom-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-3"
+    >
+      <div class="max-w-screen-sm mx-auto space-y-2">
         <div
           class="flex items-center justify-between text-xs sm:text-sm font-semibold text-gray-900"
         >
@@ -181,15 +192,14 @@
         </div>
 
         <button
-          class="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-white font-semibold"
-          style="background:#FFA30E;"
+          class="w-full flex items-center justify-center gap-2 py-3 rounded-full bg-[#FFA30E] hover:bg-[#e5920d] text-white font-semibold text-center transition"
           @click="openWhatsapp"
         >
           <img :src="waIcon" alt="WhatsApp" class="w-4 h-4" />
           <span>Pesan Sekarang</span>
         </button>
       </div>
-    </footer>
+    </div>
 
     <!-- Bottom Sheet Promo List -->
     <transition name="fade">
@@ -264,7 +274,6 @@
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
-// ikon
 import jamIcon from '@/assets/icons/Jam.png'
 import lokasiIcon from '@/assets/icons/TitikLokasi.png'
 import waIcon from '@/assets/icons/Whatsapp.png'
@@ -365,8 +374,7 @@ function clearPromo() {
 }
 
 // ===== Buka WhatsApp =====
-// pakai format internasional TANPA +, mis: 62821xxxxxx
-const WA_NUMBER = '6282138540196' // TODO: ganti dengan nomor kamu
+const WA_NUMBER = '6282138540196'
 
 const openWhatsapp = () => {
   const text = [
