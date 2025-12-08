@@ -238,6 +238,7 @@
               price: jasa?.fixed_price || jasa?.base_price || 100000,
               tgl: selectedDate.toISOString(),
               waktu: activeTime,
+              paket: activePackage,
             },
           }"
           class="flex-1 py-3 rounded-full bg-[#FFA30E] hover:bg-[#e5920d] text-white font-semibold text-center transition"
@@ -524,6 +525,7 @@ onMounted(async () => {
       fixed_price: 100000,
       images: [],
     };
+    activePackage.value = 1;
     console.warn("API detail belum tersedia, memakai data fallback.");
     initActiveTime();
   }

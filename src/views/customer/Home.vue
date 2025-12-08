@@ -81,6 +81,7 @@ const loadMoreMerchants = async () => {
   }
 };
 
+// LOAD DATA
 onMounted(async () => {
   // ✅ Fetch random merchants
   try {
