@@ -1,81 +1,141 @@
-<!-- src/views/JasaTeknisi.vue -->
 <template>
-  <div class="min-h-screen bg-gray-100 pb-6">
-    <!-- Header -->
-    <header class="bg-gray-200 px-4 pt-3 pb-2 flex items-center justify-between">
-      <button
-        class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-xl"
-        @click="$router.back()"
-      >
-        ←
-      </button>
-
-      <h1 class="flex-1 text-center font-semibold text-sm">
-        Semua Jasa Teknisi
+  <div class="min-h-screen bg-white">
+    <!-- Banner -->
+    <div class="bg-blue-500 h-48 sm:h-56 md:h-64 flex items-center justify-center">
+      <h1 class="text-white text-2xl sm:text-3xl font-semibold">
+        Selamat Datang di Sumilir
       </h1>
+    </div>
 
-      <button class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
-        🛒
-      </button>
-    </header>
-
-    <!-- Filter bar -->
-    <div class="bg-[#f3eaea] px-4 py-3">
-      <div class="flex items-center gap-3 mb-2">
-        <button class="w-8 h-8 rounded-full border flex items-center justify-center">
-          ☰
-        </button>
-        <div class="flex-1 flex gap-2 text-xs">
-          <button class="px-3 py-1 rounded-full border bg-white">Beras</button>
-          <button class="px-3 py-1 rounded-full border bg-white">Minyak</button>
-          <button class="px-3 py-1 rounded-full border bg-white">Gula</button>
+    <!-- Search -->
+    <div class="flex justify-center -mt-8 px-4 relative z-10">
+      <div class="w-full sm:w-3/4 md:w-1/2 max-w-2xl">
+        <div class="relative">
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Pencarian"
+            class="w-full px-4 py-3 rounded-md focus:ring-2 focus:ring-blue-300 shadow-lg text-sm md:text-base bg-white"
+          />
+          <button
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-blue-600"
+          >
+            <i class="bi bi-search text-lg"></i>
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- List Jasa -->
-    <main class="px-4 pt-3 space-y-3">
-      <div
-        v-for="(jasa, index) in repeatedJasa"
-        :key="index"
-        class="flex rounded-2xl overflow-hidden bg-gray-100 shadow-sm"
-      >
-        <!-- gambar -->
-        <div class="w-32 h-24 bg-gray-300 flex-shrink-0 overflow-hidden">
-          <img
-            v-if="jasa.image"
-            :src="jasa.image"
-            alt="Jasa"
-            class="w-full h-full object-cover"
-          />
-        </div>
-
-        <!-- detail -->
-        <div class="flex-1 bg-gray-100 px-3 py-2">
-          <h2 class="text-sm font-semibold text-gray-900">
-            {{ jasa.title || 'Nama Jasa' }}
-          </h2>
-          <p class="text-[11px] text-gray-600">Nama UMKM</p>
-
-          <p class="mt-1 text-sm font-semibold text-gray-900">
-            Rp {{ jasa.price || 'xx.xxx' }}
-          </p>
-
-          <div
-            class="mt-2 flex items-center gap-4 text-[11px] text-gray-700"
+    <!-- Content -->
+    <div class="px-6 md:px-8 py-10 space-y-10">
+      <!-- Pilih Kategori -->
+      <section>
+        <h2 class="text-lg font-semibold mb-4">Pilih Kategori</h2>
+        <div class="grid grid-cols-6 gap-4 sm:gap-6 justify-items-center">
+          <router-link
+            v-for="n in 6"
+            :key="n"
+            to="/jasa-teknisi"
+            class="flex flex-col items-center gap-2"
           >
-            <span class="flex items-center gap-1">
-              <i class="bi bi-star-fill text-gray-600"></i>
-              {{ jasa.rating ?? '4,9' }}
-            </span>
-            <span class="flex items-center gap-1">
-              <i class="bi bi-geo-alt-fill text-gray-600"></i>
-              {{ jasa.distance_km ?? '2,2' }} KM
-            </span>
-          </div>
+            <div
+              class="w-12 h-12 sm:w-14 sm:h-14 rounded-lg border border-gray-300 flex items-center justify-center bg-white"
+            >
+              <img :src="teknisiIcon" alt="Teknisi" class="w-7 h-7 sm:w-8 sm:h-8" />
+            </div>
+            <span class="text-xs sm:text-sm text-gray-600">Teknisi</span>
+          </router-link>
         </div>
-      </div>
-    </main>
+      </section>
+
+      <!-- Promo Menarik -->
+      <section>
+        <h2 class="text-lg font-semibold mb-4">Promo Menarik</h2>
+        <div class="relative group">
+          
+          <!-- tombol kiri -->
+          <button
+            @click="scrollPromo(-1)"
+            class="hidden sm:flex absolute left-2 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/85 shadow items-center justify-center opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"
+          >
+            ‹
+          </button>
+
+          <!-- scroller -->
+          <div
+            ref="promoScroller"
+            :class="[
+              'grid grid-flow-col gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory px-1 pr-[35%] sm:pr-[25%]',
+              '[grid-auto-columns:calc(80%-0.5rem)] sm:[grid-auto-columns:calc(50%-0.5rem)]'
+            ]"
+            style="scroll-behavior:smooth;"
+          >
+            <div
+              v-for="(p, i) in promoList"
+              :key="i"
+              class="rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition snap-start bg-white"
+            >
+              <img
+                :src="p.image"
+                alt="Promo"
+                class="w-full h-auto object-contain rounded-2xl"
+              />
+            </div>
+          </div>
+
+          <!-- tombol kanan -->
+          <button
+            @click="scrollPromo(1)"
+            class="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/85 shadow items-center justify-center opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"
+          >
+            ›
+          </button>
+        </div>
+      </section>
+
+      <!-- Rekomendasi -->
+      <section>
+        <h2 class="text-lg font-semibold mb-4">Rekomendasi</h2>
+
+        <div class="grid grid-cols-2 gap-4 sm:gap-6">
+          <router-link
+            v-for="(jasa, index) in repeatedJasa"
+            :key="index"
+            :to="{ name: 'JasaDetail', params: { id: jasa.id } }"
+            class="block rounded-3xl border border-gray-200 bg-white shadow-sm overflow-hidden"
+          >
+            <div class="h-24 sm:h-28 bg-gray-200 overflow-hidden">
+              <img
+                v-if="jasa.image"
+                :src="jasa.image"
+                alt="Jasa"
+                class="w-full h-auto object-contain rounded-2xl"
+              />
+            </div>
+
+            <div class="px-4 py-3 bg-white text-center">
+              <h3 class="text-sm sm:text-base font-semibold text-gray-900">
+                {{ jasa.title }}
+              </h3>
+              <p class="text-xs sm:text-sm text-gray-600">
+                Rp. {{ formatHarga(jasa.price) }}
+              </p>
+
+              <div class="mt-2 flex items-center justify-center gap-4 text-[11px] sm:text-xs text-gray-600">
+                <span class="flex items-center gap-1">
+                  <img :src="starIcon" alt="rating" class="w-3 h-3" />
+                  {{ jasa.rating ?? '4,9' }}
+                </span>
+                <span class="flex items-center gap-1">
+                  <img :src="lokasiIcon" alt="lokasi" class="w-3 h-3" />
+                  {{ jasa.distance_km ?? '2,2' }} KM
+                </span>
+              </div>
+            </div>
+          </router-link>
+        </div>
+      </section>
+    </div>
   </div>
 </template>
 
@@ -83,34 +143,79 @@
 import { ref, onMounted, computed } from 'vue'
 import api from '@/libs/axios.js'
 
-const jasaList = ref([])
+// ICONS
+import starIcon from '@/assets/icons/Bintang.png'
+import lokasiIcon from '@/assets/icons/TitikLokasi.png'
+import teknisiIcon from '@/assets/icons/Teknisi.png'
 
+const searchQuery = ref('')
+const jasaList = ref([])
+const promoList = ref([])
+const promoScroller = ref(null)
+
+// === IMPORT SEMUA PROMO (HANYA BAGIAN PROMO) ===
+const promoImagesFiles = import.meta.glob('@/assets/banner/*.png', { eager: true })
+const promoImages = Object.values(promoImagesFiles).map(img => img.default)
+
+// === FUNGSI AMBIL GAMBAR DARI PUBLIC/STORAGE/JASA ===
+const getPublicImage = (filename) => {
+  if (!filename) return null
+  return `/storage/jasa/${filename}`   // 🔥 inilah path gambar yang benar
+}
+
+// FORMAT HARGA
+const formatHarga = (value) => {
+  if (!value) return '0'
+  return Number(value).toLocaleString('id-ID')
+}
+
+// SCROLL PROMO
+const scrollPromo = (dir = 1) => {
+  const el = promoScroller.value
+  if (!el) return
+  const gap = 16
+  const card = el.querySelector(':scope > *')
+  const step = (card?.clientWidth || el.clientWidth * 0.5) + gap
+  el.scrollBy({ left: dir * step, behavior: 'smooth' })
+}
+
+// === REKOMENDASI JASA (AMBIL GAMBAR DARI BACKEND) ===
 const repeatedJasa = computed(() => {
   const src = jasaList.value
-  if (!src.length) {
-    // fallback dummy 8 item kalau API error
-    return Array.from({ length: 8 }, (_, i) => ({
-      title: `Jasa Teknisi ${i + 1}`,
-      price: '100000',
-      rating: '4,9',
-      distance_km: '2,2',
-      image: '',
-    }))
-  }
+  if (!src.length) return []
 
-  const result = []
-  while (result.length < 8) {
-    result.push(...src)
-  }
-  return result.slice(0, 8)
+  const temp = []
+  while (temp.length < 8) temp.push(...src)
+
+  return temp.slice(0, 8).map((item, idx) => ({
+    ...item,
+    id: item.id ?? idx + 1,
+    image: getPublicImage(item.image)  // 🔥 gambar dari backend
+  }))
 })
 
+// === FETCH DATA DARI BACKEND ===
 onMounted(async () => {
   try {
-    const res = await api.get('/jasa')
-    jasaList.value = res.data ?? []
-  } catch (err) {
-    console.error('Gagal memuat data jasa teknisi:', err)
+    const [jasaRes, promoRes] = await Promise.all([
+      api.get('/jasa'),
+      api.get('/promos')
+    ])
+
+    // 🔥 SET Gambar Jasa Dari Backend
+    jasaList.value = (jasaRes.data ?? []).map(j => ({
+      ...j,
+      image: j.image ? j.image : null   // di backend harus "laundryservice.png"
+    }))
+
+    // GAMBAR PROMO
+    promoList.value = (promoRes.data ?? []).map((p, i) => ({
+      ...p,
+      image: promoImages[i % promoImages.length]
+    }))
+
+  } catch (e) {
+    console.error('Gagal memuat data:', e)
   }
 })
 </script>

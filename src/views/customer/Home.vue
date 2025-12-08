@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, onMounted } from "vue";
 import { Form } from "vee-validate";
+
 import TextField from "@/components/forms/TextField.vue";
 import CategoryCard from "@/components/Card/CategoryCard.vue";
 import ProductCard from "@/components/Card/ProductCard.vue";
@@ -9,10 +10,12 @@ import PromoCard from "@/components/Card/PromoCard.vue";
 import PromoCardSkeleton from "@/components/Card/PromoCardSkeleton.vue";
 import EventCard from "@/components/Card/EventCard.vue";
 import EventCardSkeleton from "@/components/Card/EventCardSkeleton.vue";
+
 import jasaIcon from "@/assets/icons/Jasa.svg";
 import kulinerIcon from "@/assets/icons/Kuliner.svg";
 import tokoIcon from "@/assets/icons/Toko.svg";
 import komunitasIcon from "@/assets/icons/Komunitas.svg";
+
 import Button from "@/components/common/Button.vue";
 import api from "@/libs/axios.js";
 
@@ -21,67 +24,104 @@ const isLoadingJasa = ref(true);
 const isLoadingPromo = ref(true);
 const isLoadingEvent = ref(true);
 
-const categories = ref([
-  {
-    label: "Kuliner",
-    icon: kulinerIcon,
-    to: { name: "JasaTeknisi" },
-  },
-  {
-    label: "Toko",
-    icon: tokoIcon,
-    to: { name: "JasaTeknisi" },
-  },
-  {
-    label: "Jasa",
-    icon: jasaIcon,
-    to: { name: "JasaTeknisi" },
-  },
-  {
-    label: "Komunitas",
-    icon: komunitasIcon,
-    to: { name: "community" },
-  },
-]);
-
 const jasaList = ref([]);
 const promoList = ref([]);
 const eventList = ref([]);
+const promoScroller = ref(null);
 
-const onSearch = () => {
-  const q = (searchQuery.value || "").trim();
-  // router.push({ name: "JasaTeknisi", query: q ? { q } : {} });
+const categories = ref([
+  { label: "Kuliner", icon: kulinerIcon, to: { name: "JasaTeknisi" } },
+  { label: "Toko", icon: tokoIcon, to: { name: "JasaTeknisi" } },
+  { label: "Jasa", icon: jasaIcon, to: { name: "JasaTeknisi" } },
+  { label: "Komunitas", icon: komunitasIcon, to: { name: "community" } },
+]);
+
+// === AUTO IMPORT PROMO BANNER ===
+const promoImagesFiles = import.meta.glob("@/assets/banner/*.png", {
+  eager: true,
+});
+const promoImages = Object.values(promoImagesFiles).map((img) => img.default);
+
+// Format harga
+const formatHarga = (value) => {
+  if (!value) return "0";
+  return Number(value).toLocaleString("id-ID");
 };
 
-onMounted(async () => {
-  // Fetch jasa
-  try {
-    isLoadingJasa.value = true;
-    const jasaRes = await api.get("/jasa");
-    jasaList.value = Array.isArray(jasaRes.data) ? jasaRes.data : [];
-  } catch (e) {
-    console.error("Gagal memuat data jasa:", e);
-  } finally {
-    isLoadingJasa.value = false;
+// Normalisasi URL gambar jasa dari backend -> public/storage/jasa/*.png
+const resolveJasaImage = (img) => {
+  if (!img) return null;
+  const s = String(img);
+
+  // Jika sudah URL penuh atau sudah diawali /storage, pakai apa adanya
+  if (
+    s.startsWith("http://") ||
+    s.startsWith("https://") ||
+    s.startsWith("/storage/")
+  ) {
+    return s;
   }
 
-  // Simulasi loading promo (ganti dengan API call sebenarnya)
-  setTimeout(() => {
-    promoList.value = Array(5).fill({ id: 1 });
-    isLoadingPromo.value = false;
-  }, 1000);
+  // Jika sudah ada prefix "jasa/..." cukup tambahkan /storage di depan
+  if (s.startsWith("jasa/")) {
+    return `/storage/${s}`;
+  }
 
-  // Simulasi loading event (ganti dengan API call sebenarnya)
-  setTimeout(() => {
-    eventList.value = Array(5).fill({ id: 1 });
-    isLoadingEvent.value = false;
-  }, 1000);
+  // Default: anggap nama file di folder public/storage/jasa
+  return `/storage/jasa/${s}`;
+};
+
+// Scroll promo
+const scrollPromo = (dir = 1) => {
+  const el = promoScroller.value;
+  if (!el) return;
+  const gap = 16;
+  const card = el.querySelector(":scope > *");
+  const step = (card?.clientWidth || el.clientWidth * 0.5) + gap;
+  el.scrollBy({ left: dir * step, behavior: "smooth" });
+};
+
+// Submit search
+const onSearch = () => {
+  const q = (searchQuery.value || "").trim();
+  // tambahkan logika search jika diperlukan
+};
+
+// LOAD DATA
+onMounted(async () => {
+  try {
+    const [jasaRes, promoRes] = await Promise.all([
+      api.get("/jasa"),
+      api.get("/promos"),
+    ]);
+
+    // Normalisasi image jasa ke /storage/jasa/*.png
+    jasaList.value = (jasaRes.data ?? []).map((item) => ({
+      ...item,
+      image: resolveJasaImage(item.image),
+    }));
+
+    promoList.value = (promoRes.data ?? []).map((p, i) => ({
+      ...p,
+      image: promoImages[i % promoImages.length],
+    }));
+
+    setTimeout(() => {
+      eventList.value = Array(5).fill({ id: 1 });
+      isLoadingEvent.value = false;
+    }, 1000);
+  } catch (e) {
+    console.error("Gagal memuat data:", e);
+  } finally {
+    isLoadingJasa.value = false;
+    isLoadingPromo.value = false;
+  }
 });
 </script>
 
 <template>
   <div class="app-container relative">
-    <!-- Section: Hero + Menu Box -->
+    <!-- HERO -->
     <section id="hero" class="relative pb-2">
       <div class="h-[240px] sm:h-[370px] w-full bg-secondary"></div>
 
@@ -90,7 +130,7 @@ onMounted(async () => {
           <div
             class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
           >
-            <!-- Search -->
+            <!-- SEARCH -->
             <div class="p-4 sm:p-5 border-b border-gray-100">
               <Form @submit="onSearch">
                 <div class="flex w-full items-center gap-2 sm:gap-3">
@@ -114,7 +154,7 @@ onMounted(async () => {
               </Form>
             </div>
 
-            <!-- Kategori -->
+            <!-- KATEGORI -->
             <div class="p-4 sm:p-5">
               <div class="grid grid-cols-4 gap-3 sm:gap-4">
                 <CategoryCard
@@ -131,57 +171,48 @@ onMounted(async () => {
       </div>
     </section>
 
-    <!-- Section Promo -->
+    <!-- PROMO -->
     <section id="promo" class="relative pt-6 sm:pt-24">
       <div class="pl-4 sm:pl-[54px]">
-        <div class="inline-flex items-center gap-2.5 w-auto h-[35px] py-[5px]">
-          <span class="text-base sm:text-section-title font-semibold"
-            >Cek Promo Menarik</span
-          >
-        </div>
+        <span class="text-base sm:text-section-title font-semibold">
+          Cek Promo Menarik
+        </span>
       </div>
 
       <div
-        class="overflow-x-auto overflow-y-hidden no-scrollbar mx-4 sm:mx-[57px] pt-3 sm:pt-[17px] scroll-smooth snap-x snap-mandatory"
+        ref="promoScroller"
+        class="overflow-x-auto no-scrollbar mx-4 sm:mx-[57px] pt-3 sm:pt-[17px] scroll-smooth snap-x snap-mandatory"
       >
         <div class="flex gap-4 sm:gap-8 min-w-max">
-          <!-- Skeleton loading -->
           <template v-if="isLoadingPromo">
-            <div v-for="i in 5" :key="i" class="snap-start shrink-0">
-              <PromoCardSkeleton />
-            </div>
+            <PromoCardSkeleton v-for="i in 5" :key="i" />
           </template>
-          <!-- Actual content -->
+
           <template v-else>
-            <div
+            <PromoCard
               v-for="(promo, i) in promoList"
               :key="i"
-              class="snap-start shrink-0"
-            >
-              <PromoCard :promo="promo" />
-            </div>
+              :promo="promo"
+            />
           </template>
         </div>
       </div>
     </section>
 
-    <!-- Section Rekomendasi UMKM -->
+    <!-- REKOMENDASI -->
     <section id="umkm-recommendation" class="relative pt-6 sm:pt-24">
       <div class="pl-4 sm:pl-[54px]">
-        <div class="inline-flex items-center gap-2.5 w-auto h-[35px] py-[5px]">
-          <span class="text-base sm:text-section-title font-semibold"
-            >Rekomendasi Produk dan Jasa</span
-          >
-        </div>
+        <span class="text-base sm:text-section-title font-semibold">
+          Rekomendasi Produk dan Jasa
+        </span>
       </div>
 
       <div class="px-4 sm:px-[52px] mt-6 sm:mt-10">
         <div class="flex flex-wrap gap-3 sm:gap-6">
-          <!-- Skeleton loading -->
           <template v-if="isLoadingJasa">
             <ProductCardSkeleton v-for="i in 8" :key="i" />
           </template>
-          <!-- Actual content -->
+
           <template v-else>
             <ProductCard
               v-for="product in jasaList"
@@ -191,45 +222,38 @@ onMounted(async () => {
           </template>
         </div>
 
-        <!-- Tampilkan semua -->
         <div class="mt-4 sm:mt-6 flex justify-center">
           <span
-            class="text-sm sm:text-base text-gray-600 cursor-pointer hover:text-primary transition-colors"
-            >Tampilkan semua</span
+            class="text-sm sm:text-base text-gray-600 hover:text-primary cursor-pointer"
           >
+            Tampilkan semua
+          </span>
         </div>
       </div>
     </section>
 
-    <!-- Section Event -->
+    <!-- EVENT -->
     <section id="event" class="relative pt-6 sm:pt-24 pb-6 sm:pb-12">
       <div class="pl-4 sm:pl-[54px]">
-        <div class="inline-flex items-center gap-2.5 w-auto h-[35px] py-[5px]">
-          <span class="text-base sm:text-section-title font-semibold"
-            >Event</span
-          >
-        </div>
+        <span class="text-base sm:text-section-title font-semibold">
+          Event
+        </span>
       </div>
 
       <div
-        class="overflow-x-auto overflow-y-hidden no-scrollbar mx-4 sm:mx-[57px] pt-3 sm:pt-[17px] scroll-smooth snap-x snap-mandatory"
+        class="overflow-x-auto no-scrollbar mx-4 sm:mx-[57px] pt-3 sm:pt-[17px] scroll-smooth snap-x snap-mandatory"
       >
         <div class="flex gap-4 sm:gap-8 min-w-max">
-          <!-- Skeleton loading -->
           <template v-if="isLoadingEvent">
-            <div v-for="i in 5" :key="i" class="snap-start shrink-0">
-              <EventCardSkeleton />
-            </div>
+            <EventCardSkeleton v-for="i in 5" :key="i" />
           </template>
-          <!-- Actual content -->
+
           <template v-else>
-            <div
+            <EventCard
               v-for="(event, i) in eventList"
               :key="i"
-              class="snap-start shrink-0"
-            >
-              <EventCard :event="event" />
-            </div>
+              :event="event"
+            />
           </template>
         </div>
       </div>

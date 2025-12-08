@@ -48,21 +48,28 @@
       </div>
     </div>
 
-    <!-- Paket -->
+    <!-- Paket (diperkecil) -->
     <section class="bg-white mt-3 px-4 py-4">
       <h2 class="text-sm font-semibold text-gray-800 mb-2">Paket</h2>
+
       <div class="flex gap-3 overflow-x-auto no-scrollbar">
         <div
           v-for="p in pkgList"
           :key="p.id"
-          class="min-w-[160px] max-w-[180px] rounded-xl border border-gray-200 overflow-hidden bg-white"
+          @click="selectPackage(p)"
+          class="min-w-[135px] max-w-[145px] rounded-xl overflow-hidden cursor-pointer transition-all duration-300"
+          :class="
+            activePackage === p.id
+              ? 'border-2 border-[#FFA30E] bg-orange-50 scale-[1.02] shadow-md'
+              : 'border border-gray-200 bg-white scale-100'
+          "
         >
-          <img :src="p.image" class="w-full h-24 object-cover" />
-          <div class="px-3 py-2">
-            <div class="text-[12px] text-gray-500">
+          <img :src="p.image" class="w-full h-20 object-cover" />
+          <div class="px-2 py-1.5">
+            <div class="text-[11px] text-gray-500">
               Rp {{ formatIDR(p.price) }}
             </div>
-            <div class="text-sm font-medium">{{ p.name }}</div>
+            <div class="text-xs font-medium truncate">{{ p.name }}</div>
           </div>
         </div>
       </div>
@@ -84,10 +91,10 @@
           v-for="(d, i) in quickDays"
           :key="i"
           @click="selectQuick(d.date)"
-          class="w-28 h-14 px-3 py-2 rounded-xl border flex flex-col items-center justify-center text-center"
+          class="w-28 h-14 px-3 py-2 rounded-xl border flex flex-col items-center justify-center text-center transition-all duration-200"
           :class="
             isSameDay(selectedDate, d.date)
-              ? 'bg-[#FFA30E] text-white border-[#FFA30E]'
+              ? 'bg-[#FFA30E] text-white border-[#FFA30E] scale-[1.03]'
               : 'bg-white text-gray-700 border-gray-200'
           "
         >
@@ -116,10 +123,10 @@
               v-for="(t, i) in times.morning"
               :key="'m' + i"
               @click="activeTime = t"
-              class="px-4 py-2 rounded-lg border text-sm"
+              class="px-4 py-2 rounded-lg border text-sm transition-all duration-200"
               :class="
                 t === activeTime
-                  ? 'bg-[#FFA30E] text-white border-[#FFA30E]'
+                  ? 'bg-[#FFA30E] text-white border-[#FFA30E] scale-[1.03]'
                   : 'bg-gray-100 text-gray-700 border-gray-200'
               "
             >
@@ -134,10 +141,10 @@
               v-for="(t, i) in times.afternoon"
               :key="'a' + i"
               @click="activeTime = t"
-              class="px-4 py-2 rounded-lg border text-sm"
+              class="px-4 py-2 rounded-lg border text-sm transition-all duration-200"
               :class="
                 t === activeTime
-                  ? 'bg-[#FFA30E] text-white border-[#FFA30E]'
+                  ? 'bg-[#FFA30E] text-white border-[#FFA30E] scale-[1.03]'
                   : 'bg-gray-100 text-gray-700 border-gray-200'
               "
             >
@@ -148,12 +155,11 @@
       </div>
     </section>
 
-    <!-- Bottom bar - muncul di atas dock mobile -->
+    <!-- Bottom bar -->
     <div
       class="fixed left-0 right-0 bottom-16 sm:bottom-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-3"
     >
       <div class="max-w-screen-sm mx-auto flex items-center gap-4">
-        <!-- Tombol chat: kotak oranye dengan icon Chat.png -->
         <button
           type="button"
           class="flex items-center justify-center w-11 h-11 rounded-xl bg-[#FFA30E] hover:bg-[#e5920d] transition"
@@ -161,7 +167,6 @@
           <img :src="chatIcon" alt="Chat" class="w-5 h-5" />
         </button>
 
-        <!-- Tombol Booking -->
         <router-link
           :to="{
             name: 'Pembayaran Jasa',
@@ -172,6 +177,7 @@
               price: jasa?.price || 100000,
               tgl: selectedDate.toISOString(),
               waktu: activeTime,
+              paket: activePackage,
             },
           }"
           class="flex-1 py-3 rounded-full bg-[#FFA30E] hover:bg-[#e5920d] text-white font-semibold text-center transition"
@@ -203,6 +209,12 @@ import chatIcon from "@/assets/icons/Chat.png";
 
 const route = useRoute();
 const jasa = ref(null);
+
+// paket aktif
+const activePackage = ref(null);
+const selectPackage = (p) => {
+  activePackage.value = p.id;
+};
 
 // ----- jadwal -----
 const selectedDate = ref(new Date());
@@ -252,7 +264,7 @@ const pkgList = computed(() => {
           id: 1,
           name: "Paket 1",
           price: 149999,
-          image: "https://picsum.photos/seed/pk1/320/200",
+          image: "@/public/storage/jasa/laundryservice.png",
         },
         {
           id: 2,
@@ -281,12 +293,17 @@ onMounted(async () => {
   try {
     const { data } = await api.get(`/jasa/${route.params.id}`);
     jasa.value = data;
+
+    if (jasa.value?.packages?.length) {
+      activePackage.value = jasa.value.packages[0].id;
+    }
   } catch (e) {
     jasa.value = {
       title: "Jasa Servis & Perawatan AC",
       price: 100000,
       image: "https://picsum.photos/seed/ac/1200/600",
     };
+    activePackage.value = 1;
     console.warn("API detail belum tersedia, memakai data fallback.");
   }
 });
