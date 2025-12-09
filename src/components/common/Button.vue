@@ -40,26 +40,7 @@
 
 <script setup>
 /*
-AppButton — Tombol serbaguna dengan state loading
-
-Contoh pakai:
-<template>
-  <AppButton type="submit" :loading="saving" block> Simpan </AppButton>
-  <AppButton variant="outline" @click="onCancel"> Batal </AppButton>
-  <AppButton variant="merchant" size="md"> Merchant Action </AppButton>
-  <AppButton variant="merchant-outline"> Outline Merchant </AppButton>
-  <AppButton variant="ghost" size="sm"> Aksi Kecil </AppButton>
-</template>
-
-Props:
-- type: "button" | "submit" | "reset" (default: "button")
-- variant: "primary" | "merchant" | "outline" | "merchant-outline" | "ghost" | "danger" (default: "primary")
-- size: "sm" | "md" | "lg" (default: "md")
-- loading: boolean => tampilkan spinner dan auto disabled
-- disabled: boolean => nonaktifkan tombol
-- block: boolean => lebar penuh (w-full)
-- customClass: string => tambahan kelas manual
-
+AppButton 
 Slots:
 - default => label tombol (teks atau icon)
 */
@@ -123,5 +104,15 @@ const variantClasses = {
 
   "muted-outline":
     "border border-muted-foreground text-muted-foreground hover:bg-gray-100 disabled:opacity-60 focus:ring-gray-400 duration-200 active:scale-95",
+
+
+  admin:
+    "bg-admin-primary text-white hover:bg-admin-secondary disabled:bg-gray-400 shadow-sm hover:shadow-lg duration-200 active:scale-95 focus:ring-admin-primary",
+
+  "admin-outline":
+    "border-2 border-admin-primary text-admin-primary hover:bg-admin-primary hover:text-white disabled:border-gray-300 disabled:text-gray-400",
+
+  "admin-ghost":
+    "text-admin-primary hover:bg-admin-primary/10 disabled:text-gray-400",
 };
 </script>

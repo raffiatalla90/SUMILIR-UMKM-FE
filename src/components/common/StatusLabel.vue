@@ -1,91 +1,4 @@
-<!-- filepath: c:\laragon\www\KMI-SIMSLIFE-FE\src\components\common\StatusLabel.vue -->
 <script setup>
-/**
- * StatusLabel Component
- *
- * Komponen untuk menampilkan label status dengan styling konsisten.
- * Support berbagai variant (product, order, payment, shipment, general) dan custom styling.
- *
- * @component StatusLabel
- * @example
- * // Basic Usage - Product Status
- * <StatusLabel status="published" variant="product" />
- * // Output: [✓ Dipublish] dengan warna hijau
- *
- * @example
- * // Order Status
- * <StatusLabel status="processing" variant="order" />
- * // Output: [↻ Diproses] dengan warna biru
- *
- * @example
- * // General Status - Muted
- * <StatusLabel status="muted" variant="general" label="Tidak Aktif" />
- * // Output: [● Tidak Aktif] dengan warna abu-abu
- *
- * @example
- * // General Status - Primary
- * <StatusLabel status="primary" variant="general" label="Info" />
- * // Output: [● Info] dengan warna biru primary
- *
- * @example
- * // General Status - Merchant Primary
- * <StatusLabel status="merchant" variant="general" label="Recommended" />
- * // Output: [● Recommended] dengan warna hijau merchant
- *
- * @example
- * // Custom Styling
- * <StatusLabel
- *   status="any"
- *   variant="custom"
- *   label="VIP"
- *   custom-class="bg-purple-100 text-purple-700"
- *   size="md"
- * />
- * // Output: [● VIP] dengan warna custom purple
- *
- * @example
- * // Tanpa Icon
- * <StatusLabel
- *   status="published"
- *   variant="product"
- *   :show-icon="false"
- * />
- * // Output: [Dipublish] tanpa icon
- *
- * @example
- * // Ukuran Extra Small
- * <StatusLabel
- *   status="published"
- *   variant="product"
- *   size="xs"
- * />
- * // Output: Label dengan ukuran sangat kecil
- *
- * @props
- * @param {String} status - Status value (required)
- *   Product: 'published', 'draft', 'archived', 'out_of_stock'
- *   Order: 'pending', 'processing', 'ready', 'completed', 'cancelled', 'refunded'
- *   Payment: 'unpaid', 'pending', 'paid', 'failed', 'refunded'
- *   Shipment: 'pending', 'packed', 'shipped', 'delivered', 'returned'
- *   General: 'muted', 'primary', 'merchant', 'success', 'warning', 'danger', 'info'
- *
- * @param {String} variant - Tipe variant status (default: 'product')
- *   Options: 'product', 'order', 'payment', 'shipment', 'general', 'custom'
- *
- * @param {String} label - Custom label text (optional, override default)
- *   Default: Akan menggunakan label bawaan sesuai status & variant
- *
- * @param {String} customClass - Custom Tailwind CSS classes (optional)
- *   Contoh: "bg-purple-100 text-purple-700"
- *   Note: Hanya berlaku jika variant="custom"
- *
- * @param {String} size - Ukuran badge (default: 'sm')
- *   Options: 'xs', 'sm', 'md', 'lg'
- *
- * @param {Boolean} showIcon - Tampilkan icon atau tidak (default: true)
- */
-
-// filepath: /var/www/html/KMI-SIMSLIFE-FE/src/components/common/StatusLabel.vue
 import { computed } from "vue";
 
 const props = defineProps({
@@ -236,7 +149,7 @@ const statusConfigs = {
       icon: "pi-replay",
     },
   },
-  // TAMBAHKAN: General variant untuk warna umum
+  // General variant untuk warna umum
   general: {
     muted: {
       label: "Default",
@@ -275,6 +188,75 @@ const statusConfigs = {
     },
   },
   custom: {},
+  // Event status variant
+  event: {
+    draft: {
+      bg: "bg-gray-100",
+      text: "text-gray-700",
+      icon: "pi-file",
+      label: "Draft",
+    },
+    published: {
+      bg: "bg-admin-primary/10",
+      text: "text-admin-primary",
+      icon: "pi-check-circle",
+      label: "Published",
+    },
+    archived: {
+      bg: "bg-amber-100",
+      text: "text-amber-700",
+      icon: "pi-archive",
+      label: "Archived",
+    },
+  },
+  // Merchant approval status
+  approval: {
+    pending: {
+      bg: "bg-yellow-100",
+      text: "text-yellow-700",
+      icon: "pi-clock",
+      label: "Pending",
+    },
+    approved: {
+      bg: "bg-green-100",
+      text: "text-green-700",
+      icon: "pi-check-circle",
+      label: "Approved",
+    },
+    rejected: {
+      bg: "bg-red-100",
+      text: "text-red-700",
+      icon: "pi-times-circle",
+      label: "Rejected",
+    },
+  },
+  // Report status
+  report: {
+    pending: {
+      bg: "bg-yellow-100",
+      text: "text-yellow-700",
+      icon: "pi-exclamation-triangle",
+      label: "Pending",
+    },
+    in_review: {
+      bg: "bg-blue-100",
+      text: "text-blue-700",
+      icon: "pi-eye",
+      label: "In Review",
+    },
+    resolved: {
+      bg: "bg-green-100",
+      text: "text-green-700",
+      icon: "pi-check-circle",
+      label: "Resolved",
+    },
+    dismissed: {
+      bg: "bg-gray-100",
+      text: "text-gray-700",
+      icon: "pi-times",
+      label: "Dismissed",
+    },
+  },
 };
 
 // Computed properties
@@ -335,12 +317,7 @@ const iconSizeClasses = computed(() => {
   </span>
 </template>
 
-<!-- 
-═══════════════════════════════════════════════════════════
-GENERAL VARIANT - NEW USAGE EXAMPLES
-═══════════════════════════════════════════════════════════
 
-<!-- Muted (Gray) -->
 <StatusLabel status="muted" variant="general" label="Tidak Aktif" />
 Result: [● Tidak Aktif] - bg-gray-100 text-gray-700
 
@@ -426,7 +403,7 @@ VS GENERAL ═══════════════════════
   custom-class="bg-merchant-primary/10 text-merchant-primary"
 />
 
-✅ AFTER (General - Built-in):
+(General - Built-in):
 <StatusLabel status="merchant" variant="general" label="Recommended" />
 
 ═══════════════════════════════════════════════════════════ AVAILABLE GENERAL
