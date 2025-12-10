@@ -267,13 +267,13 @@ const routes = [
         },
       },
       {
-  path: "profile/edit",
-  name: "Merchant - Profile Edit",
-  component: () => import("@/views/merchant/profile/MerchantEdit.vue"),
-  meta: {
-    title: "Edit Merchant Profile | SUMILIR",
+        path: "profile/edit",
+        name: "Merchant - Profile Edit",
+        component: () => import("@/views/merchant/profile/MerchantEdit.vue"),
+        meta: {
+          title: "Edit Merchant Profile | SUMILIR",
+      },
   },
-},
     ],
   },
 

@@ -109,7 +109,7 @@ const goToEdit = () => {
     <!-- Content -->
     <div class="px-0 sm:px-6">
       <!-- Cover & Logo -->
-      <div class="relative bg-white mb-2 sm:mb-4 sm:rounded-xl sm:shadow-sm overflow-hidden">
+      <div class="relative bg-white mb-2 sm:mb-4 sm:rounded-xl sm:shadow-sm overflow-visible">
         <img
           :src="merchantInfo.coverImage"
           alt="Cover"

@@ -4,14 +4,13 @@
     <div
       class="fixed sm:hidden top-0 left-0 right-0 bg-merchant-primary text-white px-4 py-6 flex items-center justify-center z-50 rounded-b-2xl"
     >
-       <!-- ✅ FIXED: Back button dengan dynamic route -->
       <button
-        @click="router.push(`/merchant-center/${currentMerchantId}/profile`)"
+        @click="router.push(`/merchant-center/${merchantId}/profile`)"
         class="absolute left-4 w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition"
       >
-        <i class="pi pi-arrow-left"></i>
+        <i class="pi pi-arrow-left text-xl"></i>
       </button>
-      <h1 class="text-lg font-semibold">Edit Profil UMKM</h1>
+      <h1 class="text-lg font-semibold">Edit Informasi Toko</h1>
     </div>
 
     <!-- Desktop Header with Breadcrumb -->
@@ -65,7 +64,7 @@
         </div>
         
         <!-- Logo - Overlapping -->
-        <div class="relative px-4 pb-4">
+        <div class="relative px-4 pt-14 pb-4">
           <div class="absolute -top-12 left-4">
             <div class="relative">
               <img
@@ -85,12 +84,14 @@
       </div>
 
       <!-- Desktop: Cover & Logo -->
-      <div class="hidden sm:block relative bg-white mb-4 rounded-xl shadow-sm overflow-hidden">
-        <img
-          :src="form.coverImage"
-          alt="Cover"
-          class="w-full h-64 lg:h-80 object-cover"
-        />
+      <div class="hidden sm:block relative bg-white mb-4 rounded-xl shadow-sm overflow-visible">
+        <div class="overflow-hidden rounded-xl">
+          <img
+            :src="form.coverImage"
+            alt="Cover"
+            class="w-full h-64 lg:h-80 object-cover"
+          />
+        </div>
         <button 
           @click="handleUploadCover"
           class="absolute top-6 right-6 bg-merchant-primary text-white rounded-full p-3 shadow-lg hover:opacity-90 transition-opacity"
