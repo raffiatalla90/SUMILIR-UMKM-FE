@@ -258,6 +258,22 @@ const routes = [
           title: "Orders | SUMILIR",
         },
       },
+      {
+        path: "profile",
+        name: "Merchant - Profile",
+        component: () => import("@/views/merchant/profile/MerchantInfo.vue"),
+        meta: {
+          title: "Merchant Profile | SUMILIR",
+        },
+      },
+      {
+  path: "profile/edit",
+  name: "Merchant - Profile Edit",
+  component: () => import("@/views/merchant/profile/MerchantEdit.vue"),
+  meta: {
+    title: "Edit Merchant Profile | SUMILIR",
+  },
+},
     ],
   },
 
@@ -268,6 +284,34 @@ const routes = [
   //   component: () => import("@/views/errors/Unauthorized.vue"),
   //   meta: { title: "Unauthorized | SUMILIR" },
   // },
+
+  // 🆕 MERCHANT PROFILE ROUTES (NO AUTH FOR TESTING)
+  {
+    path: "/merchant-profile",
+    children: [
+      {
+        path: "",
+        name: "Merchant Profile - Index",
+        component: () => import("@/views/merchant/profile/MerchantInfo.vue"),
+        meta: { 
+          title: "Profil Toko | SUMILIR",
+          // requiresAuth: true,  // ← Commented out for testing
+          // roles: ["umkm-owner"]
+        },
+      },
+      {
+        path: "edit",
+        name: "Merchant Profile - Edit",
+        component: () => import("@/views/merchant/profile/MerchantEdit.vue"),
+        meta: { 
+          title: "Edit Toko | SUMILIR",
+          // requiresAuth: true,  // ← Commented out for testing
+          // roles: ["umkm-owner"]
+        },
+      },
+    ],
+  },
+
 
   // My Order History (dari kodemu)
   {
