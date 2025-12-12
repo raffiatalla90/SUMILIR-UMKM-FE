@@ -34,9 +34,7 @@
                 <span class="text-sm font-semibold text-gray-900">
                   <!-- ✅ pakai unitPrice dari checkout (hasil getCurrentPrice saat checkout) -->
                   Rp
-                  {{
-                    formatIDR(Number(checkout.unitPrice || 0) + addonUnitTotal)
-                  }}
+                  {{ formatIDR(Number(checkout.unitPrice || 0)) }}
                 </span>
                 <span class="text-sm text-gray-600">x{{ order.quantity }}</span>
               </div>
@@ -103,7 +101,7 @@
             </div>
             <!-- subtotal add-on per quantity -->
             <p class="text-xs text-gray-600">
-              Total tambahan: Rp {{ formatIDR(addonTotal) }}
+              Total tambahan: Rp {{ formatIDR(addonUnitTotal) }}
             </p>
           </div>
 
@@ -308,14 +306,6 @@
             <div class="flex justify-between">
               <span> Harga Produk ({{ order.quantity }}x) </span>
               <span>Rp {{ formatIDR(lineSubtotal) }}</span>
-            </div>
-
-            <div
-              v-if="checkout.selectedAddons.length > 0"
-              class="flex justify-between"
-            >
-              <span>Tambahan (per item)</span>
-              <span>Rp {{ formatIDR(addonUnitTotal) }}</span>
             </div>
 
             <div

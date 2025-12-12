@@ -16,6 +16,7 @@ import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import { useCategories } from "@/composables/useCategories";
 import { useProducts } from "@/composables/useProducts"; // already present — ensure fetchProductDetail used
 import { getImageUrl } from "@/libs/getImageUrl.js"; // ADD THIS
+import { getVariantImageUrl } from "@/libs/getVariantImageUrl.js"; // ✅ ADD THIS
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
@@ -1210,15 +1211,16 @@ const populateFormFromProduct = (productData) => {
     selectedSubCategories.value = [];
   }
 
-  // Images — gunakan getImageUrl mirip Detail.vue agar src menjadi /api/images/{id}
+  // Images (main product images)
   productImages.value = (productData.images || []).map((img) => ({
     id: img.id,
-    preview: img.id ? getImageUrl(img.id) : img.image_path || "",
+    preview: img.id
+      ? getImageUrl(img.id)
+      : img.image_url || absoluteImagePath(img.image_path),
     is_cover: !!img.is_cover,
     existing: true,
   }));
 
-  // set cover index
   coverImageIndex.value = productImages.value.findIndex((img) => img.is_cover);
   if (coverImageIndex.value === -1 && productImages.value.length > 0) {
     coverImageIndex.value = 0;
@@ -1228,35 +1230,54 @@ const populateFormFromProduct = (productData) => {
   if (productData.options && productData.options.length > 0) {
     useVariants.value = true;
 
-    // options: productData.options[].values[].image_path available
-    variants.value = productData.options.map((option) => ({
-      id: option.id,
-      name: option.option_name,
-      options: (option.values || []).map((val) => ({
-        id: val.id,
-        name: val.option_value,
-        images: val.image_path
+    // Build variants array where each group = product option
+    variants.value = productData.options.map((optionGroup) => ({
+      id: optionGroup.id, // product_option id
+      name: optionGroup.option_name || optionGroup.name || "",
+      options: (optionGroup.values || []).map((val) => {
+        // compute preview: image_url -> absolute image_path -> fallback to endpoint by db id
+        const preview =
+          val.image_url ||
+          (val.image_path ? absoluteImagePath(val.image_path) : null) ||
+          getVariantImageUrl(val.id) ||
+          null;
+
+        const imagesArray = preview
           ? [
               {
-                id: val.id,
-                preview: val.image_path,
+                id: val.id, // DB id
+                preview,
+                image_path: val.image_path ?? null,
+                image_url: val.image_url ?? null,
                 existing: true,
               },
             ]
-          : [],
-      })),
+          : [];
+
+        return {
+          // IMPORTANT: dbId is the DB id that points to /images/product-option-value/{dbId}
+          dbId: val.id,
+          id: val.id, // keep for compatibility
+          name: val.option_value,
+          images: imagesArray,
+          image_path: val.image_path ?? null,
+          image_url: val.image_url ?? null,
+        };
+      }),
     }));
 
+    // Fill helpers: variantNames and variantUsesImages
     productData.options.forEach((option) => {
       variantNames.value[option.id] = option.option_name;
       variantUsesImages.value[option.id] = option.uses_image ? 1 : 0;
       expandedVariants.value.add(option.id);
     });
 
-    // Variants (combinations) jika ada
+    // Combinations from backend variants (if present)
     if (productData.variants && productData.variants.length > 0) {
       combinations.value = productData.variants.map((variant) => {
-        const optionValues = variant.option_values || [];
+        const optionValues =
+          variant.option_values || variant.optionValues || [];
         const attributes = optionValues.map((ov) => ({
           name: (ov.option_name || "").trim(),
           value: (ov.option_value || "").trim(),
@@ -1274,13 +1295,15 @@ const populateFormFromProduct = (productData) => {
           attributes,
         };
       });
+    } else {
+      combinations.value = [];
     }
   } else {
     // Non-variant product
     useVariants.value = false;
     if (productData.variants && productData.variants[0]) {
       const variant = productData.variants[0];
-      setFieldValue("sku", variant.sku || ""); // ✅ Set SKU
+      setFieldValue("sku", variant.sku || "");
       setFieldValue("price", parseFloat(variant.price) || 0);
       setFieldValue("stock", parseInt(variant.stock) || 0);
     } else {
@@ -1290,10 +1313,11 @@ const populateFormFromProduct = (productData) => {
     }
   }
 
-  // Add-on groups (normalize both possible key names)
-  const addonGroups = productData.addon_groups ?? productData.addonGroups ?? [];
-  if (addonGroups && addonGroups.length > 0) {
-    addOnGroups.value = addonGroups.map((group) => ({
+  // Add-on groups (unchanged)
+  const addonGroupsData =
+    productData.addon_groups ?? productData.addonGroups ?? [];
+  if (addonGroupsData && addonGroupsData.length > 0) {
+    addOnGroups.value = addonGroupsData.map((group) => ({
       id: group.id,
       name: group.addon_group_name || group.name || "",
       is_required: (group.min_selection ?? 0) > 0,
@@ -1305,8 +1329,7 @@ const populateFormFromProduct = (productData) => {
         price: parseFloat(opt.addon_price ?? 0),
       })),
     }));
-
-    addonGroups.forEach((group) => expandedAddOnGroups.value.add(group.id));
+    addOnGroups.value.forEach((g) => expandedAddOnGroups.value.add(g.id));
   } else {
     addOnGroups.value = [];
   }
@@ -1851,14 +1874,24 @@ onMounted(async () => {
                               </label>
 
                               <div
-                                v-if="option.images.length > 0"
+                                v-if="
+                                  option.images.length > 0 ||
+                                  option.image_path ||
+                                  option.image_url
+                                "
                                 class="relative w-20 h-20 rounded-lg overflow-hidden border-2 border-gray-200 group"
                               >
                                 <img
-                                  :src="option.images[0].preview"
+                                  :src="
+                                    option.images?.[0]?.preview ||
+                                    (option.id
+                                      ? getVariantImageUrl(option.id)
+                                      : '')
+                                  "
                                   class="w-full h-full object-cover"
                                 />
                                 <button
+                                  v-if="option.images.length > 0"
                                   @click="removeOptionImage(vIndex, oIndex, 0)"
                                   type="button"
                                   class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center"
