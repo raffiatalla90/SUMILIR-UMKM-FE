@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50 pb-32">
+  <div class="min-h-screen bg-gray-100 pb-32">
     <!-- Mobile Header -->
     <MobileHeader title="Keranjang" @back="goBack" />
 

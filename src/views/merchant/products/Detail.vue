@@ -11,6 +11,7 @@ import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import { getImageUrl } from "@/libs/getImageUrl.js";
 import { useProducts } from "@/composables/useProducts";
+import { getVariantImageUrl } from "@/libs/getVariantImageUrl.js"; // ✅ ADD
 
 const { fetchProductDetail } = useProducts();
 const router = useRouter();
@@ -177,11 +178,25 @@ const transformedOptions = computed(() => {
     id: option.id,
     option_name: option.option_name,
     uses_image: option.uses_image,
-    values: (option.values || []).map((value) => ({
-      id: value.id,
-      value: value.option_value,
-      image: value.image_path,
-    })),
+    values: (option.values || []).map((value) => {
+      // Prioritas:
+      // 1) value.image_url (absolute provided by backend)
+      // 2) fallback getVariantImageUrl(value.id) — uses product_option_value.id
+      const imageSrc =
+        value.image_url ||
+        // if image_path exists but not absolute URL backend sometimes provides path only;
+        // still prefer endpoint by id because it's consistent:
+        (value.id ? getVariantImageUrl(value.id) : null) ||
+        null;
+
+      return {
+        id: value.id,
+        value: value.option_value,
+        image: imageSrc,
+        image_path: value.image_path ?? null,
+        image_url: value.image_url ?? null,
+      };
+    }),
   }));
 });
 
@@ -673,12 +688,8 @@ onMounted(() => {
                     class="w-full aspect-square rounded-lg overflow-hidden bg-gray-100 group-hover:ring-2 group-hover:ring-merchant-primary/30 transition"
                   >
                     <img
-                      v-if="
-                        optionValue.id &&
-                        option.uses_image &&
-                        optionValue.image_path === undefined
-                      "
-                      :src="getImageUrl(optionValue.id)"
+                      v-if="optionValue.image"
+                      :src="getVariantImageUrl(optionValue.id)"
                       :alt="optionValue.value"
                       class="w-full h-full object-cover"
                       @error="(e) => (e.target.style.display = 'none')"

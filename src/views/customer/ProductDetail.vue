@@ -200,7 +200,7 @@
     </div>
 
     <!-- Loading Skeleton -->
-    <div v-if="loading" class="max-w-7xl mx-auto sm:px-4 sm:py-6">
+    <div v-if="loading || !product" class="max-w-7xl mx-auto sm:px-4 sm:py-6">
       <div class="bg-white sm:rounded-2xl sm:shadow-lg overflow-hidden">
         <div class="sm:grid sm:grid-cols-2 sm:gap-8 sm:p-8">
           <!-- Skeleton Gambar -->
@@ -527,7 +527,7 @@
               <div class="flex flex-wrap gap-2">
                 <button
                   v-for="size in sizes"
-                  :key="size.name"
+                  :key="size.id"
                   @click="
                     selectedSize = size;
                     validateQuantity();
@@ -535,13 +535,28 @@
                   :disabled="!isSizeAvailable(size.name)"
                   class="px-4 py-2 rounded-lg border text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
                   :class="
-                    selectedSize?.name === size.name
+                    selectedSize?.id === size.id
                       ? 'border-primary bg-primary/5 text-primary'
                       : 'border-gray-300 text-gray-700 hover:border-gray-400'
                   "
                 >
                   <div class="flex flex-col items-center">
+                    <!-- 🖼️ Image jika ada -->
+                    <div
+                      v-if="size.image"
+                      class="w-12 h-12 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center"
+                    >
+                      <img
+                        :src="getVariantImageUrl(size.id)"
+                        :alt="size.name"
+                        class="w-full h-full object-cover"
+                      />
+                    </div>
+
+                    <!-- Nama Size -->
                     <span>{{ size.name }}</span>
+
+                    <!-- Indikator stok -->
                     <span
                       class="text-xs mt-0.5"
                       :class="
@@ -552,7 +567,7 @@
                           : 'text-gray-500'
                       "
                     >
-                      {{ getSizeStock(size.name) === 0 ? "Habis" : `` }}
+                      {{ getSizeStock(size.name) === 0 ? "Habis" : "" }}
                     </span>
                   </div>
                 </button>
@@ -756,7 +771,6 @@
             </div>
 
             <!-- Info Toko -->
-            <!-- Info Toko -->
             <div class="py-4 border-b border-gray-200">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3 min-w-0">
@@ -764,18 +778,18 @@
                     class="w-12 h-12 rounded-full bg-gray-200 overflow-hidden flex-shrink-0"
                   >
                     <img
-                      v-if="product?.store?.logo"
-                      :src="product.store.logo"
-                      alt="Store logo"
+                      v-if="product?.merchant?.logo"
+                      :src="product.merchant.logo"
+                      alt="UMKM logo"
                       class="w-full h-full object-cover"
                     />
                   </div>
                   <div class="min-w-0">
                     <h4
                       class="text-sm font-semibold text-gray-900 truncate"
-                      :title="product?.store?.name || 'Sumber Rejeki'"
+                      :title="product?.merchant?.name || 'Sumber Rejeki'"
                     >
-                      {{ product?.store?.name || "Sumber Rejeki" }}
+                      {{ product?.merchant?.name || "Sumber Rejeki" }}
                     </h4>
                     <span
                       class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700 mt-1"
@@ -1370,12 +1384,13 @@ import api from "@/libs/axios.js";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock.js";
 import { getImageUrl } from "@/libs/getImageUrl.js";
+import { getVariantImageUrl } from "@/libs/getVariantImageUrl.js";
 import Button from "@/components/common/Button.vue";
 import { useCheckoutStore } from "@/stores/checkout";
 import ProductCard from "@/components/Card/ProductCard.vue";
 import { useProducts } from "@/composables/useProducts.js";
 
-const { fetchPublicProductDetail } = useProducts();
+const { fetchPublicProductDetail, fetchProductDetail } = useProducts(); // support both if available
 const route = useRoute();
 const router = useRouter();
 
@@ -1389,20 +1404,563 @@ const showImageModal = ref(false);
 const isMouseDown = ref(false);
 const mouseStartX = ref(0);
 const mouseDeltaX = ref(0);
-const swipeThreshold = 50; // px threshold untuk ganti gambar
+const swipeThreshold = 50;
 
 let abortController = null;
 const showFullDescription = ref(false);
-const shouldShowSeeMore = computed(() => {
-  // Tampilkan tombol jika deskripsi lebih dari 200 karakter
-  return (product.value?.description?.length || 0) > 200;
-});
+const shouldShowSeeMore = computed(
+  () => (product.value?.description?.length || 0) > 200
+);
 const hasOneOption = computed(
   () => (product.value?.options?.length || 0) === 1
 );
 const hasTwoOptions = computed(
   () => (product.value?.options?.length || 0) >= 2
 );
+
+// image / gallery state
+const productImages = ref([]);
+const currentImageIndex = ref(0);
+const selectedImage = computed(
+  () => productImages.value[currentImageIndex.value] || null
+);
+
+// product options/variants state
+const sizes = ref([]);
+const selectedSize = ref(null);
+const variants = ref([]);
+const selectedVariant = ref(null);
+const stockCombinations = ref([]);
+
+// addons
+const selectedAddons = ref([]);
+const tempSelectedAddons = ref([]);
+const addonGroups = ref([]);
+
+// misc
+const showScrollHeader = ref(false);
+const lastScrollY = ref(0);
+const relatedProducts = ref([]);
+const cartItemsCount = ref(0);
+
+// body scroll lock for modals
+const isAnyModalOpen = computed(
+  () => showAddonModal.value || showShareModal.value || showImageModal.value
+);
+useBodyScrollLock(isAnyModalOpen);
+
+// helper: safe getter for image URL (handles multiple shapes)
+function resolveImageUrlFromSource(src) {
+  if (!src) return null;
+  if (typeof src === "string") return src;
+  if (typeof src === "object") {
+    if (src.image_url) return src.image_url;
+    if (src.url) return src.url;
+    if (src.image_path) {
+      // if path only, try to use getImageUrl when id absent — but better to return null and rely on getVariantImageUrl
+      return null;
+    }
+    if (src.id) {
+      // try id-based endpoint
+      try {
+        return getImageUrl(src.id); // for product images stored as id => build via getImageUrl
+      } catch (e) {
+        // fallback to variant endpoint
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
+// map productImages in robust way:
+// - if mapped.productImages is array of string => use directly
+// - if array of objects with id/image_url => convert
+function normalizeProductImages(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((it) => {
+      const url = resolveImageUrlFromSource(it);
+      if (url) return url;
+      // fallback: if item has "image_path" and product has base URL build absolute
+      if (it && it.image_path && typeof it.image_path === "string") {
+        // try to build from getImageUrl? getImageUrl expects image id, so we can't use it here.
+        // leave as `/storage/${it.image_path}` as last resort (assuming backend serves)
+        // but better to return null so UI hides broken images.
+        return null;
+      }
+      return null;
+    })
+    .filter(Boolean);
+}
+
+// utility: normalize option values so UI can use .image (priority: image_url -> image_path absolute? -> getVariantImageUrl(id))
+function normalizeOptionsForUI(optionsArray) {
+  if (!Array.isArray(optionsArray)) return [];
+  return optionsArray.map((opt) => ({
+    id: opt.id,
+    option_name: opt.option_name || opt.name,
+    uses_image: !!opt.uses_image,
+    values: (opt.values || []).map((v) => {
+      const image =
+        (v.image_url && v.image_url.length && v.image_url) ||
+        (v.image_path ? null : null) || // leave image_path aside, prefer id
+        (v.id ? getVariantImageUrl(v.id) : null);
+
+      return {
+        id: v.id,
+        option_value: v.option_value ?? v.name ?? "",
+        image,
+        image_url: v.image_url ?? null,
+        image_path: v.image_path ?? null,
+      };
+    }),
+  }));
+}
+
+// -------------- stock/price helpers (kept dari kode Anda, sedikit disesuaikan) --------------
+function getSizeIdByName(name) {
+  const found = sizes.value.find((s) => String(s.name) === String(name));
+  return found?.id ?? null;
+}
+function getSizeNameById(id) {
+  const found = sizes.value.find((s) => Number(s.id) === Number(id));
+  return found?.name ?? null;
+}
+function getCurrentStock() {
+  if (
+    !Array.isArray(stockCombinations.value) ||
+    stockCombinations.value.length === 0
+  )
+    return 0;
+  const sizeKey = selectedSize.value?.id ?? selectedSize.value?.value?.id ?? 0;
+  const variantKey =
+    selectedVariant.value?.id ?? selectedVariant.value?.value?.id ?? 0;
+  const found = stockCombinations.value.find(
+    (c) =>
+      Number(c.sizeId) === Number(sizeKey) &&
+      Number(c.variantId) === Number(variantKey)
+  );
+  return Number(found?.stock ?? 0);
+}
+function getVariantStock(variantId) {
+  if (!Array.isArray(stockCombinations.value)) return 0;
+  const sizeKey = selectedSize.value?.id ?? selectedSize.value?.value?.id ?? 0;
+  const found = stockCombinations.value.find(
+    (c) =>
+      Number(c.sizeId) === Number(sizeKey) &&
+      Number(c.variantId) === Number(variantId)
+  );
+  return Number(found?.stock ?? 0);
+}
+function getSizeStock(sizeNameOrId) {
+  const sizeId =
+    typeof sizeNameOrId === "string"
+      ? getSizeIdByName(sizeNameOrId)
+      : sizeNameOrId;
+  if (!Array.isArray(stockCombinations.value) || sizeId == null) return 0;
+  return stockCombinations.value
+    .filter((c) => Number(c.sizeId) === Number(sizeId))
+    .reduce((sum, c) => sum + Number(c.stock || 0), 0);
+}
+function isSizeAvailable(sizeNameOrId) {
+  return getSizeStock(sizeNameOrId) > 0;
+}
+function isVariantAvailable(variantId) {
+  return getVariantStock(variantId) > 0;
+}
+function getCurrentPrice() {
+  if (
+    !Array.isArray(stockCombinations.value) ||
+    stockCombinations.value.length === 0
+  ) {
+    return Number(product.value?.price || 0);
+  }
+  const sizeKey = selectedSize.value?.id ?? selectedSize.value?.value?.id ?? 0;
+  const variantKey =
+    selectedVariant.value?.id ?? selectedVariant.value?.value?.id ?? 0;
+
+  let found =
+    stockCombinations.value.find(
+      (c) =>
+        Number(c.sizeId) === Number(sizeKey) &&
+        Number(c.variantId) === Number(variantKey) &&
+        Number(c.stock) > 0
+    ) ||
+    stockCombinations.value.find(
+      (c) =>
+        Number(c.sizeId) === Number(sizeKey) &&
+        Number(c.variantId) === Number(variantKey)
+    );
+
+  if (!found) {
+    const min = Number(product.value?.price || 0);
+    return min;
+  }
+  return Number(found.price ?? product.value?.price ?? 0);
+}
+
+// quantity helpers
+function validateQuantity() {
+  const stock = getCurrentStock();
+  let q = Number(quantity.value || 0);
+  if (stock <= 0) {
+    quantity.value = 0;
+    return;
+  }
+  const min = Math.max(1, Number(product.value?.min_purchase ?? 1));
+  if (isNaN(q) || q < min) q = min;
+  if (q > stock) q = stock;
+  quantity.value = q;
+}
+function increaseQuantity() {
+  const stock = getCurrentStock();
+  if (stock <= 0) return;
+  const next = Number(quantity.value || 0) + 1;
+  quantity.value = Math.min(next, stock);
+}
+function decreaseQuantity() {
+  const stock = getCurrentStock();
+  if (stock <= 0) {
+    quantity.value = 0;
+    return;
+  }
+  const min = Math.max(1, Number(product.value?.min_purchase ?? 1));
+  const next = Number(quantity.value || 0) - 1;
+  quantity.value = Math.max(next, min);
+}
+
+// -------------- fetching & normalization --------------
+function resetStateBeforeFetch() {
+  product.value = null;
+  productImages.value = [];
+  sizes.value = [];
+  variants.value = [];
+  stockCombinations.value = [];
+  selectedSize.value = null;
+  selectedVariant.value = null;
+  addonGroups.value = [];
+  selectedAddons.value = [];
+  tempSelectedAddons.value = [];
+  relatedProducts.value = [];
+  cartItemsCount.value = 0;
+}
+
+async function doFetchProduct(slug) {
+  if (!slug) return;
+
+  if (abortController) {
+    try {
+      abortController.abort();
+    } catch (e) {}
+  }
+  abortController = new AbortController();
+
+  loading.value = true;
+  resetStateBeforeFetch();
+
+  // small helpers (local)
+  function normalizeProductImages(images) {
+    // images bisa berupa: string URL, object { id, image_path, image_url }, atau hasil buildImageUrl sebelumnya
+    return images
+      .map((img) => {
+        if (!img) return null;
+        if (typeof img === "string") return img;
+        if (typeof img === "object") {
+          // jika sudah berupa absolute url
+          if (img.image_url) return img.image_url;
+          // jika id tersedia — gunakan getImageUrl helper (yang kamu import)
+          if (img.id) return getImageUrl(img.id);
+          // jika image_path tersedia, coba resolve
+          if (img.image_path) {
+            return typeof absoluteImagePath === "function"
+              ? absoluteImagePath(img.image_path)
+              : _absoluteImagePath
+              ? _absoluteImagePath(img.image_path)
+              : `${
+                  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
+                }/storage/${img.image_path}`;
+          }
+        }
+        return null;
+      })
+      .filter(Boolean);
+  }
+
+  function resolveImageUrlFromSource(src) {
+    if (!src) return null;
+    if (typeof src === "string") return src;
+    if (typeof src === "object") {
+      if (src.image_url) return src.image_url;
+      if (src.id) return getImageUrl(src.id);
+      if (src.image_path) {
+        return typeof absoluteImagePath === "function"
+          ? absoluteImagePath(src.image_path)
+          : _absoluteImagePath
+          ? _absoluteImagePath(src.image_path)
+          : `${
+              import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
+            }/storage/${src.image_path}`;
+      }
+    }
+    return null;
+  }
+
+  try {
+    const fetcher =
+      typeof fetchPublicProductDetail === "function"
+        ? fetchPublicProductDetail
+        : fetchProductDetail;
+    const mapped = await fetcher(slug, { signal: abortController.signal });
+
+    // fallback: jika endpoint mengembalikan raw product tanpa mapping
+    if (!mapped || !mapped.product) {
+      const maybeProduct = mapped?.product ?? mapped;
+      if (!maybeProduct) {
+        router.replace({ name: "Beranda" });
+        return;
+      }
+
+      const fallbackMapped = {
+        product: maybeProduct,
+        productImages: (maybeProduct.images || []).map((img) =>
+          img?.id ? getImageUrl(img.id) : img.image_url || img
+        ),
+        sizes: (maybeProduct.options?.[0]?.values || []).map((v) => ({
+          id: v.id,
+          name: v.option_value ?? v.name,
+          image: v.image_url || v.image_path || null,
+        })),
+        variants: (maybeProduct.options?.[1]?.values || []).map((v) => ({
+          id: v.id,
+          name: v.option_value ?? v.name,
+          image: v.image_url || v.image_path || null,
+        })),
+        stockCombinations: (mapped?.combinations || []).map((c) => ({
+          ...c,
+          sizeId: Number(c.sizeId || 0),
+          variantId: Number(c.variantId || 0),
+          stock: Number(c.stock || 0),
+          price: Number(c.price || 0),
+        })),
+        addonGroups:
+          maybeProduct.addon_groups || maybeProduct.addonGroups || [],
+        selectedSize: null,
+        selectedVariant: null,
+        related_products: mapped.related_products || [],
+        min_purchase: maybeProduct.min_purchase ?? 1,
+        optionDefinitions: (maybeProduct.options || []).map((o) => ({
+          id: o.id,
+          option_name: o.option_name || o.name,
+          uses_image: !!o.uses_image,
+          values: (o.values || []).map((v) => ({
+            id: v.id,
+            dbId: v.id,
+            product_option_id: v.product_option_id,
+            option_value: v.option_value,
+            image_url: v.image_url || null,
+            image_path: v.image_path || null,
+            preview:
+              v.image_url ||
+              (v.image_path
+                ? typeof absoluteImagePath === "function"
+                  ? absoluteImagePath(v.image_path)
+                  : `${
+                      import.meta.env.VITE_API_BASE_URL ||
+                      "http://localhost:8000"
+                    }/storage/${v.image_path}`
+                : null) ||
+              getVariantImageUrl(v.id) ||
+              null,
+          })),
+        })),
+      };
+
+      Object.assign(mapped, fallbackMapped);
+    }
+
+    // assign core product info
+    product.value = {
+      ...mapped.product,
+      price: Number(mapped.price_range?.min ?? mapped.product?.price ?? 0),
+      min_purchase: Number(
+        mapped.min_purchase ?? mapped.product?.min_purchase ?? 1
+      ),
+    };
+
+    // IMAGES: normalisasi dari berbagai sumber
+    if (Array.isArray(mapped.productImages) && mapped.productImages.length) {
+      productImages.value = normalizeProductImages(mapped.productImages);
+    } else if (
+      Array.isArray(mapped.product?.images) &&
+      mapped.product.images.length
+    ) {
+      productImages.value = normalizeProductImages(mapped.product.images);
+    } else if (mapped.product?.cover_image) {
+      const u = resolveImageUrlFromSource(mapped.product.cover_image);
+      if (u) productImages.value.push(u);
+    }
+
+    // optionDefinitions adalah sumber kebenaran (normalisasi dari composable)
+    const optionDefs =
+      mapped.optionDefinitions ?? mapped.product?.options ?? [];
+    // buat juga convenience arrays option1Values / option2Values di state kompatibel
+    const option1Vals = Array.isArray(optionDefs[0]?.values)
+      ? optionDefs[0].values
+      : [];
+    const option2Vals = Array.isArray(optionDefs[1]?.values)
+      ? optionDefs[1].values
+      : [];
+
+    // sizes & variants untuk kompatibilitas komponen lama (tetap isi tapi jangan pakai sebagai sumber label)
+    sizes.value = option1Vals.map((v) => ({
+      id: v.id,
+      name: v.option_value ?? v.name,
+      image: v.image_url || null,
+    }));
+    variants.value = option2Vals.map((v) => ({
+      id: v.id,
+      name: v.option_value ?? v.name,
+      image: v.image_url || null,
+    }));
+
+    // stockCombinations (pastikan format konsisten)
+    stockCombinations.value = Array.isArray(mapped.stockCombinations)
+      ? mapped.stockCombinations.map((c) => ({
+          product_variant_id: c.product_variant_id ?? c.id ?? null,
+          sizeId: Number(c.sizeId ?? c.size_id ?? 0),
+          variantId: Number(c.variantId ?? c.variant_id ?? 0),
+          price: Number(c.price ?? mapped.product?.price ?? 0),
+          stock: Number(c.stock ?? 0),
+          sku: c.sku ?? null,
+        }))
+      : [];
+
+    // optionDefinitions kept for template direct access
+    // assign to product.value so template / other computed dapat mengakses product.optionDefinitions
+    product.value.optionDefinitions = optionDefs;
+
+    // addon groups / related products
+    addonGroups.value = Array.isArray(mapped.addonGroups)
+      ? mapped.addonGroups
+      : mapped.product?.addon_groups ?? [];
+    relatedProducts.value = Array.isArray(mapped.related_products)
+      ? mapped.related_products
+      : mapped.relatedProducts ?? [];
+
+    // defaults selected (mapped may already provide selectedSize/selectedVariant with id/name)
+    selectedSize.value =
+      mapped.selectedSize ?? (sizes.value.length ? sizes.value[0] : null);
+    selectedVariant.value =
+      mapped.selectedVariant ??
+      (variants.value.length ? variants.value[0] : null);
+
+    selectedAddons.value = Array.isArray(mapped.selectedAddons)
+      ? mapped.selectedAddons
+      : [];
+    tempSelectedAddons.value = [...selectedAddons.value];
+
+    cartItemsCount.value = Number(
+      mapped.cart_count ?? mapped.cartItemsCount ?? (cartItemsCount.value || 0)
+    );
+
+    // fallback: kalau tidak ada productImages tapi variant memiliki display_image gunakan itu
+    if (
+      (!productImages.value || productImages.value.length === 0) &&
+      Array.isArray(variants.value) &&
+      variants.value.length
+    ) {
+      const imgFromVariant =
+        variants.value.find((v) => v.display_image || v.image)?.display_image ??
+        variants.value.find((v) => v.image)?.image;
+      if (imgFromVariant) productImages.value.push(imgFromVariant);
+    }
+  } catch (e) {
+    if (e?.name === "AbortError") return;
+    console.error("Gagal memuat produk:", e);
+    if (e?.response?.status === 404) {
+      router.replace({ name: "Beranda" });
+      return;
+    }
+  } finally {
+    loading.value = false;
+  }
+}
+
+onMounted(() => {
+  window.addEventListener("scroll", handleScroll);
+  const initialSlug = route.params.slug;
+  if (initialSlug) doFetchProduct(String(initialSlug));
+});
+
+watch(
+  () => route.params.slug,
+  (newSlug, oldSlug) => {
+    if (newSlug && newSlug !== oldSlug) doFetchProduct(String(newSlug));
+  }
+);
+
+onBeforeUnmount(() => {
+  if (abortController) {
+    try {
+      abortController.abort();
+    } catch (e) {}
+    abortController = null;
+  }
+  window.removeEventListener("scroll", handleScroll);
+});
+onUnmounted(() => window.removeEventListener("scroll", handleScroll));
+
+// simple scroll handler (as in your original)
+function handleScroll() {
+  const y = window.scrollY || document.documentElement.scrollTop || 0;
+  showScrollHeader.value = y > 80;
+  lastScrollY.value = y;
+}
+
+// buyNow: keep your existing behavior, but use safe fields
+function buyNow() {
+  const qty = Number(quantity.value || 1);
+  const unitPrice =
+    Number(getCurrentPrice()) || Number(product.value?.price || 0);
+  const sizeId = selectedSize.value?.id ?? null;
+  const sizeName = selectedSize.value?.name ?? selectedSize.value?.value ?? "";
+  const variantId = selectedVariant.value?.id ?? null;
+  const variantName =
+    selectedVariant.value?.name ?? selectedVariant.value?.value ?? "";
+  const stock = getCurrentStock();
+  const store = product.value?.merchant || product.value?.store || {};
+  const checkout = useCheckoutStore();
+  checkout.setFromProductDetail({
+    slug: product.value?.slug,
+    title: product.value?.name,
+    image: selectedImage.value || productImages.value?.[0] || "",
+    store: {
+      id: store.id ?? null,
+      slug: store.slug ?? null,
+      name: store.name ?? "",
+      address: store.address ?? "",
+      phone: store.phone ?? "",
+    },
+    qty,
+    sizeId,
+    sizeName,
+    variantId,
+    variantName,
+    unitPrice,
+    stock,
+    addons: selectedAddons.value,
+  });
+
+  router.push({
+    path: "/product-payment",
+    query: {
+      slug: product.value?.slug || "",
+      storeId: store.id ? String(store.id) : "",
+      storeSlug: store.slug || "",
+    },
+  });
+}
 
 function isAddonSelected(addon) {
   return tempSelectedAddons.value.some(
@@ -1545,95 +2103,11 @@ function nextImage() {
     (currentImageIndex.value + 1) % productImages.value.length;
 }
 
-// ✅ REMOVE DUMMY: Inisialisasi kosong, akan diisi dari API
-const productImages = ref([]);
-const currentImageIndex = ref(0);
-const selectedImage = computed(
-  () => productImages.value[currentImageIndex.value]
-);
-
-// ✅ REMOVE DUMMY: sizes/variants/stock dari API
-const sizes = ref([]);
-const selectedSize = ref(null);
-
-const variants = ref([]);
-const selectedVariant = ref(null);
-
-// Kombinasi stok pakai ID option value, bukan nama
-const stockCombinations = ref([]);
-
-// ✅ REMOVE DUMMY: addons dari API
-const selectedAddons = ref([]);
-const tempSelectedAddons = ref([]);
-const addonGroups = ref([]);
-
-// Scroll state
-const showScrollHeader = ref(false);
-const lastScrollY = ref(0);
-
-const relatedProducts = ref([]);
-
-// ✅ Add missing scroll handler (minimal, tidak mengubah UI/logic lain)
-function handleScroll() {
-  const y = window.scrollY || document.documentElement.scrollTop || 0;
-
-  // Tampilkan sticky header saat user scroll turun melewati 80px
-  showScrollHeader.value = y > 80;
-
-  // Simpan posisi terakhir (opsional untuk future use)
-  lastScrollY.value = y;
-}
-
-// Simulasi jumlah item di keranjang (nanti bisa pakai Pinia store)
-const cartItemsCount = ref(3);
-
-// ✅ ADDED: Track if any modal is open
-const isAnyModalOpen = computed(
-  () => showAddonModal.value || showShareModal.value || showImageModal.value
-);
-
 // ✅ ADDED: Use body scroll lock for modals
 useBodyScrollLock(isAnyModalOpen);
 
 // Helper: format currency
 const formatIDR = (v) => Number(v || 0).toLocaleString("id-ID");
-function validateQuantity() {
-  const stock = getCurrentStock();
-  let q = Number(quantity.value || 0);
-
-  // Jika stok 0, paksa qty jadi 0 dan disable tombol beli/keranjang via template
-  if (stock <= 0) {
-    quantity.value = 0;
-    return;
-  }
-
-  // Minimal pembelian
-  const min = Math.max(1, Number(minPurchase.value || 1));
-
-  // Clamp qty ke [min, stock]
-  if (isNaN(q) || q < min) q = min;
-  if (q > stock) q = stock;
-
-  quantity.value = q;
-}
-
-function increaseQuantity() {
-  const stock = getCurrentStock();
-  if (stock <= 0) return;
-  const next = Number(quantity.value || 0) + 1;
-  quantity.value = Math.min(next, stock);
-}
-
-function decreaseQuantity() {
-  const stock = getCurrentStock();
-  if (stock <= 0) {
-    quantity.value = 0;
-    return;
-  }
-  const min = Math.max(1, Number(minPurchase.value || 1));
-  const next = Number(quantity.value || 0) - 1;
-  quantity.value = Math.max(next, min);
-}
 
 // ✅ Reset qty saat pilihan size/variant berubah agar tidak melebihi stok baru
 watch(
@@ -1658,103 +2132,6 @@ const calculateTotalPrice = () => {
 // ✅ Restore: archived flag (used by banner)
 const isArchived = computed(() => product.value?.status === "archived");
 
-// ✅ Helper: ambil stok kombinasi saat ini (size + variant)
-function getCurrentStock() {
-  // Jika tidak ada kombinasi, anggap 0
-  if (
-    !Array.isArray(stockCombinations.value) ||
-    stockCombinations.value.length === 0
-  ) {
-    return 0;
-  }
-  const sizeKey = selectedSize?.value?.id ?? 0;
-  const variantKey = selectedVariant?.value?.id ?? 0;
-
-  const found = stockCombinations.value.find(
-    (c) =>
-      Number(c.sizeId) === Number(sizeKey) &&
-      Number(c.variantId) === Number(variantKey)
-  );
-  return Number(found?.stock ?? 0);
-}
-
-// Map helper: name → id untuk size
-function getSizeIdByName(name) {
-  const found = sizes.value.find((s) => String(s.name) === String(name));
-  return found?.id ?? null;
-}
-
-// Map helper: id → name (opsional jika perlu)
-function getSizeNameById(id) {
-  const found = sizes.value.find((s) => Number(s.id) === Number(id));
-  return found?.name ?? null;
-}
-
-function getCurrentPrice() {
-  // Jika tidak ada kombinasi, fallback ke min price atau product.price
-  if (
-    !Array.isArray(stockCombinations.value) ||
-    stockCombinations.value.length === 0
-  ) {
-    return Number(product.value?.price || 0);
-  }
-  const sizeKey = selectedSize?.value?.id ?? 0;
-  const variantKey = selectedVariant?.value?.id ?? 0;
-
-  // Cari kombinasi cocok (prioritas stok > 0, jika tidak ada ambil yang cocok saja)
-  let found =
-    stockCombinations.value.find(
-      (c) =>
-        Number(c.sizeId) === Number(sizeKey) &&
-        Number(c.variantId) === Number(variantKey) &&
-        Number(c.stock) > 0
-    ) ||
-    stockCombinations.value.find(
-      (c) =>
-        Number(c.sizeId) === Number(sizeKey) &&
-        Number(c.variantId) === Number(variantKey)
-    );
-
-  // Fallback terakhir ke price_range.min atau product.price
-  if (!found) {
-    const min = Number(product.value?.price || 0);
-    return min;
-  }
-  return Number(found.price ?? product.value?.price ?? 0);
-}
-
-// Total stok untuk suatu size (dipanggil oleh template dengan size.name)
-function getSizeStock(sizeNameOrId) {
-  const sizeId =
-    typeof sizeNameOrId === "string"
-      ? getSizeIdByName(sizeNameOrId)
-      : sizeNameOrId;
-  if (!Array.isArray(stockCombinations.value) || sizeId == null) return 0;
-  return stockCombinations.value
-    .filter((c) => Number(c.sizeId) === Number(sizeId))
-    .reduce((sum, c) => sum + Number(c.stock || 0), 0);
-}
-
-// Stok untuk variant tertentu pada size terpilih (template memanggil dengan variant.id)
-function getVariantStock(variantId) {
-  if (!Array.isArray(stockCombinations.value)) return 0;
-  const sizeKey = selectedSize?.value?.id ?? 0;
-  const found = stockCombinations.value.find(
-    (c) =>
-      Number(c.sizeId) === Number(sizeKey) &&
-      Number(c.variantId) === Number(variantId)
-  );
-  return Number(found?.stock ?? 0);
-}
-
-// Availability helpers: kompatibel dengan template (size.name dipakai)
-function isSizeAvailable(sizeNameOrId) {
-  return getSizeStock(sizeNameOrId) > 0;
-}
-function isVariantAvailable(variantId) {
-  return getVariantStock(variantId) > 0;
-}
-
 // ✅ Low stock helper (threshold 10 seperti UI)
 function isLowStock() {
   const s = getCurrentStock();
@@ -1772,105 +2149,6 @@ function getStockColorClass() {
 // ✅ Helper: ambil slug dari route
 function getProductSlug() {
   return route.params.slug;
-}
-
-function resetStateBeforeFetch() {
-  product.value = null;
-  productImages.value = [];
-  sizes.value = [];
-  variants.value = [];
-  stockCombinations.value = [];
-  selectedSize.value = null;
-  selectedVariant.value = null;
-  addonGroups.value = [];
-  selectedAddons.value = [];
-  tempSelectedAddons.value = [];
-  relatedProducts.value = [];
-}
-
-async function doFetchProduct(slug) {
-  if (!slug) {
-    // nothing to fetch
-    return;
-  }
-
-  // cancel previous request
-  if (abortController) {
-    try {
-      abortController.abort();
-    } catch (e) {}
-  }
-  abortController = new AbortController();
-
-  loading.value = true;
-  resetStateBeforeFetch();
-
-  try {
-    // fetchPublicProductDetail mengembalikan mapping yang sudah UI-friendly
-    const mapped = await fetchPublicProductDetail(slug, {
-      signal: abortController.signal,
-    });
-
-    // jika backend tidak mengembalikan product -> redirect sesuai logic kamu
-    if (!mapped || !mapped.product) {
-      router.replace({ name: "Beranda" });
-      return;
-    }
-
-    // assign ke state (mapped sudah punya many convenience fields)
-    product.value = {
-      ...mapped.product,
-      store: {
-        id: mapped.product?.merchant?.id || null,
-        name: mapped.product?.merchant?.name || "Toko",
-        logo: mapped.product?.merchant?.logo_url || null,
-        address: mapped.product?.merchant?.address || "",
-        phone: mapped.product?.merchant?.phone || "",
-      },
-      price: Number(mapped.price_range?.min ?? mapped.product?.price ?? 0),
-      min_purchase: Number(
-        mapped.min_purchase ?? mapped.product?.min_purchase ?? 1
-      ),
-    };
-
-    productImages.value = Array.isArray(mapped.productImages)
-      ? mapped.productImages
-      : [];
-    sizes.value = Array.isArray(mapped.sizes) ? mapped.sizes : [];
-    variants.value = Array.isArray(mapped.variants) ? mapped.variants : [];
-    stockCombinations.value = Array.isArray(mapped.stockCombinations)
-      ? mapped.stockCombinations
-      : [];
-
-    // defaults (mapped.selectedSize / selectedVariant already computed by helper, but re-evaluate if you prefer)
-    selectedSize.value = mapped.selectedSize ?? sizes.value[0] ?? null;
-    selectedVariant.value = mapped.selectedVariant ?? variants.value[0] ?? null;
-
-    addonGroups.value = Array.isArray(mapped.addonGroups)
-      ? mapped.addonGroups
-      : [];
-    selectedAddons.value = Array.isArray(mapped.selectedAddons)
-      ? mapped.selectedAddons
-      : [];
-    tempSelectedAddons.value = [...selectedAddons.value];
-
-    relatedProducts.value = Array.isArray(mapped.related_products)
-      ? mapped.related_products
-      : [];
-  } catch (e) {
-    // jika dibatalkan, jangan treat sebagai error
-    if (e?.name === "AbortError") return;
-
-    // jika 404 -> redirect, konsisten dengan logic controller-mu
-    if (e?.response?.status === 404) {
-      router.replace({ name: "Beranda" });
-      return;
-    }
-
-    console.error("Gagal memuat produk:", e);
-  } finally {
-    loading.value = false;
-  }
 }
 
 // onMounted: pasang scroll listener & fetch initial product
@@ -1926,52 +2204,6 @@ const minPurchase = computed(() => Number(product.value?.min_purchase ?? 1));
 // Helper stok & harga (tetap, sudah pakai ID)
 // getCurrentStock(), getSizeStock(), getVariantStock(), getCurrentPrice() tetap bekerja,
 // karena stockCombinations kini berasal dari payload.combinations dan variantId bisa 0 untuk produk 1 opsi.
-
-function buyNow() {
-  const qty = Number(quantity.value || 1);
-  // ✅ unitPrice dijamin terisi dari getCurrentPrice, fallback ke product.price
-  const unitPrice =
-    Number(getCurrentPrice()) || Number(product.value?.price || 0);
-
-  const sizeId = selectedSize.value?.id ?? null;
-  const sizeName = selectedSize.value?.name || "";
-  const variantId = selectedVariant.value?.id ?? null;
-  const variantName = selectedVariant.value?.name || "";
-  const stock = getCurrentStock();
-
-  const store = product.value?.merchant || product.value?.store || {};
-
-  const checkout = useCheckoutStore();
-  checkout.setFromProductDetail({
-    slug: product.value?.slug,
-    title: product.value?.name,
-    image: selectedImage.value || productImages.value?.[0] || "",
-    store: {
-      id: store.id ?? null,
-      slug: store.slug ?? null,
-      name: store.name ?? "",
-      address: store.address ?? "",
-      phone: store.phone ?? "",
-    },
-    qty,
-    sizeId,
-    sizeName,
-    variantId,
-    variantName,
-    unitPrice, // ✅ dijamin terisi
-    stock,
-    addons: selectedAddons.value,
-  });
-
-  router.push({
-    path: "/product-payment",
-    query: {
-      slug: product.value?.slug || "",
-      storeId: store.id ? String(store.id) : "",
-      storeSlug: store.slug || "",
-    },
-  });
-}
 
 // Navigasi ke detail produk lain
 function viewProduct(slug) {

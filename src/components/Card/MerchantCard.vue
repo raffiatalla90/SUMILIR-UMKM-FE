@@ -37,7 +37,7 @@
       <!-- Badge Segmentation -->
       <div
         v-if="merchant.segmentation"
-        class="absolute top-2 left-2 px-2 py-1 bg-white/90 backdrop-blur-sm rounded-full text-xs font-medium text-gray-700"
+        class="absolute top-2 left-2 px-2 py-1 bg-white/90 backdrop-blur-sm rounded-full text-xs font-medium text-black"
       >
         {{ merchant.segmentation.name }}
       </div>
@@ -47,7 +47,7 @@
     <div class="p-3 sm:p-4">
       <!-- Name -->
       <h3
-        class="font-semibold text-sm sm:text-base text-gray-900 line-clamp-1 mb-1"
+        class="font-semibold text-sm sm:text-base text-black line-clamp-1 mb-1"
       >
         {{ merchant.name }}
       </h3>

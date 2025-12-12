@@ -60,8 +60,8 @@ const navigateTo = (path) => {
       <button
         v-if="crumb.path"
         @click="navigateTo(crumb.path)"
-        class="text-muted-foreground hover:text-merchant-primary transition flex items-center gap-2 text-base lg:text-2xl font-medium"
-        :class="{ 'hover:underline': crumb.path }"
+        class="text-muted-foreground hover:text-merchant-primary transition flex items-center gap-2 text-base lg:text-2xl font-medium cursor-pointer"
+        :class="{ '': crumb.path }"
       >
         <i v-if="crumb.icon" :class="crumb.icon" class="text-sm"></i>
         {{ crumb.label }}
