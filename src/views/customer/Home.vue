@@ -318,18 +318,20 @@ watch(
     </section>
 
     <!-- ✅ Section Rekomendasi UMKM -->
-    <section id="umkm-recommendation" class="relative pt-6 sm:pt-24">
-      <div class="pl-4 sm:pl-[54px]">
+    <section id="umkm-recommendation" class="relative pt-6">
+      <div class="pl-4 lg:pl-[54px]">
         <div class="inline-flex items-center gap-2.5 w-auto h-[35px] py-[5px]">
-          <span class="text-base sm:text-section-title font-semibold"
+          <span
+            class="text-base sm:text-2xl lg:text-section-title font-semibold"
             >Rekomendasi UMKM</span
           >
         </div>
       </div>
 
       <div class="px-4 lg:px-[52px] mt-6 lg:mt-10">
+      <div class="px-4 lg:px-[52px] mt-6 lg:mt-10">
         <div
-          class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8"
+          class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8 gap-4 sm:gap-6"
         >
           <!-- Skeleton loading -->
           <template v-if="isLoadingMerchants">
@@ -355,6 +357,33 @@ watch(
             <span v-if="!isLoadMore">Muat Lebih Banyak</span>
             <span v-else>Memuat...</span>
           </Button>
+        </div>
+      </div>
+    </section>
+
+    <!-- EVENT -->
+    <section id="event" class="relative pt-6 sm:pt-24 pb-6 sm:pb-12">
+      <div class="pl-4 sm:pl-[54px]">
+        <span class="text-base sm:text-section-title font-semibold">
+          Event
+        </span>
+      </div>
+
+      <div
+        class="overflow-x-auto no-scrollbar mx-4 sm:mx-[57px] pt-3 sm:pt-[17px] scroll-smooth snap-x snap-mandatory"
+      >
+        <div class="flex gap-4 sm:gap-8 min-w-max">
+          <template v-if="isLoadingEvent">
+            <EventCardSkeleton v-for="i in 5" :key="i" />
+          </template>
+
+          <template v-else>
+            <EventCard
+              v-for="(event, i) in eventList"
+              :key="i"
+              :event="event"
+            />
+          </template>
         </div>
       </div>
     </section>

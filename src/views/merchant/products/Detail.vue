@@ -534,7 +534,11 @@ onMounted(() => {
             </h3>
 
             <p
-              class="text-sm text-gray-700 leading-relaxed whitespace-pre-line"
+              class="text-sm text-gray-700 leading-relaxed whitespace-pre-line transition-all"
+              :class="{
+                'line-clamp-4': !showFullDescription,
+                'line-clamp-none': showFullDescription,
+              }"
             >
               {{ displayedDescription }}
             </p>

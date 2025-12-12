@@ -653,6 +653,7 @@
             </div>
 
             <!-- Info Toko -->
+            <!-- Info Toko -->
             <div class="py-4 border-b border-gray-200">
               <div class="flex items-center justify-between">
                 <div class="flex items-center min-w-0 gap-3">
