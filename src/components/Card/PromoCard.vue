@@ -1,6 +1,6 @@
 <template>
   <div
-    class="w-full aspect-[17/8] sm:max-w-none max-w-xs sm:w-[510px] sm:h-[241px] sm:aspect-auto rounded-[10px] overflow-hidden shadow-lg hover:shadow-xl transition"
+    class="w-full aspect-[17/8] lg:max-w-none max-w-xs lg:w-[510px] lg:h-[241px] lg:aspect-auto rounded-[10px] overflow-hidden shadow-lg hover:shadow-xl transition"
   >
     <img
       :src="promo.image || defaultImage"

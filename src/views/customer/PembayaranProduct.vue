@@ -114,7 +114,6 @@
             label="Catatan untuk pesanan ini (opsional)"
             textarea
             :rows="3"
-            placeholder="Contoh: jangan terlalu pedas"
             v-model="form.catatanProduk"
             :labelBold="false"
             variant="muted"
@@ -157,7 +156,7 @@
           <h2 class="font-semibold text-gray-800">Alamat Pengiriman</h2>
           <button
             @click="showAlamatModal = true"
-            class="px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-semibold hover:bg-amber-200 transition"
+            class="px-3 py-1 rounded-full text-xs font-semibold bg-[#FFA30E] text-white hover:bg-[#e5920d] transition"
           >
             {{ selectedAddress ? "Ganti Alamat" : "Pilih Alamat" }}
           </button>
@@ -165,7 +164,7 @@
 
         <div v-if="selectedAddress" class="space-y-3">
           <div class="flex items-start gap-2 text-sm">
-            <span class="text-lg mt-0.5">📍</span>
+            <i class="pi pi-map-marker text-primary text-xl"></i>
             <div class="flex-1">
               <div class="font-semibold text-gray-800">
                 {{ selectedAddress.label }}
@@ -192,7 +191,8 @@
       >
         <h2 class="font-semibold text-gray-800 mb-3">Lokasi Toko</h2>
         <div class="flex items-start gap-2 text-sm">
-          <span class="text-lg mt-0.5">🏪</span>
+          <i class="pi pi-map-marker text-merchant-primary text-xl"></i>
+
           <div class="flex-1">
             <div class="font-semibold text-gray-800">
               {{ order.store?.name || "Toko" }}

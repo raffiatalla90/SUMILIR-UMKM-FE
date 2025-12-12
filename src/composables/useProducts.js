@@ -1,5 +1,19 @@
+// composables/useProducts.js
 import { ref } from "vue";
 import api from "@/libs/axios";
+import { getImageUrl } from "@/libs/getImageUrl.js";
+
+function buildImageUrl(img) {
+  if (!img) return "";
+  // Jika backend kirim object image dengan id → gunakan getImageUrl
+  if (typeof img === "object") {
+    // prioritas: id → getImageUrl, fallback ke url/path/image_path jika ada
+    if (img.id) return getImageUrl(img.id);
+    return img.url || img.path || img.image_path || "";
+  }
+  // Jika string (sudah berupa URL)
+  return img;
+}
 
 export function useProducts() {
   const products = ref([]);
@@ -11,21 +25,21 @@ export function useProducts() {
     total: 0,
   });
 
-  // ✅ ADD: Track last request to prevent duplicates
+  // Track last request to prevent duplicates
   let lastRequestParams = null;
   let pendingRequest = null;
 
-  // ✅ Fetch Product Detail dari API menggunakan slug
+  // Fetch Product Detail (admin scope?) -- pastikan endpoint sesuai
   const fetchProductDetail = async (productSlug) => {
     try {
-      const response = await api.get(`/products/${productSlug}`); // ✅ slug
+      const response = await api.get(`/products/${productSlug}`);
+      // Jika endpoint public, ganti ke: api.get(`/public/products/${productSlug}`)
       const payload = response.data?.data ?? response.data;
       if (!payload)
         throw new Error("Product data tidak ditemukan pada response");
 
-      if (payload.addon_groups) {
-        payload.addonGroups = payload.addon_groups;
-      }
+      // normalisasi kecil
+      if (payload.addon_groups) payload.addonGroups = payload.addon_groups;
       if (!Array.isArray(payload.images)) {
         payload.images = payload.images ? [payload.images] : [];
       }
@@ -40,7 +54,7 @@ export function useProducts() {
    * Fetch products dari backend
    */
   const fetchProducts = async ({
-    merchantId, // ✅ NEW: Required parameter
+    merchantId,
     searchQuery = "",
     status = "",
     category = "",
@@ -52,13 +66,11 @@ export function useProducts() {
     perPage = 15,
     page = 1,
   } = {}) => {
-    // ✅ ADD: Validate merchantId
     if (!merchantId) {
       console.error("[fetchProducts] merchantId is required");
       return;
     }
 
-    // ✅ ADD: Create request signature
     const requestSignature = JSON.stringify({
       merchantId,
       searchQuery,
@@ -73,15 +85,19 @@ export function useProducts() {
       page,
     });
 
-    // ✅ ADD: Check if same request is already in progress
-    if (loading.value && lastRequestParams === requestSignature) {
+    // jika request sedang berjalan dengan signature sama, kembalikan promise yang sama
+    if (
+      loading.value &&
+      lastRequestParams === requestSignature &&
+      pendingRequest
+    ) {
       console.warn(
-        "[fetchProducts] Duplicate request detected, waiting for pending request..."
+        "[fetchProducts] Duplicate request detected, returning pending promise"
       );
       return pendingRequest;
     }
 
-    // ✅ ADD: Check if request is identical to last completed request
+    // jika request sama dengan request terakhir yang selesai -> pakai cache lokal
     if (lastRequestParams === requestSignature && !loading.value) {
       console.log("[fetchProducts] Using cached result");
       return { data: products.value, meta: pagination.value };
@@ -103,55 +119,52 @@ export function useProducts() {
       per_page: perPage,
       page,
     };
-
-    // Remove undefined values
-    Object.keys(params).forEach((key) => {
-      if (params[key] === undefined) {
-        delete params[key];
-      }
-    });
+    Object.keys(params).forEach(
+      (k) => params[k] === undefined && delete params[k]
+    );
 
     console.log("[fetchProducts] Request params:", params);
 
-    try {
-      // ✅ Store pending request promise
-      pendingRequest = api.get("/products", { params });
-      const { data } = await pendingRequest;
+    // Buat pendingRequest sebagai promise yang mengembalikan `data` (konsisten)
+    pendingRequest = (async () => {
+      try {
+        const { data } = await api.get("/products", { params });
+        const payload = data.data || data;
 
-      products.value = data.data || [];
+        products.value = payload.data || payload; // tergantung response shape
+        if (data.meta) {
+          pagination.value = {
+            current_page: data.meta.current_page,
+            last_page: data.meta.last_page,
+            per_page: data.meta.per_page,
+            total: data.meta.total,
+          };
+        }
 
-      if (data.meta) {
-        pagination.value = {
-          current_page: data.meta.current_page,
-          last_page: data.meta.last_page,
-          per_page: data.meta.per_page,
-          total: data.meta.total,
-        };
+        console.log("[fetchProducts] Success:", {
+          products: products.value.length,
+          total: pagination.value.total,
+        });
+
+        return data; // kembalikan bentuk yang sama seperti sebelumnya
+      } catch (error) {
+        console.error("[fetchProducts] Error:", error);
+        lastRequestParams = null;
+        throw error;
+      } finally {
+        loading.value = false;
+        pendingRequest = null;
       }
+    })();
 
-      console.log("[fetchProducts] Success:", {
-        products: products.value.length,
-        total: pagination.value.total,
-      });
-
-      return data;
-    } catch (error) {
-      console.error("[fetchProducts] Error:", error);
-      lastRequestParams = null; // Reset on error
-      throw error;
-    } finally {
-      loading.value = false;
-      pendingRequest = null;
-    }
+    return pendingRequest;
   };
 
-  /**
-   * Delete product
-   */
+  // Delete, update, bulk ops (tetap seperti yang kamu tulis)
   const deleteProduct = async (productSlug) => {
     loading.value = true;
     try {
-      await api.delete(`/products/${productSlug}`); // ✅ slug
+      await api.delete(`/products/${productSlug}`);
       products.value = products.value.filter((p) => p.slug !== productSlug);
       pagination.value.total = Math.max(0, pagination.value.total - 1);
     } catch (error) {
@@ -162,15 +175,12 @@ export function useProducts() {
     }
   };
 
-  /**
-   * Update product status (single)
-   */
   const updateProductStatus = async (productSlug, status) => {
     loading.value = true;
     try {
       const { data } = await api.patch(`/products/${productSlug}/status`, {
         status,
-      }); // ✅ slug
+      });
       const index = products.value.findIndex((p) => p.slug === productSlug);
       if (index !== -1) products.value[index].status = status;
       return data;
@@ -182,21 +192,17 @@ export function useProducts() {
     }
   };
 
-  /**
-   * Bulk delete products
-   */
   const bulkDeleteProducts = async (productSlugs) => {
     loading.value = true;
     try {
-      await api.post("/products/bulk-delete", {
-        product_slugs: productSlugs, // ✅ FIXED: use slugs not ids
-      });
-
-      // Remove deleted products from local state
+      await api.post("/products/bulk-delete", { product_slugs: productSlugs });
       products.value = products.value.filter(
-        (p) => !productSlugs.includes(p.slug) // ✅ FIXED: compare with slug
+        (p) => !productSlugs.includes(p.slug)
       );
-      pagination.value.total -= productSlugs.length;
+      pagination.value.total = Math.max(
+        0,
+        pagination.value.total - productSlugs.length
+      );
     } catch (error) {
       console.error("Error bulk deleting products:", error);
       throw error;
@@ -205,22 +211,15 @@ export function useProducts() {
     }
   };
 
-  /**
-   * Bulk update status
-   */
   const bulkUpdateStatus = async (productSlugs, status) => {
     loading.value = true;
     try {
       await api.post("/products/bulk-update-status", {
-        product_slugs: productSlugs, // ✅ FIXED: use slugs not ids
+        product_slugs: productSlugs,
         status,
       });
-
-      // Update local product statuses
       products.value.forEach((product) => {
-        if (productSlugs.includes(product.slug)) {
-          product.status = status;
-        }
+        if (productSlugs.includes(product.slug)) product.status = status;
       });
     } catch (error) {
       console.error("Error bulk updating status:", error);
@@ -230,16 +229,12 @@ export function useProducts() {
     }
   };
 
-  /**
-   * Fetch random products for Toko homepage
-   */
   const fetchProductsToko = async (limit = 12) => {
     loading.value = true;
     try {
       const { data } = await api.get("/public/products/toko", {
         params: { limit },
       });
-
       return data.data || [];
     } catch (error) {
       console.error("[fetchProductsToko] Error:", error);
@@ -249,16 +244,12 @@ export function useProducts() {
     }
   };
 
-  /**
-   * Fetch random products for Kuliner homepage
-   */
   const fetchProductsKuliner = async (limit = 12) => {
     loading.value = true;
     try {
       const { data } = await api.get("/public/products/kuliner", {
         params: { limit },
       });
-
       return data.data || [];
     } catch (error) {
       console.error("[fetchProductsKuliner] Error:", error);
@@ -268,13 +259,212 @@ export function useProducts() {
     }
   };
 
-  // ✅ SINGLE RETURN STATEMENT AT THE END
+  /**
+   * Public product detail (UI-friendly mapping)
+   * Pastikan import buildImageUrl ada, dan axios support `signal` kalau kamu gunakan
+   */
+  const fetchPublicProductDetail = async (slug, { signal } = {}) => {
+    if (!slug || typeof slug !== "string") throw new Error("Invalid slug");
+
+    const res = await api.get(`/public/products/${encodeURIComponent(slug)}`, {
+      signal,
+    });
+    const payload = res.data ?? {};
+    const productObj = payload.product ?? null;
+    if (!productObj) {
+      return {
+        product: null,
+        price_range: { min: null, max: null },
+        total_stock: 0,
+        has_variants: false,
+        has_addons: false,
+        combinations: [],
+        option_labels: { option1: null, option2: null },
+        min_purchase: 1,
+        merchant_address: null,
+        related_products: [],
+        productImages: [],
+        sizes: [],
+        variants: [],
+        stockCombinations: [],
+        selectedSize: null,
+        selectedVariant: null,
+        addonGroups: [],
+        selectedAddons: [],
+      };
+    }
+
+    // mapping (sama seperti implementasimu)
+    const variantsFromBackend = productObj.variants ?? [];
+    const priceRange = {
+      min: variantsFromBackend.length
+        ? Math.min(...variantsFromBackend.map((v) => Number(v.price ?? 0)))
+        : null,
+      max: variantsFromBackend.length
+        ? Math.max(...variantsFromBackend.map((v) => Number(v.price ?? 0)))
+        : null,
+    };
+
+    const imgs = Array.isArray(productObj.images)
+      ? productObj.images.slice()
+      : [];
+    imgs.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+    const productImages = imgs.length
+      ? imgs.map((img) =>
+          typeof buildImageUrl === "function" ? buildImageUrl(img) : img
+        )
+      : productObj.cover_image
+      ? [
+          typeof buildImageUrl === "function"
+            ? buildImageUrl(productObj.cover_image)
+            : productObj.cover_image,
+        ]
+      : [];
+
+    const options = Array.isArray(productObj.options) ? productObj.options : [];
+    const opt1 = options[0] ?? null;
+    const opt2 = options[1] ?? null;
+
+    const sizesRes = (opt1?.values ?? [])
+      .slice()
+      .sort((a, b) => Number(a.id) - Number(b.id))
+      .map((v) => ({ id: v.id, name: v.option_value, priceAdd: 0 }));
+    const variantsRes = (opt2?.values ?? [])
+      .slice()
+      .sort((a, b) => Number(a.id) - Number(b.id))
+      .map((v) => ({ id: v.id, name: v.option_value, priceAdd: 0 }));
+
+    const rawCombinations = Array.isArray(payload.combinations)
+      ? payload.combinations
+      : [];
+    const combinations = rawCombinations.map((c) => ({
+      product_variant_id: c.product_variant_id ?? null,
+      sizeId: Number(c.sizeId ?? 0),
+      variantId: Number(c.variantId ?? 0),
+      price: Number(c.price ?? productObj.price ?? 0),
+      stock: Number(c.stock ?? 0),
+      sku: c.sku ?? null,
+    }));
+
+    const stockCombinations = combinations.map((c) => ({ ...c }));
+
+    const sizeWithStock = sizesRes.find((s) =>
+      stockCombinations.some(
+        (c) => Number(c.sizeId) === Number(s.id) && Number(c.stock) > 0
+      )
+    );
+    const selectedSize = sizeWithStock ?? sizesRes[0] ?? null;
+
+    let selectedVariant = null;
+    if (variantsRes.length > 0) {
+      const sizeKey = selectedSize?.id ?? 0;
+      const variantWithStock = variantsRes.find((v) =>
+        stockCombinations.some(
+          (c) =>
+            Number(c.sizeId) === Number(sizeKey) &&
+            Number(c.variantId) === Number(v.id) &&
+            Number(c.stock) > 0
+        )
+      );
+      selectedVariant = variantWithStock ?? variantsRes[0] ?? null;
+    }
+
+    const addonGroups =
+      Array.isArray(productObj.addon_groups) && productObj.addon_groups.length
+        ? productObj.addon_groups.map((g) => ({
+            id: g.id,
+            name: g.addon_group_name || g.name,
+            description: g.description || null,
+            required: Number(g.min_selection ?? 0) > 0,
+            maxSelection: Number(g.max_selection ?? 1),
+            items: Array.isArray(g.options)
+              ? g.options.map((opt) => ({
+                  id: opt.id,
+                  name: opt.addon?.addon_name || opt.name,
+                  price: Number(opt.addon_price ?? 0),
+                  description: opt.description || null,
+                  available:
+                    opt.addon_stock == null || Number(opt.addon_stock) > 0,
+                }))
+              : [],
+          }))
+        : [];
+
+    const selectedAddons = [];
+    if (addonGroups.length) {
+      addonGroups.forEach((group) => {
+        if (group.required && group.maxSelection === 1 && group.items.length) {
+          const firstAvailable = group.items.find((it) => it.available);
+          if (firstAvailable) selectedAddons.push(firstAvailable);
+        }
+      });
+    }
+
+    const addr = productObj.merchant?.primaryAddress ?? null;
+    const merchant_address =
+      addr?.full_address ??
+      ([
+        addr?.detail,
+        addr?.village?.name,
+        addr?.district?.name,
+        addr?.city?.name,
+        addr?.province?.name,
+      ]
+        .filter(Boolean)
+        .join(", ") ||
+        null);
+
+    const related_products = Array.isArray(payload.related_products)
+      ? payload.related_products
+      : [];
+
+    const total_stock = variantsFromBackend.reduce(
+      (acc, v) => acc + Number(v.stock ?? 0),
+      0
+    );
+    const has_variants = variantsFromBackend.length > 0;
+    const has_addons =
+      Array.isArray(productObj.addon_groups) &&
+      productObj.addon_groups.length > 0;
+    const option_labels = {
+      option1: opt1 ? opt1.option_name : null,
+      option2: opt2 ? opt2.option_name : null,
+    };
+    const min_purchase = Number(
+      payload.min_purchase ?? productObj.min_purchase ?? 1
+    );
+
+    return {
+      product: productObj,
+      price_range: priceRange,
+      total_stock,
+      has_variants,
+      has_addons,
+      combinations,
+      option_labels,
+      min_purchase,
+      merchant_address,
+      related_products,
+
+      productImages,
+      sizes: sizesRes,
+      variants: variantsRes,
+      stockCombinations,
+      selectedSize,
+      selectedVariant,
+      addonGroups,
+      selectedAddons,
+    };
+  };
+
+  // SINGLE RETURN STATEMENT AT THE END (tambahkan fetchPublicProductDetail)
   return {
     products,
     loading,
     pagination,
     fetchProducts,
     fetchProductDetail,
+    fetchPublicProductDetail, // <-- expose function ini
     updateProductStatus,
     deleteProduct,
     bulkDeleteProducts,

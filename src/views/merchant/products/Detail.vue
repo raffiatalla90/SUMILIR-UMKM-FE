@@ -16,7 +16,7 @@ const { fetchProductDetail } = useProducts();
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
-
+const showFullDescription = ref(false);
 // ✅ Get merchantId from route
 const currentMerchantId = computed(() => {
   return route.params.merchantId ? Number(route.params.merchantId) : null;
@@ -470,10 +470,22 @@ onMounted(() => {
               Deskripsi Produk
             </h3>
             <p
-              class="text-sm text-gray-700 leading-relaxed whitespace-pre-line"
+              class="text-sm text-gray-700 leading-relaxed whitespace-pre-line transition-all"
+              :class="{
+                'line-clamp-4': !showFullDescription,
+                'line-clamp-none': showFullDescription,
+              }"
             >
               {{ product.description }}
             </p>
+            <button
+              v-if="(product.description?.length || 0) > 200"
+              @click="showFullDescription = !showFullDescription"
+              class="mt-2 text-merchant-primary text-sm font-semibold focus:outline-none cursor-pointer"
+              type="button"
+            >
+              {{ showFullDescription ? "Sembunyikan" : "Lihat Selengkapnya" }}
+            </button>
           </div>
 
           <!-- Status & Category Card -->

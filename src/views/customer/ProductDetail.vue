@@ -734,20 +734,34 @@
               <h3 class="text-sm font-semibold text-gray-900 mb-2">
                 Deskripsi Produk
               </h3>
-              <p class="text-sm sm:text-base text-gray-700 leading-relaxed">
+              <p
+                class="text-sm sm:text-base text-gray-700 leading-relaxed transition-all"
+                :class="{
+                  'line-clamp-4': !showFullDescription,
+                  'line-clamp-none': showFullDescription,
+                }"
+              >
                 {{
                   product?.description ||
                   "Minuman susu fermentasi dengan rasa lembut, segar, dan sedikit asam yang menyehatkan. Diproses dari susu murni pilihan dengan kultur bakteri baik Lactobacillus yang membantu menjaga kesehatan pencernaan"
                 }}
               </p>
+              <button
+                v-if="shouldShowSeeMore"
+                @click="showFullDescription = !showFullDescription"
+                class="mt-2 text-primary text-sm font-semibold focus:outline-none cursor-pointer"
+              >
+                {{ showFullDescription ? "Sembunyikan" : "Lihat Selengkapnya" }}
+              </button>
             </div>
 
             <!-- Info Toko -->
+            <!-- Info Toko -->
             <div class="py-4 border-b border-gray-200">
               <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 min-w-0">
                   <div
-                    class="w-12 h-12 rounded-full bg-gray-200 overflow-hidden"
+                    class="w-12 h-12 rounded-full bg-gray-200 overflow-hidden flex-shrink-0"
                   >
                     <img
                       v-if="product?.store?.logo"
@@ -756,8 +770,11 @@
                       class="w-full h-full object-cover"
                     />
                   </div>
-                  <div>
-                    <h4 class="text-sm font-semibold text-gray-900">
+                  <div class="min-w-0">
+                    <h4
+                      class="text-sm font-semibold text-gray-900 truncate"
+                      :title="product?.store?.name || 'Sumber Rejeki'"
+                    >
                       {{ product?.store?.name || "Sumber Rejeki" }}
                     </h4>
                     <span
@@ -767,7 +784,9 @@
                     </span>
                   </div>
                 </div>
-                <Button variant="primary-outline"> Kunjungi </Button>
+                <Button variant="primary-outline" class="flex-shrink-0"
+                  >Kunjungi</Button
+                >
               </div>
             </div>
 
@@ -777,589 +796,575 @@
                 Produk lain dari toko ini
               </h3>
               <div class="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-                <div
+                <ProductCard
                   v-for="item in relatedProducts"
                   :key="item.id"
-                  class="min-w-[120px] sm:min-w-[140px] flex-shrink-0 bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition cursor-pointer"
-                  @click="viewProduct(item.id)"
-                >
-                  <div class="aspect-square bg-gray-100">
-                    <img
-                      :src="item.image"
-                      :alt="item.name"
-                      class="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div class="p-2">
-                    <p
-                      class="text-xs sm:text-sm font-semibold text-gray-900 truncate"
-                    >
-                      Rp {{ formatIDR(item.price) }}
-                    </p>
-                    <p class="text-[11px] sm:text-xs text-gray-600 truncate">
-                      {{ item.name }}
-                    </p>
-                  </div>
-                </div>
+                  :product="item"
+                  @click="viewProduct(item.slug)"
+                  customClass="max-w-40"
+                />
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- Bottom Action Bar (Mobile) -->
-    <div
-      class="sm:hidden fixed bottom-16 left-0 right-0 z-40 bg-white border-t border-gray-200 px-4 py-3"
-    >
-      <div v-if="loading" class="flex items-center gap-3">
-        <div class="w-12 h-12 bg-gray-200 rounded-xl animate-pulse"></div>
-        <div class="flex-1 h-12 bg-gray-200 rounded-xl animate-pulse"></div>
-      </div>
-      <div v-else class="flex items-center gap-3">
-        <!-- Tombol Keranjang -->
-        <button
-          @click="addToCart"
-          class="w-12 h-12 rounded-xl border-2 border-[#FFA30E] text-[#FFA30E] hover:bg-orange-50 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-          :disabled="getCurrentStock() === 0"
-          :title="
-            getCurrentStock() === 0 ? 'Stok Habis' : 'Tambah ke Keranjang'
-          "
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width="2"
-            stroke="currentColor"
-            class="w-6 h-6"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"
-            ></path>
-          </svg>
-        </button>
-
-        <!-- Tombol Beli Sekarang -->
-        <Button
-          @click="buyNow"
-          variant="primary"
-          customClass="w-full"
-          :disabled="getCurrentStock() === 0"
-        >
-          {{ getCurrentStock() === 0 ? "Stok Habis" : "Beli Sekarang" }}
-        </Button>
-      </div>
+  <!-- Bottom Action Bar (Mobile) -->
+  <div
+    class="sm:hidden fixed bottom-16 left-0 right-0 z-40 bg-white border-t border-gray-200 px-4 py-3"
+  >
+    <div v-if="loading" class="flex items-center gap-3">
+      <div class="w-12 h-12 bg-gray-200 rounded-xl animate-pulse"></div>
+      <div class="flex-1 h-12 bg-gray-200 rounded-xl animate-pulse"></div>
     </div>
+    <div v-else class="flex items-center gap-3">
+      <!-- Tombol Keranjang -->
+      <button
+        @click="addToCart"
+        class="w-12 h-12 rounded-xl border-2 border-[#FFA30E] text-[#FFA30E] hover:bg-orange-50 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+        :disabled="getCurrentStock() === 0"
+        :title="getCurrentStock() === 0 ? 'Stok Habis' : 'Tambah ke Keranjang'"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="2"
+          stroke="currentColor"
+          class="w-6 h-6"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"
+          ></path>
+        </svg>
+      </button>
 
-    <!-- Bottom Action Bar (Desktop) -->
-    <div
-      class="hidden sm:block fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-lg"
-    >
-      <div class="max-w-7xl mx-auto px-4 py-4">
-        <div v-if="loading" class="flex items-center justify-between">
-          <div class="space-y-2">
-            <div class="h-4 w-32 bg-gray-200 rounded animate-pulse"></div>
-            <div class="h-7 w-40 bg-gray-200 rounded animate-pulse"></div>
-          </div>
-          <div class="flex gap-3">
-            <div class="h-12 w-12 bg-gray-200 rounded-xl animate-pulse"></div>
-            <div class="h-12 w-32 bg-gray-200 rounded-xl animate-pulse"></div>
-            <div class="h-12 w-36 bg-gray-200 rounded-xl animate-pulse"></div>
-          </div>
-        </div>
-        <div v-else class="flex items-center justify-between">
-          <div>
-            <p class="text-sm text-gray-600">
-              Total Harga ({{ quantity }} item)
-            </p>
-            <p class="text-2xl font-bold text-gray-900">
-              Rp {{ formatIDR(calculateTotalPrice()) }}
-            </p>
-          </div>
-          <div class="flex items-center gap-3">
-            <!-- Tombol Share Desktop (baru) -->
-            <Button
-              @click="showShareModal = true"
-              variant="muted-outline"
-              title="Bagikan Produk"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z"
-                />
-              </svg>
-              <span class="hidden lg:inline">Bagikan</span>
-            </Button>
-
-            <!-- Tombol Keranjang Desktop -->
-            <Button
-              @click="addToCart"
-              variant="primary-outline"
-              :disabled="getCurrentStock() === 0"
-              :title="
-                getCurrentStock() === 0 ? 'Stok Habis' : 'Tambah ke Keranjang'
-              "
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="2"
-                stroke="currentColor"
-                class="w-5 h-5"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"
-                />
-              </svg>
-              <span class="hidden lg:inline">Keranjang</span>
-            </Button>
-
-            <!-- Tombol Beli Sekarang -->
-            <Button
-              @click="buyNow"
-              :disabled="getCurrentStock() === 0"
-              variant="primary"
-            >
-              {{ getCurrentStock() === 0 ? "Stok Habis" : "Beli Sekarang" }}
-            </Button>
-          </div>
-        </div>
-      </div>
+      <!-- Tombol Beli Sekarang -->
+      <Button
+        @click="buyNow"
+        variant="primary"
+        customClass="w-full"
+        :disabled="getCurrentStock() === 0"
+      >
+        {{ getCurrentStock() === 0 ? "Stok Habis" : "Beli Sekarang" }}
+      </Button>
     </div>
+  </div>
 
-    <!-- Addon Modal -->
-    <ResponsiveModal
-      :show="showAddonModal"
-      @close="showAddonModal = false"
-      title="Pilih Tambahan"
-      subtitle="Pilih tambahan sesuai keinginan Anda"
-      :show-footer="true"
-    >
-      <!-- Addon Groups -->
-      <div class="space-y-6">
-        <div
-          v-for="group in addonGroups"
-          :key="group.id"
-          class="border-b border-gray-200 pb-4 last:border-0"
-        >
-          <!-- Group Header -->
-          <div class="mb-3">
-            <div class="flex items-center justify-between">
-              <h4 class="text-sm font-semibold text-gray-900">
-                {{ group.name }}
-                <span v-if="group.required" class="text-red-500 ml-1">*</span>
-              </h4>
-              <span v-if="group.maxSelection > 1" class="text-xs text-gray-500">
-                Maks. {{ group.maxSelection }} pilihan
-              </span>
-              <span
-                v-else-if="group.maxSelection === 1"
-                class="text-xs text-gray-500"
-              >
-                Pilih 1
-              </span>
-            </div>
-            <p v-if="group.description" class="text-xs text-gray-600 mt-1">
-              {{ group.description }}
-            </p>
-          </div>
-
-          <!-- Group Items -->
-          <div class="space-y-2">
-            <div
-              v-for="addon in group.items"
-              :key="addon.id"
-              class="flex items-start justify-between p-3 rounded-lg border transition"
-              :class="
-                isAddonSelected(addon)
-                  ? 'border-primary bg-primary/5'
-                  : 'border-gray-200 hover:border-gray-300'
-              "
-            >
-              <div class="flex items-start gap-3 flex-1">
-                <!-- Checkbox for multiple, Radio for single -->
-                <input
-                  v-if="group.maxSelection !== 1"
-                  type="checkbox"
-                  :id="'addon-' + addon.id"
-                  :value="addon"
-                  :checked="isAddonSelected(addon)"
-                  @change="toggleAddon(addon, group)"
-                  :disabled="!addon.available || isGroupMaxed(group, addon)"
-                  class="mt-0.5 w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50"
-                />
-                <input
-                  v-else
-                  type="radio"
-                  :name="'group-' + group.id"
-                  :id="'addon-' + addon.id"
-                  :value="addon"
-                  :checked="isAddonSelected(addon)"
-                  @change="selectSingleAddon(addon, group)"
-                  :disabled="!addon.available"
-                  class="mt-0.5 w-4 h-4 text-primary border-gray-300 focus:ring-primary disabled:opacity-50"
-                />
-
-                <!-- Addon Info -->
-                <label
-                  :for="'addon-' + addon.id"
-                  class="flex-1 cursor-pointer"
-                  :class="{ 'cursor-not-allowed opacity-50': !addon.available }"
-                >
-                  <div class="flex items-start justify-between gap-2">
-                    <div class="flex-1 min-w-0">
-                      <p
-                        class="text-sm font-medium text-gray-900"
-                        :class="{
-                          'line-through text-gray-400': !addon.available,
-                        }"
-                      >
-                        {{ addon.name }}
-                      </p>
-                      <p
-                        v-if="addon.description"
-                        class="text-xs text-gray-600 mt-0.5"
-                      >
-                        {{ addon.description }}
-                      </p>
-                      <p
-                        v-if="!addon.available"
-                        class="text-xs text-red-500 mt-0.5"
-                      >
-                        Tidak tersedia
-                      </p>
-                    </div>
-                    <span
-                      class="text-sm font-semibold text-gray-900 whitespace-nowrap ml-2"
-                    >
-                      +Rp {{ formatIDR(addon.price) }}
-                    </span>
-                  </div>
-                </label>
-              </div>
-            </div>
-          </div>
+  <!-- Bottom Action Bar (Desktop) -->
+  <div
+    class="hidden sm:block fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-lg"
+  >
+    <div class="max-w-7xl mx-auto px-4 py-4">
+      <div v-if="loading" class="flex items-center justify-between">
+        <div class="space-y-2">
+          <div class="h-4 w-32 bg-gray-200 rounded animate-pulse"></div>
+          <div class="h-7 w-40 bg-gray-200 rounded animate-pulse"></div>
+        </div>
+        <div class="flex gap-3">
+          <div class="h-12 w-12 bg-gray-200 rounded-xl animate-pulse"></div>
+          <div class="h-12 w-32 bg-gray-200 rounded-xl animate-pulse"></div>
+          <div class="h-12 w-36 bg-gray-200 rounded-xl animate-pulse"></div>
         </div>
       </div>
-
-      <!-- Footer -->
-      <template #footer>
-        <div class="flex flex-col gap-3">
-          <!-- Summary -->
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-gray-600">
-              {{ tempSelectedAddons.length }} tambahan dipilih
-            </span>
-            <span class="font-semibold text-gray-900">
-              +Rp {{ formatIDR(calculateTempAddonPrice()) }}
-            </span>
-          </div>
-
-          <!-- Actions -->
-          <div class="flex gap-3">
-            <button
-              @click="resetAddons"
-              type="button"
-              class="flex-1 px-4 py-3 rounded-xl border-2 border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition"
-            >
-              Reset
-            </button>
-            <button
-              @click="applyAddons"
-              type="button"
-              class="flex-1 px-4 py-3 rounded-xl bg-[#FFA30E] hover:bg-[#e5920d] text-white font-semibold transition"
-            >
-              Terapkan
-            </button>
-          </div>
+      <div v-else class="flex items-center justify-between">
+        <div>
+          <p class="text-sm text-gray-600">Total Harga ({{ quantity }} item)</p>
+          <p class="text-2xl font-bold text-gray-900">
+            Rp {{ formatIDR(calculateTotalPrice()) }}
+          </p>
         </div>
-      </template>
-    </ResponsiveModal>
-
-    <!-- Share Modal -->
-    <ResponsiveModal
-      :show="showShareModal"
-      @close="showShareModal = false"
-      title="Bagikan Produk"
-      subtitle="Pilih platform untuk membagikan produk ini"
-    >
-      <div class="space-y-3">
-        <!-- WhatsApp -->
-        <button
-          @click="shareVia('whatsapp')"
-          class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-green-500 hover:bg-green-50 transition"
-        >
-          <div
-            class="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center"
+        <div class="flex items-center gap-3">
+          <!-- Tombol Share Desktop (baru) -->
+          <Button
+            @click="showShareModal = true"
+            variant="muted-outline"
+            title="Bagikan Produk"
           >
             <svg
-              class="w-6 h-6 text-white"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"
-              />
-            </svg>
-          </div>
-          <div class="flex-1 text-left">
-            <div class="font-semibold text-gray-900">WhatsApp</div>
-            <div class="text-xs text-gray-600">Bagikan via WhatsApp</div>
-          </div>
-        </button>
-
-        <!-- Facebook -->
-        <button
-          @click="shareVia('facebook')"
-          class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-blue-600 hover:bg-blue-50 transition"
-        >
-          <div
-            class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center"
-          >
-            <svg
-              class="w-6 h-6 text-white"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"
-              />
-            </svg>
-          </div>
-          <div class="flex-1 text-left">
-            <div class="font-semibold text-gray-900">Facebook</div>
-            <div class="text-xs text-gray-600">Bagikan ke Facebook</div>
-          </div>
-        </button>
-
-        <!-- Twitter -->
-        <button
-          @click="shareVia('twitter')"
-          class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition"
-        >
-          <div
-            class="w-10 h-10 rounded-full bg-blue-400 flex items-center justify-center"
-          >
-            <svg
-              class="w-6 h-6 text-white"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0 .42-.015.63A9.935 9.935 0 0024 4.59z"
-              />
-            </svg>
-          </div>
-          <div class="flex-1 text-left">
-            <div class="font-semibold text-gray-900">Twitter</div>
-            <div class="text-xs text-gray-600">Tweet produk ini</div>
-          </div>
-        </button>
-
-        <!-- Copy Link -->
-        <button
-          @click="copyLink"
-          class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition"
-        >
-          <div
-            class="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center"
-          >
-            <svg
-              class="w-5 h-5 text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-5 h-5"
               fill="none"
-              stroke="currentColor"
               viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
             >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
-                stroke-width="2"
-                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"
+                d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z"
               />
             </svg>
+            <span class="hidden lg:inline">Bagikan</span>
+          </Button>
+
+          <!-- Tombol Keranjang Desktop -->
+          <Button
+            @click="addToCart"
+            variant="primary-outline"
+            :disabled="getCurrentStock() === 0"
+            :title="
+              getCurrentStock() === 0 ? 'Stok Habis' : 'Tambah ke Keranjang'
+            "
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="2"
+              stroke="currentColor"
+              class="w-5 h-5"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"
+              />
+            </svg>
+            <span class="hidden lg:inline">Keranjang</span>
+          </Button>
+
+          <!-- Tombol Beli Sekarang -->
+          <Button
+            @click="buyNow"
+            :disabled="getCurrentStock() === 0"
+            variant="primary"
+          >
+            {{ getCurrentStock() === 0 ? "Stok Habis" : "Beli Sekarang" }}
+          </Button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Addon Modal -->
+  <ResponsiveModal
+    :show="showAddonModal"
+    @close="showAddonModal = false"
+    title="Pilih Tambahan"
+    subtitle="Pilih tambahan sesuai keinginan Anda"
+    :show-footer="true"
+  >
+    <!-- Addon Groups -->
+    <div class="space-y-6">
+      <div
+        v-for="group in addonGroups"
+        :key="group.id"
+        class="border-b border-gray-200 pb-4 last:border-0"
+      >
+        <!-- Group Header -->
+        <div class="mb-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-semibold text-gray-900">
+              {{ group.name }}
+              <span v-if="group.required" class="text-red-500 ml-1">*</span>
+            </h4>
+            <span v-if="group.maxSelection > 1" class="text-xs text-gray-500">
+              Maks. {{ group.maxSelection }} pilihan
+            </span>
+            <span
+              v-else-if="group.maxSelection === 1"
+              class="text-xs text-gray-500"
+            >
+              Pilih 1
+            </span>
           </div>
-          <div class="flex-1 text-left">
-            <div class="font-semibold text-gray-900">Salin Link</div>
-            <div class="text-xs text-gray-600">Salin link produk</div>
+          <p v-if="group.description" class="text-xs text-gray-600 mt-1">
+            {{ group.description }}
+          </p>
+        </div>
+
+        <!-- Group Items -->
+        <div class="space-y-2">
+          <div
+            v-for="addon in group.items"
+            :key="addon.id"
+            class="flex items-start justify-between p-3 rounded-lg border transition"
+            :class="
+              isAddonSelected(addon)
+                ? 'border-primary bg-primary/5'
+                : 'border-gray-200 hover:border-gray-300'
+            "
+          >
+            <div class="flex items-start gap-3 flex-1">
+              <!-- Checkbox for multiple, Radio for single -->
+              <input
+                v-if="group.maxSelection !== 1"
+                type="checkbox"
+                :id="'addon-' + addon.id"
+                :value="addon"
+                :checked="isAddonSelected(addon)"
+                @change="toggleAddon(addon, group)"
+                :disabled="!addon.available || isGroupMaxed(group, addon)"
+                class="mt-0.5 w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary disabled:opacity-50"
+              />
+              <input
+                v-else
+                type="radio"
+                :name="'group-' + group.id"
+                :id="'addon-' + addon.id"
+                :value="addon"
+                :checked="isAddonSelected(addon)"
+                @change="selectSingleAddon(addon, group)"
+                :disabled="!addon.available"
+                class="mt-0.5 w-4 h-4 text-primary border-gray-300 focus:ring-primary disabled:opacity-50"
+              />
+
+              <!-- Addon Info -->
+              <label
+                :for="'addon-' + addon.id"
+                class="flex-1 cursor-pointer"
+                :class="{ 'cursor-not-allowed opacity-50': !addon.available }"
+              >
+                <div class="flex items-start justify-between gap-2">
+                  <div class="flex-1 min-w-0">
+                    <p
+                      class="text-sm font-medium text-gray-900"
+                      :class="{
+                        'line-through text-gray-400': !addon.available,
+                      }"
+                    >
+                      {{ addon.name }}
+                    </p>
+                    <p
+                      v-if="addon.description"
+                      class="text-xs text-gray-600 mt-0.5"
+                    >
+                      {{ addon.description }}
+                    </p>
+                    <p
+                      v-if="!addon.available"
+                      class="text-xs text-red-500 mt-0.5"
+                    >
+                      Tidak tersedia
+                    </p>
+                  </div>
+                  <span
+                    class="text-sm font-semibold text-gray-900 whitespace-nowrap ml-2"
+                  >
+                    +Rp {{ formatIDR(addon.price) }}
+                  </span>
+                </div>
+              </label>
+            </div>
           </div>
-        </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <template #footer>
+      <div class="flex flex-col gap-3">
+        <!-- Summary -->
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-gray-600">
+            {{ tempSelectedAddons.length }} tambahan dipilih
+          </span>
+          <span class="font-semibold text-gray-900">
+            +Rp {{ formatIDR(calculateTempAddonPrice()) }}
+          </span>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-3">
+          <button
+            @click="resetAddons"
+            type="button"
+            class="flex-1 px-4 py-3 rounded-xl border-2 border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition"
+          >
+            Reset
+          </button>
+          <button
+            @click="applyAddons"
+            type="button"
+            class="flex-1 px-4 py-3 rounded-xl bg-[#FFA30E] hover:bg-[#e5920d] text-white font-semibold transition"
+          >
+            Terapkan
+          </button>
+        </div>
+      </div>
+    </template>
+  </ResponsiveModal>
+
+  <!-- Share Modal -->
+  <ResponsiveModal
+    :show="showShareModal"
+    @close="showShareModal = false"
+    title="Bagikan Produk"
+    subtitle="Pilih platform untuk membagikan produk ini"
+  >
+    <div class="space-y-3">
+      <!-- WhatsApp -->
+      <button
+        @click="shareVia('whatsapp')"
+        class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-green-500 hover:bg-green-50 transition"
+      >
+        <div
+          class="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center"
+        >
+          <svg
+            class="w-6 h-6 text-white"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"
+            />
+          </svg>
+        </div>
+        <div class="flex-1 text-left">
+          <div class="font-semibold text-gray-900">WhatsApp</div>
+          <div class="text-xs text-gray-600">Bagikan via WhatsApp</div>
+        </div>
+      </button>
+
+      <!-- Facebook -->
+      <button
+        @click="shareVia('facebook')"
+        class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-blue-600 hover:bg-blue-50 transition"
+      >
+        <div
+          class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center"
+        >
+          <svg
+            class="w-6 h-6 text-white"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"
+            />
+          </svg>
+        </div>
+        <div class="flex-1 text-left">
+          <div class="font-semibold text-gray-900">Facebook</div>
+          <div class="text-xs text-gray-600">Bagikan ke Facebook</div>
+        </div>
+      </button>
+
+      <!-- Twitter -->
+      <button
+        @click="shareVia('twitter')"
+        class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition"
+      >
+        <div
+          class="w-10 h-10 rounded-full bg-blue-400 flex items-center justify-center"
+        >
+          <svg
+            class="w-6 h-6 text-white"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0 .42-.015.63A9.935 9.935 0 0024 4.59z"
+            />
+          </svg>
+        </div>
+        <div class="flex-1 text-left">
+          <div class="font-semibold text-gray-900">Twitter</div>
+          <div class="text-xs text-gray-600">Tweet produk ini</div>
+        </div>
+      </button>
+
+      <!-- Copy Link -->
+      <button
+        @click="copyLink"
+        class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition"
+      >
+        <div
+          class="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center"
+        >
+          <svg
+            class="w-5 h-5 text-white"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"
+            />
+          </svg>
+        </div>
+        <div class="flex-1 text-left">
+          <div class="font-semibold text-gray-900">Salin Link</div>
+          <div class="text-xs text-gray-600">Salin link produk</div>
+        </div>
+      </button>
+    </div>
+
+    <template #footer>
+      <button
+        @click="showShareModal = false"
+        class="w-full px-4 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition"
+      >
+        Tutup
+      </button>
+    </template>
+  </ResponsiveModal>
+
+  <!-- Image Modal (Full Screen) -->
+  <ResponsiveModal
+    :show="showImageModal"
+    @close="showImageModal = false"
+    :show-header="false"
+    :show-footer="false"
+    max-width="max-w-6xl"
+  >
+    <div
+      class="relative"
+      @touchstart="handleTouchStart"
+      @touchmove="handleTouchMove"
+      @touchend="handleTouchEnd"
+      @mousedown="handleMouseDown"
+      @mousemove="handleMouseMove"
+      @mouseup="handleMouseUp"
+      @mouseleave="handleMouseLeave"
+    >
+      <!-- Close Button -->
+      <button
+        @click="showImageModal = false"
+        class="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center hover:bg-white transition"
+      >
+        <svg
+          class="w-6 h-6 text-gray-800"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
+
+      <!-- Large Image -->
+      <div
+        class="w-full aspect-square bg-gray-100 flex items-center justify-center"
+      >
+        <img
+          :src="selectedImage"
+          :alt="product?.name"
+          class="w-full h-full object-contain select-none"
+          draggable="false"
+        />
       </div>
 
-      <template #footer>
-        <button
-          @click="showShareModal = false"
-          class="w-full px-4 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition"
-        >
-          Tutup
-        </button>
-      </template>
-    </ResponsiveModal>
-
-    <!-- Image Modal (Full Screen) -->
-    <ResponsiveModal
-      :show="showImageModal"
-      @close="showImageModal = false"
-      :show-header="false"
-      :show-footer="false"
-      max-width="max-w-6xl"
-    >
-      <div
-        class="relative"
-        @touchstart="handleTouchStart"
-        @touchmove="handleTouchMove"
-        @touchend="handleTouchEnd"
-        @mousedown="handleMouseDown"
-        @mousemove="handleMouseMove"
-        @mouseup="handleMouseUp"
-        @mouseleave="handleMouseLeave"
+      <!-- ✅ Navigation - ALWAYS VISIBLE IN MODAL (both mobile & desktop) -->
+      <button
+        v-if="productImages.length > 1"
+        @click="prevImage"
+        class="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center hover:bg-white transition active:scale-95"
       >
-        <!-- Close Button -->
-        <button
-          @click="showImageModal = false"
-          class="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center hover:bg-white transition"
+        <svg
+          class="w-6 h-6 text-gray-800"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
         >
-          <svg
-            class="w-6 h-6 text-gray-800"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-
-        <!-- Large Image -->
-        <div
-          class="w-full aspect-square bg-gray-100 flex items-center justify-center"
-        >
-          <img
-            :src="selectedImage"
-            :alt="product?.name"
-            class="w-full h-full object-contain select-none"
-            draggable="false"
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 19l-7-7 7-7"
           />
-        </div>
+        </svg>
+      </button>
+      <button
+        v-if="productImages.length > 1"
+        @click="nextImage"
+        class="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center hover:bg-white transition active:scale-95"
+      >
+        <svg
+          class="w-6 h-6 text-gray-800"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 5l7 7-7 7"
+          />
+        </svg>
+      </button>
 
-        <!-- ✅ Navigation - ALWAYS VISIBLE IN MODAL (both mobile & desktop) -->
+      <!-- Image Counter -->
+      <div
+        class="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-black/60 backdrop-blur-sm text-white text-sm font-medium"
+      >
+        {{ currentImageIndex + 1 }} / {{ productImages.length }}
+      </div>
+
+      <!-- Clickable Dot Indicators -->
+      <div
+        v-if="productImages.length > 1"
+        class="absolute bottom-16 left-1/2 -translate-x-1/2 flex gap-2 px-4"
+      >
         <button
-          v-if="productImages.length > 1"
-          @click="prevImage"
-          class="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center hover:bg-white transition active:scale-95"
-        >
-          <svg
-            class="w-6 h-6 text-gray-800"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-        </button>
-        <button
-          v-if="productImages.length > 1"
-          @click="nextImage"
-          class="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center hover:bg-white transition active:scale-95"
-        >
-          <svg
-            class="w-6 h-6 text-gray-800"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 5l7 7-7 7"
-            />
-          </svg>
-        </button>
+          v-for="(image, index) in productImages"
+          :key="index"
+          @click="selectImage(index)"
+          class="transition-all rounded-full focus:outline-none focus:ring-2 focus:ring-white/50"
+          :class="
+            currentImageIndex === index
+              ? 'bg-white w-8 h-2'
+              : 'bg-white/50 hover:bg-white/75 w-2 h-2'
+          "
+          :title="`Gambar ${index + 1}`"
+        ></button>
+      </div>
 
-        <!-- Image Counter -->
+      <!-- Thumbnail strip at bottom (for many images) -->
+      <div
+        v-if="productImages.length > 5"
+        class="absolute bottom-4 left-1/2 -translate-x-1/2 w-full max-w-md px-4"
+      >
         <div
-          class="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-black/60 backdrop-blur-sm text-white text-sm font-medium"
-        >
-          {{ currentImageIndex + 1 }} / {{ productImages.length }}
-        </div>
-
-        <!-- Clickable Dot Indicators -->
-        <div
-          v-if="productImages.length > 1"
-          class="absolute bottom-16 left-1/2 -translate-x-1/2 flex gap-2 px-4"
+          class="flex gap-2 overflow-x-auto no-scrollbar bg-black/40 backdrop-blur-sm rounded-lg p-2"
         >
           <button
             v-for="(image, index) in productImages"
             :key="index"
             @click="selectImage(index)"
-            class="transition-all rounded-full focus:outline-none focus:ring-2 focus:ring-white/50"
+            class="flex-shrink-0 w-12 h-12 rounded overflow-hidden border-2 transition-all"
             :class="
               currentImageIndex === index
-                ? 'bg-white w-8 h-2'
-                : 'bg-white/50 hover:bg-white/75 w-2 h-2'
+                ? 'border-white scale-110'
+                : 'border-transparent hover:border-white/50'
             "
-            :title="`Gambar ${index + 1}`"
-          ></button>
-        </div>
-
-        <!-- Thumbnail strip at bottom (for many images) -->
-        <div
-          v-if="productImages.length > 5"
-          class="absolute bottom-4 left-1/2 -translate-x-1/2 w-full max-w-md px-4"
-        >
-          <div
-            class="flex gap-2 overflow-x-auto no-scrollbar bg-black/40 backdrop-blur-sm rounded-lg p-2"
           >
-            <button
-              v-for="(image, index) in productImages"
-              :key="index"
-              @click="selectImage(index)"
-              class="flex-shrink-0 w-12 h-12 rounded overflow-hidden border-2 transition-all"
-              :class="
-                currentImageIndex === index
-                  ? 'border-white scale-110'
-                  : 'border-transparent hover:border-white/50'
-              "
-            >
-              <img
-                :src="image"
-                :alt="`Thumbnail ${index + 1}`"
-                class="w-full h-full object-cover"
-              />
-            </button>
-          </div>
+            <img
+              :src="image"
+              :alt="`Thumbnail ${index + 1}`"
+              class="w-full h-full object-cover"
+            />
+          </button>
         </div>
       </div>
-    </ResponsiveModal>
-  </div>
+    </div>
+  </ResponsiveModal>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch, onUnmounted } from "vue";
+import {
+  ref,
+  onMounted,
+  computed,
+  watch,
+  onUnmounted,
+  onBeforeUnmount,
+} from "vue";
 import { useRoute, useRouter } from "vue-router";
 import api from "@/libs/axios.js";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
@@ -1367,6 +1372,10 @@ import { useBodyScrollLock } from "@/composables/useBodyScrollLock.js";
 import { getImageUrl } from "@/libs/getImageUrl.js";
 import Button from "@/components/common/Button.vue";
 import { useCheckoutStore } from "@/stores/checkout";
+import ProductCard from "@/components/Card/ProductCard.vue";
+import { useProducts } from "@/composables/useProducts.js";
+
+const { fetchPublicProductDetail } = useProducts();
 const route = useRoute();
 const router = useRouter();
 
@@ -1382,6 +1391,12 @@ const mouseStartX = ref(0);
 const mouseDeltaX = ref(0);
 const swipeThreshold = 50; // px threshold untuk ganti gambar
 
+let abortController = null;
+const showFullDescription = ref(false);
+const shouldShowSeeMore = computed(() => {
+  // Tampilkan tombol jika deskripsi lebih dari 200 karakter
+  return (product.value?.description?.length || 0) > 200;
+});
 const hasOneOption = computed(
   () => (product.value?.options?.length || 0) === 1
 );
@@ -1555,6 +1570,8 @@ const addonGroups = ref([]);
 // Scroll state
 const showScrollHeader = ref(false);
 const lastScrollY = ref(0);
+
+const relatedProducts = ref([]);
 
 // ✅ Add missing scroll handler (minimal, tidak mengubah UI/logic lain)
 function handleScroll() {
@@ -1757,181 +1774,137 @@ function getProductSlug() {
   return route.params.slug;
 }
 
-// ✅ Helper: bangun URL gambar dari objek/path yang dikirim backend
-function buildImageUrl(img) {
-  if (!img) return "";
-  // Jika backend kirim object image dengan id → gunakan getImageUrl
-  if (typeof img === "object") {
-    // prioritas: id → getImageUrl, fallback ke url/path/image_path jika ada
-    if (img.id) return getImageUrl(img.id);
-    return img.url || img.path || img.image_path || "";
-  }
-  // Jika string (sudah berupa URL)
-  return img;
+function resetStateBeforeFetch() {
+  product.value = null;
+  productImages.value = [];
+  sizes.value = [];
+  variants.value = [];
+  stockCombinations.value = [];
+  selectedSize.value = null;
+  selectedVariant.value = null;
+  addonGroups.value = [];
+  selectedAddons.value = [];
+  tempSelectedAddons.value = [];
+  relatedProducts.value = [];
 }
 
-onMounted(async () => {
+async function doFetchProduct(slug) {
+  if (!slug) {
+    // nothing to fetch
+    return;
+  }
+
+  // cancel previous request
+  if (abortController) {
+    try {
+      abortController.abort();
+    } catch (e) {}
+  }
+  abortController = new AbortController();
+
   loading.value = true;
-  window.addEventListener("scroll", handleScroll);
+  resetStateBeforeFetch();
 
   try {
-    const productSlug = getProductSlug();
-    const { data } = await api.get(`/public/products/${productSlug}`);
+    // fetchPublicProductDetail mengembalikan mapping yang sudah UI-friendly
+    const mapped = await fetchPublicProductDetail(slug, {
+      signal: abortController.signal,
+    });
 
-    const payload = data;
-    const p = payload?.product;
-    if (!p) {
+    // jika backend tidak mengembalikan product -> redirect sesuai logic kamu
+    if (!mapped || !mapped.product) {
       router.replace({ name: "Beranda" });
       return;
     }
 
-    // Map ke state existing
+    // assign ke state (mapped sudah punya many convenience fields)
     product.value = {
-      ...p,
+      ...mapped.product,
       store: {
-        id: p?.merchant?.id || null,
-        name: p?.merchant?.name || "Toko",
-        logo: p?.merchant?.logo_url || null,
-        address: p?.merchant?.address || "",
-        phone: p?.merchant?.phone || "",
+        id: mapped.product?.merchant?.id || null,
+        name: mapped.product?.merchant?.name || "Toko",
+        logo: mapped.product?.merchant?.logo_url || null,
+        address: mapped.product?.merchant?.address || "",
+        phone: mapped.product?.merchant?.phone || "",
       },
-      price: Number(payload?.price_range?.min ?? p?.price ?? 0),
-      min_purchase: Number(payload?.min_purchase ?? p?.min_purchase ?? 1),
+      price: Number(mapped.price_range?.min ?? mapped.product?.price ?? 0),
+      min_purchase: Number(
+        mapped.min_purchase ?? mapped.product?.min_purchase ?? 1
+      ),
     };
 
-    // Gambar
-    const imgs = Array.isArray(p?.images) ? p.images.slice() : [];
-    imgs.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
-    productImages.value = imgs.length
-      ? imgs.map((img) => buildImageUrl(img))
-      : p?.cover_image
-      ? [buildImageUrl(p.cover_image)]
+    productImages.value = Array.isArray(mapped.productImages)
+      ? mapped.productImages
+      : [];
+    sizes.value = Array.isArray(mapped.sizes) ? mapped.sizes : [];
+    variants.value = Array.isArray(mapped.variants) ? mapped.variants : [];
+    stockCombinations.value = Array.isArray(mapped.stockCombinations)
+      ? mapped.stockCombinations
       : [];
 
-    // Options (maks 2), gunakan option_name dari backend
-    const options = Array.isArray(p?.options) ? p.options : [];
-    const optSize = options[0]; // opsi 1
-    const optVariant = options[1] || null; // opsi 2 (mungkin null)
+    // defaults (mapped.selectedSize / selectedVariant already computed by helper, but re-evaluate if you prefer)
+    selectedSize.value = mapped.selectedSize ?? sizes.value[0] ?? null;
+    selectedVariant.value = mapped.selectedVariant ?? variants.value[0] ?? null;
 
-    // Sizes dari values opsi 1 (pakai id)
-    if (optSize?.values?.length) {
-      // optional: urutkan berdasarkan id agar konsisten
-      const sizeVals = optSize.values
-        .slice()
-        .sort((a, b) => Number(a.id) - Number(b.id));
-      sizes.value = sizeVals.map((v) => ({
-        id: v.id,
-        name: v.option_value,
-        priceAdd: 0,
-      }));
-    } else {
-      sizes.value = [];
-    }
-
-    // Variants dari values opsi 2 (pakai id) — jika tidak ada opsi 2, kosong
-    if (optVariant?.values?.length) {
-      const variantVals = optVariant.values
-        .slice()
-        .sort((a, b) => Number(a.id) - Number(b.id));
-      variants.value = variantVals.map((v) => ({
-        id: v.id,
-        name: v.option_value,
-        priceAdd: 0,
-      }));
-    } else {
-      variants.value = [];
-    }
-
-    // ✅ Gunakan combinations dari API langsung untuk stok & harga kombinasi
-    // format: { sizeId, variantId (0 jika tidak ada opsi 2), price, stock, product_variant_id, sku }
-    const combos = Array.isArray(payload?.combinations)
-      ? payload.combinations
+    addonGroups.value = Array.isArray(mapped.addonGroups)
+      ? mapped.addonGroups
       : [];
-    stockCombinations.value = combos.map((c) => ({
-      sizeId: Number(c.sizeId ?? 0),
-      variantId: Number(c.variantId ?? 0),
-      price: Number(c.price ?? product.value?.price ?? 0),
-      stock: Number(c.stock ?? 0),
-      productVariantId: c.product_variant_id ?? null,
-      sku: c.sku ?? null,
-    }));
+    selectedAddons.value = Array.isArray(mapped.selectedAddons)
+      ? mapped.selectedAddons
+      : [];
+    tempSelectedAddons.value = [...selectedAddons.value];
 
-    // Pilihan default: size dengan stok > 0
-    const sizeWithStock = sizes.value.find((s) =>
-      stockCombinations.value.some(
-        (c) => Number(c.sizeId) === Number(s.id) && Number(c.stock) > 0
-      )
-    );
-    selectedSize.value = sizeWithStock || sizes.value[0] || null;
-
-    // Pilihan default variant: pada size terpilih cari variant dengan stok > 0, jika tidak ada pakai pertama
-    if (variants.value.length > 0) {
-      const sizeKey = selectedSize.value?.id ?? 0;
-      const variantWithStock = variants.value.find((v) =>
-        stockCombinations.value.some(
-          (c) =>
-            Number(c.sizeId) === Number(sizeKey) &&
-            Number(c.variantId) === Number(v.id) &&
-            Number(c.stock) > 0
-        )
-      );
-      selectedVariant.value = variantWithStock || variants.value[0] || null;
-    } else {
-      selectedVariant.value = null;
-    }
-
-    // Addon groups (tetap sama)
-    if (Array.isArray(p?.addon_groups) && p.addon_groups.length) {
-      addonGroups.value = p.addon_groups.map((g) => ({
-        id: g.id,
-        name: g.addon_group_name || g.name,
-        description: g.description || null,
-        required: Number(g.min_selection ?? 0) > 0,
-        maxSelection: Number(g.max_selection ?? 1),
-        items: Array.isArray(g.options)
-          ? g.options.map((opt) => ({
-              id: opt.id,
-              name: opt.addon?.addon_name || opt.name,
-              price: Number(opt.addon_price ?? 0),
-              description: opt.description || null,
-              available: opt.addon_stock == null || Number(opt.addon_stock) > 0,
-            }))
-          : [],
-      }));
-      // Default untuk group wajib (single)
-      addonGroups.value.forEach((group) => {
-        if (group.required && group.maxSelection === 1 && group.items.length) {
-          const firstAvailable = group.items.find((item) => item.available);
-          if (
-            firstAvailable &&
-            !selectedAddons.value.some((a) => a.id === firstAvailable.id)
-          ) {
-            selectedAddons.value.push(firstAvailable);
-          }
-        }
-      });
-      tempSelectedAddons.value = [...selectedAddons.value];
-    } else {
-      addonGroups.value = [];
-      selectedAddons.value = [];
-      tempSelectedAddons.value = [];
-    }
-
-    // Guard draft (defensive)
-    if (product.value?.status === "draft") {
-      alert("Produk draft tidak tersedia untuk ditampilkan.");
-      router.replace({ name: "Beranda" });
-      return;
-    }
+    relatedProducts.value = Array.isArray(mapped.related_products)
+      ? mapped.related_products
+      : [];
   } catch (e) {
+    // jika dibatalkan, jangan treat sebagai error
+    if (e?.name === "AbortError") return;
+
+    // jika 404 -> redirect, konsisten dengan logic controller-mu
     if (e?.response?.status === 404) {
       router.replace({ name: "Beranda" });
       return;
     }
+
     console.error("Gagal memuat produk:", e);
   } finally {
     loading.value = false;
   }
+}
+
+// onMounted: pasang scroll listener & fetch initial product
+onMounted(() => {
+  window.addEventListener("scroll", handleScroll);
+
+  // prefer route param, fallback ke method getProductSlug() jika kamu masih pakai
+  const initialSlug =
+    route.params.slug ??
+    (typeof getProductSlug === "function" ? getProductSlug() : null);
+  if (initialSlug) {
+    doFetchProduct(String(initialSlug));
+  }
+});
+
+// watch route.params.slug supaya ketika Vue Router reuse komponen dan params berubah kita refetch
+watch(
+  () => route.params.slug,
+  (newSlug, oldSlug) => {
+    if (newSlug && newSlug !== oldSlug) {
+      doFetchProduct(String(newSlug));
+    }
+  }
+);
+
+// bersihkan saat unmount: cancel request & remove event listener
+onBeforeUnmount(() => {
+  if (abortController) {
+    try {
+      abortController.abort();
+    } catch (e) {}
+    abortController = null;
+  }
+  window.removeEventListener("scroll", handleScroll);
 });
 
 // Cleanup scroll listener
@@ -1998,6 +1971,12 @@ function buyNow() {
       storeSlug: store.slug || "",
     },
   });
+}
+
+// Navigasi ke detail produk lain
+function viewProduct(slug) {
+  if (!slug) return;
+  router.push({ name: "Product Detail", params: { slug } });
 }
 </script>
 
