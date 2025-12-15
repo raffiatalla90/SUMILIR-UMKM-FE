@@ -639,7 +639,7 @@
                 <h3 class="text-sm font-semibold text-gray-900">Tambahan</h3>
                 <button
                   @click="showAddonModal = true"
-                  class="text-sm text-primary hover:underline font-medium"
+                  class="text-sm text-primary hover:underline font-medium cursor-pointer"
                 >
                   {{
                     selectedAddons.length > 0
@@ -750,7 +750,7 @@
                 Deskripsi Produk
               </h3>
               <p
-                class="text-sm sm:text-base text-gray-700 leading-relaxed transition-all"
+                class="text-sm text-gray-700 leading-relaxed transition-all"
                 :class="{
                   'line-clamp-4': !showFullDescription,
                   'line-clamp-none': showFullDescription,
@@ -895,7 +895,7 @@
         <div class="flex items-center gap-3">
           <!-- Tombol Share Desktop (baru) -->
           <Button
-            @click="showShareModal = true"
+            @click="shareProduct"
             variant="muted-outline"
             title="Bagikan Produk"
           >
@@ -1389,7 +1389,106 @@ import Button from "@/components/common/Button.vue";
 import { useCheckoutStore } from "@/stores/checkout";
 import ProductCard from "@/components/Card/ProductCard.vue";
 import { useProducts } from "@/composables/useProducts.js";
+import { useToast } from "vue-toastification";
+import { useCartStore } from "@/stores/cart";
 
+const cartStore = useCartStore();
+const toast = useToast();
+const loadingCart = ref(false);
+async function addToCart() {
+  // 1. Validasi Stok
+  if (getCurrentStock() <= 0) {
+    toast.error("Stok barang ini sedang habis.");
+    return;
+  }
+
+  // 2. Validasi Pilihan Varian (Wajib pilih jika opsi tersedia)
+  // Cek Opsi 1 (Size)
+  if (sizes.value.length > 0 && !selectedSize.value) {
+    toast.warning(`Mohon pilih ${option1Label.value} terlebih dahulu.`);
+    return;
+  }
+  // Cek Opsi 2 (Variant/Color)
+  if (variants.value.length > 0 && !selectedVariant.value) {
+    toast.warning(`Mohon pilih ${option2Label.value} terlebih dahulu.`);
+    return;
+  }
+
+  loadingCart.value = true;
+
+  try {
+    // 3. Cari product_variant_id yang sesuai kombinasi
+    // Kita ambil ID dari size dan variant yang dipilih (atau 0 jika tidak ada)
+    const sizeId = selectedSize.value?.id ?? 0;
+    const variantId = selectedVariant.value?.id ?? 0;
+
+    // Cari di stockCombinations
+    const matchedCombo = stockCombinations.value.find(
+      (c) =>
+        Number(c.sizeId) === Number(sizeId) &&
+        Number(c.variantId) === Number(variantId)
+    );
+
+    // Jika produk punya varian tapi tidak ketemu kombinasinya (seharusnya tidak terjadi jika validasi lolos)
+    if (
+      (sizes.value.length > 0 || variants.value.length > 0) &&
+      !matchedCombo
+    ) {
+      toast.error("Varian produk tidak ditemukan.");
+      return;
+    }
+
+    // 4. Susun Payload
+    const payload = {
+      product_id: product.value.id,
+      quantity: quantity.value,
+      // Kirim product_variant_id jika ada (hasil kombinasi), jika null backend biasanya handle sebagai single product
+      variant_id: matchedCombo ? matchedCombo.product_variant_id : null,
+      // Kirim array ID addon
+      addons: selectedAddons.value.map((addon) => ({
+        group_id: addon.addon_group_id,
+        addon_id: addon.id,
+      })),
+      // Opsional: Kirim note jika ada fitur catatan
+    };
+
+    console.log("ADD TO CART PAYLOAD", payload);
+    // 5. Panggil API
+    const response = await api.post("/cart/items", payload);
+
+    // 6. Handle Sukses
+    toast.success("Produk berhasil ditambahkan ke keranjang!");
+
+    // Update jumlah item di keranjang (Badge) dari response terbaru
+    if (response.data && response.data.cart_total_items !== undefined) {
+      cartItemsCount.value = response.data.cart_total_items;
+    } else {
+      // Fallback manual increment jika backend tidak balikin total
+      if (response.data?.cart_total_items !== undefined) {
+        cartStore.setTotal(response.data.cart_total_items);
+      } else {
+        cartStore.increase(quantity.value);
+      }
+    }
+
+    // Opsional: Reset addon atau quantity setelah berhasil
+    // selectedAddons.value = [];
+    // tempSelectedAddons.value = [];
+  } catch (error) {
+    console.error("Add to cart error:", error);
+
+    if (error.response?.status === 401) {
+      toast.error("Silakan login terlebih dahulu.");
+      router.push({ name: "Login", query: { redirect: route.fullPath } });
+    } else {
+      const msg =
+        error.response?.data?.message || "Gagal menambahkan ke keranjang.";
+      toast.error(msg);
+    }
+  } finally {
+    loadingCart.value = false;
+  }
+}
 const { fetchPublicProductDetail, fetchProductDetail } = useProducts(); // support both if available
 const route = useRoute();
 const router = useRouter();
@@ -1411,16 +1510,9 @@ const showFullDescription = ref(false);
 const shouldShowSeeMore = computed(
   () => (product.value?.description?.length || 0) > 200
 );
-const hasOneOption = computed(
-  () => (product.value?.options?.length || 0) === 1
-);
-const hasTwoOptions = computed(
-  () => (product.value?.options?.length || 0) >= 2
-);
 
 // image / gallery state
 const productImages = ref([]);
-const currentImageIndex = ref(0);
 const selectedImage = computed(
   () => productImages.value[currentImageIndex.value] || null
 );
@@ -1441,14 +1533,19 @@ const addonGroups = ref([]);
 const showScrollHeader = ref(false);
 const lastScrollY = ref(0);
 const relatedProducts = ref([]);
-const cartItemsCount = ref(0);
+const cartItemsCount = computed(() => cartStore.totalItems);
 
 // body scroll lock for modals
 const isAnyModalOpen = computed(
   () => showAddonModal.value || showShareModal.value || showImageModal.value
 );
+const goToCart = () => {
+  router.push({ name: "Keranjang" });
+};
 useBodyScrollLock(isAnyModalOpen);
-
+const goBack = () => {
+  router.back();
+};
 // helper: safe getter for image URL (handles multiple shapes)
 function resolveImageUrlFromSource(src) {
   if (!src) return null;
@@ -1494,39 +1591,12 @@ function normalizeProductImages(raw) {
     .filter(Boolean);
 }
 
-// utility: normalize option values so UI can use .image (priority: image_url -> image_path absolute? -> getVariantImageUrl(id))
-function normalizeOptionsForUI(optionsArray) {
-  if (!Array.isArray(optionsArray)) return [];
-  return optionsArray.map((opt) => ({
-    id: opt.id,
-    option_name: opt.option_name || opt.name,
-    uses_image: !!opt.uses_image,
-    values: (opt.values || []).map((v) => {
-      const image =
-        (v.image_url && v.image_url.length && v.image_url) ||
-        (v.image_path ? null : null) || // leave image_path aside, prefer id
-        (v.id ? getVariantImageUrl(v.id) : null);
-
-      return {
-        id: v.id,
-        option_value: v.option_value ?? v.name ?? "",
-        image,
-        image_url: v.image_url ?? null,
-        image_path: v.image_path ?? null,
-      };
-    }),
-  }));
-}
-
 // -------------- stock/price helpers (kept dari kode Anda, sedikit disesuaikan) --------------
 function getSizeIdByName(name) {
   const found = sizes.value.find((s) => String(s.name) === String(name));
   return found?.id ?? null;
 }
-function getSizeNameById(id) {
-  const found = sizes.value.find((s) => Number(s.id) === Number(id));
-  return found?.name ?? null;
-}
+
 function getCurrentStock() {
   if (
     !Array.isArray(stockCombinations.value) ||
@@ -1643,8 +1713,11 @@ function resetStateBeforeFetch() {
   selectedAddons.value = [];
   tempSelectedAddons.value = [];
   relatedProducts.value = [];
-  cartItemsCount.value = 0;
 }
+
+const shareProduct = () => {
+  showShareModal.value = true;
+};
 
 async function doFetchProduct(slug) {
   if (!slug) return;
@@ -1889,6 +1962,7 @@ async function doFetchProduct(slug) {
 
 onMounted(() => {
   window.addEventListener("scroll", handleScroll);
+  cartStore.fetchCartCount();
   const initialSlug = route.params.slug;
   if (initialSlug) doFetchProduct(String(initialSlug));
 });
@@ -1910,7 +1984,7 @@ onBeforeUnmount(() => {
   window.removeEventListener("scroll", handleScroll);
 });
 onUnmounted(() => window.removeEventListener("scroll", handleScroll));
-
+const currentImageIndex = ref(0);
 // simple scroll handler (as in your original)
 function handleScroll() {
   const y = window.scrollY || document.documentElement.scrollTop || 0;
@@ -1982,7 +2056,10 @@ function toggleAddon(addon, group) {
       group.items.some((gi) => Number(gi.id) === Number(a.id))
     ).length;
     if (currentCountInGroup < Number(group.maxSelection || 1)) {
-      tempSelectedAddons.value.push(addon);
+      tempSelectedAddons.value.push({
+        ...addon,
+        addon_group_id: group.id,
+      });
     }
   }
 }
@@ -1995,7 +2072,10 @@ function selectSingleAddon(addon, group) {
   );
   // tambahkan addon terpilih jika tersedia
   if (addon.available !== false) {
-    tempSelectedAddons.value.push(addon);
+    tempSelectedAddons.value.push({
+      ...addon,
+      addon_group_id: group.id,
+    });
   }
 }
 
@@ -2036,7 +2116,10 @@ function resetAddons() {
         (item) => item.available !== false
       );
       if (firstAvailable) {
-        tempSelectedAddons.value.push(firstAvailable);
+        tempSelectedAddons.value.push({
+          ...firstAvailable,
+          addon_group_id: group.id,
+        });
       }
     }
   });

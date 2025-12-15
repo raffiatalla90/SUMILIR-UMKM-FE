@@ -429,7 +429,7 @@ onMounted(() => {
             </div>
 
             <!-- Thumbnails -->
-            <div class="grid grid-cols-4 sm:grid-cols-6 gap-2">
+            <div class="grid grid-cols-4 sm:grid-cols-6 gap-2 px-4">
               <button
                 v-for="(image, index) in product.images"
                 :key="image.id"
@@ -485,7 +485,7 @@ onMounted(() => {
               Deskripsi Produk
             </h3>
             <p
-              class="text-sm text-gray-700 leading-relaxed whitespace-pre-line transition-all"
+              class="text-sm text-gray-700 leading-relaxed transition-all"
               :class="{
                 'line-clamp-4': !showFullDescription,
                 'line-clamp-none': showFullDescription,

@@ -304,8 +304,8 @@
             class="pt-3 border-t border-gray-200 text-sm text-gray-700 space-y-2"
           >
             <div class="flex justify-between">
-              <span> Harga Produk ({{ order.quantity }}x) </span>
-              <span>Rp {{ formatIDR(lineSubtotal) }}</span>
+              <span> Harga Produk </span>
+              <span>Rp {{ formatIDR(amounts.product) }}</span>
             </div>
 
             <div
@@ -497,34 +497,36 @@ import MobileHeader from "@/components/customer/MobileHeader.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import api from "@/libs/axios";
 import { useCheckoutStore } from "@/stores/checkout";
+import { useAuthStore } from "@/stores/auth";
 
+const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 const checkout = useCheckoutStore();
-
-// Ambil data dari store (fallback dari query jika perlu)
-const slug = route.query.slug || checkout.productSlug;
-if (!slug) {
-  router.replace({ name: "Beranda" });
-}
+const isFromCart = computed(() => checkout.from === "cart");
+const cartItems = computed(() => checkout.cartItems);
 
 // Order view model (dari store)
-const order = computed(() => ({
-  slug: checkout.productSlug,
-  title: checkout.productTitle,
-  image: checkout.productImage,
-  quantity: checkout.qty,
-  size: checkout.selectedSizeName || "",
-  variant: checkout.selectedVariantName || "",
-  addons: checkout.selectedAddons.map((a) => a.name),
-  store: {
-    id: checkout.store.id,
-    slug: checkout.store.slug,
-    name: checkout.store.name,
-    address: checkout.store.address,
-    phone: checkout.store.phone,
-  },
-}));
+const order = computed(() => {
+  if (checkout.from === "cart") {
+    return {
+      store: checkout.store,
+      items: checkout.cartItems,
+    };
+  }
+
+  // single product
+  return {
+    slug: checkout.productSlug,
+    title: checkout.productTitle,
+    image: checkout.productImage,
+    quantity: checkout.qty,
+    size: checkout.selectedSizeName || "",
+    variant: checkout.selectedVariantName || "",
+    addons: checkout.selectedAddons.map((a) => a.name),
+    store: checkout.store,
+  };
+});
 
 // Nominal dari store
 const amounts = ref({
@@ -536,24 +538,15 @@ const amounts = ref({
 // ✅ total addon per item (bukan dikali qty)
 const addonUnitTotal = computed(() => Number(checkout.addonTotal || 0));
 // ✅ subtotal baris: (unitPrice + addon per item) * qty
-const lineSubtotal = computed(
-  () =>
-    (Number(checkout.unitPrice || 0) + addonUnitTotal.value) *
-    Number(checkout.qty || 1)
-);
+const total = computed(() => checkout.totalPrice);
 
 // sinkronisasi amounts.product
 watch(
-  () => [checkout.unitPrice, checkout.addonTotal, checkout.qty],
-  () => {
-    amounts.value.product = lineSubtotal.value;
+  () => checkout.totalPrice,
+  (v) => {
+    amounts.value.product = v;
   },
   { immediate: true }
-);
-
-// Total akhir: subtotal baris + ongkir - diskon
-const total = computed(() =>
-  Math.max(0, lineSubtotal.value + amounts.value.ongkir - amounts.value.diskon)
 );
 
 const formatIDR = (v) => Number(v || 0).toLocaleString("id-ID");
@@ -612,24 +605,22 @@ async function loadMerchant() {
     console.warn("[Checkout] Gagal fetch merchant:", e);
   }
 }
-onMounted(loadMerchant);
 
 // Tambah state alamat merchant dari product detail
 const merchantAddressFromProduct = ref("");
 
 // Saat mounted, jika slug tersedia, fetch product untuk ambil merchant_address
 onMounted(async () => {
-  const slug = route.query.slug || checkout.productSlug;
-  if (!slug) return;
-  try {
-    const { data } = await api.get(`/public/products/${slug}`);
-    merchantAddressFromProduct.value = data?.merchant_address || "";
-    // jika store.address di checkout kosong, isi dari merchant_address
-    if (!checkout.store.address && merchantAddressFromProduct.value) {
-      checkout.store.address = merchantAddressFromProduct.value;
+  if (checkout.from === "product") {
+    if (!checkout.productSlug) {
+      router.replace({ name: "Beranda" });
     }
-  } catch (e) {
-    console.warn("[Checkout] Gagal ambil merchant_address:", e);
+  }
+
+  if (checkout.from === "cart") {
+    if (!checkout.store?.id || checkout.cartItems.length === 0) {
+      router.replace({ name: "Beranda" });
+    }
   }
 });
 
@@ -735,21 +726,35 @@ const openWhatsapp = () => {
     return;
   }
 
-  const productDetails = [
-    `Produk: ${order.value.title}`,
-    order.value.size ? `Ukuran: ${order.value.size}` : "",
-    order.value.variant ? `Varian: ${order.value.variant}` : "",
-    checkout.selectedAddons.length > 0
-      ? `Tambahan: ${checkout.selectedAddons.map((a) => a.name).join(", ")}`
-      : "",
-    `Jumlah: ${checkout.qty}x`,
-    `Harga Satuan: Rp ${formatIDR(
-      Number(checkout.unitPrice || 0) + addonUnitTotal.value
-    )}`,
-    `Subtotal: Rp ${formatIDR(lineSubtotal.value)}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  let productDetails = "";
+
+  if (checkout.from === "cart") {
+    productDetails = checkout.cartItems
+      .map(
+        (i, idx) =>
+          `${idx + 1}. ${i.name}\n` +
+          (i.variant ? `Varian: ${i.variant}\n` : "") +
+          (i.size ? `Ukuran: ${i.size}\n` : "") +
+          `Jumlah: ${i.quantity}x\n` +
+          `Harga: Rp ${formatIDR(
+            (i.unitPrice + i.addonTotalPrice) * i.quantity
+          )}`
+      )
+      .join("\n\n");
+  } else {
+    productDetails = [
+      `Produk: ${order.value.title}`,
+      order.value.size ? `Ukuran: ${order.value.size}` : "",
+      order.value.variant ? `Varian: ${order.value.variant}` : "",
+      checkout.selectedAddons.length
+        ? `Tambahan: ${checkout.selectedAddons.map((a) => a.name).join(", ")}`
+        : "",
+      `Jumlah: ${checkout.qty}x`,
+      `Subtotal: Rp ${formatIDR(total.value)}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
 
   const deliveryInfo =
     form.value.metodePengiriman === "delivery"
@@ -782,7 +787,7 @@ const openWhatsapp = () => {
     "\n*PEMBAYARAN*",
     `Metode: ${pay.value.method}`,
     "\n*RINCIAN HARGA*",
-    `Harga Produk: Rp ${formatIDR(lineSubtotal.value)}`,
+    `Harga Produk: Rp ${formatIDR(amounts.value.product)}`,
     form.value.metodePengiriman === "delivery"
       ? `Ongkir: Rp ${formatIDR(amounts.value.ongkir)}`
       : "",
