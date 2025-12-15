@@ -1,7 +1,8 @@
 <script setup>
 // filepath: /var/www/html/KMI-SIMSLIFE-FE/src/components/common/MerchantTable.vue
-import { computed } from "vue";
-
+import { computed, useSlots } from "vue";
+import Button from "@/components/common/Button.vue";
+const slots = useSlots();
 const props = defineProps({
   // Data
   items: {
@@ -71,7 +72,9 @@ const props = defineProps({
     default: true,
   },
 });
-
+const hasSlot = (name) => {
+  return !!slots[name];
+};
 const emit = defineEmits([
   "update:selectedItems",
   "update:selectAll",
@@ -238,16 +241,18 @@ const getNestedValue = (obj, path) => {
                 class="px-6 py-4"
                 :class="column.cellClass"
               >
-                <slot
-                  :name="`cell-${column.key}`"
-                  :item="item"
-                  :value="getNestedValue(item, column.key)"
-                >
-                  <!-- Default cell rendering -->
-                  <span class="text-sm">
+                <div class="flex items-center">
+                  <slot
+                    v-if="hasSlot(`cell-${column.key}`)"
+                    :name="`cell-${column.key}`"
+                    :item="item"
+                    :value="getNestedValue(item, column.key)"
+                  />
+
+                  <span v-else class="text-sm">
                     {{ getNestedValue(item, column.key) || "-" }}
                   </span>
-                </slot>
+                </div>
               </td>
 
               <!-- Actions -->
@@ -275,48 +280,37 @@ const getNestedValue = (obj, path) => {
     </div>
 
     <!-- Pagination -->
-    <div
-      v-if="showPagination && totalPages > 1 && !loading"
-      class="border-t border-muted-background px-6 py-4"
-    >
+    <div v-if="!loading" class="border-t border-muted-background px-6 py-4">
       <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
         <!-- Pagination Info -->
         <div class="text-sm text-muted-foreground">
           Menampilkan
           <span class="font-semibold text-black">
-            {{ paginationInfo.start }}
+            {{ paginationInfo.per_page }}
           </span>
-          -
-          <span class="font-semibold text-black">
-            {{ paginationInfo.end }}
-          </span>
-          dari
-          <span class="font-semibold text-black">
-            {{ paginationInfo.total }}
-          </span>
-          item
+          items/halaman
         </div>
 
         <!-- Pagination Controls -->
         <div class="flex items-center gap-2">
           <!-- Previous Button -->
-          <button
+          <Button
             @click="prevPage"
             :disabled="currentPage === 1"
-            class="px-3 py-2 rounded-lg border border-muted-background hover:bg-muted-background disabled:opacity-50 disabled:cursor-not-allowed transition"
-            :class="
-              currentPage === 1
-                ? 'text-muted-foreground'
-                : 'text-merchant-primary'
-            "
+            variant="merchant"
+            size="sm"
           >
-            <i class="pi pi-chevron-left text-sm"></i>
-          </button>
+            <i class="pi pi-chevron-left text-xs"></i>
+            <span>Prev</span>
+          </Button>
 
           <!-- Page Numbers -->
           <template v-for="(page, index) in visiblePages" :key="index">
             <!-- Ellipsis -->
-            <span v-if="page === '...'" class="px-3 py-2 text-muted-foreground">
+            <span
+              v-if="page === '...'"
+              class="px-3 py-2 text-muted-foreground text-sm"
+            >
               ...
             </span>
 
@@ -324,7 +318,7 @@ const getNestedValue = (obj, path) => {
             <button
               v-else
               @click="goToPage(page)"
-              class="px-3 py-2 rounded-lg border transition min-w-[40px]"
+              class="px-3 py-1.5 rounded-lg border transition min-w-[40px] text-sm"
               :class="
                 currentPage === page
                   ? 'bg-merchant-primary text-white border-merchant-primary font-semibold'
@@ -336,18 +330,15 @@ const getNestedValue = (obj, path) => {
           </template>
 
           <!-- Next Button -->
-          <button
+          <Button
             @click="nextPage"
             :disabled="currentPage === totalPages"
-            class="px-3 py-2 rounded-lg border border-muted-background hover:bg-muted-background disabled:opacity-50 disabled:cursor-not-allowed transition"
-            :class="
-              currentPage === totalPages
-                ? 'text-muted-foreground'
-                : 'text-merchant-primary'
-            "
+            variant="merchant"
+            size="sm"
           >
-            <i class="pi pi-chevron-right text-sm"></i>
-          </button>
+            <span>Next</span>
+            <i class="pi pi-chevron-right text-xs"></i>
+          </Button>
         </div>
       </div>
     </div>

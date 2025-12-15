@@ -1,7 +1,7 @@
 <script setup>
 // filepath: /var/www/html/KMI-SIMSLIFE-FE/src/views/merchant/products/Detail.vue
 
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, nextTick, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue"; // ✅ ADD
@@ -18,6 +18,8 @@ const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 const showFullDescription = ref(false);
+const descriptionRef = ref(null);
+const isClamped = ref(false);
 // ✅ Get merchantId from route
 const currentMerchantId = computed(() => {
   return route.params.merchantId ? Number(route.params.merchantId) : null;
@@ -43,24 +45,29 @@ const showAddOnsModal = ref(false);
 // Lock body scroll when modal is open
 useBodyScrollLock(showVariantsModal);
 useBodyScrollLock(showAddOnsModal);
+const MAX_DESCRIPTION_HEIGHT = 96; // kira-kira 4 baris (4 x line-height 24px)
 
-// Breadcrumb
-const breadcrumbs = [
-  { label: "Produk", path: "/merchant-center/products" },
-  { label: "Detail Produk", path: null },
-];
+const checkClamp = async () => {
+  await nextTick();
+  const el = descriptionRef.value;
+  if (!el) return;
 
-// ✅ Computed Properties
-const coverImage = computed(() => {
-  if (!product.value?.images) return null;
-  return (
-    product.value.images.find((img) => img.is_cover) || product.value.images[0]
-  );
+  isClamped.value = el.scrollHeight > MAX_DESCRIPTION_HEIGHT + 2;
+};
+const DESCRIPTION_LIMIT = 300;
+
+const isLongDescription = computed(() => {
+  return (product.value?.description?.length || 0) > DESCRIPTION_LIMIT;
 });
 
-const currentImage = computed(() => {
-  if (!product.value?.images) return null;
-  return product.value.images[currentImageIndex.value];
+const displayedDescription = computed(() => {
+  if (!product.value?.description) return "";
+
+  if (showFullDescription.value) {
+    return product.value.description;
+  }
+
+  return product.value.description.slice(0, DESCRIPTION_LIMIT) + "...";
 });
 
 const mainCategory = computed(() => {
@@ -297,7 +304,7 @@ const loadDetail = async () => {
     if (product.value?.images && product.value.images.length > 0) {
       currentImageIndex.value = 0;
     }
-
+    await checkClamp();
     console.log("[Detail] Product loaded", product.value);
   } catch (err) {
     console.error("[Detail] Error loading product", err);
@@ -315,10 +322,22 @@ const loadDetail = async () => {
     loading.value = false;
   }
 };
+watch(showFullDescription, async (val) => {
+  // hanya cek saat kembali ke mode ringkas
+  if (!val) {
+    await checkClamp();
+  }
+});
 
 // ✅ Mount
 onMounted(() => {
   loadDetail();
+  nextTick(() => {
+    const el = descriptionRef.value;
+    if (el) {
+      isClamped.value = el.scrollHeight > el.clientHeight;
+    }
+  });
 });
 </script>
 
@@ -484,19 +503,17 @@ onMounted(() => {
               <i class="pi pi-align-left text-gray-400"></i>
               Deskripsi Produk
             </h3>
+
             <p
-              class="text-sm text-gray-700 leading-relaxed transition-all"
-              :class="{
-                'line-clamp-4': !showFullDescription,
-                'line-clamp-none': showFullDescription,
-              }"
+              class="text-sm text-gray-700 leading-relaxed whitespace-pre-line"
             >
-              {{ product.description }}
+              {{ displayedDescription }}
             </p>
+
             <button
-              v-if="(product.description?.length || 0) > 200"
+              v-if="isLongDescription"
               @click="showFullDescription = !showFullDescription"
-              class="mt-2 text-merchant-primary text-sm font-semibold focus:outline-none cursor-pointer"
+              class="mt-2 text-merchant-primary text-sm font-semibold hover:underline cursor-pointer"
               type="button"
             >
               {{ showFullDescription ? "Sembunyikan" : "Lihat Selengkapnya" }}
