@@ -117,7 +117,7 @@ const formatPrice = (min, max) => {
           class="font-medium text-right truncate ml-2"
           :title="product.categories?.[0]?.category_name"
         >
-          {{ product.categories?.[0]?.category_name || "-" }}
+          {{ product.categories?.[0]?.name || "-" }}
         </span>
       </div>
 

@@ -98,7 +98,7 @@ function goToLogin() {
   <div class="min-h-screen flex flex-col pb-16 sm:pb-0">
     <!-- Navbar Desktop (hidden on mobile) -->
     <div
-      class="hidden sm:block sticky top-0 z-50 w-full h-[91px] bg-transparent"
+      class="hidden sm:block sticky top-0 z-50 w-full h-[91px] bg-white border-b border-gray-200 shadow-sm"
     >
       <div class="max-w-[1440px] mx-auto h-full px-4">
         <div class="h-full flex items-center">

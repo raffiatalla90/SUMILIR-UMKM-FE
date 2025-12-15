@@ -965,7 +965,7 @@ const onSubmit = veeHandleSubmit(
       // ✅ Variants or direct pricing (SAMA SEPERTI CREATE)
       if (useVariants.value) {
         variants.value.forEach((variant, vIndex) => {
-          if (variant.id) {
+          if (variant.id && Number.isInteger(variant.id)) {
             formData.append(`variants[${vIndex}][id]`, variant.id);
           }
           formData.append(`variants[${vIndex}][name]`, variant.name);
@@ -1037,7 +1037,7 @@ const onSubmit = veeHandleSubmit(
       // ✅ Add-on groups (SAMA SEPERTI CREATE)
       addOnGroups.value.forEach((group, gIndex) => {
         if (group.name.trim()) {
-          if (group.id) {
+          if (group.id && Number.isInteger(group.id)) {
             formData.append(`add_on_groups[${gIndex}][id]`, group.id);
           }
           formData.append(`add_on_groups[${gIndex}][name]`, group.name.trim());
@@ -1052,7 +1052,7 @@ const onSubmit = veeHandleSubmit(
 
           group.options.forEach((opt, oIndex) => {
             if (opt.name.trim()) {
-              if (opt.id) {
+              if (opt.id && Number.isInteger(opt.id)) {
                 formData.append(
                   `add_on_groups[${gIndex}][options][${oIndex}][id]`,
                   opt.id
