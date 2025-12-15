@@ -749,22 +749,18 @@
               <h3 class="text-sm font-semibold text-gray-900 mb-2">
                 Deskripsi Produk
               </h3>
+
               <p
-                class="text-sm text-gray-700 leading-relaxed transition-all"
-                :class="{
-                  'line-clamp-4': !showFullDescription,
-                  'line-clamp-none': showFullDescription,
-                }"
+                class="text-sm text-gray-700 leading-relaxed whitespace-pre-line"
               >
-                {{
-                  product?.description ||
-                  "Minuman susu fermentasi dengan rasa lembut, segar, dan sedikit asam yang menyehatkan. Diproses dari susu murni pilihan dengan kultur bakteri baik Lactobacillus yang membantu menjaga kesehatan pencernaan"
-                }}
+                {{ displayedDescription }}
               </p>
+
               <button
-                v-if="shouldShowSeeMore"
+                v-if="isLongDescription"
                 @click="showFullDescription = !showFullDescription"
-                class="mt-2 text-primary text-sm font-semibold focus:outline-none cursor-pointer"
+                class="mt-2 text-primary text-sm font-semibold focus:outline-none cursor-pointer hover:underline"
+                type="button"
               >
                 {{ showFullDescription ? "Sembunyikan" : "Lihat Selengkapnya" }}
               </button>
@@ -1395,6 +1391,24 @@ import { useCartStore } from "@/stores/cart";
 const cartStore = useCartStore();
 const toast = useToast();
 const loadingCart = ref(false);
+const showFullDescription = ref(false);
+
+const DESCRIPTION_LIMIT = 300;
+
+const isLongDescription = computed(() => {
+  return (product.value?.description?.length || 0) > DESCRIPTION_LIMIT;
+});
+
+const displayedDescription = computed(() => {
+  if (!product.value?.description) return "";
+
+  if (showFullDescription.value) {
+    return product.value.description;
+  }
+
+  return product.value.description.slice(0, DESCRIPTION_LIMIT) + "...";
+});
+
 async function addToCart() {
   // 1. Validasi Stok
   if (getCurrentStock() <= 0) {
@@ -1506,10 +1520,6 @@ const mouseDeltaX = ref(0);
 const swipeThreshold = 50;
 
 let abortController = null;
-const showFullDescription = ref(false);
-const shouldShowSeeMore = computed(
-  () => (product.value?.description?.length || 0) > 200
-);
 
 // image / gallery state
 const productImages = ref([]);
@@ -1963,16 +1973,7 @@ async function doFetchProduct(slug) {
 onMounted(() => {
   window.addEventListener("scroll", handleScroll);
   cartStore.fetchCartCount();
-  const initialSlug = route.params.slug;
-  if (initialSlug) doFetchProduct(String(initialSlug));
 });
-
-watch(
-  () => route.params.slug,
-  (newSlug, oldSlug) => {
-    if (newSlug && newSlug !== oldSlug) doFetchProduct(String(newSlug));
-  }
-);
 
 onBeforeUnmount(() => {
   if (abortController) {
@@ -2234,27 +2235,14 @@ function getProductSlug() {
   return route.params.slug;
 }
 
-// onMounted: pasang scroll listener & fetch initial product
-onMounted(() => {
-  window.addEventListener("scroll", handleScroll);
-
-  // prefer route param, fallback ke method getProductSlug() jika kamu masih pakai
-  const initialSlug =
-    route.params.slug ??
-    (typeof getProductSlug === "function" ? getProductSlug() : null);
-  if (initialSlug) {
-    doFetchProduct(String(initialSlug));
-  }
-});
-
 // watch route.params.slug supaya ketika Vue Router reuse komponen dan params berubah kita refetch
 watch(
-  () => route.params.slug,
+  () => route?.params?.slug,
   (newSlug, oldSlug) => {
-    if (newSlug && newSlug !== oldSlug) {
-      doFetchProduct(String(newSlug));
-    }
-  }
+    if (!newSlug || newSlug === oldSlug) return;
+    doFetchProduct(String(newSlug));
+  },
+  { immediate: true }
 );
 
 // bersihkan saat unmount: cancel request & remove event listener

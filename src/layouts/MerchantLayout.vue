@@ -49,17 +49,11 @@ const showMerchantSelector = computed(() => merchantsCount.value > 1);
 
 // ✅ Watch route changes untuk update active merchant
 watch(
-  () => route.params.merchantId,
-  (newMerchantId) => {
-    if (newMerchantId) {
-      authStore.setActiveMerchant(Number(newMerchantId));
-      console.log(
-        "✅ Merchant changed to ID:",
-        newMerchantId,
-        "Name:",
-        merchantName.value
-      );
-    }
+  () => route.params,
+  (params) => {
+    if (!params?.merchantId) return;
+
+    authStore.setActiveMerchant(Number(params.merchantId));
   },
   { immediate: true }
 );
