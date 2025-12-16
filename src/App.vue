@@ -1,6 +1,5 @@
 <script setup>
 import { useAuthStore } from "@/stores/auth";
-import { initializeCsrfToken } from "@/composables/useCsrfToken";
 
 const authStore = useAuthStore();
 
@@ -8,11 +7,6 @@ const authStore = useAuthStore();
 // This runs before route guards are evaluated
 authStore.initializeFromStorage();
 console.log("[App] Authentication initialized, user:", authStore.user?.email);
-
-// ✅ Initialize CSRF token on app load
-initializeCsrfToken().catch((error) => {
-  console.warn("[App] CSRF initialization failed:", error);
-});
 </script>
 
 <template>

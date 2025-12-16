@@ -92,6 +92,7 @@ const routes = [
       },
 
       {
+<<<<<<< HEAD
         path: "cart",
         name: "Keranjang",
         component: () => import("@/views/customer/Cart.vue"),
@@ -100,6 +101,12 @@ const routes = [
           roles: ["customer"],
           title: "Keranjang | SUMILIR",
         },
+=======
+        path: "products/:slug",
+        name: "Product Detail",
+        component: () => import("@/views/customer/ProductDetail.vue"),
+        meta: { title: "Product Detail | SUMILIR" },
+>>>>>>> 28b9a8f (feat: Implement token-based authentication and jasa form)
       },
       {
         path: "product-payment",
@@ -545,12 +552,16 @@ router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
   document.title = to.meta.title || "SUMILIR";
 
+<<<<<<< HEAD
   if (!authInitialized) {
     authInitialized = true;
     await authStore.initAuth();
   }
 
   // ✅ ADD: Skip if navigating to same path
+=======
+  // Skip if same path
+>>>>>>> 28b9a8f (feat: Implement token-based authentication and jasa form)
   if (to.path === lastNavigationPath) {
     next();
     return;
@@ -558,7 +569,17 @@ router.beforeEach(async (to, from, next) => {
 
   lastNavigationPath = to.path;
 
+<<<<<<< HEAD
   // ✅ 1. Jika route butuh auth tapi user belum login
+=======
+  console.log("🔍 [Router Guard]", {
+    to: to.path,
+    from: from.path,
+    isAuthenticated: authStore.isAuthenticated,
+  });
+
+  // 1. butuh auth tapi belum login
+>>>>>>> 28b9a8f (feat: Implement token-based authentication and jasa form)
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     authStore.requireLoginToast();
 
@@ -576,11 +597,14 @@ router.beforeEach(async (to, from, next) => {
       .map((r) => r.toLowerCase());
 
     if (userRoles.includes("admin") || userRoles.includes("umkm-owner")) {
+<<<<<<< HEAD
       const merchant = authStore.activeMerchant;
 
       if (merchant) {
         return next(`/merchant-center/${merchant.id}`);
       }
+=======
+>>>>>>> 28b9a8f (feat: Implement token-based authentication and jasa form)
       return next("/");
     } else if (userRoles.includes("customer")) {
       return next("/");

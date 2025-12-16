@@ -33,6 +33,11 @@ app.component("ProductCard", ProductCard);
 app.component("EventCard", EventCard);
 app.component("PromoCard", PromoCard);
 
+// ✅ Auth initialization moved to App.vue (synchronous from localStorage)
+// Removed async initAuth() to prevent race condition that clears user on page refresh
+// The initializeFromStorage() call in App.vue handles session restoration
+
+// Mount ASAP
 app.mount("#app");
 
 // Wait for router to be ready before hiding splash
