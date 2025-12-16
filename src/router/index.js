@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import { setMeta } from "./seo";
+import { initializeCsrfToken } from "@/composables/useCsrfToken";
 import CommunityView from "@/views/CommunityView.vue";
 import CommunityDetailView from "@/views/CommunityDetailView.vue";
 
@@ -529,8 +529,17 @@ let lastNavigationPath = null;
 let authInitialized = false;
 
 router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
   document.title = to.meta.title || "SUMILIR";
+
+  // ✅ Ensure CSRF token is initialized on every navigation
+  try {
+    await initializeCsrfToken();
+  } catch (error) {
+    console.warn("[Router] CSRF token initialization failed:", error);
+    // Continue navigation even if CSRF fails (user might be on public page)
+  }
 
   // Skip if same path
   if (to.path === lastNavigationPath) {
