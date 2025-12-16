@@ -165,7 +165,12 @@ export const useCheckoutStore = defineStore("checkout", {
         addonTotalPrice: Number(item.addonTotalPrice || 0),
         variant: item.variant ?? "",
         size: item.size ?? "",
-        addons: Array.isArray(item.addons) ? item.addons : [],
+        addons: Array.isArray(item.addons)
+          ? item.addons.map((a) => ({
+              name: a.label,
+              price: Number(a.price || 0),
+            }))
+          : [],
       }));
 
       // reset single product state

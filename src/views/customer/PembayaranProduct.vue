@@ -9,100 +9,80 @@
         <h2 class="font-semibold text-gray-800 mb-3">Detail Pesanan</h2>
 
         <div class="space-y-3">
-          <!-- Single Product Item -->
-          <div
-            v-if="!isFromCart"
-            class="flex items-center gap-3 pb-3 border-b border-gray-100"
-          >
+          <div class="space-y-4">
             <div
-              class="w-20 h-20 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0"
+              v-for="item in checkoutItems"
+              :key="item.id"
+              class="flex flex-col gap-3 bg-white p-4 last:border-none border-b border-gray-200"
             >
-              <img
-                :src="order.image || 'https://via.placeholder.com/80'"
-                class="w-full h-full object-cover"
-              />
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="text-sm font-semibold text-gray-800 mb-1">
-                {{ order.title }}
-              </div>
-              <div class="text-xs text-gray-600 space-y-0.5">
-                <div v-if="order.size">Ukuran: {{ order.size }}</div>
-                <div v-if="order.variant">Varian: {{ order.variant }}</div>
-              </div>
-              <div class="flex items-center justify-between mt-2">
-                <span class="text-sm font-semibold text-gray-900">
-                  <!-- ✅ pakai unitPrice dari checkout (hasil getCurrentPrice saat checkout) -->
-                  Rp
-                  {{ formatIDR(Number(checkout.unitPrice || 0)) }}
-                </span>
-                <span class="text-sm text-gray-600">x{{ order.quantity }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Multiple Cart Items -->
-          <div v-else class="space-y-3 divide-y divide-gray-100">
-            <div
-              v-for="(item, idx) in cartItems"
-              :key="idx"
-              class="flex items-center gap-3 pt-3 first:pt-0"
-            >
-              <div
-                class="w-16 h-16 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0"
-              >
-                <img
-                  :src="item.image || 'https://via.placeholder.com/80'"
-                  class="w-full h-full object-cover"
-                />
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="text-sm font-semibold text-gray-800 mb-1">
-                  {{ item.name }}
+              <div class="flex gap-3">
+                <!-- IMAGE -->
+                <div class="w-20 h-20 rounded-lg bg-gray-100 overflow-hidden">
+                  <img
+                    :src="item.image || 'https://via.placeholder.com/80'"
+                    class="w-full h-full object-cover"
+                  />
                 </div>
-                <div class="text-xs text-gray-600 space-y-0.5">
-                  <div v-if="item.size">Ukuran: {{ item.size }}</div>
-                  <div v-if="item.variant">Varian: {{ item.variant }}</div>
-                  <div v-if="item.addons && item.addons.length > 0">
-                    Tambahan: {{ item.addons.join(", ") }}
+
+                <!-- INFO -->
+                <div class="flex-1 min-w-0 space-y-1">
+                  <h3 class="text-sm font-semibold text-gray-900">
+                    {{ item.name }}
+                  </h3>
+
+                  <!-- VARIANT -->
+                  <div v-if="item.variant" class="text-xs text-gray-600">
+                    Varian: {{ item.variant }}
+                  </div>
+
+                  <!-- PRICE + QTY -->
+                  <div class="flex justify-between items-center mt-2">
+                    <span class="text-sm font-bold text-[#FFA30E]">
+                      Rp {{ formatIDR(item.price) }}
+                    </span>
+
+                    <span class="text-xs text-gray-600">
+                      x{{ item.quantity }}
+                    </span>
                   </div>
                 </div>
-                <div class="flex items-center justify-between mt-1">
-                  <span class="text-sm font-semibold text-gray-900">
-                    Rp {{ formatIDR(item.unitPrice) }}
-                  </span>
-                  <span class="text-sm text-gray-600"
-                    >x{{ item.quantity }}</span
-                  >
-                </div>
               </div>
-            </div>
-          </div>
 
-          <!-- Addons jika ada (untuk single product) -->
-          <div
-            v-if="!isFromCart && order.addons && order.addons.length > 0"
-            class="space-y-2"
-          >
-            <div class="text-xs font-semibold text-gray-700">Tambahan:</div>
-            <!-- ✅ Tampilkan nama + harga per add-on -->
-            <div
-              v-for="(addon, idx) in checkout.selectedAddons"
-              :key="idx"
-              class="text-xs text-gray-700 flex items-center justify-between gap-2"
-            >
-              <div class="flex items-center gap-1">
-                <span class="w-1 h-1 bg-gray-400 rounded-full"></span>
-                <span>{{ addon.name }}</span>
+              <!-- Addons jika ada -->
+              <div v-if="item.addons?.length" class="space-y-1">
+                <div class="text-xs font-semibold text-gray-700">Tambahan:</div>
+                <!-- ✅ Tampilkan nama + harga per add-on -->
+                <div
+                  v-for="addon in item.addons"
+                  :key="addon.id || addon.label"
+                  class="text-xs text-gray-700 flex items-center justify-between gap-2"
+                >
+                  <div class="flex items-center gap-1">
+                    + <span>{{ addon.name || addon.label }}</span>
+                  </div>
+                  <span class=""> Rp {{ formatIDR(addon.price) }} </span>
+                </div>
+                <!-- subtotal add-on per quantity -->
+                <!-- <p class="text-xs text-gray-600 pt-1">
+                  Total tambahan: Rp {{ formatIDR(getAddonTotal(item)) }}
+                </p> -->
               </div>
-              <span class="font-semibold text-gray-900">
-                +Rp {{ formatIDR(Number(addon.price || 0)) }}
-              </span>
+              <div
+                class="flex items-center justify-between gap-2 text-black text-sm font-semibold"
+              >
+                <div class="flex items-center gap-1">
+                  <span>Total </span>
+                </div>
+                <span class="">
+                  Rp
+                  {{
+                    formatIDR(
+                      (item.price + getAddonTotal(item)) * item.quantity
+                    )
+                  }}
+                </span>
+              </div>
             </div>
-            <!-- subtotal add-on per quantity -->
-            <p class="text-xs text-gray-600">
-              Total tambahan: Rp {{ formatIDR(addonUnitTotal) }}
-            </p>
           </div>
 
           <!-- Catatan Produk -->
@@ -304,7 +284,7 @@
             class="pt-3 border-t border-gray-200 text-sm text-gray-700 space-y-2"
           >
             <div class="flex justify-between">
-              <span> Harga Produk </span>
+              <span>Subtotal Produk </span>
               <span>Rp {{ formatIDR(amounts.product) }}</span>
             </div>
 
@@ -505,6 +485,32 @@ const router = useRouter();
 const checkout = useCheckoutStore();
 const isFromCart = computed(() => checkout.from === "cart");
 const cartItems = computed(() => checkout.cartItems);
+const checkoutItems = computed(() => {
+  if (checkout.from === "cart") {
+    return checkout.cartItems.map((item) => ({
+      id: item.id,
+      name: item.name,
+      image: item.image,
+      quantity: item.quantity,
+      price: item.unitPrice,
+      addons: item.addons || [],
+      variant: item.variant || null,
+    }));
+  }
+
+  // SINGLE PRODUCT MODE
+  return [
+    {
+      id: checkout.productSlug,
+      name: checkout.productTitle,
+      image: checkout.productImage,
+      quantity: checkout.qty,
+      price: checkout.unitPrice,
+      addons: checkout.selectedAddons,
+      variant: checkout.selectedVariantName,
+    },
+  ];
+});
 
 // Order view model (dari store)
 const order = computed(() => {
@@ -548,6 +554,10 @@ watch(
   },
   { immediate: true }
 );
+const getAddonTotal = (item) => {
+  if (!item.addons || !item.addons.length) return 0;
+  return item.addons.reduce((sum, a) => sum + Number(a.price || 0), 0);
+};
 
 const formatIDR = (v) => Number(v || 0).toLocaleString("id-ID");
 

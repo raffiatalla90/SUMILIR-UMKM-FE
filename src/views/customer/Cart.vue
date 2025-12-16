@@ -191,7 +191,9 @@
               </button>
 
               <!-- Price & Quantity -->
-              <div class="flex items-center justify-between">
+              <div
+                class="flex flex-wrap gap-y-2 gap-x-6 items-center justify-between"
+              >
                 <div class="text-sm font-bold text-[#FFA30E]">
                   Rp {{ formatIDR(item.unitPrice + item.addonTotalPrice) }}
                 </div>
@@ -219,7 +221,7 @@
 
                   <input
                     type="number"
-                    class="w-10 text-center border border-gray-300 rounded-md text-sm font-semibold"
+                    class="text-center border border-gray-300 rounded-md text-sm font-semibold py-1 sm:px-2"
                     :min="1"
                     :max="item.stock"
                     :value="item.quantity"
