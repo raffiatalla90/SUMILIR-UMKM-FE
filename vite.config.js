@@ -80,15 +80,7 @@ export default defineConfig(({ mode }) => {
         "@": fileURLToPath(new URL("./src", import.meta.url)),
       },
     },
-    server: {
-      host: '0.0.0.0',
-      port: 5173,
-      hmr: {
-        protocol: 'ws',
-        host: 'localhost',
-        port: 5173,
-      },
-    },
+<<<<<<< HEAD
     build: {
       outDir: "dist",
       assetsDir: "assets",
@@ -117,6 +109,12 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         },
+=======
+    server: {
+      hmr: {
+        protocol: 'ws',
+        host: 'localhost',
+>>>>>>> 28b9a8f (feat: Implement token-based authentication and jasa form)
       },
     },
   };
