@@ -15,42 +15,7 @@ export const useAuthStore = defineStore("auth", () => {
   // COMPUTED
   // =========================
   const isAuthenticated = computed(() => !!user.value);
-
-  // ✅ Initialize user from localStorage on app startup (synchronous, non-blocking)
-  function initializeFromStorage() {
-    console.log("[Auth] Starting initialization from localStorage...");
-    const stored = localStorage.getItem("user");
-    const token = localStorage.getItem("auth_token");
-    
-    console.log("[Auth] localStorage.getItem('user'):", stored ? "exists" : "empty");
-    console.log("[Auth] localStorage.getItem('auth_token'):", token ? "exists" : "empty");
-    
-    if (stored) {
-      try {
-        user.value = JSON.parse(stored);
-        
-        // ✅ Restore token to axios headers
-        if (token) {
-          api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-        }
-        
-        console.log("[Auth] ✅ User restored from localStorage:", {
-          email: user.value?.email,
-          id: user.value?.id,
-          isAuthenticated: !!user.value,
-          tokenSet: !!token
-        });
-      } catch (e) {
-        console.error("[Auth] ❌ Failed to restore user from localStorage:", e);
-        localStorage.removeItem("user");
-        localStorage.removeItem("auth_token");
-        user.value = null;
-      }
-    } else {
-      console.log("[Auth] No user data in localStorage");
-      user.value = null;
-    }
-  }
+  const authReady = ref(false);
 
   // ✅ Active merchant based on selectedMerchantId
   const activeMerchant = computed(() => {
@@ -252,7 +217,6 @@ export const useAuthStore = defineStore("auth", () => {
   async function initAuth() {
     authReady.value = false;
 
-    // Load dari localStorage dulu (optimistic)
     const saved = localStorage.getItem("user");
     if (saved) {
       try {
@@ -260,24 +224,31 @@ export const useAuthStore = defineStore("auth", () => {
         loadSelectedMerchant();
       } catch {
         clearUser();
+      } catch {
+        clearUser();
       }
     }
 
     try {
-      // ✅ Use ensureCsrfToken
       await ensureCsrfToken();
-
       const { data } = await sanctumApi.get("/me");
+
       user.value = data;
-      // ✅ Store full user to preserve relationships
-      localStorage.setItem("user", JSON.stringify(user.value));
-      loadSelectedMerchant();
-      console.log("✅ Session verified:", user.value);
-    } catch (e) {
-      console.warn("⚠️ Session not valid, clearing user");
+
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          roles: data.roles.map((r) => (typeof r === "string" ? r : r.name)),
+          merchants: data.merchants || [],
+        })
+      );
+    } catch {
       clearUser();
     } finally {
-      authReady.value = true;
+      authReady.value = true; // 🔥 PENTING
     }
   }
 
@@ -289,8 +260,7 @@ export const useAuthStore = defineStore("auth", () => {
     user,
     authReady,
     isAuthenticated,
-
-    // roles
+    authReady,
     userRoles,
     isAdmin,
     isMerchant,

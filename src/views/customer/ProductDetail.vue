@@ -41,15 +41,61 @@
           <i class="text-sm pi pi-chevron-left"></i>
         </button>
 
-        <!-- 🔍 SEARCH BAR -->
-        <form @submit.prevent="submitSearch" class="flex-1">
-          <div class="relative">
-            <Textfield
-              v-model="searchInput"
-              name="search"
-              placeholder="Cari produk atau UMKM…"
-              variant="primary"
-            />
+          <div class="flex-1 min-w-0">
+            <h1 class="text-sm font-semibold text-gray-900 truncate">
+              {{ product?.name || "Nama Produk" }}
+            </h1>
+            <p class="text-xs text-gray-600">
+              Rp {{ formatIDR(calculateTotalPrice()) }}
+            </p>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button
+              @click="shareProduct"
+              class="p-1.5 hover:bg-gray-100 rounded-full transition"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+                stroke="currentColor"
+                class="w-5 h-5 text-gray-800"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z"
+                />
+              </svg>
+            </button>
+
+            <button
+              @click="goToCart"
+              class="relative p-1.5 hover:bg-gray-100 rounded-full transition"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+                stroke="currentColor"
+                class="w-5 h-5 text-gray-800"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"
+                />
+              </svg>
+              <span
+                v-if="authStore.isAuthenticated && cartItemsCount > 0"
+                class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center"
+              >
+                {{ cartItemsCount > 9 ? "9+" : cartItemsCount }}
+              </span>
+            </button>
           </div>
         </form>
         <!-- Share Button -->
@@ -1053,7 +1099,7 @@
       <!-- WhatsApp -->
       <button
         @click="shareVia('whatsapp')"
-        class="flex items-center w-full gap-3 p-4 transition border border-gray-200 cursor-pointer rounded-xl hover:border-green-500 hover:bg-green-50 active:scale-95"
+        class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-green-500 hover:bg-green-50 transition active:scale-95 cursor-pointer"
       >
         <div
           class="flex items-center justify-center w-10 h-10 bg-green-500 rounded-full"
@@ -1077,7 +1123,7 @@
       <!-- Facebook -->
       <button
         @click="shareVia('facebook')"
-        class="flex items-center w-full gap-3 p-4 transition border border-gray-200 cursor-pointer rounded-xl hover:border-blue-600 hover:bg-blue-50 active:scale-95"
+        class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-blue-600 hover:bg-blue-50 transition active:scale-95 cursor-pointer"
       >
         <div
           class="flex items-center justify-center w-10 h-10 bg-blue-600 rounded-full"
@@ -1101,7 +1147,7 @@
       <!-- Twitter -->
       <button
         @click="shareVia('twitter')"
-        class="flex items-center w-full gap-3 p-4 transition border border-gray-200 cursor-pointer rounded-xl hover:border-blue-400 hover:bg-blue-50 active:scale-95"
+        class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition active:scale-95 cursor-pointer"
       >
         <div
           class="flex items-center justify-center w-10 h-10 bg-blue-400 rounded-full"
@@ -1125,7 +1171,7 @@
       <!-- Copy Link -->
       <button
         @click="copyLink"
-        class="flex items-center w-full gap-3 p-4 transition border border-gray-200 cursor-pointer rounded-xl hover:border-gray-400 hover:bg-gray-50 active:scale-95"
+        class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition active:scale-95 cursor-pointer"
       >
         <div
           class="flex items-center justify-center w-10 h-10 bg-gray-600 rounded-full"
@@ -1184,8 +1230,7 @@ import { useProducts } from "@/composables/useProducts.js";
 import { useToast } from "vue-toastification";
 import { useCartStore } from "@/stores/cart";
 import { useAuthStore } from "@/stores/auth";
-import { useCart } from "@/composables/useCart";
-const { addToCart: addCart, loading: loadingCart, fetchCartCount } = useCart();
+
 const authStore = useAuthStore();
 const cartStore = useCartStore();
 const toast = useToast();
@@ -1259,6 +1304,7 @@ function getOptionValueSrcUrl(optionIndex, valueId) {
 }
 
 async function addToCart() {
+  // ✅ 0. CEK AUTH DI AWAL
   if (!authStore.isAuthenticated) {
     toast.info("Silakan login terlebih dahulu untuk menambahkan ke keranjang.");
     router.push({
@@ -1268,15 +1314,18 @@ async function addToCart() {
     return;
   }
 
+  // 1. Validasi Stok
   if (getCurrentStock() <= 0) {
     toast.error("Stok habis");
     return;
   }
 
+  // 2. Validasi Opsi
   if (sizes.value.length > 0 && !selectedSize.value) {
     toast.warning(`Pilih ${option1Label.value}`);
     return;
   }
+
 
   if (variants.value.length > 0 && !selectedVariant.value) {
     toast.warning(`Pilih ${option2Label.value}`);
@@ -1284,6 +1333,7 @@ async function addToCart() {
   }
 
   try {
+    // 3. Cari kombinasi varian
     const sizeId = selectedSize.value?.id ?? 0;
     const variantId = selectedVariant.value?.id ?? 0;
 
@@ -1293,27 +1343,42 @@ async function addToCart() {
         Number(c.variantId) === Number(variantId)
     );
 
-    if (!matchedCombo && (sizes.value.length || variants.value.length)) {
-      toast.error("Varian tidak valid");
+    if (
+      (sizes.value.length > 0 || variants.value.length > 0) &&
+      !matchedCombo
+    ) {
+      toast.error("Varian produk tidak ditemukan.");
       return;
     }
 
+    // 4. Payload
     const payload = {
       product_id: product.value.id,
       quantity: quantity.value,
-      variant_id: matchedCombo?.product_variant_id ?? null,
-      addons: selectedAddons.value.map((a) => ({
-        group_id: a.addon_group_id,
-        addon_id: a.addon_id,
+      variant_id: matchedCombo ? matchedCombo.product_variant_id : null,
+      addons: selectedAddons.value.map((addon) => ({
+        group_id: addon.addon_group_id,
+        addon_id: addon.id,
       })),
     };
 
-    await addCart(payload);
-    await cartStore.fetchCartCount(true); // force refresh
+    // 5. API CALL (AMAN karena user sudah login)
+    const response = await api.post("/cart/items", payload);
 
-    toast.success("Produk ditambahkan ke keranjang");
-  } catch (e) {
-    toast.error(e.response?.data?.message || "Gagal menambahkan ke keranjang");
+    toast.success("Produk berhasil ditambahkan ke keranjang!");
+
+    if (response.data?.cart_total_items !== undefined) {
+      cartStore.setTotal(response.data.cart_total_items);
+    } else {
+      cartStore.increase(quantity.value);
+    }
+  } catch (error) {
+    console.error("Add to cart error:", error);
+    const msg =
+      error.response?.data?.message || "Gagal menambahkan ke keranjang.";
+    toast.error(msg);
+  } finally {
+    loadingCart.value = false;
   }
 }
 
@@ -1357,7 +1422,8 @@ const showScrollHeader = ref(true);
 const lastScrollY = ref(0);
 const relatedProducts = ref([]);
 const cartItemsCount = computed(() => {
-  return cartStore.totalItems || 0;
+  const token = localStorage.getItem("access_token");
+  return token ? cartStore.totalItems : 0;
 });
 
 const shareUrl = computed(() => window.location.href);
@@ -1370,7 +1436,7 @@ const shareText = computed(() => {
 async function copyLink() {
   try {
     await navigator.clipboard.writeText(shareUrl.value);
-    toast.success("Link produk berhasil disalin ");
+    toast.success("Link produk berhasil disalin 📋");
   } catch (e) {
     // fallback untuk browser lama
     const input = document.createElement("input");
@@ -1380,7 +1446,7 @@ async function copyLink() {
     document.execCommand("copy");
     document.body.removeChild(input);
 
-    toast.success("Link produk berhasil disalin ");
+    toast.success("Link produk berhasil disalin 📋");
   }
 }
 
@@ -1831,29 +1897,19 @@ onMounted(async () => {
   window.addEventListener("scroll", handleScroll);
   await fetchCartCount();
 });
-watch(product, (p) => {
-  if (!p) return;
-
-  setMeta({
-    title: `${p.name} –  ${p.merchant?.name || "Lokal"}`,
-    description: p.description?.slice(0, 155),
-    image: selectedImage.value,
-  });
-});
 watch(
   () => authStore.authReady,
   (ready) => {
     if (!ready) return;
 
     if (authStore.isAuthenticated) {
-      fetchCartCount();
+      cartStore.fetchCartCount();
     } else {
       cartStore.reset();
     }
   },
   { immediate: true }
 );
-
 onBeforeUnmount(() => {
   if (abortController) {
     try {

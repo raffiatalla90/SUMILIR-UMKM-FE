@@ -19,6 +19,7 @@ export const useCartStore = defineStore("cart", {
         this.reset();
         return;
       }
+      if (this.loading) return;
 
       if (
         !force &&
@@ -40,6 +41,7 @@ export const useCartStore = defineStore("cart", {
         if (e.response?.status === 401) {
           this.reset();
         }
+        console.warn("Gagal fetch cart count");
       } finally {
         this.loading = false;
       }

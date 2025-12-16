@@ -64,7 +64,17 @@ const productImageUrl = computed(() => {
 
 <template>
   <div
-    :class="`flex flex-col rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden hover:shadow-lg transition w-full  cursor-pointer min-w-[161px] ${customClass}`"
+    :class="`    group
+    flex flex-col rounded-2xl
+    border border-gray-200
+    bg-white
+    shadow-sm
+    overflow-hidden
+    transition-transform duration-300 ease-out
+    hover:-translate-y-1 hover:shadow-xl
+    cursor-pointer
+    min-w-[161px]
+    ${customClass} `"
   >
     <!-- Product Image (1:1 aspect ratio) -->
     <div class="relative w-full aspect-square bg-gray-200 overflow-hidden">
@@ -72,7 +82,7 @@ const productImageUrl = computed(() => {
         v-if="productImageUrl"
         :src="productImageUrl"
         :alt="product.name"
-        class="absolute inset-0 w-full h-full object-cover"
+        class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
         @error="(e) => (e.target.style.display = 'none')"
       />
       <div
