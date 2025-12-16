@@ -3,39 +3,8 @@
     <!-- Mobile Header -->
     <MobileHeader title="Checkout Pesanan" variant="primary" />
 
-    <main class="px-4 space-y-4 pt-4">
-      <!-- DATA PEMESAN (HANYA JIKA BELUM LOGIN) -->
-      <section
-        v-if="isGuest"
-        class="bg-white rounded-xl border border-gray-200 p-4"
-      >
-        <h2 class="font-semibold text-gray-800 mb-3">Data Pemesan</h2>
-
-        <Form :validation-schema="schema">
-          <div class="space-y-3">
-            <TextField
-              name="nama"
-              label="Nama Lengkap"
-              placeholder="Masukkan nama lengkap"
-              v-model="form.nama"
-              required
-            />
-
-            <TextField
-              name="tel"
-              label="Nomor Telepon"
-              placeholder="08xxxxxxxxxx"
-              v-model="form.tel"
-              required
-            />
-          </div>
-        </Form>
-
-        <p class="text-xs text-gray-500 mt-2">
-          Digunakan untuk keperluan konfirmasi pesanan
-        </p>
-      </section>
-
+    <!-- MAIN: pb-36 supaya konten tidak ketutup footer + bottom bar mobile -->
+    <main class="flex-1 px-4 space-y-4 mt-4 pb-36">
       <!-- Detail Pesanan -->
       <section class="bg-white rounded-xl border border-gray-200 p-4">
         <h2 class="font-semibold text-gray-800 mb-3">Detail Pesanan</h2>
@@ -535,7 +504,7 @@
 
 <script setup>
 import { computed, ref, watch, onMounted } from "vue";
-import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
+import { useRouter, onBeforeRouteLeave } from "vue-router";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import TextField from "@/components/forms/TextField.vue";
 import MobileHeader from "@/components/customer/MobileHeader.vue";
@@ -564,12 +533,32 @@ const schema = yup.object({
 const auth = useAuthStore();
 const router = useRouter();
 const checkout = useCheckoutStore();
+const checkoutItems = computed(() => {
+  if (checkout.from === "cart") {
+    return checkout.cartItems.map((item) => ({
+      id: item.id,
+      name: item.name,
+      image: item.image,
+      quantity: item.quantity,
+      price: item.unitPrice,
+      addons: item.addons || [],
+      variant: item.variant || null,
+    }));
+  }
 
-// Ambil data dari store (fallback dari query jika perlu)
-const slug = route.query.slug || checkout.productSlug;
-if (!slug) {
-  router.replace({ name: "Beranda" });
-}
+  // SINGLE PRODUCT MODE
+  return [
+    {
+      id: checkout.productSlug,
+      name: checkout.productTitle,
+      image: checkout.productImage,
+      quantity: checkout.qty,
+      price: checkout.unitPrice,
+      addons: checkout.selectedAddons,
+      variant: checkout.selectedVariantName,
+    },
+  ];
+});
 
 // Order view model (dari store)
 const order = computed(() => ({
@@ -621,19 +610,11 @@ const total = computed(() =>
 
 const formatIDR = (v) => Number(v || 0).toLocaleString("id-ID");
 
-// Izinkan ubah qty di checkout page
-function setQty(q) {
-  checkout.setQty(q);
-  amounts.value.product =
-    Number(checkout.unitPrice || 0) * Number(checkout.qty || 1);
-}
-
 // Saat user mengubah size/variant/addon di halaman ini (gunakan handler Anda), panggil:
 // checkout.updateSelection({ sizeId, sizeName, variantId, variantName, unitPrice, stock });
 // checkout.setAddons(newAddonsArray);
 
 // Merchant phone
-const merchant = ref(null);
 const merchantPhone = ref(order.value.store.phone || "");
 function normalizePhone(raw) {
   if (!raw) return "";
@@ -645,54 +626,16 @@ function normalizePhone(raw) {
   else if (p.startsWith("0")) p = "62" + p.slice(1);
   return p;
 }
-async function loadMerchant() {
-  try {
-    const key =
-      order.value.store.slug ??
-      order.value.store.id ??
-      route.query.storeSlug ??
-      route.query.storeId;
-    if (!key) return;
-    const { data } = await api.get(`/public/merchants/${key}`);
-    merchant.value = data?.data || null;
-    if (merchant.value) {
-      checkout.store.name = checkout.store.name || merchant.value.name || "";
-      const addr = merchant.value.primaryAddress;
-      checkout.store.address =
-        checkout.store.address ||
-        addr?.detail ||
-        [
-          addr?.village?.name,
-          addr?.district?.name,
-          addr?.city?.name,
-          addr?.province?.name,
-        ]
-          .filter(Boolean)
-          .join(", ");
-      merchantPhone.value = normalizePhone(merchant.value.phone || "");
-    }
-  } catch (e) {
-    console.warn("[Checkout] Gagal fetch merchant:", e);
-  }
-}
-onMounted(loadMerchant);
 
 // Tambah state alamat merchant dari product detail
 const merchantAddressFromProduct = ref("");
 
 // Saat mounted, jika slug tersedia, fetch product untuk ambil merchant_address
 onMounted(async () => {
-  const slug = route.query.slug || checkout.productSlug;
-  if (!slug) return;
-  try {
-    const { data } = await api.get(`/public/products/${slug}`);
-    merchantAddressFromProduct.value = data?.merchant_address || "";
-    // jika store.address di checkout kosong, isi dari merchant_address
-    if (!checkout.store.address && merchantAddressFromProduct.value) {
-      checkout.store.address = merchantAddressFromProduct.value;
+  if (checkout.from === "cart") {
+    if (!checkout.store?.id || checkout.cartItems.length === 0) {
+      router.replace({ name: "Beranda" });
     }
-  } catch (e) {
-    console.warn("[Checkout] Gagal ambil merchant_address:", e);
   }
 });
 

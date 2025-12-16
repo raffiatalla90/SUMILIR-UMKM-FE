@@ -322,7 +322,6 @@ const loadDetail = async () => {
   product.value = null;
   try {
     const slug = route.params.slug; // ✅ gunakan slug
-    console.log("[Detail] Loading product", slug);
 
     const data = await fetchProductDetail(slug); // ✅ composable akan pakai slug
     product.value = data;

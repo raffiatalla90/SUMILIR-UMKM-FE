@@ -80,45 +80,27 @@ export const useAuthStore = defineStore("auth", () => {
   const isMerchant = computed(() => userRoles.value.includes("umkm-owner"));
   const isCustomer = computed(() => userRoles.value.includes("customer"));
 
-  const allMerchants = computed(() => user.value?.merchants || []);
-
-  const activeMerchant = computed(() => {
-    if (!allMerchants.value.length) return null;
-
-    if (selectedMerchantId.value) {
-      const found = allMerchants.value.find(
-        (m) => m.id === selectedMerchantId.value
-      );
-      if (found) return found;
-    }
-
-    return (
-      allMerchants.value.find((m) => m.status === "approved") ||
-      allMerchants.value[0]
+  // ✅ Set active merchant - NO NEW CSRF REQUEST
+  function setActiveMerchant(merchantId) {
+    const merchant = allMerchants.value.find(
+      (m) => m.id === Number(merchantId)
     );
-  });
-
-  const merchantId = computed(() => activeMerchant.value?.id || null);
-  const merchantName = computed(
-    () => activeMerchant.value?.name || user.value?.name || "User"
-  );
-
-  // =========================
-  // HELPERS
-  // =========================
-  function persistUser(data) {
-    const minimal = {
-      id: data.id,
-      name: data.name,
-      email: data.email,
-      roles: data.roles,
-      merchants: data.merchants || [],
-    };
-
-    user.value = minimal;
-    localStorage.setItem("user", JSON.stringify(minimal));
+    if (merchant) {
+      selectedMerchantId.value = Number(merchantId);
+      localStorage.setItem("selected_merchant_id", String(merchantId));
+    } else {
+    }
   }
 
+  // ✅ Load selected merchant from localStorage
+  function loadSelectedMerchant() {
+    const saved = localStorage.getItem("selected_merchant_id");
+    if (saved) {
+      selectedMerchantId.value = Number(saved);
+    }
+  }
+
+  // ✅ Clear user data
   function clearUser() {
     console.log("[Auth] 🗑️ Clearing user data.");
     user.value = null;
@@ -130,8 +112,6 @@ export const useAuthStore = defineStore("auth", () => {
     // ✅ Remove token from axios headers
     delete api.defaults.headers.common["Authorization"];
     setXsrfTokenHeader(null);
-    
-    console.log("[Auth] ✅ User data cleared");
   }
 
   // =========================
@@ -139,15 +119,16 @@ export const useAuthStore = defineStore("auth", () => {
   // =========================
   async function login(credentials) {
     try {
-      console.log("🔍 Logging in with credentials:", credentials);
-
-      // ✅ Get CSRF token first
+      // ✅ Use ensureCsrfToken instead of direct call
       await ensureCsrfToken();
-      console.log("✅ CSRF cookie obtained");
 
-      // ✅ Post to /api/auth/login (returns token + user data)
-      const { data } = await api.post("/auth/login", credentials);
-      console.log("✅ Login successful, token:", data.token?.substring(0, 20) + "...");
+      await sanctumApi.post("/login", credentials);
+
+      syncXsrfFromCookie();
+
+      const { data } = await sanctumApi.get("/me");
+
+      user.value = data;
 
       // ✅ Store token in localStorage for API requests
       if (data.token) {
@@ -174,8 +155,6 @@ export const useAuthStore = defineStore("auth", () => {
       toast.success("Login berhasil! Selamat datang 👋", { timeout: 2500 });
       return data.user;
     } catch (error) {
-      console.error("❌ Login error:", error);
-
       if (error.response?.status === 431) {
         toast.error("Cookie terlalu besar. Silakan clear cache browser.", {
           timeout: 4000,
@@ -199,7 +178,6 @@ export const useAuthStore = defineStore("auth", () => {
       await sanctumApi.post("/api/auth/logout");
       toast.success("Berhasil logout. Sampai jumpa! 👋", { timeout: 2500 });
     } catch (error) {
-      console.error("Logout error:", error);
       toast.warning("Logout gagal, tapi sesi Anda akan dihapus", {
         timeout: 3000,
       });
@@ -208,10 +186,18 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  async function register(payload) {
-    const { data } = await api.post("/auth/register", payload);
-    toast.success("Registrasi berhasil, silakan login");
-    return data;
+  async function register(userData) {
+    try {
+      // gunakan API instance (prefix /api)
+      const { data } = await api.post("/auth/register", userData);
+      toast.success("Registrasi berhasil! Silakan login.", { timeout: 3000 });
+      return data;
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.message || "Registrasi gagal. Silakan coba lagi.";
+      toast.error(errorMessage, { timeout: 4000 });
+      throw error;
+    }
   }
 
   async function initAuth() {

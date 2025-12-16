@@ -175,6 +175,13 @@ const loadProducts = async () => {
     return;
   }
 
+  // ✅ ADD: Prevent duplicate calls
+  if (loading.value) {
+    return;
+  }
+
+  logCookies("BEFORE fetchProducts"); // ✅ Log before
+
   try {
     const sortBy = buildSortByParam(activeFilters.value);
 

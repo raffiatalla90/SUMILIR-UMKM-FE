@@ -229,6 +229,7 @@ const {
 // LIFECYCLE HOOKS
 // ============================================================
 onMounted(async () => {
+
   // ✅ ADD: Validate merchantId on mount
   if (!currentMerchantId.value) {
     toast.error("Merchant ID tidak valid");
@@ -349,6 +350,7 @@ const allCombinationsSelected = computed(() => {
 // ============================================================
 const onSubmit = veeHandleSubmit(
   async (values) => {
+
     const oversizedImage = productImages.value.find(
       (img) => img.file.size > MAX_IMAGE_SIZE_BYTES
     );
@@ -613,9 +615,6 @@ const onSubmit = veeHandleSubmit(
         }
       });
 
-      console.log("useVariants:", useVariants.value);
-      console.log("variants:", variants.value);
-
       // API Call
       const response = await api.post("/api/products", formData, {
         headers: {
@@ -623,11 +622,13 @@ const onSubmit = veeHandleSubmit(
         },
       });
 
+
       toast.success("Produk berhasil ditambahkan");
 
       // ✅ FIXED: Redirect dengan merchantId yang benar
       router.push(`/merchant-center/${currentMerchantId.value}/products`);
     } catch (error) {
+
       if (error.response?.status === 422) {
         const data = error.response.data;
 
@@ -660,6 +661,7 @@ const onSubmit = veeHandleSubmit(
     }
   },
   (errorsFromVee) => {
+
     function getFirstErrorMessage(errObj) {
       if (!errObj) return null;
       if (typeof errObj === "string") return errObj;

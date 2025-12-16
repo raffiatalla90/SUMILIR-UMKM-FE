@@ -244,89 +244,194 @@ const allCombinationsSelected = computed(() => {
     selectedCombinations.value.size === combinations.value.length
   );
 });
-const populateFormFromProduct = async (product) => {
-  name.value = product.name;
-  description.value = product.description;
-  setFieldValue("min_purchase", product.min_purchase);
 
-  // CATEGORY
-  if (product.categories?.length) {
-    selectedCategory.value = product.categories[0].id;
-    await fetchSubCategories(selectedCategory.value);
-    selectedSubCategories.value = product.categories.slice(1).map((c) => c.id);
+const breadcrumbs = computed(() => [
+  { label: "Produk", path: "/merchant-center/products" },
+  { label: "Edit Produk", path: null },
+]);
+
+// ✅ SAMA SEPERTI CREATE: Watchers
+watch(name, (newName) => {
+  setFieldValue("name", newName);
+});
+
+watch(description, (newDesc) => {
+  setFieldValue("description", newDesc);
+});
+
+watch(selectedCategory, async (newCat) => {
+  setFieldValue("category_id", newCat);
+
+  if (newCat) {
+    await fetchSubCategories(newCat);
+  } else {
+    categoriesLevel2.value = [];
   }
+  // Jangan clear sub categories pada mode edit
+});
 
-  // IMAGES
-  productImages.value = product.images.map((img) => ({
-    id: img.id,
-    preview: img.src_url,
-    existing: true,
-  }));
-  coverImageIndex.value = product.images.findIndex((i) => i.is_cover) || 0;
+// ✅ ADD: Flag to prevent auto-regenerate during initial load
+const isInitialLoad = ref(false);
 
-  // VARIANTS
-  if (product.options?.length) {
-    useVariants.value = true;
+// ✅ IMPROVED: Watcher with debounce and smart regeneration
+let regenerateTimeout = null;
 
-    variants.value = product.options.map((opt) => {
-      const clientKey = crypto.randomUUID();
+watch(
+  () => [useVariants.value, variants.value],
+  () => {
+    // Clear previous timeout
+    if (regenerateTimeout) {
+      clearTimeout(regenerateTimeout);
+    }
 
-      variantNames.value[clientKey] = opt.option_name;
-      variantUsesImages.value[clientKey] = opt.uses_image ? 1 : 0;
+    // ✅ Debounce: Wait 300ms before regenerating
+    regenerateTimeout = setTimeout(() => {
+      if (useVariants.value && variants.value.length > 0) {
+        generateCombinations();
+      } else {
+        selectedCombinations.value.clear();
+      }
+    }, 300);
+  },
+  { deep: true }
+);
 
-      return {
-        id: opt.id, // untuk backend
-        clientKey, // untuk frontend
-        name: opt.option_name,
-        options: opt.values.map((v) => ({
-          id: v.id,
-          clientKey: crypto.randomUUID(),
-          name: v.option_value,
-          images: v.image_path
-            ? [{ id: v.id, preview: getVariantImageUrl(v.id), existing: true }]
-            : [],
-        })),
-      };
-    });
-  }
+// ✅ IMPROVED: Helper function dengan EXPLICIT sorting
+const createCombinationKey = (attributes) => {
+  if (!attributes || attributes.length === 0) return "";
 
-  if (product.variants?.length) {
-    setCombinationsFromBackend(product.variants);
-  }
+  // Sort by name (case-insensitive)
+  const sorted = [...attributes].sort((a, b) => {
+    const nameA = (a.name || "").toLowerCase().trim();
+    const nameB = (b.name || "").toLowerCase().trim();
+    return nameA.localeCompare(nameB);
+  });
 
-  // ADDONS
-  if (product.addon_groups) {
-    addOnGroups.value = product.addon_groups.map((g) => {
-      const groupClientKey = crypto.randomUUID();
+  // Create key with normalized values
+  const key = sorted
+    .map((attr) => {
+      const name = (attr.name || "").toLowerCase().trim();
+      const value = (attr.value || "").toLowerCase().trim();
+      return `${name}:${value}`;
+    })
+    .join("|");
 
-      return {
-        id: g.id, // backend
-        clientKey: groupClientKey, // 🔥 WAJIB
-        name: g.addon_group_name,
-        min_selection: g.min_selection,
-        max_selection: g.max_selection,
-        options: g.options.map((o) => ({
-          id: o.id, // backend
-          clientKey: crypto.randomUUID(), // 🔥 WAJIB
-          name: o.addon.addon_name,
-          price: Number(o.addon_price),
-        })),
-      };
-    });
-  }
+  return key;
 };
+let existingCombosMap = new Map();
+// ✅ CRITICAL FIX: Generate combinations dengan proper attribute structure
+const generateCombinations = () => {
+  const validVariants = variants.value
+    .filter((v) => v.name.trim() && v.options.some((opt) => opt.name.trim()))
+    .map((v) => ({
+      name: v.name.trim(),
+      options: v.options
+        .filter((opt) => opt.name.trim())
+        .map((opt) => ({
+          id: opt.id,
+          name: opt.name.trim(),
+          images: opt.images,
+        })),
+    }));
 
-// ======================================================
-// FETCH DATA
-// ======================================================
+  if (validVariants.length === 0) {
+    selectedCombinations.value.clear();
+    return;
+  }
+
+  const newCombinations = [];
+
+  const generateRecursive = (variantIndex, current) => {
+    if (variantIndex === validVariants.length) {
+      // ✅ CRITICAL: Ensure attributes are in SAME ORDER as when stored
+      const normalizedAttributes = current.attributes.map((attr) => ({
+        name: attr.name.trim(),
+        value: attr.value.trim(),
+      }));
+
+      const attributeKey = createCombinationKey(normalizedAttributes);
+      const existingData = existingCombosMap.get(attributeKey);
+
+      newCombinations.push({
+        combination: current.combination,
+        sku: existingData?.sku || "",
+        price: existingData?.price || 0,
+        stock: existingData?.stock || 0,
+        attributes: normalizedAttributes,
+      });
+      return;
+    }
+
+    const variant = validVariants[variantIndex];
+    variant.options.forEach((option) => {
+      generateRecursive(variantIndex + 1, {
+        combination: current.combination
+          ? `${current.combination} - ${option.name}`
+          : option.name,
+        attributes: [
+          ...current.attributes,
+          {
+            name: variant.name,
+            value: option.name,
+          },
+        ],
+      });
+    });
+  };
+
+  generateRecursive(0, { combination: "", attributes: [] });
+
+  if (newCombinations.length > maxOptions) {
+    combinations.value = newCombinations.slice(0, maxOptions);
+    toast.warning(`Kombinasi dipotong menjadi ${maxOptions} (maksimal)`);
+  } else {
+    combinations.value = newCombinations;
+  }
+
+  selectedCombinations.value.clear();
+};
+const absoluteImagePath = (img) => {
+  // img bisa berupa string (path) atau object { id, image_path }
+  if (!img) return "";
+
+  const baseURL = (
+    import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
+  ).replace(/\/$/, "");
+
+  // jika argumen adalah object
+  const image_path = typeof img === "string" ? img : img.image_path;
+  const id = typeof img === "string" ? null : img.id;
+
+  if (!image_path && id) {
+    // tidak ada image_path, fallback ke endpoint by id
+    return getImageUrl(id);
+  }
+
+  if (!image_path && !id) return "";
+
+  const path = image_path.trim();
+
+  // already absolute URL?
+  if (/^https?:\/\//i.test(path)) return path;
+
+  // starts with api/ or /api/... -> prefix baseURL
+  if (
+    /^\/?api\//i.test(path) ||
+    /^\/storage\//i.test(path) ||
+    path.startsWith("/")
+  ) {
+    return `${baseURL.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
+  }
+
+  // fallback: treat as file path relative to API root
+  return `${baseURL}/${path}`;
+};
+// ================= REPLACE EXISTING fetchProductData WITH THIS =================
 const fetchProductData = async () => {
   loadingData.value = true;
   try {
-    console.log("[Edit] Fetching product (via composable):", productSlug.value);
     const payload = await fetchProductDetail(productSlug.value); // ✅ pakai slug
     const productData = payload;
-
-    console.log("[Edit] Product loaded (composable):", productData);
 
     // Fetch sub categories jika ada main category
     if (productData.categories && productData.categories.length > 0) {
@@ -358,9 +463,9 @@ const fetchProductData = async () => {
     // Populate rest of the form + variants/addons using helper yang sudah ada
     populateFormFromProduct(productData);
   } catch (error) {
-    console.error("Fetch product error:", error);
-    toast.error("Gagal memuat produk");
-    router.push(`/merchant-center/${currentMerchantId.value}/products`);
+    // biarkan toast dan redirect seperti sebelumnya; gunakan existing toast/router yang ada
+    toast.error(error.response?.data?.message || "Gagal memuat data produk");
+    router.push("/merchant-center/products");
   } finally {
     loadingData.value = false;
 
@@ -368,7 +473,6 @@ const fetchProductData = async () => {
     await nextTick();
     setTimeout(() => {
       isInitialLoad.value = false;
-      console.log("[Edit] ✅ Initial load complete, watchers now active");
     }, 300);
   }
 };
@@ -688,8 +792,18 @@ const isAddOnGroupExpanded = (groupId) => {
 // ✅ SAMA SEPERTI CREATE: Submit Handler
 const onSubmit = veeHandleSubmit(
   async (values) => {
-    console.log("[Submit] Form values:", values);
+    if (useVariants.value && totalCombinations.value > MAX_COMBINATIONS) {
+      toast.error(`Kombinasi varian maksimal ${MAX_COMBINATIONS}`);
+      return;
+    }
+    const hasTooManyAddonOptions = addOnGroups.value.some(
+      (group) => group.options.length > maxAddOnOptions
+    );
 
+    if (hasTooManyAddonOptions) {
+      toast.error(`Setiap grup add-on maksimal ${maxAddOnOptions} opsi`);
+      return;
+    }
     // === 1) Validasi dengan Yup langsung (deterministik, gak tergantung field registration) ===
     try {
       // validasi semua field di values berdasarkan schema
@@ -962,11 +1076,6 @@ const onSubmit = veeHandleSubmit(
           });
         }
       });
-      combinations.value.forEach((combo) => {
-        if (combo.id && combo.attributes.some((a) => !a.option_value_id)) {
-          combo.id = null;
-        }
-      });
 
       // ✅ API Call
       await api.post(`/products/${productSlug.value}`, formData, {
@@ -1071,9 +1180,80 @@ const onSubmit = veeHandleSubmit(
   }
 );
 
-// ======================================================
-// LIFECYCLE
-// ======================================================
+const goBack = () => {
+  router.back();
+};
+
+const populateFormFromProduct = (productData) => {
+  // 1️⃣ basic info
+  name.value = productData.name || "";
+  description.value = productData.description || "";
+
+  setFieldValue("name", productData.name || "");
+  setFieldValue("description", productData.description || "");
+  setFieldValue("category_id", productData.categories?.[0]?.id || null);
+  setFieldValue("min_purchase", productData.min_purchase ?? 1);
+
+  // 2️⃣ MAP BACKEND VARIANTS → existingCombosMap
+  existingCombosMap = new Map();
+
+  productData.variants?.forEach((variant) => {
+    const attrs = variant.option_values.map((ov) => ({
+      name: ov.option_name.trim(),
+      value: ov.option_value.trim(),
+    }));
+
+    const key = createCombinationKey(attrs);
+
+    existingCombosMap.set(key, {
+      sku: variant.sku || "",
+      price: Number(variant.price || 0),
+      stock: Number(variant.stock || 0),
+    });
+  });
+
+  // 3️⃣ SET VARIANTS UI
+  if (productData.options?.length) {
+    useVariants.value = true;
+
+    variants.value = productData.options.map((optionGroup) => ({
+      id: optionGroup.id,
+      name: optionGroup.option_name || "",
+      options: optionGroup.values.map((val) => ({
+        id: val.id,
+        name: val.option_value,
+        images:
+          val.image_url || val.image_path
+            ? [
+                {
+                  id: val.id,
+                  preview: val.image_url || absoluteImagePath(val.image_path),
+                  existing: true,
+                },
+              ]
+            : [],
+      })),
+    }));
+
+    productData.options.forEach((opt) => {
+      variantUsesImages.value[opt.id] = opt.uses_image ? 1 : 0;
+      expandedVariants.value.add(opt.id);
+    });
+
+    // 4️⃣ BARU generate
+    generateCombinations();
+  }
+};
+
+watch(
+  () => values.sku,
+  (newVal) => {
+    formSku.value = newVal || "";
+  }
+);
+watch(formSku, (newVal) => {
+  setFieldValue("sku", newVal);
+});
 onMounted(async () => {
   await fetchLevel1Categories();
   await fetchProductData();
@@ -1152,7 +1332,7 @@ const formMinPurchase = computed({
     </div>
 
     <!-- ✅ Content (Only show when data loaded) -->
-    <div v-else class="px-0 mx-auto sm:px-4 lg:px-6 sm:py-6 sm:pt-0">
+    <div v-else class="mx-auto px-0 sm:px-4 lg:px-6 sm:py-6 sm:pt-0">
       <Form ref="formRef" :validation-schema="schema" @submit="onSubmit">
         <!-- Foto Produk -->
         <div
@@ -2146,6 +2326,7 @@ const formMinPurchase = computed({
           ? `${selectedCombinations.size} kombinasi dipilih`
           : null
       "
+      :show-footer="true"
       :show-footer="true"
       @close="closeCombinationsModal"
     >

@@ -538,6 +538,52 @@ const tempSize = ref(null);
 const tempVariant = ref(null);
 const tempAddons = ref([]);
 
+const cartStores = ref([]);
+const loading = ref(false);
+
+const fetchCart = async () => {
+  loading.value = true;
+  try {
+    const res = await api.get("/cart");
+
+    cartStores.value = res.data.data.map((cart) => ({
+      id: cart.cart_id,
+      name: cart.merchant.name,
+      phone: cart.merchant.phone,
+      address: cart.merchant.address,
+      items: cart.items.map((item) => ({
+        id: item.cart_item_id,
+        name: item.display.name,
+        image: item.display.image,
+
+        unitPrice: item.display.unit_price,
+        addonTotalPrice: item.display.addon_total_price,
+        quantity: item.quantity,
+        stock: item.display.max_stock,
+
+        // LABEL
+        variant: item.display.variant_label,
+        addons: item.display.addons, // ⬅️ array {label, price}
+
+        // SELECTION DATA
+        selectedVariantId: item.selected_configuration.variant_id,
+        selectedAddons: item.selected_configuration.addon_ids,
+
+        productDetails: item.product_details,
+      })),
+    }));
+  } catch (error) {
+    toast.error("Gagal memuat keranjang");
+    cartStores.value = [];
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchCart();
+});
+
 // ✅ Body Scroll Lock for Modals
 const isAnyModalOpen = computed(
   () => showConfirmModal.value || showEditModal.value

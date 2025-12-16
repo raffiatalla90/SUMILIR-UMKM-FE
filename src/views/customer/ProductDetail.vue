@@ -7,7 +7,7 @@
       <div class="flex items-center justify-end px-4 py-3">
         <button
           @click="goBack"
-          class="p-2 transition rounded-full hover:bg-gray-100 active:scale-95"
+          class="p-2 hover:bg-gray-100 rounded-full transition active:scale-95"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -32,14 +32,29 @@
       class="sticky top-0 left-0 right-0 z-40 transition-transform duration-300 ease-out border-b border-gray-200 shadow-md sm:hidden bg-white/95 backdrop-blur-md"
       :class="showScrollHeader ? 'translate-y-0' : '-translate-y-full'"
     >
-      <div class="flex items-center gap-2 px-3 py-3">
-        <!-- Back -->
-        <button
-          @click="goBack"
-          class="p-2 px-3 transition rounded-full hover:bg-gray-100 active:scale-95"
-        >
-          <i class="text-sm pi pi-chevron-left"></i>
-        </button>
+      <div
+        class="bg-white/95 backdrop-blur-md shadow-md border-b border-gray-200"
+      >
+        <div class="px-4 py-3 flex items-center gap-3">
+          <button
+            @click="goBack"
+            class="p-1.5 hover:bg-gray-100 rounded-full transition active:scale-95"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="2.5"
+              stroke="currentColor"
+              class="w-5 h-5 text-gray-800"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M15.75 19.5 8.25 12l7.5-7.5"
+              />
+            </svg>
+          </button>
 
           <div class="flex-1 min-w-0">
             <h1 class="text-sm font-semibold text-gray-900 truncate">
@@ -53,7 +68,7 @@
           <div class="flex items-center gap-2">
             <button
               @click="shareProduct"
-              class="p-1.5 hover:bg-gray-100 rounded-full transition"
+              class="p-1.5 hover:bg-gray-100 rounded-full transition active:scale-95"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -73,7 +88,7 @@
 
             <button
               @click="goToCart"
-              class="relative p-1.5 hover:bg-gray-100 rounded-full transition"
+              class="relative p-1.5 hover:bg-gray-100 rounded-full transition active:scale-95"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -740,7 +755,7 @@
               </h3>
               <div
                 v-if="relatedProducts.length > 0"
-                class="flex gap-3 pb-2 overflow-x-auto no-scrollbar"
+                class="flex gap-3 overflow-x-auto no-scrollbar pb-2"
               >
                 <ProductCard
                   v-for="item in relatedProducts"
@@ -752,7 +767,7 @@
               </div>
               <div
                 v-else
-                class="px-2 py-6 text-sm italic text-center text-gray-400"
+                class="text-gray-400 text-sm italic px-2 py-6 text-center"
               >
                 Tidak ada produk lain dari toko ini.
               </div>
@@ -775,6 +790,8 @@
       <!-- Tombol Keranjang -->
       <button
         @click="addToCart"
+        class="w-12 h-12 rounded-xl border-2 border-[#FFA30E] text-[#FFA30E] hover:bg-orange-50 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center hover:-translate-y-0.5 active:scale-95"
+        :disabled="getCurrentStock() === 0 || isArchived"
         class="w-12 h-12 rounded-xl border-2 border-[#FFA30E] text-[#FFA30E] hover:bg-orange-50 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center hover:-translate-y-0.5 active:scale-95"
         :disabled="getCurrentStock() === 0 || isArchived"
         :title="getCurrentStock() === 0 ? 'Stok Habis' : 'Tambah ke Keranjang'"
@@ -800,6 +817,7 @@
         @click="buyNow"
         variant="primary"
         customClass="w-full"
+        :disabled="getCurrentStock() === 0 || isArchived"
         :disabled="getCurrentStock() === 0 || isArchived"
       >
         {{ getCurrentStock() === 0 ? "Stok Habis" : "Beli Sekarang" }}
@@ -859,6 +877,7 @@
             @click="addToCart"
             variant="primary-outline"
             :disabled="getCurrentStock() === 0 || isArchived"
+            :disabled="getCurrentStock() === 0 || isArchived"
             :title="
               getCurrentStock() === 0 ? 'Stok Habis' : 'Tambah ke Keranjang'
             "
@@ -883,6 +902,7 @@
           <!-- Tombol Beli Sekarang -->
           <Button
             @click="buyNow"
+            :disabled="getCurrentStock() === 0 || isArchived"
             :disabled="getCurrentStock() === 0 || isArchived"
             variant="primary"
           >
@@ -1235,18 +1255,6 @@ const authStore = useAuthStore();
 const cartStore = useCartStore();
 const toast = useToast();
 const showFullDescription = ref(false);
-const searchInput = ref("");
-
-function submitSearch() {
-  if (!searchInput.value.trim()) return;
-
-  router.push({
-    path: "/search", // pastikan route ini ada
-    query: {
-      q: searchInput.value.trim(),
-    },
-  });
-}
 
 const touchStartX = ref(0);
 const touchEndX = ref(0);
@@ -1266,6 +1274,35 @@ const displayedDescription = computed(() => {
 
   return product.value.description.slice(0, DESCRIPTION_LIMIT) + "...";
 });
+
+function handleTouchStart(e) {
+  if (!e.touches || e.touches.length === 0) return;
+  touchStartX.value = e.touches[0].clientX;
+}
+
+function handleTouchMove(e) {
+  if (!e.touches || e.touches.length === 0) return;
+  touchEndX.value = e.touches[0].clientX;
+}
+
+function handleTouchEnd() {
+  const deltaX = touchEndX.value - touchStartX.value;
+
+  if (Math.abs(deltaX) < swipeThreshold) return;
+
+  if (deltaX > 0) {
+    // swipe kanan → gambar sebelumnya
+    prevImage();
+  } else {
+    // swipe kiri → gambar berikutnya
+    nextImage();
+  }
+
+  // reset
+  touchStartX.value = 0;
+  touchEndX.value = 0;
+}
+
 
 function handleTouchStart(e) {
   if (!e.touches || e.touches.length === 0) return;
@@ -1373,7 +1410,6 @@ async function addToCart() {
       cartStore.increase(quantity.value);
     }
   } catch (error) {
-    console.error("Add to cart error:", error);
     const msg =
       error.response?.data?.message || "Gagal menambahkan ke keranjang.";
     toast.error(msg);
@@ -1481,10 +1517,11 @@ function shareVia(platform) {
 // body scroll lock for modals
 const isAnyModalOpen = computed(
   () => showAddonModal.value || showShareModal.value
+  () => showAddonModal.value || showShareModal.value
 );
 const goToCart = () => {
   if (!authStore.isAuthenticated) {
-    toast.info("Silakan login terlebih dahulu untuk mengakses keranjang.");
+    toast.info("Silakan login terlebih dahulu untuk menambahkan ke keranjang.");
     router.push({
       name: "Login",
       query: { redirect: route.fullPath },
@@ -1866,11 +1903,12 @@ async function doFetchProduct(slug) {
     selectedVariant.value =
       mapped.selectedVariant ??
       (variants.value.length ? variants.value[0] : null);
-    selectedAddons.value = [];
-    tempSelectedAddons.value = [];
 
-    // lalu init addon wajib
-    initDefaultRequiredAddons();
+    selectedAddons.value = Array.isArray(mapped.selectedAddons)
+      ? mapped.selectedAddons
+      : [];
+    tempSelectedAddons.value = [...selectedAddons.value];
+
     // fallback: kalau tidak ada productImages tapi variant memiliki display_image gunakan itu
     if (
       (!productImages.value || productImages.value.length === 0) &&
@@ -1961,21 +1999,6 @@ function buyNow() {
   const store = product.value?.merchant || product.value?.store || {};
   const merchantAddress = product.value?.merchant_address ?? "";
   const checkout = useCheckoutStore();
-
-  // ✅ HITUNG matchedCombo DULU
-  const matchedCombo = stockCombinations.value.find(
-    (c) =>
-      Number(c.sizeId) === Number(sizeId) &&
-      Number(c.variantId) === Number(optionVariantId)
-  );
-
-  if (!matchedCombo) {
-    toast.error("Varian tidak valid");
-    return;
-  }
-
-  // ✅ BARU PAKAI
-  const productVariantId = matchedCombo.product_variant_id;
 
   checkout.setFromProductDetail({
     slug: product.value?.slug,

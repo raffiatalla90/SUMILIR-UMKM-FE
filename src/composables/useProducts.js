@@ -50,7 +50,7 @@ export function useProducts() {
       }
       return payload;
     } catch (err) {
-      console.error("[useProducts] fetchProductDetail error:", err);
+      toast.error("Gagal memuat detail produk");
       throw err;
     }
   };
@@ -73,6 +73,7 @@ export function useProducts() {
     page = 1,
   } = {}) => {
     if (!merchantId) {
+      toast.error("Merchant ID diperlukan untuk memuat produk");
       toast.error("Merchant ID diperlukan untuk memuat produk");
       return;
     }
@@ -97,15 +98,11 @@ export function useProducts() {
       lastRequestParams === requestSignature &&
       pendingRequest
     ) {
-      console.warn(
-        "[fetchProducts] Duplicate request detected, returning pending promise"
-      );
       return pendingRequest;
     }
 
     // jika request sama dengan request terakhir yang selesai -> pakai cache lokal
     if (lastRequestParams === requestSignature && !loading.value) {
-      console.log("[fetchProducts] Using cached result");
       return { data: products.value, meta: pagination.value };
     }
 
@@ -128,11 +125,6 @@ export function useProducts() {
     Object.keys(params).forEach(
       (k) => params[k] === undefined && delete params[k]
     );
-    Object.keys(params).forEach(
-      (k) => params[k] === undefined && delete params[k]
-    );
-
-    console.log("[fetchProducts] Request params:", params);
 
     // Buat pendingRequest sebagai promise yang mengembalikan `data` (konsisten)
     pendingRequest = (async () => {
@@ -150,14 +142,9 @@ export function useProducts() {
           };
         }
 
-        console.log("[fetchProducts] Success:", {
-          products: products.value.length,
-          total: pagination.value.total,
-        });
-
         return data; // kembalikan bentuk yang sama seperti sebelumnya
       } catch (error) {
-        console.error("[fetchProducts] Error:", error);
+        toast.error("Gagal memuat produk");
         lastRequestParams = null;
         throw error;
       } finally {
@@ -177,7 +164,7 @@ export function useProducts() {
       products.value = products.value.filter((p) => p.slug !== productSlug);
       pagination.value.total = Math.max(0, pagination.value.total - 1);
     } catch (error) {
-      toast.error("Gagal memperbarui status produk");
+      toast.error("Gagal menghapus produk");
       throw error;
     } finally {
       loading.value = false;
@@ -194,7 +181,7 @@ export function useProducts() {
       if (index !== -1) products.value[index].status = status;
       return data;
     } catch (error) {
-      toast.error("Gagal menghapus produk secara massal");
+      toast.error("Gagal memperbarui status produk");
       throw error;
     } finally {
       loading.value = false;
@@ -213,7 +200,7 @@ export function useProducts() {
         pagination.value.total - productSlugs.length
       );
     } catch (error) {
-      toast.error("Gagal memperbarui status produk secara massal");
+      toast.error("Gagal menghapus produk secara massal");
       throw error;
     } finally {
       loading.value = false;
@@ -231,7 +218,7 @@ export function useProducts() {
         if (productSlugs.includes(product.slug)) product.status = status;
       });
     } catch (error) {
-      console.error("Error bulk updating status:", error);
+      toast.error("Gagal memperbarui status produk secara massal");
       throw error;
     } finally {
       loading.value = false;
@@ -246,7 +233,7 @@ export function useProducts() {
       });
       return data.data || [];
     } catch (error) {
-      console.error("[fetchProductsToko] Error:", error);
+      toast.error("Gagal memuat produk toko");
       throw error;
     } finally {
       loading.value = false;
@@ -261,7 +248,7 @@ export function useProducts() {
       });
       return data.data || [];
     } catch (error) {
-      console.error("[fetchProductsKuliner] Error:", error);
+      toast.error("Gagal memuat produk kuliner");
       throw error;
     } finally {
       loading.value = false;
@@ -455,15 +442,26 @@ export function useProducts() {
       merchant_address,
       related_products,
 
-      productImages,
-      sizes: sizesRes,
-      variants: variantsRes,
-      stockCombinations,
-      selectedSize,
-      selectedVariant,
-      addonGroups,
-      selectedAddons,
-    };
+        productImages,
+        sizes: sizesRes,
+        // keep variantsRes (option2 values) in case other logic depends on it
+        variantValues: variantsRes,
+        // MAIN: normalizedVariants for UI usage (each variant includes .options array)
+        variants: normalizedVariants,
+
+        stockCombinations,
+        selectedSize,
+        selectedVariant,
+        addonGroups,
+        selectedAddons,
+        optionDefinitions: normalizedOptions,
+      };
+    } catch (err) {
+      toast.error("Gagal memuat detail produk");
+      throw err;
+    } finally {
+      loading.value = false;
+    }
   };
 
   // SINGLE RETURN STATEMENT AT THE END (tambahkan fetchPublicProductDetail)

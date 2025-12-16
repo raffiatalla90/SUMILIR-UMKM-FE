@@ -196,6 +196,7 @@ const routes = [
     children: [
       {
         path: "",
+        name: "Admin",
         redirect: { name: "Admin Dashboard" },
       },
       {
@@ -513,6 +514,20 @@ const router = createRouter({
       behavior: "smooth", // opsional
     };
   },
+
+  scrollBehavior(to, from, savedPosition) {
+    // ⬅️ untuk back/forward browser
+    if (savedPosition) {
+      return savedPosition;
+    }
+
+    // ⬅️ default: selalu ke atas
+    return {
+      top: 0,
+      left: 0,
+      behavior: "smooth", // opsional
+    };
+  },
 });
 
 // Track navigation to prevent excessive calls
@@ -537,15 +552,8 @@ router.beforeEach(async (to, from, next) => {
 
   lastNavigationPath = to.path;
 
-  console.log("🔍 [Router Guard]", {
-    to: to.path,
-    from: from.path,
-    isAuthenticated: authStore.isAuthenticated,
-  });
-
-  // 1. butuh auth tapi belum login
+  // ✅ 1. Jika route butuh auth tapi user belum login
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    console.warn("⚠️ Not authenticated, redirecting to /login");
     return next("/login");
   }
 
@@ -583,7 +591,6 @@ router.beforeEach(async (to, from, next) => {
     );
 
     if (!hasRequiredRole) {
-      console.warn("⚠️ Role not allowed, redirecting to /");
       return next("/");
     }
   }
@@ -595,23 +602,16 @@ router.beforeEach(async (to, from, next) => {
       : null;
 
     if (!merchantIdParam || Number.isNaN(merchantIdParam)) {
-      console.warn(
-        "merchantId kosong/tidak valid, redirect ke /merchant-register"
-      );
       return next("/merchant-register");
     }
 
     const merchant = authStore.getMerchantById(merchantIdParam);
 
     if (!merchant) {
-      console.warn(
-        "Merchant tidak ditemukan/ belum approved, redirect ke /merchant-register"
-      );
       return next("/merchant-register");
     }
 
     if (merchant.status !== "approved") {
-      console.warn("Merchant belum approved, redirect ke /merchant-register");
       return next("/merchant-register");
     }
   }
