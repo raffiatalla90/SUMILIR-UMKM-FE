@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-gray-50 pb-28 max-w-7xl mx-auto">
     <!-- Mobile Header -->
-    <MobileHeader title="Checkout Pesanan" variant="primary" @back="goBack" />
+    <MobileHeader title="Checkout Pesanan" variant="primary" />
 
     <!-- MAIN: pb-36 supaya konten tidak ketutup footer + bottom bar mobile -->
     <main class="flex-1 px-4 space-y-4 mt-4 pb-36">
@@ -467,21 +467,17 @@
 
 <script setup>
 import { computed, ref, watch, onMounted } from "vue";
-import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
+import { useRouter, onBeforeRouteLeave } from "vue-router";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import TextField from "@/components/forms/TextField.vue";
 import MobileHeader from "@/components/customer/MobileHeader.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
-import api from "@/libs/axios";
 import { useCheckoutStore } from "@/stores/checkout";
 import { useAuthStore } from "@/stores/auth";
 
 const auth = useAuthStore();
-const route = useRoute();
 const router = useRouter();
 const checkout = useCheckoutStore();
-const isFromCart = computed(() => checkout.from === "cart");
-const cartItems = computed(() => checkout.cartItems);
 const checkoutItems = computed(() => {
   if (checkout.from === "cart") {
     return checkout.cartItems.map((item) => ({
@@ -558,19 +554,11 @@ const getAddonTotal = (item) => {
 
 const formatIDR = (v) => Number(v || 0).toLocaleString("id-ID");
 
-// Izinkan ubah qty di checkout page
-function setQty(q) {
-  checkout.setQty(q);
-  amounts.value.product =
-    Number(checkout.unitPrice || 0) * Number(checkout.qty || 1);
-}
-
 // Saat user mengubah size/variant/addon di halaman ini (gunakan handler Anda), panggil:
 // checkout.updateSelection({ sizeId, sizeName, variantId, variantName, unitPrice, stock });
 // checkout.setAddons(newAddonsArray);
 
 // Merchant phone
-const merchant = ref(null);
 const merchantPhone = ref(order.value.store.phone || "");
 function normalizePhone(raw) {
   if (!raw) return "";
@@ -582,49 +570,11 @@ function normalizePhone(raw) {
   else if (p.startsWith("0")) p = "62" + p.slice(1);
   return p;
 }
-async function loadMerchant() {
-  try {
-    const key =
-      order.value.store.slug ??
-      order.value.store.id ??
-      route.query.storeSlug ??
-      route.query.storeId;
-    if (!key) return;
-    const { data } = await api.get(`/public/merchants/${key}`);
-    merchant.value = data?.data || null;
-    if (merchant.value) {
-      checkout.store.name = checkout.store.name || merchant.value.name || "";
-      const addr = merchant.value.primaryAddress;
-      checkout.store.address =
-        checkout.store.address ||
-        addr?.detail ||
-        [
-          addr?.village?.name,
-          addr?.district?.name,
-          addr?.city?.name,
-          addr?.province?.name,
-        ]
-          .filter(Boolean)
-          .join(", ");
-      merchantPhone.value = normalizePhone(merchant.value.phone || "");
-    }
-  } catch (e) {
-    console.warn("[Checkout] Gagal fetch merchant:", e);
-  }
-}
 
 // Tambah state alamat merchant dari product detail
 
 // Saat mounted, jika slug tersedia, fetch product untuk ambil merchant_address
 onMounted(async () => {
-  // if (checkout.from === "product") {
-  //   if (!checkout.productSlug || checkout.qty <= 0 || checkout.unitPrice <= 0) {
-  //     console.warn("Invalid product checkout", checkout.$state);
-  //     router.replace({ name: "Beranda" });
-  //     return;
-  //   }
-  // }
-
   if (checkout.from === "cart") {
     if (!checkout.store?.id || checkout.cartItems.length === 0) {
       router.replace({ name: "Beranda" });

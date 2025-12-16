@@ -1,11 +1,11 @@
 // libs/axios.js
 import axios from "axios";
 import { useToast } from "vue-toastification";
+const toast = useToast();
 
 const baseURL =
   (import.meta.env.VITE_API_BASE_URL || "").trim() ||
   "http://localhost:8000/api";
-console.log("[API] Using baseURL     =", baseURL);
 
 window.__API_BASE__ = baseURL;
 
@@ -74,13 +74,11 @@ function setXsrfTokenHeader(xsrfToken) {
     api.defaults.headers.common["X-XSRF-TOKEN"] = xsrfToken;
     lastCsrfToken = xsrfToken;
     csrfTokenTimestamp = Date.now();
-    console.log("[API] XSRF token synced to axios instances");
   } else {
     delete sanctumApi.defaults.headers.common["X-XSRF-TOKEN"];
     delete api.defaults.headers.common["X-XSRF-TOKEN"];
     lastCsrfToken = null;
     csrfTokenTimestamp = null;
-    console.log("[API] XSRF token cleared from axios instances");
   }
 }
 
@@ -101,13 +99,11 @@ function isCsrfTokenValid() {
   // Check if token exists in cookie
   const cookieToken = readCookie("XSRF-TOKEN");
   if (!cookieToken) {
-    console.log("[API] No CSRF token in cookie");
     return false;
   }
 
   // Check if token matches cached token
   if (lastCsrfToken && cookieToken !== lastCsrfToken) {
-    console.log("[API] CSRF token mismatch, needs refresh");
     return false;
   }
 
@@ -115,7 +111,6 @@ function isCsrfTokenValid() {
   if (csrfTokenTimestamp) {
     const age = Date.now() - csrfTokenTimestamp;
     if (age > CSRF_TOKEN_VALIDITY) {
-      console.log("[API] CSRF token expired");
       return false;
     }
   }
@@ -127,18 +122,14 @@ function isCsrfTokenValid() {
 async function ensureCsrfToken() {
   // Check if token is valid
   if (isCsrfTokenValid()) {
-    console.log("[API] Using existing valid CSRF token");
     syncXsrfFromCookie();
     return lastCsrfToken;
   }
 
   // If already fetching, wait for that request
   if (csrfFetchPromise) {
-    console.log("[API] CSRF fetch already in progress, waiting...");
     return csrfFetchPromise;
   }
-
-  console.log("[API] Fetching new CSRF token...");
 
   // Fetch new CSRF token
   csrfFetchPromise = sanctumApi
@@ -147,12 +138,12 @@ async function ensureCsrfToken() {
       syncXsrfFromCookie();
       const token = readCookie("XSRF-TOKEN");
       csrfFetchPromise = null;
-      console.log("[API] New CSRF token fetched successfully");
+      toast.success("Token CSRF berhasil diperbarui");
       return token;
     })
     .catch((err) => {
-      console.error("[API] CSRF fetch failed:", err);
       csrfFetchPromise = null;
+      toast.error("Gagal mengambil token CSRF: " + (err?.message || err));
       throw err;
     });
 
@@ -177,9 +168,8 @@ initAuthToken();
 try {
   syncXsrfFromCookie();
 } catch (e) {
-  console.warn(
-    "[API] syncXsrfFromCookie failed (non-browser?):",
-    e?.message || e
+  toast.warning(
+    "Gagal sinkronisasi token XSRF dari cookie :" + e?.message || e
   );
 }
 
@@ -209,18 +199,9 @@ api.interceptors.request.use(
     } else {
       // For GET requests, just sync existing token
       if (!isCsrfTokenValid()) {
-        console.warn("[API] CSRF token invalid for GET request, syncing...");
         syncXsrfFromCookie();
       }
     }
-
-    const full = resolveFullUrl(config);
-    console.log(`[API] → ${method} ${full}`, {
-      params: config.params,
-      hasData: !!config.data,
-      hasCsrfToken: !!api.defaults.headers.common["X-XSRF-TOKEN"],
-      hasAuthToken: !!token,
-    });
 
     return config;
   },
@@ -230,9 +211,6 @@ api.interceptors.request.use(
 // Response interceptor
 api.interceptors.response.use(
   (response) => {
-    const full = resolveFullUrl(response.config);
-    const method = (response.config.method || "get").toUpperCase();
-    console.log(`[API] ← ${response.status} ${method} ${full}`);
     return response;
   },
   (error) => {
@@ -241,15 +219,16 @@ api.interceptors.response.use(
     const method = (cfg.method || "get").toUpperCase();
 
     if (error.response) {
-      console.warn(`[API] ✖ ${error.response.status} ${method} ${full}`, {
-        data: error.response.data,
-      });
+      toast.error(
+        "Terjadi kesalahan pada server :" +
+          error.response.status +
+          " " +
+          error.response.data
+      );
 
       // ✅ Handle 419 (CSRF token mismatch) - Retry once
       if (error.response.status === 419) {
-        console.log(
-          "[API] 419 CSRF token mismatch, clearing cache and retrying..."
-        );
+        toast.error("Token CSRF tidak valid. Mencoba memperbarui sesi...");
 
         // Clear cached token
         lastCsrfToken = null;
@@ -268,12 +247,23 @@ api.interceptors.response.use(
       }
 
       // Handle 401 Unauthenticated
-        if (error.response.status === 401) {
-          console.log("[API] 401 Unauthorized - skipping auto-logout");
-          return Promise.reject(error);
+      if (error.response.status === 401) {
+        toast.error("Sesi Anda telah habis. Silakan login kembali.");
+
+        const skipRoutes = [
+          "/login",
+          "/register",
+          "/sanctum/csrf-cookie",
+          "/me",
+        ];
+        const isSkipRoute = skipRoutes.some((route) => full.includes(route));
+
+        if (!isSkipRoute) {
+          handleSessionExpired();
+        }
       }
     } else {
-      console.error(`[API] ✖ ${method} ${full} failed:`, error.message);
+      toast.error("Koneksi ke server gagal. Silakan coba lagi.");
     }
 
     return Promise.reject(error);
@@ -283,9 +273,6 @@ api.interceptors.response.use(
 // ✅ Same for sanctumApi
 sanctumApi.interceptors.response.use(
   (response) => {
-    const full = resolveFullUrl(response.config);
-    const method = (response.config.method || "get").toUpperCase();
-    console.log(`[Sanctum API] ← ${response.status} ${method} ${full}`);
     return response;
   },
   (error) => {
@@ -294,19 +281,31 @@ sanctumApi.interceptors.response.use(
     const method = (cfg.method || "get").toUpperCase();
 
     if (error.response) {
-      console.warn(
-        `[Sanctum API] ✖ ${error.response.status} ${method} ${full}`,
-        {
-          data: error.response.data,
-        }
+      toast.error(
+        "Terjadi kesalahan pada server :" +
+          error.response.status +
+          " " +
+          error.response.data
       );
 
       if (error.response.status === 401 || error.response.status === 419) {
-        console.log("[Sanctum API] 401/419 - skipping auto-logout");
-        return Promise.reject(error);
+        toast.error("Sesi Anda telah habis. Silakan login kembali.");
+
+        const skipRoutes = [
+          "/login",
+          "/register",
+          "/sanctum/csrf-cookie",
+          "/me",
+          "/logout",
+        ];
+        const isSkipRoute = skipRoutes.some((route) => full.includes(route));
+
+        if (!isSkipRoute) {
+          handleSessionExpired();
+        }
       }
     } else {
-      console.error(`[Sanctum API] ✖ ${method} ${full} failed:`, error.message);
+      toast.error("Koneksi ke server gagal. Silakan coba lagi.");
     }
 
     return Promise.reject(error);

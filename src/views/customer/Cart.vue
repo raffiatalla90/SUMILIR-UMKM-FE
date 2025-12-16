@@ -657,7 +657,7 @@ const fetchCart = async () => {
       })),
     }));
   } catch (error) {
-    console.error("Gagal mengambil cart", error);
+    toast.error("Gagal memuat keranjang");
     cartStores.value = [];
   } finally {
     loading.value = false;

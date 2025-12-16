@@ -172,15 +172,8 @@ const loadProducts = async () => {
 
   // ✅ ADD: Prevent duplicate calls
   if (loading.value) {
-    console.warn("[loadProducts] Already loading, skipping...");
     return;
   }
-
-  console.log("[loadProducts] Starting...", {
-    merchantId: currentMerchantId.value,
-    page: currentPage.value,
-    filters: activeFilters.value,
-  });
 
   logCookies("BEFORE fetchProducts"); // ✅ Log before
 
@@ -293,13 +286,9 @@ const cancelSelection = () => {
 };
 
 const applyFilters = () => {
-  console.log("[Filter] Applying filters:", tempFilters.value);
-
   activeFilters.value = { ...tempFilters.value };
   currentPage.value = 1;
   closeFilterModal();
-
-  console.log("[Filter] Active filters:", activeFilters.value);
 
   loadProducts();
 };
@@ -662,18 +651,12 @@ const logCookies = (context) => {
       if (name) acc[name] = value?.substring(0, 20) + "...";
       return acc;
     }, {});
-
-    console.group(`🍪 Cookies - ${context}`);
-    console.log("Count:", cookies.length);
-    console.table(cookieObj);
-    console.groupEnd();
   }
 };
 
 // ✅ Watch currentMerchantId changes (when switching merchant)
 watch(currentMerchantId, (newId, oldId) => {
   if (newId && newId !== oldId) {
-    console.log("✅ Merchant changed, reloading products for:", newId);
     logCookies("merchantId changed"); // ✅ ADD: Log cookies on merchant change
 
     // Reset filters and pagination
