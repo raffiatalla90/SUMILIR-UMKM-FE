@@ -178,16 +178,11 @@ export const useAuthStore = defineStore("auth", () => {
         api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
       }
 
-      // ✅ Store user data
+      // ✅ Store user data (complete with all merchant details)
       user.value = data.user;
-      const essentialUserData = {
-        id: data.user.id,
-        name: data.user.name,
-        email: data.user.email,
-        roles: data.user.roles,
-        merchants: data.user.merchants || [],
-      };
-      localStorage.setItem("user", JSON.stringify(essentialUserData));
+      // Store the complete user data with full merchant information
+      // This ensures merchant.segmentation is preserved
+      localStorage.setItem("user", JSON.stringify(data.user));
       loadSelectedMerchant();
 
       toast.success("Login berhasil! Selamat datang 👋", { timeout: 2500 });
