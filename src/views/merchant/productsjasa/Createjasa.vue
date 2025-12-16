@@ -188,7 +188,7 @@ onMounted(() => {
 
                 <SelectField
                   name="jasa_category_id"
-                  label="Kategori Utama *"
+                  label="Pilih Kategori Utama *"
                   placeholder="Pilih kategori..."
                   :options="jasaCategories.map(c => ({ value: c.id, label: c.name }))"
                   v-model="formData.jasa_category_id"
@@ -198,7 +198,7 @@ onMounted(() => {
 
                 <SelectField
                   name="jasa_subcategory_id"
-                  label="Sub Kategori"
+                  label="Pilih Jenis Layanan Lebih Spesifik"
                   placeholder="Pilih sub kategori..."
                   :options="jasaSubcategories.map(s => ({ value: s.id, label: s.name }))"
                   v-model="formData.jasa_subcategory_id"
@@ -206,10 +206,10 @@ onMounted(() => {
 
                 <Field name="description" v-slot="{ field }">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Jelaskan Layanan Anda</label>
                     <textarea
                       v-bind="field"
-                      placeholder="Jelaskan layanan Anda..."
+                      placeholder="Tuliskan detail tentang layanan yang Anda tawarkan..."
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary"
                       rows="3"
                     />
@@ -224,12 +224,12 @@ onMounted(() => {
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <SelectField
                   name="price_type"
-                  label="Tipe Harga *"
+                  label="Bagaimana Cara Harganya? *"
                   :options="[
                     { value: 'per_jam', label: 'Per Jam' },
                     { value: 'per_sesi', label: 'Per Sesi' },
                     { value: 'per_hari', label: 'Per Hari' },
-                    { value: 'per_project', label: 'Per Project' },
+                    { value: 'per_project', label: 'Per Proyek' },
                   ]"
                   v-model="formData.price_type"
                   required
@@ -237,7 +237,7 @@ onMounted(() => {
 
                 <Field name="base_price" v-slot="{ field }">
                   <TextField
-                    label="Harga Dasar (Rp) *"
+                    label="Harga Mulai Dari (Rp) *"
                     type="number"
                     placeholder="150000"
                     v-bind="field"
@@ -247,7 +247,7 @@ onMounted(() => {
 
                 <Field name="min_order" v-slot="{ field }">
                   <TextField
-                    label="Minimal Order *"
+                    label="Minimal Jumlah Pemesanan *"
                     type="number"
                     placeholder="2"
                     v-bind="field"
@@ -263,7 +263,7 @@ onMounted(() => {
                       :value="true"
                       class="w-4 h-4 text-merchant-primary rounded"
                     />
-                    <label class="text-sm font-medium text-gray-700">Bisa dinegosiasikan</label>
+                    <label class="text-sm font-medium text-gray-700">Harga Bisa Dinegosiasikan</label>
                   </div>
                 </Field>
               </div>
@@ -276,8 +276,8 @@ onMounted(() => {
                 <!-- Estimasi Durasi -->
                 <Field name="estimated_duration" v-slot="{ field }">
                   <TextField
-                    label="Estimasi Durasi"
-                    placeholder="60 menit, 3 jam, 1 hari"
+                    label="Berapa Lama Layanan Ini?"
+                    placeholder="Contoh: 60 menit, 3 jam, 1 hari"
                     v-bind="field"
                   />
                 </Field>
@@ -286,7 +286,7 @@ onMounted(() => {
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field name="operating_hours_start" v-slot="{ field }">
                     <TextField
-                      label="Jam Layanan - Mulai"
+                      label="Jam Mulai Layanan"
                       type="time"
                       v-bind="field"
                     />
@@ -294,7 +294,7 @@ onMounted(() => {
 
                   <Field name="operating_hours_end" v-slot="{ field }">
                     <TextField
-                      label="Jam Layanan - Selesai"
+                      label="Jam Selesai Layanan"
                       type="time"
                       v-bind="field"
                     />
@@ -303,7 +303,7 @@ onMounted(() => {
 
                 <!-- Hari Operasional dengan Checkbox -->
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-3">Hari Operasional</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-3">Hari Operasional (Hari Apa Saja Anda Bekerja?)</label>
                   <div class="space-y-2">
                     <div class="flex items-center gap-3">
                       <input
@@ -437,8 +437,9 @@ onMounted(() => {
                 <!-- Pemesanan Dimuka -->
                 <Field name="booking_advance_days" v-slot="{ field }">
                   <TextField
-                    label="Pemesanan Dimuka (hari)"
+                    label="Berapa Hari Sebelumnya Harus Dipesan?"
                     type="number"
+                    placeholder="Contoh: 0 (bisa booking hari itu), 3 (harus 3 hari sebelumnya)"
                     v-bind="field"
                   />
                 </Field>
@@ -451,10 +452,10 @@ onMounted(() => {
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <SelectField
                   name="service_type"
-                  label="Tipe Layanan *"
+                  label="Dimana Layanan Diberikan? *"
                   :options="[
-                    { value: 'at_location', label: 'Di Tempat Penyedia' },
-                    { value: 'on_site', label: 'Datang ke Pelanggan' },
+                    { value: 'at_location', label: 'Di Tempat Saya' },
+                    { value: 'on_site', label: 'Ke Rumah/Lokasi Pelanggan' },
                     { value: 'online', label: 'Online' },
                   ]"
                   v-model="formData.service_type"
@@ -463,15 +464,15 @@ onMounted(() => {
 
                 <Field name="location_address" v-slot="{ field }">
                   <TextField
-                    label="Alamat Lokasi"
+                    label="Alamat Tempat Layanan"
                     v-bind="field"
                   />
                 </Field>
 
                 <Field name="service_area" v-slot="{ field }">
                   <TextField
-                    label="Area Layanan"
-                    placeholder="Jakarta Barat, radius 10km"
+                    label="Area Yang Dilayani"
+                    placeholder="Contoh: Jakarta Barat, radius 10km"
                     v-bind="field"
                   />
                 </Field>
@@ -506,10 +507,10 @@ onMounted(() => {
               <div class="space-y-4">
                 <Field name="cancellation_policy" v-slot="{ field }">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Kebijakan Pembatalan</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Syarat Pembatalan Pesanan</label>
                     <textarea
                       v-bind="field"
-                      placeholder="Bisa cancel H-1, setelah itu kena charge 50%"
+                      placeholder="Contoh: Bisa dibatalkan H-1, setelah itu kena charge 50%"
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg"
                       rows="2"
                     />
@@ -518,10 +519,10 @@ onMounted(() => {
 
                 <Field name="customer_requirements" v-slot="{ field }">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Kebutuhan Pelanggan</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Apa Yang Pelanggan Perlu Siapkan?</label>
                     <textarea
                       v-bind="field"
-                      placeholder="Ruangan kosong, colokan listrik, dokumen"
+                      placeholder="Contoh: Ruangan kosong, colokan listrik, dokumen"
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg"
                       rows="2"
                     />
@@ -530,10 +531,10 @@ onMounted(() => {
 
                 <Field name="special_notes" v-slot="{ field }">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Catatan Khusus</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Catatan Khusus (Opsional)</label>
                     <textarea
                       v-bind="field"
-                      placeholder="Hasil bergantung kondisi lapangan dan cuaca"
+                      placeholder="Contoh: Hasil bergantung kondisi lapangan dan cuaca"
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg"
                       rows="2"
                     />
@@ -548,22 +549,24 @@ onMounted(() => {
               <div class="space-y-4">
                 <Field name="image" v-slot="{ field }">
                   <TextField
-                    label="Foto Layanan (URL)"
+                    label="Link Foto Layanan"
+                    placeholder="https://..."
                     v-bind="field"
                   />
                 </Field>
 
                 <Field name="portfolio" v-slot="{ field }">
                   <TextField
-                    label="Portfolio/Contoh Proyek"
+                    label="Link Portfolio Atau Contoh Pekerjaan"
+                    placeholder="https://..."
                     v-bind="field"
                   />
                 </Field>
 
                 <Field name="social_media" v-slot="{ field }">
                   <TextField
-                    label="Sosial Media/Website"
-                    placeholder="https://instagram.com/... (pisahkan dengan koma)"
+                    label="Link Instagram, Website, Atau Kontak Lain"
+                    placeholder="https://instagram.com/... (pisahkan dengan koma jika lebih dari satu)"
                     v-bind="field"
                   />
                 </Field>
@@ -576,26 +579,26 @@ onMounted(() => {
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <SelectField
                   name="status"
-                  label="Status"
+                  label="Status Layanan"
                   :options="[
-                    { value: 'draft', label: 'Draft' },
-                    { value: 'active', label: 'Aktif' },
-                    { value: 'inactive', label: 'Non-aktif' },
+                    { value: 'draft', label: 'Simpan Dulu (Draft)' },
+                    { value: 'active', label: 'Aktif - Bisa Dipesan' },
+                    { value: 'inactive', label: 'Non-aktif - Sedang Tutup' },
                   ]"
                   v-model="formData.status"
                 />
 
                 <Field name="internal_code" v-slot="{ field }">
                   <TextField
-                    label="Kode Internal"
-                    placeholder="JASA-001"
+                    label="Kode Referensi (Untuk Arsip Anda)"
+                    placeholder="Contoh: JASA-001"
                     v-bind="field"
                   />
                 </Field>
 
                 <Field name="priority" v-slot="{ field }">
                   <TextField
-                    label="Prioritas"
+                    label="Urutan Tampilan (1-10, Angka Kecil Lebih Atas)"
                     type="number"
                     v-bind="field"
                   />
@@ -609,7 +612,7 @@ onMounted(() => {
                       :value="true"
                       class="w-4 h-4 text-merchant-primary rounded"
                     />
-                    <label class="text-sm font-medium text-gray-700">Unggulan</label>
+                    <label class="text-sm font-medium text-gray-700">Tampilkan di Unggulan?</label>
                   </div>
                 </Field>
               </div>
