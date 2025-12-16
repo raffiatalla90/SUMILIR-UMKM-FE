@@ -19,7 +19,6 @@ import MobilePagination from "@/components/common/MobilePagination.vue";
 import BulkActionBar from "@/components/common/BulkActionBar.vue";
 import { useProducts } from "@/composables/useProducts";
 import { useCategories } from "@/composables/useCategories";
-import { getImageUrl } from "@/libs/getImageUrl.js";
 import api from "@/libs/axios";
 
 const router = useRouter();
@@ -1245,8 +1244,8 @@ const tableActions = [
               >
                 <!-- ✅ FIXED: Gunakan helper getImageUrl -->
                 <img
-                  v-if="item.cover_image?.id"
-                  :src="getImageUrl(item.cover_image.id)"
+                  v-if="item.cover_image?.src_url"
+                  :src="item.cover_image.src_url"
                   :alt="item.name"
                   class="w-full h-full object-cover"
                   @error="(e) => (e.target.style.display = 'none')"
@@ -1937,8 +1936,8 @@ const tableActions = [
           >
             <!-- ✅ FIXED: Gunakan helper getImageUrl -->
             <img
-              v-if="selectedProductForDelete.cover_image?.id"
-              :src="getImageUrl(selectedProductForDelete.cover_image.id)"
+              v-if="selectedProductForDelete.cover_image?.src_url"
+              :src="selectedProductForDelete.cover_image.src_url"
               :alt="selectedProductForDelete.name"
               class="w-full h-full object-cover"
               @error="(e) => (e.target.style.display = 'none')"
@@ -2035,8 +2034,8 @@ const tableActions = [
             >
               <!-- ✅ FIXED: Gunakan helper getImageUrl -->
               <img
-                v-if="product.cover_image?.id"
-                :src="getImageUrl(product.cover_image.id)"
+                v-if="product.cover_image?.src_url"
+                :src="product.cover_image.src_url"
                 :alt="product.name"
                 class="w-full h-full object-cover"
                 @error="(e) => (e.target.style.display = 'none')"
@@ -2125,8 +2124,8 @@ const tableActions = [
           >
             <!-- ✅ FIXED: Gunakan helper getImageUrl -->
             <img
-              v-if="selectedProductForStatusChange.cover_image?.id"
-              :src="getImageUrl(selectedProductForStatusChange.cover_image.id)"
+              v-if="selectedProductForStatusChange.cover_image?.src_url"
+              :src="selectedProductForStatusChange.cover_image.src_url"
               :alt="selectedProductForStatusChange.name"
               class="w-full h-full object-cover"
               @error="(e) => (e.target.style.display = 'none')"
@@ -2267,8 +2266,8 @@ const tableActions = [
             >
               <!-- ✅ FIXED: Gunakan helper getImageUrl -->
               <img
-                v-if="product.cover_image?.id"
-                :src="getImageUrl(product.cover_image.id)"
+                v-if="product.cover_image?.src_url"
+                :src="product.cover_image.src_url"
                 :alt="product.name"
                 class="w-full h-full object-cover"
                 @error="(e) => (e.target.style.display = 'none')"

@@ -912,7 +912,7 @@ const editItemVariant = (itemId, storeId) => {
     uses_image: opt.uses_image,
     values: opt.values.map((v) => ({
       value: v.option_value,
-      image_url: v.image_url,
+      image_url: v.src_url,
       available: true, // nanti bisa dikunci via stok
     })),
   }));

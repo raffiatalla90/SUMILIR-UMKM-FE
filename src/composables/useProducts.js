@@ -4,17 +4,17 @@ import api from "@/libs/axios";
 import { getImageUrl } from "@/libs/getImageUrl.js";
 import { getVariantImageUrl } from "@/libs/getVariantImageUrl.js";
 
-function buildImageUrl(img) {
-  if (!img) return "";
-  // Jika backend kirim object image dengan id → gunakan getImageUrl
-  if (typeof img === "object") {
-    // prioritas: id → getImageUrl, fallback ke url/path/image_path jika ada
-    if (img.id) return getImageUrl(img.id);
-    return img.url || img.path || img.image_path || "";
-  }
-  // Jika string (sudah berupa URL)
-  return img;
-}
+// function buildImageUrl(img) {
+//   if (!img) return "";
+//   // Jika backend kirim object image dengan id → gunakan getImageUrl
+//   if (typeof img === "object") {
+//     // prioritas: id → getImageUrl, fallback ke url/path/image_path jika ada
+//     if (img.id) return getImageUrl(img.id);
+//     return img.url || img.path || img.image_path || "";
+//   }
+//   // Jika string (sudah berupa URL)
+//   return img;
+// }
 
 export function useProducts() {
   const products = ref([]);
@@ -484,7 +484,7 @@ export function useProducts() {
         });
       }
 
-      const addr = productObj.merchant?.primaryAddress ?? null;
+      const addr = productObj.merchant?.primary_address ?? null;
       const merchant_address =
         addr?.full_address ??
         ([
