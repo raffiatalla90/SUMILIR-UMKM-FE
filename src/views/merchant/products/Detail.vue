@@ -187,14 +187,10 @@ const transformedOptions = computed(() => {
     uses_image: option.uses_image,
     values: (option.values || []).map((value) => {
       // Prioritas:
-      // 1) value.image_url (absolute provided by backend)
-      // 2) fallback getVariantImageUrl(value.id) — uses product_option_value.id
-      const imageSrc =
-        value.image_url ||
-        // if image_path exists but not absolute URL backend sometimes provides path only;
-        // still prefer endpoint by id because it's consistent:
-        (value.id ? getVariantImageUrl(value.id) : null) ||
-        null;
+      // 1) value.src_url dari API (langsung pakai jika ada)
+      // 2) fallback value.image_url (absolute dari backend)
+      // 3) fallback getVariantImageUrl(value.id) — uses product_option_value.id
+      const imageSrc = value.src_url || null;
 
       return {
         id: value.id,
@@ -424,8 +420,8 @@ onMounted(() => {
               class="relative aspect-square max-w-2xl mx-auto bg-gray-100 overflow-hidden mb-4 shadow-sm -mt-4 sm:mt-0 sm:rounded-2xl"
             >
               <img
-                v-if="product.images[currentImageIndex]?.id"
-                :src="getImageUrl(product.images[currentImageIndex].id)"
+                v-if="product.images[currentImageIndex]?.src_url"
+                :src="product.images[currentImageIndex].src_url"
                 :alt="product.name"
                 class="w-full h-full object-cover"
                 @error="(e) => (e.target.style.display = 'none')"
@@ -462,8 +458,8 @@ onMounted(() => {
                 class="relative border rounded-lg overflow-hidden transition aspect-square"
               >
                 <img
-                  v-if="image.id"
-                  :src="getImageUrl(image.id)"
+                  v-if="image.src_url"
+                  :src="image.src_url"
                   :alt="`${product.name} ${index + 1}`"
                   class="w-full h-full object-cover"
                   @error="(e) => (e.target.style.display = 'none')"
@@ -706,7 +702,7 @@ onMounted(() => {
                   >
                     <img
                       v-if="optionValue.image"
-                      :src="getVariantImageUrl(optionValue.id)"
+                      :src="optionValue.image"
                       :alt="optionValue.value"
                       class="w-full h-full object-cover"
                       @error="(e) => (e.target.style.display = 'none')"
