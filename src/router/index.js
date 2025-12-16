@@ -365,20 +365,19 @@ const router = createRouter({
 
 // ✅ Track navigation to prevent excessive calls
 let lastNavigationPath = null;
+let authInitialized = false;
 
+router.beforeEach(async (to, from, next) => {
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
   document.title = to.meta.title || "SUMILIR";
 
-  // ✅ Ensure CSRF token is initialized on every navigation
-  try {
-    await initializeCsrfToken();
-  } catch (error) {
-    console.warn("[Router] CSRF token initialization failed:", error);
-    // Continue navigation even if CSRF fails (user might be on public page)
+  if (!authInitialized) {
+    authInitialized = true;
+    await authStore.initAuth();
   }
 
-  // Skip if same path
+  // ✅ ADD: Skip if navigating to same path
   if (to.path === lastNavigationPath) {
     console.log("[Router] Same path navigation detected, skipping...");
     next();
@@ -407,6 +406,11 @@ router.beforeEach(async (to, from, next) => {
       .map((r) => r.toLowerCase());
 
     if (userRoles.includes("admin") || userRoles.includes("umkm-owner")) {
+      const merchant = authStore.activeMerchant;
+
+      if (merchant) {
+        return next(`/merchant-center/${merchant.id}`);
+      }
       return next("/");
     } else if (userRoles.includes("customer")) {
       return next("/");
