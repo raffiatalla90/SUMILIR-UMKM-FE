@@ -24,6 +24,7 @@ export const useAuthStore = defineStore("auth", () => {
   const selectedMerchantId = ref(null); // ✅ Add this
 
   const isAuthenticated = computed(() => !!user.value);
+  const authReady = ref(false);
 
   // ✅ Active merchant based on selectedMerchantId
   const activeMerchant = computed(() => {
@@ -213,58 +214,45 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   async function initAuth() {
-    console.log("🔍 Initializing auth...");
+    authReady.value = false;
+
     const saved = localStorage.getItem("user");
     if (saved) {
       try {
         user.value = JSON.parse(saved);
         loadSelectedMerchant();
-        console.log("✅ User loaded from localStorage:", user.value);
-      } catch (e) {
-        console.error("❌ Failed to parse saved user:", e);
-        localStorage.removeItem("user");
+      } catch {
+        clearUser();
       }
     }
 
     try {
-      // ✅ Use ensureCsrfToken
       await ensureCsrfToken();
-
       const { data } = await sanctumApi.get("/me");
+
       user.value = data;
 
-      // ✅ Store only essential data
-      const essentialUserData = {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        roles: data.roles.map((r) => (typeof r === "string" ? r : r.name)),
-        merchants:
-          data.merchants?.map((m) => ({
-            id: m.id,
-            name: m.name,
-            status: m.status,
-            segmentation: m.segmentation
-              ? {
-                  id: m.segmentation.id,
-                  name: m.segmentation.name,
-                }
-              : null,
-          })) || [],
-      };
-
-      localStorage.setItem("user", JSON.stringify(essentialUserData));
-      loadSelectedMerchant();
-      console.log("✅ Session verified:", user.value);
-    } catch (e) {
-      console.warn("⚠️ Session not valid, clearing user");
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          roles: data.roles.map((r) => (typeof r === "string" ? r : r.name)),
+          merchants: data.merchants || [],
+        })
+      );
+    } catch {
       clearUser();
+    } finally {
+      authReady.value = true; // 🔥 PENTING
     }
   }
 
   return {
     user,
     isAuthenticated,
+    authReady,
     userRoles,
     isAdmin,
     isMerchant,
