@@ -3,6 +3,24 @@ import { useAuthStore } from "@/stores/auth";
 import CommunityView from "@/views/CommunityView.vue";
 import CommunityDetailView from "@/views/CommunityDetailView.vue";
 
+const adminGuard = (to, from, next) => {
+  const authStore = useAuthStore();
+
+  if (!authStore.isAuthenticated) {
+    toast.warning("Silakan login terlebih dahulu");
+    next({ name: "Login", query: { redirect: to.fullPath } });
+    return;
+  }
+
+  if (!authStore.isAdmin) {
+    toast.error("Anda tidak memiliki akses ke halaman admin");
+    next({ name: "Home" });
+    return;
+  }
+
+  next();
+};
+
 const routes = [
   // Halaman Beranda (Public/Customer)
   {
@@ -26,12 +44,6 @@ const routes = [
         name: "Product Kuliner",
         component: () => import("@/views/customer/ProductKulinerHome.vue"),
         meta: { title: "Semua Produk Kuliner | SUMILIR" },
-      },
-      {
-        path: "products/:slug",
-        name: "Product Detail",
-        component: () => import("@/views/customer/ProductDetail.vue"),
-        meta: { title: "Product Detail | SUMILIR" },
       },
       {
         path: "merchant/:slug",
@@ -61,7 +73,7 @@ const routes = [
       },
 
       {
-        path: "products/:slug", 
+        path: "products/:slug",
         name: "Product Detail",
         component: () => import("@/views/customer/ProductDetail.vue"),
         meta: { title: "Product Detail | SUMILIR" },
@@ -165,6 +177,7 @@ const routes = [
       requiresAuth: true,
       roles: ["admin"],
     },
+    beforeEnter: adminGuard, // ✅ Apply guard
     children: [
       {
         path: "",
@@ -277,16 +290,6 @@ const routes = [
           title: "Buat Product UMKM | SUMILIR",
         },
       },
-      // ✅ UPDATED: Use slug instead of id
-      {
-        path: "products/:slug",
-        name: "Merchant - Product Detail",
-        component: () => import("@/views/merchant/products/Detail.vue"),
-        meta: {
-          title: "Product Detail UMKM | SUMILIR",
-        },
-      },
-      // ✅ UPDATED: Use slug instead of id
       {
         path: "products/:slug/edit",
         name: "Merchant - Product Edit",
@@ -368,14 +371,8 @@ router.beforeEach((to, from, next) => {
 
   lastNavigationPath = to.path;
 
-  console.log("🔍 [Router Guard]", {
-    to: to.path,
-    from: from.path,
-    isAuthenticated: authStore.isAuthenticated,
-  });
-
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    console.warn("⚠️ Not authenticated, redirecting to /login");
+    console.warn("Not authenticated, redirecting to /login");
     return next("/login");
   }
 
@@ -406,7 +403,7 @@ router.beforeEach((to, from, next) => {
     );
 
     if (!hasRequiredRole) {
-      console.warn("⚠️ Role not allowed, redirecting to /");
+      console.warn("Role not allowed, redirecting to /");
       return next("/");
     }
   }
@@ -419,7 +416,7 @@ router.beforeEach((to, from, next) => {
     // Wajib ada merchantId di URL
     if (!merchantIdParam || Number.isNaN(merchantIdParam)) {
       console.warn(
-        "⚠️ merchantId kosong/tidak valid, redirect ke /merchant-register"
+        "merchantId kosong/tidak valid, redirect ke /merchant-register"
       );
       return next("/merchant-register");
     }
@@ -429,7 +426,7 @@ router.beforeEach((to, from, next) => {
     // Jika tidak ditemukan di store (karena belum approved), blok akses
     if (!merchant) {
       console.warn(
-        "⚠️ Merchant tidak ditemukan/ belum approved, redirect ke /merchant-register"
+        "Merchant tidak ditemukan/ belum approved, redirect ke /merchant-register"
       );
       return next("/merchant-register");
     }
@@ -437,7 +434,7 @@ router.beforeEach((to, from, next) => {
     // Jika status bukan approved, blok akses
     if (merchant.status !== "approved") {
       console.warn(
-        "⚠️ Merchant belum approved, redirect ke /merchant-register"
+        "Merchant belum approved, redirect ke /merchant-register"
       );
       return next("/merchant-register");
     }

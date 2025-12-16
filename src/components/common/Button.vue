@@ -48,8 +48,30 @@ import { computed } from "vue";
 
 const props = defineProps({
   type: { type: String, default: "button" },
-  variant: { type: String, default: "primary" }, // primary | merchant | outline | merchant-outline | ghost | danger
-  size: { type: String, default: "md" }, // sm | md | lg
+  variant: {
+    type: String,
+    default: "primary",
+    validator: (value) =>
+      [
+        "primary",
+        "secondary",
+        "success",
+        "danger",
+        "warning",
+        "info",
+        "admin",
+        "admin-outline", 
+        "merchant-primary",
+        "merchant-secondary",
+        "muted-outline",
+        "danger-outline",
+      ].includes(value),
+  },
+  size: {
+    type: String,
+    default: "md",
+    validator: (value) => ["xs", "sm", "md", "lg"].includes(value),
+  },
   loading: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
   block: { type: Boolean, default: false },
@@ -58,61 +80,47 @@ const props = defineProps({
 
 const isDisabled = computed(() => props.disabled || props.loading);
 
-const sizeClasses = {
-  sm: "text-xs sm:text-sm py-2 px-3",
-  md: "text-sm sm:text-base py-2.5 px-4",
-  lg: "text-base sm:text-lg py-3 px-5",
-};
+const sizeClasses = computed(() => {
+  const sizes = {
+    xs: "px-2 py-1 text-xs",
+    sm: "px-3 py-1.5 text-sm",
+    md: "px-4 py-2 text-sm",
+    lg: "px-6 py-3 text-base",
+  };
+  return sizes[props.size];
+});
 
-const variantClasses = {
-  // Orange Primary (default)
-  primary:
-    "bg-primary text-white hover:bg-primary/90 disabled:bg-gray-400 shadow-sm hover:shadow-lg duration-200 active:scale-95 focus:ring-primary",
+const variantClasses = computed(() => {
+  const variants = {
+    // Orange Primary (default)
+    primary:
+      "bg-primary text-white hover:bg-primary/90 disabled:bg-primary/50",
 
-  secondary:
-    "bg-secondary text-white hover:bg-secondary/90 disabled:bg-gray-400 shadow-sm hover:shadow-lg duration-200 active:scale-95 focus:ring-secondary",
-  // Blue Merchant Primary
-  merchant:
-    "bg-merchant-primary text-white hover:bg-merchant-primary/90 disabled:bg-gray-400 shadow-sm hover:shadow-lg duration-200 active:scale-95 focus:ring-merchant-primary",
-
-  // Outline Primary (Orange)
-  "primary-outline":
-    "border border-primary text-primary hover:bg-primary/10 disabled:opacity-60 focus:ring-primary duration-200 active:scale-95",
-
-  // Outline Merchant (Blue)
-  "merchant-outline":
-    "border border-merchant-primary text-merchant-primary hover:bg-merchant-primary/10 disabled:opacity-60 focus:ring-merchant-primary duration-200 active:scale-95",
-
-  // Ghost (no background)
-  ghost:
-    "text-primary hover:bg-primary/10 disabled:opacity-60 focus:ring-primary duration-200 active:scale-95",
-
-  // Ghost Merchant
-  "merchant-ghost":
-    "text-merchant-primary hover:bg-merchant-primary/10 disabled:opacity-60 focus:ring-merchant-primary duration-200 active:scale-95",
-
-  // Danger (Red)
-  danger:
-    "bg-danger-foreground text-white hover:bg-red-600 disabled:bg-gray-400 shadow-sm hover:shadow-lg duration-200 active:scale-95 focus:ring-red-500",
-
-  // Outline Danger
-  "danger-outline":
-    "border border-danger-foreground text-danger-foreground hover:bg-danger-background disabled:opacity-60 focus:ring-red-500 duration-200 active:scale-95",
-
-  muted:
-    "bg-muted-background text-muted-foreground hover:bg-gray-300 disabled:bg-muted-background disabled:opacity-60 focus:ring-gray-400 duration-200 active:scale-95",
-
-  "muted-outline":
-    "border border-muted-foreground text-muted-foreground hover:bg-gray-100 disabled:opacity-60 focus:ring-gray-400 duration-200 active:scale-95",
-
-
-  admin:
-    "bg-admin-primary text-white hover:bg-admin-secondary disabled:bg-gray-400 shadow-sm hover:shadow-lg duration-200 active:scale-95 focus:ring-admin-primary",
-
-  "admin-outline":
-    "border-2 border-admin-primary text-admin-primary hover:bg-admin-primary hover:text-white disabled:border-gray-300 disabled:text-gray-400",
-
-  "admin-ghost":
-    "text-admin-primary hover:bg-admin-primary/10 disabled:text-gray-400",
-};
+    secondary:
+      "bg-gray-200 text-gray-800 hover:bg-gray-300 disabled:bg-gray-100",
+    success: "bg-green-500 text-white hover:bg-green-600 disabled:bg-green-300",
+    danger: "bg-red-500 text-white hover:bg-red-600 disabled:bg-red-300",
+    warning: "bg-yellow-500 text-white hover:bg-yellow-600 disabled:bg-yellow-300",
+    info: "bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-300",
+    admin: 
+      "bg-admin-primary text-white hover:bg-admin-primary/90 disabled:bg-admin-primary/50 border border-admin-primary",
+    "admin-outline": 
+      "border-2 border-admin-primary text-admin-primary hover:bg-admin-primary/10 disabled:opacity-50 bg-white",
+    "admin-secondary":
+      "bg-admin-secondary text-white hover:bg-admin-secondary/90 disabled:bg-admin-secondary/50",
+    merchant: 
+      "bg-merchant-primary text-white hover:bg-merchant-primary/90 disabled:bg-merchant-primary/50",
+    "merchant-outline":
+      "border-2 border-merchant-primary text-merchant-primary hover:bg-merchant-primary/10 disabled:opacity-50 bg-white",
+    "muted-outline": 
+      "border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 bg-white",
+    "danger-outline":
+      "border-2 border-red-500 text-red-600 hover:bg-red-50 disabled:opacity-50 bg-white",
+    "success-outline":
+      "border-2 border-green-500 text-green-600 hover:bg-green-50 disabled:opacity-50 bg-white",
+    "info-outline":
+      "border-2 border-blue-500 text-blue-600 hover:bg-blue-50 disabled:opacity-50 bg-white",
+  };
+  return variants[props.variant] || variants.primary;
+});
 </script>

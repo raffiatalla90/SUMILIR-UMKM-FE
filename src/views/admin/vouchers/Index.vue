@@ -3,64 +3,64 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
+import Button from "@/components/common/Button.vue";
 import MerchantTable from "@/components/common/MerchantTable.vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";
+import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import MobilePagination from "@/components/common/MobilePagination.vue";
-import { getImageUrl } from "@/libs/getImageUrl";
-import api from "@/libs/axios";
+import { useVouchers } from "@/composables/useVouchers";
 
 const router = useRouter();
 const toast = useToast();
 
-const breadcrumbItems = [{ label: "All Vouchers" }];
+const { vouchers, loading, pagination, fetchVouchers, deleteVoucher } = useVouchers();
+
+const breadcrumbItems = [{ label: "Vouchers" }];
 
 // State
-const vouchers = ref([]);
-const loading = ref(false);
-const pagination = ref({
-  current_page: 1,
-  last_page: 1,
-  per_page: 15,
-  total: 0,
-});
-
 const searchQuery = ref("");
 const currentPage = ref(1);
 const perPage = ref(15);
 const statusFilter = ref("");
 const typeFilter = ref("");
+const merchantFilter = ref("");
+
+// Modals
+const showDeleteModal = ref(false);
+const selectedVoucher = ref(null);
 
 // Load vouchers
 const loadVouchers = async () => {
-  loading.value = true;
+  const params = {
+    page: currentPage.value,
+    per_page: perPage.value,
+    search: searchQuery.value || undefined,
+    voucher_status: statusFilter.value || undefined,
+    voucher_type: typeFilter.value || undefined,
+    merchant_id: merchantFilter.value || undefined,
+  };
+
+  await fetchVouchers(params);
+};
+
+// Actions
+const goToDetail = (voucher) => {
+  // Show detail modal or navigate to detail page
+  toast.info("Detail voucher: " + voucher.voucher_code);
+};
+
+const confirmDelete = (voucher) => {
+  selectedVoucher.value = voucher;
+  showDeleteModal.value = true;
+};
+
+const handleDelete = async () => {
   try {
-    const params = {
-      page: currentPage.value,
-      per_page: perPage.value,
-      search: searchQuery.value || undefined,
-      voucher_status: statusFilter.value || undefined,
-      voucher_type: typeFilter.value || undefined,
-    };
-
-    const response = await api.get("/admin/vouchers", { params });
-
-    if (response.data.data) {
-      vouchers.value = response.data.data;
-      pagination.value = {
-        current_page: response.data.current_page,
-        last_page: response.data.last_page,
-        per_page: response.data.per_page,
-        total: response.data.total,
-      };
-    } else {
-      vouchers.value = Array.isArray(response.data) ? response.data : [];
-    }
+    await deleteVoucher(selectedVoucher.value.id);
+    showDeleteModal.value = false;
+    loadVouchers();
   } catch (error) {
-    console.error("Failed to load vouchers:", error);
-    toast.error("Gagal memuat data voucher");
-    vouchers.value = [];
-  } finally {
-    loading.value = false;
+    console.error("Delete failed:", error);
   }
 };
 
@@ -86,12 +86,13 @@ const prevPage = () => {
 const tableColumns = [
   { key: "id", label: "ID", sortable: true },
   { key: "voucher_code", label: "Kode Voucher", sortable: true },
-  { key: "voucher_type", label: "Tipe", sortable: true },
-  { key: "value", label: "Nilai", sortable: false },
-  { key: "merchant", label: "Merchant", sortable: false },
-  { key: "event", label: "Event", sortable: false },
-  { key: "valid_period", label: "Periode", sortable: false },
+  { key: "merchant_name", label: "Merchant", sortable: true },
+  { key: "voucher_type", label: "Tipe", sortable: false },
+  { key: "value", label: "Nilai", sortable: true },
+  { key: "usage", label: "Penggunaan", sortable: true },
   { key: "voucher_status", label: "Status", sortable: true },
+  { key: "valid_until", label: "Berlaku s/d", sortable: true },
+  { key: "actions", label: "Aksi", sortable: false },
 ];
 
 // Computed pagination info
@@ -104,28 +105,36 @@ const paginationInfo = computed(() => ({
   total: pagination.value.total,
 }));
 
-const getVoucherValue = (voucher) => {
-  if (voucher.voucher_type === "percent") {
-    return `${voucher.value}%`;
-  }
-  return `Rp ${Number(voucher.value).toLocaleString("id-ID")}`;
+// Format helpers
+const formatVoucherType = (type) => {
+  return type === 'percent' ? 'Persentase' : 'Nominal';
 };
 
-const getVoucherTypeLabel = (type) => {
-  const types = {
-    percent: "Persentase",
-    fixed: "Nominal Tetap",
-    free_shipping: "Gratis Ongkir",
-  };
-  return types[type] || type;
+const formatVoucherValue = (voucher) => {
+  if (voucher.voucher_type === 'percent') {
+    return `${voucher.value}%`;
+  }
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0,
+  }).format(voucher.value);
+};
+
+const formatDate = (date) => {
+  if (!date) return '-';
+  return new Date(date).toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
 };
 
 const handleRowClick = (voucher) => {
-  // Optional: Navigate to voucher detail if exists
-  console.log("Voucher clicked:", voucher);
+  goToDetail(voucher);
 };
 
-watch([searchQuery, statusFilter, typeFilter], () => {
+watch([searchQuery, statusFilter, typeFilter, merchantFilter], () => {
   currentPage.value = 1;
   loadVouchers();
 });
@@ -140,70 +149,43 @@ onMounted(() => {
     <!-- Header -->
     <div class="bg-white shadow-sm sticky top-0 z-20 px-4 sm:px-6 py-4">
       <Breadcrumb :items="breadcrumbItems" />
-      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mt-4">
-        <div>
-          <h1 class="text-xl sm:text-2xl font-bold text-admin-primary">
-            Semua Voucher
-          </h1>
-          <p class="text-sm text-muted-foreground mt-1">
-            Kelola voucher dari semua merchant dan event
-          </p>
-        </div>
+      <div class="mt-4">
+        <h1 class="text-xl sm:text-2xl font-bold text-admin-primary">
+          Kelola Vouchers
+        </h1>
+        <p class="text-sm text-muted-foreground mt-1">
+          Monitor dan kelola voucher dari merchant dan event
+        </p>
       </div>
     </div>
 
-    <!-- Content -->
-    <div class="px-4 sm:px-6 py-6">
+    <!-- Filters -->
+    <div class="px-4 sm:px-6 py-4">
       <div class="bg-white rounded-lg shadow p-4 mb-6">
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <!-- Search Input -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Cari Voucher
-            </label>
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="Kode voucher..."
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-admin-primary focus:border-transparent"
-            />
-          </div>
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Kode voucher atau deskripsi..."
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-admin-primary"
+          />
 
-          <!-- Status Filter -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Status
-            </label>
-            <select
-              v-model="statusFilter"
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-admin-primary focus:border-transparent"
-            >
-              <option value="">Semua Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="expired">Expired</option>
-            </select>
-          </div>
+          <select v-model="statusFilter" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+            <option value="">Semua Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="expired">Expired</option>
+          </select>
 
-          <!-- Type Filter -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Tipe Voucher
-            </label>
-            <select
-              v-model="typeFilter"
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-admin-primary focus:border-transparent"
-            >
-              <option value="">Semua Tipe</option>
-              <option value="percent">Persentase</option>
-              <option value="fixed">Nominal Tetap</option>
-              <option value="free_shipping">Gratis Ongkir</option>
-            </select>
-          </div>
+          <select v-model="typeFilter" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+            <option value="">Semua Tipe</option>
+            <option value="percent">Persentase</option>
+            <option value="fixed">Nominal</option>
+          </select>
         </div>
       </div>
 
-      <!-- Desktop Table -->
+      <!-- ✅ Desktop Table - No external empty state -->
       <div class="hidden sm:block">
         <MerchantTable
           :items="vouchers"
@@ -213,166 +195,218 @@ onMounted(() => {
           :total-pages="pagination.last_page"
           :pagination-info="paginationInfo"
           :show-checkbox="false"
+          empty-message="Belum ada voucher yang dibuat oleh merchant atau event"
           @row-click="handleRowClick"
           @page-change="goToPage"
           @next-page="nextPage"
           @prev-page="prevPage"
         >
+          <!-- Custom cells -->
           <template #cell-voucher_code="{ item }">
-            <div class="flex items-center gap-2">
-              <span class="font-mono font-semibold text-admin-primary">
-                {{ item.voucher_code }}
-              </span>
-              <button
-                @click.stop="navigator.clipboard.writeText(item.voucher_code)"
-                class="p-1 hover:bg-gray-100 rounded transition"
-                title="Copy kode"
-              >
-                <i class="pi pi-copy text-xs text-gray-400"></i>
-              </button>
+            <div class="font-mono font-semibold text-admin-primary">
+              {{ item.voucher_code }}
+            </div>
+            <p v-if="item.voucher_description" class="text-xs text-muted-foreground truncate max-w-xs">
+              {{ item.voucher_description }}
+            </p>
+          </template>
+
+          <template #cell-merchant_name="{ item }">
+            <div class="flex items-center gap-3">
+              <img
+                v-if="item.merchant?.logo_path"
+                :src="item.merchant.logo_path"
+                class="w-8 h-8 rounded-full object-cover"
+                @error="(e) => (e.target.style.display = 'none')"
+              />
+              <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center" v-else>
+                <i class="pi pi-building text-gray-400 text-xs"></i>
+              </div>
+              <div>
+                <p class="font-medium text-gray-900">
+                  {{ item.merchant?.name || 'Event Voucher' }}
+                </p>
+                <p v-if="item.event" class="text-xs text-muted-foreground">
+                  Event: {{ item.event.event_name }}
+                </p>
+              </div>
             </div>
           </template>
 
           <template #cell-voucher_type="{ item }">
-            <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-              {{ getVoucherTypeLabel(item.voucher_type) }}
+            <span
+              class="px-3 py-1 rounded-full text-xs font-medium"
+              :class="
+                item.voucher_type === 'percent'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-green-100 text-green-700'
+              "
+            >
+              {{ formatVoucherType(item.voucher_type) }}
             </span>
           </template>
 
           <template #cell-value="{ item }">
+            <div class="font-semibold">
+              {{ formatVoucherValue(item) }}
+            </div>
+            <p v-if="item.max_discount_amount && item.voucher_type === 'percent'" class="text-xs text-muted-foreground">
+              Max: {{ formatVoucherValue({ ...item, voucher_type: 'fixed', value: item.max_discount_amount }) }}
+            </p>
+          </template>
+
+          <template #cell-usage="{ item }">
             <div class="text-sm">
-              <p class="font-bold text-admin-primary">
-                {{ getVoucherValue(item) }}
+              <p class="font-medium">
+                {{ item.usages_count || 0 }} / {{ item.usage_limit || '∞' }}
               </p>
-              <p v-if="item.max_discount_amount" class="text-xs text-muted-foreground">
-                Maks: Rp {{ Number(item.max_discount_amount).toLocaleString("id-ID") }}
-              </p>
-            </div>
-          </template>
-
-          <template #cell-merchant="{ item }">
-            <div v-if="item.merchant" class="flex items-center gap-2">
-              <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <i class="pi pi-building text-gray-400 text-xs"></i>
+              <div class="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                <div
+                  class="bg-admin-primary h-1.5 rounded-full"
+                  :style="{
+                    width: item.usage_limit
+                      ? `${Math.min(((item.usages_count || 0) / item.usage_limit) * 100, 100)}%`
+                      : '0%',
+                  }"
+                ></div>
               </div>
-              <div class="min-w-0">
-                <p class="font-medium text-sm text-gray-900 truncate">
-                  {{ item.merchant.name }}
-                </p>
-              </div>
-            </div>
-            <span v-else class="text-sm text-gray-400">-</span>
-          </template>
-
-          <template #cell-event="{ item }">
-            <div v-if="item.event" class="max-w-xs">
-              <p class="font-medium text-sm text-gray-900 truncate">
-                {{ item.event.event_name }}
-              </p>
-              <p class="text-xs text-muted-foreground">
-                {{ new Date(item.event.event_start_date).toLocaleDateString("id-ID") }}
-              </p>
-            </div>
-            <span v-else class="text-sm text-gray-400">-</span>
-          </template>
-
-          <template #cell-valid_period="{ item }">
-            <div class="text-xs">
-              <p class="font-medium text-gray-900">
-                {{ new Date(item.voucher_start_date).toLocaleDateString("id-ID") }}
-              </p>
-              <p class="text-muted-foreground">
-                s/d {{ new Date(item.voucher_end_date).toLocaleDateString("id-ID") }}
-              </p>
             </div>
           </template>
 
           <template #cell-voucher_status="{ item }">
-            <StatusLabel :status="item.voucher_status" variant="general" />
+            <StatusLabel :status="item.voucher_status" variant="voucher" />
+          </template>
+
+          <template #cell-valid_until="{ item }">
+            <div class="text-sm">
+              <p class="font-medium">{{ formatDate(item.voucher_end_date) }}</p>
+              <p class="text-xs text-muted-foreground">
+                Mulai: {{ formatDate(item.voucher_start_date) }}
+              </p>
+            </div>
+          </template>
+
+          <template #cell-actions="{ item }">
+            <div class="flex items-center gap-2">
+              <Button
+                @click.stop="goToDetail(item)"
+                variant="admin-outline"
+                size="sm"
+              >
+                <i class="pi pi-eye"></i>
+              </Button>
+              <Button
+                @click.stop="confirmDelete(item)"
+                variant="danger-outline"
+                size="sm"
+                v-if="item.usages_count === 0"
+              >
+                <i class="pi pi-trash"></i>
+              </Button>
+            </div>
           </template>
         </MerchantTable>
       </div>
 
-      <!-- Mobile Cards -->
-      <div class="sm:hidden space-y-4">
-        <div
-          v-for="voucher in vouchers"
-          :key="voucher.id"
-          class="bg-white rounded-lg shadow p-4"
-        >
-          <div class="flex items-start justify-between gap-3 mb-3">
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 mb-2">
-                <span class="font-mono font-semibold text-sm text-admin-primary">
+      <!-- ✅ Mobile Cards - Handle empty separately -->
+      <div class="sm:hidden">
+        <div v-if="loading" class="flex justify-center py-12">
+          <i class="pi pi-spin pi-spinner text-4xl text-admin-primary"></i>
+        </div>
+
+        <div v-else-if="vouchers.length === 0" class="text-center py-12">
+          <i class="pi pi-ticket text-6xl text-gray-300 mb-4"></i>
+          <p class="text-gray-500">Belum ada voucher</p>
+        </div>
+
+        <div v-else class="space-y-4">
+          <div
+            v-for="voucher in vouchers"
+            :key="voucher.id"
+            @click="goToDetail(voucher)"
+            class="bg-white rounded-lg shadow p-4 active:bg-gray-50 transition"
+          >
+            <div class="flex items-start justify-between gap-3 mb-3">
+              <div class="flex-1 min-w-0">
+                <p class="font-mono font-semibold text-admin-primary truncate">
                   {{ voucher.voucher_code }}
-                </span>
-                <button
-                  @click.stop="navigator.clipboard.writeText(voucher.voucher_code)"
-                  class="p-1 hover:bg-gray-100 rounded transition"
-                >
-                  <i class="pi pi-copy text-xs text-gray-400"></i>
-                </button>
+                </p>
+                <p class="text-xs text-muted-foreground line-clamp-1">
+                  {{ voucher.merchant?.name || 'Event Voucher' }}
+                </p>
               </div>
-              <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                {{ getVoucherTypeLabel(voucher.voucher_type) }}
-              </span>
-            </div>
-            <StatusLabel :status="voucher.voucher_status" variant="general" size="xs" />
-          </div>
-
-          <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-xs text-muted-foreground">Nilai</span>
-              <span class="font-bold text-admin-primary">
-                {{ getVoucherValue(voucher) }}
-              </span>
+              <StatusLabel :status="voucher.voucher_status" variant="voucher" size="xs" />
             </div>
 
-            <div v-if="voucher.merchant" class="flex items-center gap-2">
-              <i class="pi pi-building text-xs text-muted-foreground"></i>
-              <span class="text-xs text-gray-900 truncate">
-                {{ voucher.merchant.name }}
-              </span>
+            <div class="space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="text-xs text-gray-600">Nilai:</span>
+                <span class="font-semibold text-sm">{{ formatVoucherValue(voucher) }}</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-xs text-gray-600">Penggunaan:</span>
+                <span class="text-sm">{{ voucher.usages_count || 0 }} / {{ voucher.usage_limit || '∞' }}</span>
+              </div>
+              <div class="text-xs text-muted-foreground">
+                <i class="pi pi-calendar mr-1"></i>
+                s/d {{ formatDate(voucher.voucher_end_date) }}
+              </div>
             </div>
 
-            <div v-if="voucher.event" class="flex items-center gap-2">
-              <i class="pi pi-calendar text-xs text-muted-foreground"></i>
-              <span class="text-xs text-gray-900 truncate">
-                {{ voucher.event.event_name }}
-              </span>
-            </div>
-
-            <div class="flex items-center gap-2 text-xs text-muted-foreground">
-              <i class="pi pi-clock"></i>
-              <span>
-                {{ new Date(voucher.voucher_start_date).toLocaleDateString("id-ID") }} -
-                {{ new Date(voucher.voucher_end_date).toLocaleDateString("id-ID") }}
-              </span>
+            <div class="flex gap-2 mt-3 pt-3 border-t">
+              <Button
+                @click.stop="goToDetail(voucher)"
+                variant="admin"
+                size="sm"
+                class="flex-1"
+              >
+                <i class="pi pi-eye mr-2"></i>
+                Detail
+              </Button>
+              <Button
+                v-if="voucher.usages_count === 0"
+                @click.stop="confirmDelete(voucher)"
+                variant="danger-outline"
+                size="sm"
+              >
+                <i class="pi pi-trash"></i>
+              </Button>
             </div>
           </div>
         </div>
-
-        <!-- Mobile Pagination -->
-        <MobilePagination
-          :current-page="currentPage"
-          :total-pages="pagination.last_page"
-          @prev="prevPage"
-          @next="nextPage"
-          @go-to="goToPage"
-        />
-      </div>
-
-      <!-- Empty State -->
-      <div
-        v-if="!loading && vouchers.length === 0"
-        class="text-center py-12"
-      >
-        <i class="pi pi-tag text-6xl text-gray-300 mb-4"></i>
-        <p class="text-gray-500 mb-2 text-lg font-medium">Tidak ada voucher</p>
-        <p class="text-sm text-muted-foreground">
-          Belum ada voucher yang tersedia
-        </p>
       </div>
     </div>
+
+    <!-- Delete Confirmation Modal -->
+    <ResponsiveModal
+      v-model:show="showDeleteModal"
+      title="Hapus Voucher"
+      @close="showDeleteModal = false"
+    >
+      <div class="p-6">
+        <p class="text-sm text-gray-600 mb-4">
+          Apakah Anda yakin ingin menghapus voucher 
+          <strong class="font-mono">{{ selectedVoucher?.voucher_code }}</strong>?
+        </p>
+        <p class="text-xs text-red-600">
+          ⚠️ Voucher yang sudah digunakan tidak dapat dihapus
+        </p>
+        <div class="flex gap-3 justify-end mt-6">
+          <Button
+            @click="showDeleteModal = false"
+            variant="muted-outline"
+          >
+            Batal
+          </Button>
+          <Button
+            @click="handleDelete"
+            variant="danger"
+            :loading="loading"
+          >
+            Ya, Hapus
+          </Button>
+        </div>
+      </div>
+    </ResponsiveModal>
   </div>
 </template>

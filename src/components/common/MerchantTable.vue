@@ -51,7 +51,7 @@ const props = defineProps({
   // Customization
   emptyMessage: {
     type: String,
-    default: "Tidak ada data",
+    default: "Tidak ada daa",
   },
   showCheckbox: {
     type: Boolean,

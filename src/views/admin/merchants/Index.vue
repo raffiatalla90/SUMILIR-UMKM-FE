@@ -163,102 +163,62 @@ onMounted(() => {
     <!-- Header -->
     <div class="bg-white shadow-sm sticky top-0 z-20 px-4 sm:px-6 py-4">
       <Breadcrumb :items="breadcrumbItems" />
-      <div class="flex items-center justify-between mt-4">
-        <h1 class="text-xl sm:text-2xl font-bold text-primary">
-          Merchant Management
-        </h1>
-      </div>
+      <h1 class="text-xl sm:text-2xl font-bold text-admin-primary mt-4">
+        Merchant Management
+      </h1>
     </div>
 
     <!-- Filters -->
-    <div class="px-4 sm:px-6 py-4 bg-white shadow-sm mt-4">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <TextField
-          v-model="searchQuery"
-          label="Cari Merchant"
-          placeholder="Nama merchant atau pemilik..."
-        />
-        <SelectField
-          v-model="statusFilter"
-          label="Status"
-          :options="[
-            { value: '', label: 'Semua Status' },
-            { value: 'pending', label: 'Pending' },
-            { value: 'approved', label: 'Approved' },
-            { value: 'rejected', label: 'Rejected' },
-          ]"
-        />
+    <div class="px-4 sm:px-6 py-4">
+      <div class="bg-white rounded-lg shadow p-4 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <input
+            v-model="searchQuery"
+            placeholder="Nama merchant atau pemilik..."
+            class="w-full px-4 py-2 border rounded-lg"
+          />
+          <select v-model="statusFilter" class="w-full px-4 py-2 border rounded-lg">
+            <option value="">Semua Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
       </div>
-    </div>
 
-    <!-- Desktop Table -->
-    <div class="hidden sm:block px-4 sm:px-6 py-4">
-      <MerchantTable
-        :columns="tableColumns"
-        :data="merchants"
-        :loading="loading"
-        :get-actions="getTableActions"
-      >
-        <template #cell-owner_name="{ row }">
-          {{ row.user?.name || "-" }}
-        </template>
-        <template #cell-status="{ row }">
-          <StatusLabel :status="row.status" />
-        </template>
-        <template #cell-created_at="{ row }">
-          {{ new Date(row.created_at).toLocaleDateString("id-ID") }}
-        </template>
-      </MerchantTable>
+      <!-- ✅ Desktop Table -->
+      <div class="hidden sm:block">
+        <MerchantTable
+          :items="merchants"
+          :columns="tableColumns"
+          :loading="loading"
+          :current-page="currentPage"
+          :total-pages="pagination.last_page"
+          :pagination-info="paginationInfo"
+          :show-checkbox="false"
+          empty-message="Tidak ada merchant yang sesuai dengan filter"
+          @row-click="goToDetail"
+          @page-change="goToPage"
+          @next-page="nextPage"
+          @prev-page="prevPage"
+        >
+          <!-- Custom cells -->
+        </MerchantTable>
+      </div>
 
-      <!-- Pagination -->
-      <MobilePagination
-        :current-page="pagination.current_page"
-        :last-page="pagination.last_page"
-        :total="pagination.total"
-        :per-page="pagination.per_page"
-        @prev="prevPage"
-        @next="nextPage"
-        @go-to-page="goToPage"
-      />
-    </div>
-
-    <!-- Mobile Cards -->
-    <div class="sm:hidden px-4 py-4 space-y-3">
-      <div
-        v-for="merchant in merchants"
-        :key="merchant.id"
-        class="bg-white rounded-lg shadow p-4"
-      >
-        <div class="flex justify-between items-start mb-2">
-          <div class="flex-1">
-            <h3 class="font-semibold text-sm">{{ merchant.name }}</h3>
-            <p class="text-xs text-gray-500">{{ merchant.user?.name || "-" }}</p>
-            <p class="text-xs text-gray-500 mt-1">{{ merchant.phone }}</p>
-          </div>
-          <StatusLabel :status="merchant.status" />
+      <!-- ✅ Mobile Cards -->
+      <div class="sm:hidden">
+        <div v-if="loading" class="flex justify-center py-12">
+          <i class="pi pi-spin pi-spinner text-4xl text-admin-primary"></i>
         </div>
 
-        <div class="flex gap-2 mt-3">
-          <button
-            @click="goToDetail(merchant)"
-            class="flex-1 text-xs bg-blue-50 text-blue-600 px-3 py-2 rounded"
-          >
-            Detail
-          </button>
-          <button
-            v-if="merchant.status === 'pending'"
-            @click="confirmApprove(merchant)"
-            class="flex-1 text-xs bg-green-50 text-green-600 px-3 py-2 rounded"
-          >
-            Approve
-          </button>
-          <button
-            v-if="merchant.status === 'pending'"
-            @click="confirmReject(merchant)"
-            class="flex-1 text-xs bg-red-50 text-red-600 px-3 py-2 rounded"
-          >
-            Reject
-          </button>
+        <div v-else-if="merchants.length === 0" class="text-center py-12">
+          <i class="pi pi-building text-6xl text-gray-300 mb-4"></i>
+          <p class="text-gray-500">Tidak ada merchant</p>
+        </div>
+
+        <div v-else class="space-y-4">
+          <!-- Cards -->
         </div>
       </div>
     </div>

@@ -14,11 +14,11 @@ export function useEvents() {
 
   const toast = useToast();
 
-  // Fetch events (public atau admin)
   const fetchEvents = async (params = {}, isAdmin = false) => {
     loading.value = true;
     try {
       const endpoint = isAdmin ? "/admin/events" : "/events";
+
       const response = await api.get(endpoint, { params });
 
       if (response.data.data) {
@@ -29,13 +29,20 @@ export function useEvents() {
           per_page: response.data.per_page,
           total: response.data.total,
         };
+      } else if (Array.isArray(response.data)) {
+        // Fallback for direct array response
+        events.value = response.data;
       } else {
-        events.value = Array.isArray(response.data) ? response.data : [];
+        events.value = [];
       }
+
+      return events.value;
     } catch (error) {
-      console.error("[useEvents] Fetch failed:", error);
-      toast.error("Gagal memuat data events");
+      const message = error.response?.data?.message || "Gagal memuat data events";
+      toast.error(message);
+
       events.value = [];
+      throw error;
     } finally {
       loading.value = false;
     }
@@ -46,9 +53,8 @@ export function useEvents() {
     loading.value = true;
     try {
       const response = await api.get(`/events/${id}`);
-      return response.data;
+      return response.data.data || response.data;
     } catch (error) {
-      console.error("[useEvents] Detail fetch failed:", error);
       toast.error("Gagal memuat detail event");
       throw error;
     } finally {
@@ -66,9 +72,7 @@ export function useEvents() {
       toast.success("Event berhasil dibuat!");
       return response.data.data;
     } catch (error) {
-      console.error("[useEvents] Create failed:", error);
-      const message =
-        error.response?.data?.message || "Gagal membuat event";
+      const message = error.response?.data?.message || "Gagal membuat event";
       toast.error(message);
       throw error;
     } finally {
@@ -86,10 +90,7 @@ export function useEvents() {
       toast.success("Event berhasil diupdate!");
       return response.data.data;
     } catch (error) {
-      console.error("[useEvents] Update failed:", error);
-      const message =
-        error.response?.data?.message || "Gagal mengupdate event";
-      toast.error(message);
+      toast.error("Gagal mengupdate event");
       throw error;
     } finally {
       loading.value = false;
@@ -120,7 +121,6 @@ export function useEvents() {
       });
       toast.success("Merchant berhasil diundang!");
     } catch (error) {
-      console.error("[useEvents] Invite failed:", error);
       toast.error("Gagal mengundang merchant");
       throw error;
     } finally {
