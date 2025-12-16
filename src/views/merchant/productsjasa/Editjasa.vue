@@ -58,6 +58,8 @@ const initialForm = () => ({
   special_notes: "",
   portfolio: "",
   social_media: "",
+  payment_methods: "cod",
+  whatsapp_link: "",
   status: "draft",
   internal_code: "",
   priority: 0,
@@ -91,6 +93,8 @@ const validationSchema = yup.object({
   special_notes: yup.string().nullable(),
   portfolio: yup.string().nullable(),
   social_media: yup.string().nullable(),
+  payment_methods: yup.string().nullable(),
+  whatsapp_link: yup.string().nullable(),
   status: yup.string(),
   internal_code: yup.string().nullable(),
   is_featured: yup.boolean(),
@@ -643,9 +647,68 @@ onMounted(async () => {
                 </div>
               </div>
 
-              <!-- 9. Admin -->
+              <!-- 9. PEMBAYARAN & KONTAK -->
+              <div class="border-b pb-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">9. Pembayaran & Kontak</h2>
+                <div class="space-y-4">
+                  <!-- Metode Pembayaran -->
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-3">Metode Pembayaran yang Diterima</label>
+                    <div class="space-y-2">
+                      <div class="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id="payment_cod"
+                          :checked="formData.payment_methods.includes('cod')"
+                          @change="(e) => {
+                            const methods = formData.payment_methods.split(',').filter(m => m).map(m => m.trim());
+                            if (e.target.checked) {
+                              if (!methods.includes('cod')) methods.push('cod');
+                            } else {
+                              methods.splice(methods.indexOf('cod'), 1);
+                            }
+                            formData.payment_methods = methods.length ? methods.join(',') : 'cod';
+                          }"
+                          class="w-4 h-4 text-merchant-primary rounded"
+                        />
+                        <label for="payment_cod" class="text-sm text-gray-700">COD (Bayar di Tempat)</label>
+                      </div>
+                      <div class="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id="payment_qris"
+                          :checked="formData.payment_methods.includes('qris')"
+                          @change="(e) => {
+                            const methods = formData.payment_methods.split(',').filter(m => m).map(m => m.trim());
+                            if (e.target.checked) {
+                              if (!methods.includes('qris')) methods.push('qris');
+                            } else {
+                              methods.splice(methods.indexOf('qris'), 1);
+                            }
+                            formData.payment_methods = methods.length ? methods.join(',') : 'cod';
+                          }"
+                          class="w-4 h-4 text-merchant-primary rounded"
+                        />
+                        <label for="payment_qris" class="text-sm text-gray-700">QRIS (Scan & Transfer)</label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Link WhatsApp -->
+                  <Field name="whatsapp_link" v-slot="{ field }">
+                    <TextField
+                      label="Link WhatsApp untuk Hubungi Penjual"
+                      placeholder="Contoh: https://wa.me/6281234567890"
+                      v-bind="field"
+                    />
+                  </Field>
+                  <p class="text-xs text-gray-500">💡 Customer akan klik tombol ini untuk chat Anda via WhatsApp</p>
+                </div>
+              </div>
+
+              <!-- 10. Admin -->
               <div class="pb-6">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4">9. Info Admin</h2>
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">10. Info Admin</h2>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <SelectField
                     name="status"

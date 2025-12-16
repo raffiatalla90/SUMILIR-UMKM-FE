@@ -55,6 +55,8 @@ const formData = ref({
   special_notes: "",
   portfolio: "",
   social_media: "",
+  payment_methods: "cod",
+  whatsapp_link: "",
   status: "draft",
   internal_code: "",
   is_featured: false,
@@ -86,6 +88,8 @@ const validationSchema = yup.object({
   special_notes: yup.string().nullable(),
   portfolio: yup.string().nullable(),
   social_media: yup.string().nullable(),
+  payment_methods: yup.string().nullable(),
+  whatsapp_link: yup.string().nullable(),
   status: yup.string(),
   internal_code: yup.string().nullable(),
   is_featured: yup.boolean(),
@@ -178,7 +182,7 @@ onMounted(() => {
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field name="title" v-slot="{ field, errors }">
                   <TextField
-                    label="Nama Layanan *"
+                    label="Nama Layanan"
                     placeholder="Contoh: Jasa Kebersihan Rumah"
                     v-bind="field"
                     :error="errors[0]"
@@ -188,7 +192,7 @@ onMounted(() => {
 
                 <SelectField
                   name="jasa_category_id"
-                  label="Pilih Kategori Utama *"
+                  label="Pilih Kategori Utama"
                   placeholder="Pilih kategori..."
                   :options="jasaCategories.map(c => ({ value: c.id, label: c.name }))"
                   v-model="formData.jasa_category_id"
@@ -224,7 +228,7 @@ onMounted(() => {
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <SelectField
                   name="price_type"
-                  label="Bagaimana Cara Harganya? *"
+                  label="Pengaturan Harga"
                   :options="[
                     { value: 'per_jam', label: 'Per Jam' },
                     { value: 'per_sesi', label: 'Per Sesi' },
@@ -237,7 +241,7 @@ onMounted(() => {
 
                 <Field name="base_price" v-slot="{ field }">
                   <TextField
-                    label="Harga Mulai Dari (Rp) *"
+                    label="Harga Mulai Dari (Rp)"
                     type="number"
                     placeholder="150000"
                     v-bind="field"
@@ -247,7 +251,7 @@ onMounted(() => {
 
                 <Field name="min_order" v-slot="{ field }">
                   <TextField
-                    label="Minimal Jumlah Pemesanan *"
+                    label="Minimal Jumlah Pemesanan"
                     type="number"
                     placeholder="2"
                     v-bind="field"
@@ -276,7 +280,7 @@ onMounted(() => {
                 <!-- Estimasi Durasi -->
                 <Field name="estimated_duration" v-slot="{ field }">
                   <TextField
-                    label="Berapa Lama Layanan Ini?"
+                    label="Berapa Lama Layanan"
                     placeholder="Contoh: 60 menit, 3 jam, 1 hari"
                     v-bind="field"
                   />
@@ -434,15 +438,6 @@ onMounted(() => {
                   </div>
                 </div>
 
-                <!-- Pemesanan Dimuka -->
-                <Field name="booking_advance_days" v-slot="{ field }">
-                  <TextField
-                    label="Berapa Hari Sebelumnya Harus Dipesan?"
-                    type="number"
-                    placeholder="Contoh: 0 (bisa booking hari itu), 3 (harus 3 hari sebelumnya)"
-                    v-bind="field"
-                  />
-                </Field>
               </div>
             </div>
 
@@ -452,7 +447,7 @@ onMounted(() => {
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <SelectField
                   name="service_type"
-                  label="Dimana Layanan Diberikan? *"
+                  label="Tempat Layanan?"
                   :options="[
                     { value: 'at_location', label: 'Di Tempat Saya' },
                     { value: 'on_site', label: 'Ke Rumah/Lokasi Pelanggan' },
@@ -469,13 +464,6 @@ onMounted(() => {
                   />
                 </Field>
 
-                <Field name="service_area" v-slot="{ field }">
-                  <TextField
-                    label="Area Yang Dilayani"
-                    placeholder="Contoh: Jakarta Barat, radius 10km"
-                    v-bind="field"
-                  />
-                </Field>
               </div>
             </div>
 
@@ -485,7 +473,7 @@ onMounted(() => {
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field name="capacity_per_slot" v-slot="{ field }">
                   <TextField
-                    label="Kapasitas Per Slot"
+                    label="Kapasitas Per Sesi"
                     type="number"
                     v-bind="field"
                   />
@@ -547,17 +535,9 @@ onMounted(() => {
             <div class="border-b pb-6">
               <h2 class="text-lg font-semibold text-gray-800 mb-4">8. Media Pendukung</h2>
               <div class="space-y-4">
-                <Field name="image" v-slot="{ field }">
+                <Field name="contact_person" v-slot="{ field }">
                   <TextField
-                    label="Link Foto Layanan"
-                    placeholder="https://..."
-                    v-bind="field"
-                  />
-                </Field>
-
-                <Field name="portfolio" v-slot="{ field }">
-                  <TextField
-                    label="Link Portfolio Atau Contoh Pekerjaan"
+                    label="Link Whatsapp"
                     placeholder="https://..."
                     v-bind="field"
                   />
@@ -573,9 +553,68 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- 9. ADMIN -->
+            <!-- 9. PEMBAYARAN & KONTAK -->
+            <div class="border-b pb-6">
+              <h2 class="text-lg font-semibold text-gray-800 mb-4">9. Pembayaran & Kontak</h2>
+              <div class="space-y-4">
+                <!-- Metode Pembayaran -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-3">Metode Pembayaran yang Diterima</label>
+                  <div class="space-y-2">
+                    <div class="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="payment_cod"
+                        :checked="formData.payment_methods.includes('cod')"
+                        @change="(e) => {
+                          const methods = formData.payment_methods.split(',').filter(m => m).map(m => m.trim());
+                          if (e.target.checked) {
+                            if (!methods.includes('cod')) methods.push('cod');
+                          } else {
+                            methods.splice(methods.indexOf('cod'), 1);
+                          }
+                          formData.payment_methods = methods.length ? methods.join(',') : 'cod';
+                        }"
+                        class="w-4 h-4 text-merchant-primary rounded"
+                      />
+                      <label for="payment_cod" class="text-sm text-gray-700">COD (Bayar di Tempat)</label>
+                    </div>
+                    <div class="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="payment_qris"
+                        :checked="formData.payment_methods.includes('qris')"
+                        @change="(e) => {
+                          const methods = formData.payment_methods.split(',').filter(m => m).map(m => m.trim());
+                          if (e.target.checked) {
+                            if (!methods.includes('qris')) methods.push('qris');
+                          } else {
+                            methods.splice(methods.indexOf('qris'), 1);
+                          }
+                          formData.payment_methods = methods.length ? methods.join(',') : 'cod';
+                        }"
+                        class="w-4 h-4 text-merchant-primary rounded"
+                      />
+                      <label for="payment_qris" class="text-sm text-gray-700">QRIS (Scan & Transfer)</label>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Link WhatsApp -->
+                <Field name="whatsapp_link" v-slot="{ field }">
+                  <TextField
+                    label="Link WhatsApp untuk Hubungi Penjual"
+                    placeholder="Contoh: https://wa.me/6281234567890"
+                    v-bind="field"
+                  />
+                </Field>
+                <p class="text-xs text-gray-500">💡 Customer akan klik tombol ini untuk chat Anda via WhatsApp</p>
+              </div>
+            </div>
+
+            <!-- 10. ADMIN -->
             <div class="pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">9. Info Admin</h2>
+              <h2 class="text-lg font-semibold text-gray-800 mb-4">10. Info Admin</h2>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <SelectField
                   name="status"
