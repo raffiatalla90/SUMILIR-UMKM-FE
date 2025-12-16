@@ -10,9 +10,6 @@ import ProductCard from "@/components/Card/ProductCard.vue";
 import EventCard from "@/components/Card/EventCard.vue";
 import PromoCard from "@/components/Card/PromoCard.vue";
 
-// ✅ PWA registration happens only in production build
-// In development mode, the PWA plugin is disabled, so virtual:pwa-register doesn't exist
-
 // Minimal waktu splash (ms)
 const MIN_SPLASH_MS = Number(import.meta.env.VITE_SPLASH_MIN_MS || 1000);
 
@@ -36,15 +33,17 @@ app.component("PromoCard", PromoCard);
 
 app.mount("#app");
 
-const isDesktop = window.matchMedia("(min-width: 640px)").matches;
+// Wait for router to be ready before hiding splash
+router.isReady().then(() => {
+  const isDesktop = window.matchMedia("(min-width: 640px)").matches;
 
-if (isDesktop) {
+  if (isDesktop) {
+    hideSplash();
+  } else {
+    const minTimePromise = new Promise((r) => setTimeout(r, MIN_SPLASH_MS));
+    minTimePromise.finally(() => nextTick().then(hideSplash));
+  }
+}).catch((err) => {
+  console.error("[App] Router failed to initialize:", err);
   hideSplash();
-} else {
-  const readyPromise =
-    typeof router.isReady === "function" ? router.isReady() : Promise.resolve();
-  const minTimePromise = new Promise((r) => setTimeout(r, MIN_SPLASH_MS));
-  Promise.all([readyPromise.catch(() => {}), minTimePromise]).finally(() =>
-    nextTick().then(hideSplash)
-  );
-}
+});
