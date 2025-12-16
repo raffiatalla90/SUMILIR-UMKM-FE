@@ -543,11 +543,11 @@
                   <div class="flex flex-col items-center">
                     <!-- 🖼️ Image jika ada -->
                     <div
-                      v-if="size.image"
+                      v-if="getOptionValueSrcUrl(1, size.id)"
                       class="w-12 h-12 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center"
                     >
                       <img
-                        :src="getVariantImageUrl(size.id)"
+                        :src="getOptionValueSrcUrl(1, size.id)"
                         :alt="size.name"
                         class="w-full h-full object-cover"
                       />
@@ -1410,7 +1410,13 @@ const displayedDescription = computed(() => {
 
   return product.value.description.slice(0, DESCRIPTION_LIMIT) + "...";
 });
-
+function getOptionValueSrcUrl(optionIndex, valueId) {
+  // optionIndex: 1 untuk option pertama, 2 untuk kedua
+  const option = product.value?.options?.[optionIndex - 1];
+  if (!option || !option.values) return null;
+  const value = option.values.find((v) => Number(v.id) === Number(valueId));
+  return value?.src_url || null;
+}
 async function addToCart() {
   // ✅ 0. CEK AUTH DI AWAL
   if (!authStore.isAuthenticated) {
@@ -1912,8 +1918,8 @@ async function doFetchProduct(slug) {
       min_purchase: Number(
         mapped.min_purchase ?? mapped.product?.min_purchase ?? 1
       ),
+      merchant_address: mapped.merchant_address ?? null,
     };
-
     // IMAGES: normalisasi dari berbagai sumber
     if (Array.isArray(mapped.productImages) && mapped.productImages.length) {
       productImages.value = normalizeProductImages(mapped.productImages);
@@ -2050,6 +2056,11 @@ function handleScroll() {
 
 // buyNow: keep your existing behavior, but use safe fields
 function buyNow() {
+  if (!authStore.isAuthenticated) {
+    toast.info("Silakan login terlebih dahulu untuk melanjutkan pembelian.");
+    router.push({ name: "Login", query: { redirect: route.fullPath } });
+    return;
+  }
   const qty = Number(quantity.value || 1);
   const unitPrice =
     Number(getCurrentPrice()) || Number(product.value?.price || 0);
@@ -2060,7 +2071,10 @@ function buyNow() {
     selectedVariant.value?.name ?? selectedVariant.value?.value ?? "";
   const stock = getCurrentStock();
   const store = product.value?.merchant || product.value?.store || {};
+  const merchantAddress = product.value?.merchant_address ?? "";
   const checkout = useCheckoutStore();
+  console.log("merchant_address API:", product.value.merchant_address);
+
   checkout.setFromProductDetail({
     slug: product.value?.slug,
     title: product.value?.name,
@@ -2069,7 +2083,7 @@ function buyNow() {
       id: store.id ?? null,
       slug: store.slug ?? null,
       name: store.name ?? "",
-      address: store.address ?? "",
+      address: merchantAddress ?? "",
       phone: store.phone ?? "",
     },
     qty,

@@ -18,10 +18,7 @@
               <div class="flex gap-3">
                 <!-- IMAGE -->
                 <div class="w-20 h-20 rounded-lg bg-gray-100 overflow-hidden">
-                  <img
-                    :src="item.image || 'https://via.placeholder.com/80'"
-                    class="w-full h-full object-cover"
-                  />
+                  <img :src="item.image" class="w-full h-full object-cover" />
                 </div>
 
                 <!-- INFO -->
@@ -177,9 +174,7 @@
             <p class="text-gray-600 leading-snug mt-1">
               {{
                 // ✅ Prioritas: merchant_address dari API product detail
-                merchantAddressFromProduct ||
-                order.store?.address ||
-                "Alamat toko belum tersedia"
+                order.store?.address || "Alamat toko belum tersedia"
               }}
             </p>
           </div>
@@ -617,15 +612,16 @@ async function loadMerchant() {
 }
 
 // Tambah state alamat merchant dari product detail
-const merchantAddressFromProduct = ref("");
 
 // Saat mounted, jika slug tersedia, fetch product untuk ambil merchant_address
 onMounted(async () => {
-  if (checkout.from === "product") {
-    if (!checkout.productSlug) {
-      router.replace({ name: "Beranda" });
-    }
-  }
+  // if (checkout.from === "product") {
+  //   if (!checkout.productSlug || checkout.qty <= 0 || checkout.unitPrice <= 0) {
+  //     console.warn("Invalid product checkout", checkout.$state);
+  //     router.replace({ name: "Beranda" });
+  //     return;
+  //   }
+  // }
 
   if (checkout.from === "cart") {
     if (!checkout.store?.id || checkout.cartItems.length === 0) {
