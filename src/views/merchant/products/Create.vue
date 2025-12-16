@@ -19,6 +19,10 @@ const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 const authStore = useAuthStore(); // ✅ ADD: Get auth store
+const MAX_IMAGES = 6;
+const MAX_IMAGE_SIZE_MB = 5;
+const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
+const MAX_COMBINATIONS = 50;
 
 // ✅ FIXED: Get merchantId from route params
 const currentMerchantId = computed(() => {
@@ -95,7 +99,7 @@ useBodyScrollLock(showCombinationsModal);
 // Add-on Groups
 const addOnGroups = ref([]);
 const maxAddOnGroups = 10;
-const maxAddOnOptions = 20;
+const maxAddOnOptions = 10;
 
 // Accordion States
 const expandedVariants = ref(new Set());
@@ -132,6 +136,7 @@ const schema = yup.object({
     .number()
     .integer("Stok harus bilangan bulat")
     .min(0, "Stok tidak boleh negatif")
+    .max(9999, "Stok maksimal 9999")
     .when([], {
       is: () => !useVariants.value,
       then: (schema) => schema.required("Stok wajib diisi"),
@@ -310,29 +315,62 @@ const triggerFileInput = () => {
 
 const handleImageUpload = (event) => {
   const files = Array.from(event.target.files);
-  files.forEach((file) => {
-    if (file.type.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        productImages.value.push({
-          id: Date.now() + Math.random(),
-          file,
-          preview: e.target.result,
-          is_cover: productImages.value.length === 0,
-        });
-        if (productImages.value.length === 1) coverImageIndex.value = 0;
-      };
-      reader.readAsDataURL(file);
+  const remainingSlots = MAX_IMAGES - productImages.value.length;
+
+  if (remainingSlots <= 0) {
+    toast.warning("Maksimal 6 foto produk");
+    event.target.value = "";
+    return;
+  }
+
+  const allowedFiles = files.slice(0, remainingSlots);
+
+  if (files.length > remainingSlots) {
+    toast.warning(
+      `Hanya ${remainingSlots} foto yang dapat ditambahkan (maksimal 6)`
+    );
+  }
+
+  allowedFiles.forEach((file) => {
+    // ✅ Validasi type
+    if (!file.type.startsWith("image/")) {
+      toast.error(`File ${file.name} bukan gambar`);
+      return;
     }
+
+    // ✅ Validasi size
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+      toast.error(
+        `Gambar "${file.name}" terlalu besar. Maksimal ${MAX_IMAGE_SIZE_MB} MB`
+      );
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      productImages.value.push({
+        id: Date.now() + Math.random(),
+        file,
+        preview: e.target.result,
+      });
+
+      // Pastikan cover valid
+      if (productImages.value.length === 1) {
+        coverImageIndex.value = 0;
+      }
+    };
+    reader.readAsDataURL(file);
   });
+
+  // Reset input supaya bisa upload ulang file yang sama
   event.target.value = "";
 };
 
 const removeImage = (index) => {
   productImages.value.splice(index, 1);
-  if (coverImageIndex.value >= productImages.value.length) {
-    coverImageIndex.value = Math.max(0, productImages.value.length - 1);
-  }
+
+  // ✅ PASTIKAN COVER SELALU INDEX 0
+  coverImageIndex.value = productImages.value.length > 0 ? 0 : null;
 };
 
 const onDragStart = (event, index) => {
@@ -352,22 +390,12 @@ const onDrop = (event, index) => {
     return;
 
   const draggedItem = productImages.value[draggedImageIndex.value];
+
   productImages.value.splice(draggedImageIndex.value, 1);
   productImages.value.splice(index, 0, draggedItem);
 
-  if (draggedImageIndex.value === coverImageIndex.value) {
-    coverImageIndex.value = index;
-  } else if (
-    draggedImageIndex.value < coverImageIndex.value &&
-    index >= coverImageIndex.value
-  ) {
-    coverImageIndex.value--;
-  } else if (
-    draggedImageIndex.value > coverImageIndex.value &&
-    index <= coverImageIndex.value
-  ) {
-    coverImageIndex.value++;
-  }
+  // ✅ COVER SELALU GAMBAR PERTAMA
+  coverImageIndex.value = 0;
 
   draggedImageIndex.value = null;
 };
@@ -379,6 +407,18 @@ const onDragEnd = () => {
 // ============================================================
 // VARIANT METHODS
 // ============================================================
+const canAddVariantOption = (variantIndex) => {
+  const tempVariants = JSON.parse(JSON.stringify(variants.value));
+  tempVariants[variantIndex].options.push({ name: "__temp__" });
+
+  const total = tempVariants.reduce((t, v) => {
+    const count = v.options.filter((o) => o.name?.trim()).length;
+    return t === 0 ? count : t * count;
+  }, 0);
+
+  return total <= maxOptions;
+};
+
 const addVariant = () => {
   if (canAddVariant.value) {
     const variantId = Date.now() + Math.random();
@@ -402,6 +442,21 @@ const removeVariant = (index) => {
 };
 
 const addOption = (variantIndex) => {
+  const variant = variants.value[variantIndex];
+
+  // hitung kombinasi jika opsi ditambah 1
+  const projectedCombinations = variants.value.reduce((total, v, idx) => {
+    let count = v.options.filter((o) => o.name.trim()).length;
+
+    if (idx === variantIndex) count += 1;
+
+    return total === 0 ? count : total * count;
+  }, 0);
+
+  if (projectedCombinations > MAX_COMBINATIONS) {
+    toast.error(`Kombinasi maksimal ${MAX_COMBINATIONS}`);
+    return;
+  }
   variants.value[variantIndex].options.push({
     id: Date.now() + Math.random(),
     name: "",
@@ -532,7 +587,8 @@ const generateCombinations = () => {
   generateRecursive(0, { combination: "", attributes: [] });
 
   if (newCombinations.length > maxOptions) {
-    combinations.value = newCombinations.slice(0, maxOptions);
+    toast.error(`Maksimal ${maxOptions} kombinasi`);
+    return;
   } else {
     combinations.value = newCombinations;
   }
@@ -600,6 +656,9 @@ const applyBulkEdit = () => {
     if (bulkStock.value < 0) {
       toast.error("Stok tidak boleh kurang dari 0");
       hasError = true;
+    } else if (bulkStock.value > 9999) {
+      toast.error("Stok tidak boleh lebih dari 9999");
+      hasError = true;
     } else {
       selectedCombinations.value.forEach((index) => {
         combinations.value[index].stock = bulkStock.value;
@@ -626,7 +685,12 @@ const applyBulkEdit = () => {
 // ============================================================
 // ADDON GROUP METHODS
 // ============================================================
+
 const addAddOnGroup = () => {
+  if (addOnGroups.value.length >= maxAddOnGroups) {
+    toast.warning("Maksimal 10 grup add-on");
+    return;
+  }
   if (canAddAddOnGroup.value) {
     const groupId = Date.now() + Math.random();
     addOnGroups.value.push({
@@ -653,6 +717,11 @@ const removeAddOnGroup = (index) => {
 
 const addAddOnOption = (groupIndex) => {
   const group = addOnGroups.value[groupIndex];
+
+  if (group.options.length >= maxAddOnOptions) {
+    toast.warning("Maksimal 10 opsi per grup");
+    return;
+  }
   if (group.options.length < maxAddOnOptions) {
     group.options.push({
       id: Date.now() + Math.random(),
@@ -689,6 +758,21 @@ const onSubmit = veeHandleSubmit(
     console.log("[Submit] Form values:", values);
     console.log("[Submit] Current Merchant ID:", currentMerchantId.value); // ✅ ADD: Debug log
 
+    const oversizedImage = productImages.value.find(
+      (img) => img.file.size > MAX_IMAGE_SIZE_BYTES
+    );
+
+    if (oversizedImage) {
+      toast.error(
+        `Ukuran gambar tidak boleh lebih dari ${MAX_IMAGE_SIZE_MB} MB`
+      );
+      return;
+    }
+
+    if (productImages.value.length > MAX_IMAGES) {
+      toast.error("Maksimal upload 6 foto produk");
+      return;
+    }
     // ✅ ADD: Validate merchantId before submission
     if (!currentMerchantId.value) {
       toast.error("Merchant ID tidak ditemukan");
@@ -698,6 +782,32 @@ const onSubmit = veeHandleSubmit(
     // ✅ ADD: Validate merchant ownership before submission
     if (!isValidMerchant.value) {
       toast.error("Anda tidak memiliki akses ke merchant ini");
+      return;
+    }
+
+    if (!useVariants.value && values.stock > 9999) {
+      toast.error("Stok maksimal 9999");
+      return;
+    }
+
+    // Kombinasi
+    if (useVariants.value && totalCombinations.value > maxOptions) {
+      toast.error(`Kombinasi maksimal ${maxOptions}`);
+      return;
+    }
+
+    // Add-on groups
+    if (addOnGroups.value.length > maxAddOnGroups) {
+      toast.error(`Maksimal ${maxAddOnGroups} grup add-on`);
+      return;
+    }
+
+    // Add-on options
+    const invalidAddonOption = addOnGroups.value.some(
+      (g) => g.options.length > maxAddOnOptions
+    );
+    if (invalidAddonOption) {
+      toast.error(`Maksimal ${maxAddOnOptions} opsi per grup add-on`);
       return;
     }
 
@@ -928,9 +1038,25 @@ const onSubmit = veeHandleSubmit(
       console.error("[Create Product] Error:", error);
 
       if (error.response?.status === 422) {
-        const errors = error.response.data.errors || {};
-        const firstError = Object.values(errors)[0];
-        toast.error(firstError?.[0] || "Validasi gagal");
+        const data = error.response.data;
+
+        // 1️⃣ Prioritaskan message dari backend
+        if (data?.message) {
+          toast.error(data.message);
+          return;
+        }
+
+        // 2️⃣ Fallback: Laravel validation errors
+        if (data?.errors && typeof data.errors === "object") {
+          const firstError = Object.values(data.errors)[0];
+          if (Array.isArray(firstError) && firstError.length > 0) {
+            toast.error(firstError[0]);
+            return;
+          }
+        }
+
+        // 3️⃣ Fallback terakhir
+        toast.error("Validasi gagal");
       } else if (error.response?.status === 403) {
         toast.error("Anda tidak memiliki akses ke merchant ini");
       } else {
@@ -1145,7 +1271,9 @@ const goBack = () => {
           <p class="text-xs text-muted-foreground">
             <i class="pi pi-info-circle"></i>
             Drag gambar untuk mengubah urutan. Foto pertama menjadi cover. Maks
-            6 foto. Gunakan gambar dengan rasio 1:1 untuk hasil terbaik.
+            6 foto dengan masing-masing ukuran maksimal
+            {{ MAX_IMAGE_SIZE_MB }} MB. Gunakan gambar dengan rasio 1:1 untuk
+            hasil terbaik.
           </p>
         </div>
 
@@ -1471,6 +1599,7 @@ const goBack = () => {
                       </label>
                       <button
                         @click="addOption(vIndex)"
+                        :disabled="!canAddVariantOption(vIndex)"
                         type="button"
                         class="text-xs text-merchant-primary hover:underline flex items-center gap-1 font-semibold"
                       >
@@ -1668,6 +1797,8 @@ const goBack = () => {
                 type="number"
                 placeholder="0"
                 v-model.number="formStock"
+                min="0"
+                max="9999"
                 required
               />
             </div>
@@ -2113,6 +2244,7 @@ const goBack = () => {
                 v-model.number="bulkStock"
                 type="number"
                 min="0"
+                max="9999"
                 placeholder="0"
                 suffix="pcs"
                 :labelBold="false"
@@ -2199,6 +2331,7 @@ const goBack = () => {
                 v-model.number="combo.stock"
                 type="number"
                 min="0"
+                max="9999"
                 placeholder="0"
                 suffix="pcs"
                 :labelBold="false"

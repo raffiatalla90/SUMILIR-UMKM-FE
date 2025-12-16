@@ -1,7 +1,7 @@
 <script setup>
 // filepath: /var/www/html/KMI-SIMSLIFE-FE/src/views/merchant/products/Detail.vue
 
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, nextTick, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue"; // ✅ ADD
@@ -11,12 +11,15 @@ import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import { getImageUrl } from "@/libs/getImageUrl.js";
 import { useProducts } from "@/composables/useProducts";
+import { getVariantImageUrl } from "@/libs/getVariantImageUrl.js"; // ✅ ADD
 
 const { fetchProductDetail } = useProducts();
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
-
+const showFullDescription = ref(false);
+const descriptionRef = ref(null);
+const isClamped = ref(false);
 // ✅ Get merchantId from route
 const currentMerchantId = computed(() => {
   return route.params.merchantId ? Number(route.params.merchantId) : null;
@@ -42,24 +45,29 @@ const showAddOnsModal = ref(false);
 // Lock body scroll when modal is open
 useBodyScrollLock(showVariantsModal);
 useBodyScrollLock(showAddOnsModal);
+const MAX_DESCRIPTION_HEIGHT = 96; // kira-kira 4 baris (4 x line-height 24px)
 
-// Breadcrumb
-const breadcrumbs = [
-  { label: "Produk", path: "/merchant-center/products" },
-  { label: "Detail Produk", path: null },
-];
+const checkClamp = async () => {
+  await nextTick();
+  const el = descriptionRef.value;
+  if (!el) return;
 
-// ✅ Computed Properties
-const coverImage = computed(() => {
-  if (!product.value?.images) return null;
-  return (
-    product.value.images.find((img) => img.is_cover) || product.value.images[0]
-  );
+  isClamped.value = el.scrollHeight > MAX_DESCRIPTION_HEIGHT + 2;
+};
+const DESCRIPTION_LIMIT = 300;
+
+const isLongDescription = computed(() => {
+  return (product.value?.description?.length || 0) > DESCRIPTION_LIMIT;
 });
 
-const currentImage = computed(() => {
-  if (!product.value?.images) return null;
-  return product.value.images[currentImageIndex.value];
+const displayedDescription = computed(() => {
+  if (!product.value?.description) return "";
+
+  if (showFullDescription.value) {
+    return product.value.description;
+  }
+
+  return product.value.description.slice(0, DESCRIPTION_LIMIT) + "...";
 });
 
 const mainCategory = computed(() => {
@@ -177,11 +185,25 @@ const transformedOptions = computed(() => {
     id: option.id,
     option_name: option.option_name,
     uses_image: option.uses_image,
-    values: (option.values || []).map((value) => ({
-      id: value.id,
-      value: value.option_value,
-      image: value.image_path,
-    })),
+    values: (option.values || []).map((value) => {
+      // Prioritas:
+      // 1) value.image_url (absolute provided by backend)
+      // 2) fallback getVariantImageUrl(value.id) — uses product_option_value.id
+      const imageSrc =
+        value.image_url ||
+        // if image_path exists but not absolute URL backend sometimes provides path only;
+        // still prefer endpoint by id because it's consistent:
+        (value.id ? getVariantImageUrl(value.id) : null) ||
+        null;
+
+      return {
+        id: value.id,
+        value: value.option_value,
+        image: imageSrc,
+        image_path: value.image_path ?? null,
+        image_url: value.image_url ?? null,
+      };
+    }),
   }));
 });
 
@@ -282,7 +304,7 @@ const loadDetail = async () => {
     if (product.value?.images && product.value.images.length > 0) {
       currentImageIndex.value = 0;
     }
-
+    await checkClamp();
     console.log("[Detail] Product loaded", product.value);
   } catch (err) {
     console.error("[Detail] Error loading product", err);
@@ -300,10 +322,22 @@ const loadDetail = async () => {
     loading.value = false;
   }
 };
+watch(showFullDescription, async (val) => {
+  // hanya cek saat kembali ke mode ringkas
+  if (!val) {
+    await checkClamp();
+  }
+});
 
 // ✅ Mount
 onMounted(() => {
   loadDetail();
+  nextTick(() => {
+    const el = descriptionRef.value;
+    if (el) {
+      isClamped.value = el.scrollHeight > el.clientHeight;
+    }
+  });
 });
 </script>
 
@@ -414,7 +448,7 @@ onMounted(() => {
             </div>
 
             <!-- Thumbnails -->
-            <div class="grid grid-cols-4 sm:grid-cols-6 gap-2">
+            <div class="grid grid-cols-4 sm:grid-cols-6 gap-2 px-4">
               <button
                 v-for="(image, index) in product.images"
                 :key="image.id"
@@ -469,11 +503,21 @@ onMounted(() => {
               <i class="pi pi-align-left text-gray-400"></i>
               Deskripsi Produk
             </h3>
+
             <p
               class="text-sm text-gray-700 leading-relaxed whitespace-pre-line"
             >
-              {{ product.description }}
+              {{ displayedDescription }}
             </p>
+
+            <button
+              v-if="isLongDescription"
+              @click="showFullDescription = !showFullDescription"
+              class="mt-2 text-merchant-primary text-sm font-semibold hover:underline cursor-pointer"
+              type="button"
+            >
+              {{ showFullDescription ? "Sembunyikan" : "Lihat Selengkapnya" }}
+            </button>
           </div>
 
           <!-- Status & Category Card -->
@@ -661,12 +705,8 @@ onMounted(() => {
                     class="w-full aspect-square rounded-lg overflow-hidden bg-gray-100 group-hover:ring-2 group-hover:ring-merchant-primary/30 transition"
                   >
                     <img
-                      v-if="
-                        optionValue.id &&
-                        option.uses_image &&
-                        optionValue.image_path === undefined
-                      "
-                      :src="getImageUrl(optionValue.id)"
+                      v-if="optionValue.image"
+                      :src="getVariantImageUrl(optionValue.id)"
                       :alt="optionValue.value"
                       class="w-full h-full object-cover"
                       @error="(e) => (e.target.style.display = 'none')"

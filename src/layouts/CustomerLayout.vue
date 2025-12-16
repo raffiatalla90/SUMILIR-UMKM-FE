@@ -29,6 +29,13 @@ const menus = [
   //   </svg>`,
   // },
   {
+    key: "keranjang",
+    label: "Keranjang",
+    to: isAuthenticated.value ? "/cart" : "/login",
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" fill ="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" /> </svg>`,
+  },
+  {
     key: "peta",
     label: "Peta UMKM",
     to: "#",
@@ -44,6 +51,7 @@ const menus = [
       <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
     </svg>`,
   },
+
   {
     key: "profile",
     label: "Profil",
@@ -89,8 +97,8 @@ function goToLogin() {
 <template>
   <div class="min-h-screen flex flex-col pb-16 sm:pb-0">
     <!-- Navbar Desktop (hidden on mobile) -->
-    <nav
-      class="hidden sm:block sticky top-0 z-50 w-full bg-white h-[91px] border-b border-[#D9D9D9]"
+    <div
+      class="hidden sm:block sticky top-0 z-50 w-full h-[91px] bg-white border-b border-gray-200 shadow-sm"
     >
       <div class="max-w-[1440px] mx-auto h-full px-4">
         <div class="h-full flex items-center">
@@ -106,50 +114,36 @@ function goToLogin() {
           <ul
             class="flex absolute left-1/2 -translate-x-1/2 items-center gap-8"
           >
-            <li v-for="m in menus.slice(0, 4)" :key="m.key">
+            <li
+              v-for="m in menus
+                .filter((menu) => menu.key !== 'profile')
+                .slice(0, 4)"
+              :key="m.key"
+            >
               <RouterLink
                 :to="m.to"
                 @click="(e) => onMenuClick(m, e)"
                 class="group relative inline-block text-base font-semibold leading-[100%] tracking-[0]"
                 :aria-current="isMenuActive(m) ? 'page' : null"
               >
-                <!-- Icon untuk tablet (sm-lg) dengan warna dinamis -->
+                <!-- Icon dan label seperti sebelumnya -->
                 <span
                   v-html="m.icon"
-                  class="lg:hidden block w-6 h-6 transition-colors"
-                  :class="isMenuActive(m) ? 'text-primary' : 'text-gray-700'"
+                  class="lg:hidden block w-6 h-6 transition-colors hover:text-primary duration-200"
+                  :class="isMenuActive(m) ? 'text-primary' : 'text-black'"
                 ></span>
-
-                <!-- Text untuk desktop (lg+) -->
                 <span class="relative hidden lg:inline-block">
-                  <span class="block text-black select-none">
+                  <span
+                    class="block select-none transition-colors hover:text-primary duration-200"
+                    :class="isMenuActive(m) ? 'text-primary' : 'text-black'"
+                  >
                     {{ m.label }}
                   </span>
-                  <!-- Overlay label (primary) -->
-                  <span
-                    aria-hidden="true"
-                    class="absolute inset-0 overflow-hidden transition-all duration-300"
-                    :class="
-                      isMenuActive(m) ? 'w-full' : 'w-0 group-hover:w-full'
-                    "
-                  >
-                    <span class="block text-primary">
-                      {{ m.label }}
-                    </span>
-                  </span>
                 </span>
-                <!-- Underline -->
-                <span
-                  class="hidden lg:inline pointer-events-none absolute left-0 -bottom-1 h-[3px] w-full bg-primary origin-left transition-transform duration-300"
-                  :class="
-                    isMenuActive(m)
-                      ? 'scale-x-100'
-                      : 'scale-x-0 group-hover:scale-x-100'
-                  "
-                ></span>
               </RouterLink>
             </li>
           </ul>
+          <!-- ...existing code... -->
 
           <!-- Right side -->
           <div class="ml-auto flex items-center gap-4">
@@ -195,8 +189,7 @@ function goToLogin() {
           </div>
         </div>
       </div>
-    </nav>
-
+    </div>
     <!-- Main Content -->
     <main class="flex-1">
       <router-view />
@@ -214,9 +207,7 @@ function goToLogin() {
           @click="(e) => onMenuClick(m, e)"
           class="flex flex-col items-center justify-center flex-1 h-full transition-colors"
           :class="
-            isMenuActive(m)
-              ? 'text-primary'
-              : 'text-gray-500 hover:text-primary'
+            isMenuActive(m) ? 'text-primary' : 'text-black hover:text-primary'
           "
         >
           <!-- Jika profile dan authenticated, tampilkan avatar -->
@@ -229,7 +220,7 @@ function goToLogin() {
             />
             <span
               v-else
-              class="w-7 h-7 rounded-full bg-muted-background flex items-center justify-center text-muted-foreground text-2xl font-bold"
+              class="w-7 h-7 rounded-full bg-muted-background flex items-center justify-center text-black text-2xl font-bold"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -237,7 +228,7 @@ function goToLogin() {
                 viewBox="0 0 24 24"
                 stroke-width="2"
                 stroke="currentColor"
-                class="w-4 h-4 text-muted-foreground"
+                class="w-4 h-4 text-black"
               >
                 <path
                   stroke-linecap="round"

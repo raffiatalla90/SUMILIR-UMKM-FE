@@ -291,10 +291,16 @@ const router = createRouter({
 
 // ✅ Track navigation to prevent excessive calls
 let lastNavigationPath = null;
+let authInitialized = false;
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
   document.title = to.meta.title || "SUMILIR";
+
+  if (!authInitialized) {
+    authInitialized = true;
+    await authStore.initAuth();
+  }
 
   // ✅ ADD: Skip if navigating to same path
   if (to.path === lastNavigationPath) {
@@ -325,7 +331,12 @@ router.beforeEach((to, from, next) => {
       .map((r) => r.toLowerCase());
 
     if (userRoles.includes("admin") || userRoles.includes("umkm-owner")) {
-      return next("/merchant-center");
+      const merchant = authStore.activeMerchant;
+
+      if (merchant) {
+        return next(`/merchant-center/${merchant.id}`);
+      }
+      return next("/");
     } else if (userRoles.includes("customer")) {
       return next("/");
     } else {

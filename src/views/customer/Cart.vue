@@ -1,11 +1,49 @@
 <template>
-  <div class="min-h-screen bg-gray-50 pb-32">
+  <div class="min-h-screen bg-gray-100 pb-32">
     <!-- Mobile Header -->
     <MobileHeader title="Keranjang" @back="goBack" />
 
+    <!-- Skeleton Loading -->
+    <div v-if="loading" class="max-w-7xl mx-auto px-4 py-4 space-y-4">
+      <div
+        v-for="n in 2"
+        :key="n"
+        class="bg-white rounded-xl border border-gray-200 overflow-hidden animate-pulse"
+      >
+        <div
+          class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2"
+        >
+          <div class="w-6 h-6 rounded-full bg-gray-200"></div>
+          <div class="h-4 w-32 bg-gray-200 rounded"></div>
+        </div>
+        <div class="divide-y divide-gray-100">
+          <div v-for="m in 2" :key="m" class="px-4 py-3 flex items-start gap-3">
+            <div class="w-4 h-4 rounded bg-gray-200 mt-1"></div>
+            <div class="w-20 h-20 rounded-lg bg-gray-200"></div>
+            <div class="flex-1 min-w-0 space-y-2">
+              <div class="h-4 w-40 bg-gray-200 rounded"></div>
+              <div class="h-3 w-24 bg-gray-200 rounded"></div>
+              <div class="h-3 w-16 bg-gray-200 rounded"></div>
+              <div class="flex gap-2">
+                <div class="h-7 w-7 rounded-full bg-gray-200"></div>
+                <div class="h-7 w-8 bg-gray-200 rounded"></div>
+                <div class="h-7 w-7 rounded-full bg-gray-200"></div>
+              </div>
+            </div>
+            <div class="w-5 h-5 rounded bg-gray-200"></div>
+          </div>
+        </div>
+        <div
+          class="px-4 py-3 bg-gray-50 border-t border-gray-200 flex justify-between"
+        >
+          <div class="h-4 w-24 bg-gray-200 rounded"></div>
+          <div class="h-4 w-20 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    </div>
     <!-- Empty State -->
     <div
-      v-if="cartStores.length === 0"
+      v-else-if="cartStores.length === 0"
       class="flex flex-col items-center justify-center py-20 px-4 max-w-7xl mx-auto"
     >
       <div class="w-32 h-32 mb-6 text-gray-300">
@@ -113,17 +151,28 @@
 
               <!-- Variants -->
               <div class="text-xs text-gray-600 space-y-0.5 mb-2">
-                <div v-if="item.size">Ukuran: {{ item.size }}</div>
+                <div class="font-medium">
+                  Rp {{ formatIDR(item.unitPrice) }}
+                </div>
                 <div v-if="item.variant">Varian: {{ item.variant }}</div>
-                <div v-if="item.addons && item.addons.length > 0">
-                  Tambahan: {{ item.addons.join(", ") }}
+                <div v-if="item.addons.length" class="space-y-0.5">
+                  <div
+                    v-for="addon in item.addons"
+                    :key="addon.label"
+                    class="text-xs text-gray-600 flex justify-between"
+                  >
+                    <span>+ {{ addon.label }}</span>
+                    <span class="font-medium text-gray-700">
+                      Rp {{ formatIDR(addon.price) }}
+                    </span>
+                  </div>
                 </div>
               </div>
 
               <!-- Edit Variant/Addon Button -->
               <button
                 @click="editItemVariant(item.id, store.id)"
-                class="text-xs text-[#FFA30E] hover:text-[#e5920d] font-semibold mb-2 flex items-center gap-1"
+                class="cursor-pointer text-xs text-[#FFA30E] hover:text-[#e5920d] font-semibold mb-2 flex items-center gap-1"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -142,9 +191,11 @@
               </button>
 
               <!-- Price & Quantity -->
-              <div class="flex items-center justify-between">
+              <div
+                class="flex flex-wrap gap-y-2 gap-x-6 items-center justify-between"
+              >
                 <div class="text-sm font-bold text-[#FFA30E]">
-                  Rp {{ formatIDR(item.unitPrice) }}
+                  Rp {{ formatIDR(item.unitPrice + item.addonTotalPrice) }}
                 </div>
 
                 <!-- Quantity Controls -->
@@ -168,11 +219,15 @@
                     </svg>
                   </button>
 
-                  <span
-                    class="text-sm font-semibold text-gray-900 w-8 text-center"
-                  >
-                    {{ item.quantity }}
-                  </span>
+                  <input
+                    type="number"
+                    class="text-center border border-gray-300 rounded-md text-sm font-semibold py-1 sm:px-2"
+                    :min="1"
+                    :max="item.stock"
+                    :value="item.quantity"
+                    @input="onQuantityInput(item.id, $event.target.value)"
+                    @blur="onQuantityBlur(item.id)"
+                  />
 
                   <button
                     @click="increaseQuantity(item.id)"
@@ -233,7 +288,8 @@
 
           <!-- Checkout Button per Store -->
           <Button
-            @click="checkoutStore(store.id)"
+            type="button"
+            @click="checkoutFromCart(store.id)"
             :disabled="getStoreSelectedCount(store.id) === 0"
             variant="primary"
             customClass="w-full"
@@ -252,7 +308,7 @@
     >
       <div class="space-y-4">
         <p class="text-sm text-gray-600">
-          Item yang dihapus tidak dapat dikembalikan.
+          Apakah anda yakin ingin menghapus produk ini dari keranjang?
         </p>
       </div>
 
@@ -281,154 +337,47 @@
     >
       <div v-if="editingItem" class="space-y-4">
         <!-- Size Selection -->
-        <div v-if="availableSizes.length > 0">
-          <label class="text-sm font-semibold text-gray-900 mb-2 block">
-            Ukuran <span class="text-red-500">*</span>
-          </label>
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="size in availableSizes"
-              :key="size"
-              @click="tempSize = size"
-              :disabled="!isSizeAvailable(size)"
-              class="px-4 py-2 rounded-lg border text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
-              :class="
-                tempSize === size
-                  ? 'border-[#FFA30E] bg-orange-50 text-[#FFA30E]'
-                  : 'border-gray-300 text-gray-700 hover:border-gray-400'
-              "
-            >
-              <div class="flex flex-col items-center">
-                <span>{{ size }}</span>
-                <span
-                  class="text-xs mt-0.5"
-                  :class="
-                    getEditSizeStock(size) === 0
-                      ? 'text-red-500'
-                      : getEditSizeStock(size) <= 10
-                      ? 'text-amber-600'
-                      : 'text-gray-500'
-                  "
-                >
-                  {{
-                    getEditSizeStock(size) === 0
-                      ? "Habis"
-                      : `Stok: ${getEditSizeStock(size)}`
-                  }}
-                </span>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        <!-- Variant Selection -->
-        <div v-if="availableVariants.length > 0">
-          <label class="text-sm font-semibold text-gray-900 mb-2 block">
-            Varian <span class="text-red-500">*</span>
-          </label>
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="variant in availableVariants"
-              :key="variant"
-              @click="tempVariant = variant"
-              :disabled="!isVariantAvailable(variant)"
-              class="px-4 py-2 rounded-lg border text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
-              :class="
-                tempVariant === variant
-                  ? 'border-[#FFA30E] bg-orange-50 text-[#FFA30E]'
-                  : 'border-gray-300 text-gray-700 hover:border-gray-400'
-              "
-            >
-              <div class="flex flex-col items-center">
-                <span :class="{ 'line-through': !isVariantAvailable(variant) }">
-                  {{ variant }}
-                </span>
-                <span
-                  v-if="tempSize"
-                  class="text-xs mt-0.5"
-                  :class="
-                    getEditVariantStock(variant) === 0
-                      ? 'text-red-500'
-                      : getEditVariantStock(variant) <= 10
-                      ? 'text-amber-600'
-                      : 'text-gray-500'
-                  "
-                >
-                  {{
-                    getEditVariantStock(variant) === 0
-                      ? "Habis"
-                      : `Stok: ${getEditVariantStock(variant)}`
-                  }}
-                </span>
-              </div>
-            </button>
-          </div>
-          <p v-if="!tempSize" class="text-xs text-gray-500 mt-2">
-            Pilih ukuran terlebih dahulu untuk melihat stok varian
-          </p>
-        </div>
-
-        <!-- Current Stock Info -->
         <div
-          v-if="tempSize && tempVariant"
-          class="p-3 rounded-lg"
-          :class="
-            getEditCurrentStock() === 0
-              ? 'bg-red-50'
-              : getEditCurrentStock() <= 10
-              ? 'bg-amber-50'
-              : 'bg-green-50'
-          "
+          v-for="(opt, optIndex) in editOptions"
+          :key="opt.option_id"
+          class="space-y-2"
         >
-          <div class="flex items-center gap-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              class="w-5 h-5"
+          <label class="text-sm font-semibold text-gray-900 block">
+            {{ opt.option_name }}
+            <span class="text-red-500">*</span>
+          </label>
+
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="val in opt.values"
+              :key="val.value"
+              @click="tempSelections[opt.option_name] = val.value"
+              :disabled="!val.available"
+              class="px-3 py-2 rounded-lg border text-sm transition flex items-center gap-2"
               :class="
-                getEditCurrentStock() === 0
-                  ? 'text-red-600'
-                  : getEditCurrentStock() <= 10
-                  ? 'text-amber-600'
-                  : 'text-green-600'
+                tempSelections[opt.option_name] === val.value
+                  ? 'border-[#FFA30E] bg-orange-50 text-[#FFA30E]'
+                  : 'border-gray-300 text-gray-700 hover:border-gray-400'
               "
             >
-              <path
-                fill-rule="evenodd"
-                d="M6 5v1H4.667a1.75 1.75 0 00-1.743 1.598l-.826 9.5A1.75 1.75 0 003.84 19h12.32a1.75 1.75 0 001.743-1.902l-.826-9.5A1.75 1.75 0 0015.333 6H14V5a4 4 0 00-8 0zm4-2.5A2.5 2.5 0 007.5 5v1h5V5A2.5 2.5 0 0010 2.5zM7.5 10a2.5 2.5 0 005 0V8.75a.75.75 0 011.5 0V10a4 4 0 01-8 0V8.75a.75.75 0 011.5 0V10z"
-                clip-rule="evenodd"
+              <!-- IMAGE OPTION -->
+              <img
+                v-if="opt.uses_image && val.image_url"
+                :src="val.image_url"
+                class="w-8 h-8 rounded object-cover"
               />
-            </svg>
-            <div class="flex-1">
-              <p
-                class="text-sm font-semibold"
-                :class="
-                  getEditCurrentStock() === 0
-                    ? 'text-red-700'
-                    : getEditCurrentStock() <= 10
-                    ? 'text-amber-700'
-                    : 'text-green-700'
-                "
-              >
-                {{
-                  getEditCurrentStock() === 0
-                    ? "Stok Habis"
-                    : `Stok tersedia: ${getEditCurrentStock()} item`
-                }}
-              </p>
-              <p
-                v-if="
-                  getEditCurrentStock() > 0 &&
-                  editingItem.quantity > getEditCurrentStock()
-                "
-                class="text-xs text-amber-600 mt-0.5"
-              >
-                Quantity akan disesuaikan dari
-                {{ editingItem.quantity }} menjadi
-                {{ getEditCurrentStock() }}
-              </p>
-            </div>
+
+              <div class="flex flex-col items-start">
+                <span>{{ val.value }}</span>
+
+                <span
+                  v-if="shouldShowStockOnOption(optIndex)"
+                  class="text-[10px] text-gray-500"
+                >
+                  Stok {{ getVariantStockByOption(opt.option_name, val.value) }}
+                </span>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -443,7 +392,7 @@
               :key="addon.name"
               class="flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition"
               :class="
-                tempAddons.includes(addon.name)
+                isAddonSelected(addon)
                   ? 'border-[#FFA30E] bg-orange-50'
                   : addon.available
                   ? 'border-gray-200 hover:border-gray-300'
@@ -452,17 +401,37 @@
             >
               <input
                 type="checkbox"
-                :value="addon.name"
+                :value="{
+                  addon_group_id: addon.addon_group_id,
+                  addon_id: addon.addon_id,
+                }"
                 v-model="tempAddons"
                 :disabled="!addon.available"
                 class="w-4 h-4 text-[#FFA30E] border-gray-300 rounded focus:ring-[#FFA30E] disabled:cursor-not-allowed"
               />
-              <span class="text-sm text-gray-900 flex-1">
-                {{ addon.name }}
-                <span v-if="!addon.available" class="text-xs text-red-500 ml-1">
-                  (Tidak tersedia)
+              <div class="flex-grow flex items-start justify-between gap-2">
+                <div class="">
+                  <p
+                    class="text-sm font-medium text-gray-900 flex-grow"
+                    :class="{
+                      'line-through text-gray-400': !addon.available,
+                    }"
+                  >
+                    {{ addon.name }}
+                  </p>
+                  <p
+                    v-if="!addon.available"
+                    class="text-xs text-red-500 mt-0.5"
+                  >
+                    Tidak tersedia
+                  </p>
+                </div>
+                <span
+                  class="text-sm font-semibold text-gray-900 whitespace-nowrap ml-2"
+                >
+                  +Rp {{ formatIDR(addon.price) }}
                 </span>
-              </span>
+              </div>
             </label>
           </div>
         </div>
@@ -486,6 +455,28 @@
           </p>
         </div>
       </div>
+      <div class="p-3 rounded-lg space-y-1">
+        <div class="flex justify-between text-sm">
+          <span>Harga Varian</span>
+          <span class="font-semibold">
+            Rp {{ formatIDR(editVariantPrice) }}
+          </span>
+        </div>
+
+        <div class="flex justify-between text-sm" v-if="editAddonTotal > 0">
+          <span>Addon</span>
+          <span class="font-semibold">
+            Rp {{ formatIDR(editAddonTotal) }}
+          </span>
+        </div>
+
+        <div
+          class="border-t pt-2 flex justify-between text-base font-bold text-[#FFA30E]"
+        >
+          <span>Total</span>
+          <span>Rp {{ formatIDR(editTotalPrice) }}</span>
+        </div>
+      </div>
 
       <template #footer>
         <div class="flex gap-3">
@@ -500,9 +491,10 @@
             @click="saveVariantChanges"
             variant="primary"
             customClass="flex-1"
-            :disabled="!tempSize || !tempVariant || getEditCurrentStock() === 0"
+            :disabled="getEditCurrentStock() === 0"
+            :loading="saveLoading"
           >
-            Simpan Perubahan
+            {{ saveLoading ? "Menyimpan..." : "Simpan Perubahan" }}
           </Button>
         </div>
       </template>
@@ -511,15 +503,114 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import Button from "@/components/common/Button.vue";
 import MobileHeader from "@/components/customer/MobileHeader.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
+import api from "@/libs/axios";
+import { useToast } from "vue-toastification";
+import { useCheckoutStore } from "@/stores/checkout";
+import debounce from "lodash/debounce";
 
+const quantityDrafts = ref({}); // simpan nilai ketikan sementara
+const quantitySnapshots = ref({}); // rollback data
+const getVariantStockByOption = (optionName, optionValue) => {
+  return editStockCombinations.value
+    .filter((c) => c.options[optionName] === optionValue)
+    .reduce((max, c) => Math.max(max, c.stock), 0);
+};
+const shouldShowStockOnOption = (optionIndex) => {
+  const totalOptions = editOptions.value.length;
+
+  if (totalOptions === 1) {
+    return optionIndex === 0;
+  }
+
+  return optionIndex === 1;
+};
+
+const onQuantityInput = (itemId, value) => {
+  const qty = Number(value);
+
+  for (const store of cartStores.value) {
+    const item = store.items.find((i) => i.id === itemId);
+    if (!item) continue;
+
+    // simpan snapshot pertama kali
+    if (!quantitySnapshots.value[itemId]) {
+      quantitySnapshots.value[itemId] = item.quantity;
+    }
+
+    // validasi ringan (UI only)
+    if (isNaN(qty)) return;
+
+    if (qty < 1) {
+      item.quantity = 1;
+    } else if (qty > item.stock) {
+      item.quantity = item.stock;
+    } else {
+      item.quantity = qty;
+    }
+
+    quantityDrafts.value[itemId] = item.quantity;
+
+    // debounce API
+    debounceUpdateQuantity(itemId);
+
+    break;
+  }
+};
+const debounceUpdateQuantity = debounce(async (itemId) => {
+  const newQty = quantityDrafts.value[itemId];
+  const oldQty = quantitySnapshots.value[itemId];
+
+  try {
+    await api.patch(`/cart/items/${itemId}`, {
+      quantity: newQty,
+    });
+
+    // sukses → hapus snapshot
+    delete quantitySnapshots.value[itemId];
+    delete quantityDrafts.value[itemId];
+  } catch (error) {
+    // rollback
+    for (const store of cartStores.value) {
+      const item = store.items.find((i) => i.id === itemId);
+      if (item) {
+        item.quantity = oldQty;
+        break;
+      }
+    }
+
+    toast.error("Gagal mengubah jumlah");
+  }
+}, 600);
+const onQuantityBlur = (itemId) => {
+  for (const store of cartStores.value) {
+    const item = store.items.find((i) => i.id === itemId);
+    if (!item) continue;
+
+    // jika kosong / invalid
+    if (!item.quantity || item.quantity < 1) {
+      item.quantity = 1;
+    }
+
+    if (item.quantity > item.stock) {
+      item.quantity = item.stock;
+    }
+
+    quantityDrafts.value[itemId] = item.quantity;
+    debounceUpdateQuantity(itemId);
+
+    break;
+  }
+};
+
+const toast = useToast();
 const router = useRouter();
-
+const checkoutStore = useCheckoutStore();
 // Confirmation Modal
 const showConfirmModal = ref(false);
 const itemToRemove = ref(null);
@@ -528,9 +619,54 @@ const itemToRemove = ref(null);
 const showEditModal = ref(false);
 const editingItem = ref(null);
 const editingStoreId = ref(null);
-const tempSize = ref(null);
-const tempVariant = ref(null);
+
 const tempAddons = ref([]);
+
+const cartStores = ref([]);
+const loading = ref(false);
+
+const fetchCart = async () => {
+  loading.value = true;
+  try {
+    const res = await api.get("/cart");
+
+    cartStores.value = res.data.data.map((cart) => ({
+      id: cart.cart_id,
+      name: cart.merchant.name,
+      phone: cart.merchant.phone,
+      address: cart.merchant.address,
+      items: cart.items.map((item) => ({
+        id: item.cart_item_id,
+        name: item.display.name,
+        image: item.display.image,
+
+        unitPrice: item.display.unit_price,
+        addonTotalPrice: item.display.addon_total_price,
+        quantity: item.quantity,
+        stock: item.display.max_stock,
+
+        // LABEL
+        variant: item.display.variant_label,
+        addons: item.display.addons, // ⬅️ array {label, price}
+
+        // SELECTION DATA
+        selectedVariantId: item.selected_configuration.variant_id,
+        selectedAddons: item.selected_configuration.addon_ids,
+
+        productDetails: item.product_details,
+      })),
+    }));
+  } catch (error) {
+    console.error("Gagal mengambil cart", error);
+    cartStores.value = [];
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchCart();
+});
 
 // ✅ Body Scroll Lock for Modals
 const isAnyModalOpen = computed(
@@ -539,71 +675,12 @@ const isAnyModalOpen = computed(
 useBodyScrollLock(isAnyModalOpen);
 
 // Available options with stock info (simulasi - nanti dari API)
-const availableSizes = ref([]);
-const availableVariants = ref([]);
-const availableAddons = ref([]);
 
+const editOptions = ref([]);
+const availableAddons = ref([]);
+const tempSelections = ref({});
 // Stock combinations for editing item
 const editStockCombinations = ref([]);
-
-// Cart Data (nanti akan dari Pinia Store)
-const cartStores = ref([
-  {
-    id: 1,
-    name: "Sumber Rejeki",
-    phone: "6285764134767",
-    address: "Jl. Cendrawasih No 5 Rt 1 Rw 1, Banyumanik, Semarang",
-    items: [
-      {
-        id: "cart-1",
-        productId: 1,
-        slug: "yakult-original",
-        name: "Yakult Original",
-        image: "https://picsum.photos/seed/yakult/300/300",
-        size: "250 Ml",
-        variant: "Original",
-        addons: ["Tidak Pedas"],
-        unitPrice: 15000,
-        quantity: 2,
-        stock: 50,
-      },
-      {
-        id: "cart-2",
-        productId: 2,
-        slug: "yakult-strawberry",
-        name: "Yakult Strawberry",
-        image: "https://picsum.photos/seed/yakult2/300/300",
-        size: "750 Ml",
-        variant: "Strawberry",
-        addons: ["Sedang", "Topping Meses"],
-        unitPrice: 22000,
-        quantity: 1,
-        stock: 15,
-      },
-    ],
-  },
-  {
-    id: 2,
-    name: "Warung Bahagia",
-    phone: "6281234567890",
-    address: "Jl. Pemuda No 123, Simpang Lima, Semarang",
-    items: [
-      {
-        id: "cart-3",
-        productId: 3,
-        slug: "nasi-goreng",
-        name: "Nasi Goreng Spesial",
-        image: "https://picsum.photos/seed/nasgor/300/300",
-        size: null,
-        variant: "Pedas",
-        addons: ["Extra Telur", "Kerupuk"],
-        unitPrice: 18000,
-        quantity: 3,
-        stock: 100,
-      },
-    ],
-  },
-]);
 
 // Selected Items
 const selectedItems = ref([]);
@@ -707,6 +784,12 @@ const getStoreSelectedCount = (storeId) => {
   return store.items.filter((item) => selectedItems.value.includes(item.id))
     .length;
 };
+const isAddonSelected = (addon) => {
+  return tempAddons.value.some(
+    (a) =>
+      a.addon_id === addon.addon_id && a.addon_group_id === addon.addon_group_id
+  );
+};
 
 // Calculate store subtotal
 const calculateStoreSubtotal = (storeId) => {
@@ -715,27 +798,30 @@ const calculateStoreSubtotal = (storeId) => {
 
   return store.items
     .filter((item) => selectedItems.value.includes(item.id))
-    .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+    .reduce(
+      (sum, item) =>
+        sum + (item.unitPrice + item.addonTotalPrice) * item.quantity,
+      0
+    );
 };
 
-// Quantity Controls
 const increaseQuantity = (itemId) => {
   for (const store of cartStores.value) {
     const item = store.items.find((i) => i.id === itemId);
-    if (item && item.quantity < item.stock) {
-      item.quantity++;
-      break;
-    }
+    if (!item || item.quantity >= item.stock) continue;
+
+    onQuantityInput(itemId, item.quantity + 1);
+    break;
   }
 };
 
 const decreaseQuantity = (itemId) => {
   for (const store of cartStores.value) {
     const item = store.items.find((i) => i.id === itemId);
-    if (item && item.quantity > 1) {
-      item.quantity--;
-      break;
-    }
+    if (!item || item.quantity <= 1) continue;
+
+    onQuantityInput(itemId, item.quantity - 1);
+    break;
   }
 };
 
@@ -745,16 +831,16 @@ const removeItem = (itemId) => {
   showConfirmModal.value = true;
 };
 
-const confirmRemove = () => {
-  if (itemToRemove.value) {
+const confirmRemove = async () => {
+  if (!itemToRemove.value) return;
+
+  try {
+    await api.delete(`/cart/items/${itemToRemove.value}`);
+
     for (const store of cartStores.value) {
       const index = store.items.findIndex((i) => i.id === itemToRemove.value);
       if (index > -1) {
         store.items.splice(index, 1);
-        const selectedIndex = selectedItems.value.indexOf(itemToRemove.value);
-        if (selectedIndex > -1) {
-          selectedItems.value.splice(selectedIndex, 1);
-        }
         break;
       }
     }
@@ -762,123 +848,127 @@ const confirmRemove = () => {
     cartStores.value = cartStores.value.filter(
       (store) => store.items.length > 0
     );
+  } catch (error) {
+    alert("Gagal menghapus item");
+  } finally {
+    showConfirmModal.value = false;
+    itemToRemove.value = null;
   }
-
-  showConfirmModal.value = false;
-  itemToRemove.value = null;
 };
 
 // Get current stock for selected size + variant combination
 const getEditCurrentStock = () => {
-  if (!tempSize.value || !tempVariant.value) return 0;
-
-  const combination = editStockCombinations.value.find(
-    (combo) =>
-      combo.size === tempSize.value && combo.variant === tempVariant.value
+  const combo = editStockCombinations.value.find((c) =>
+    Object.entries(tempSelections.value).every(
+      ([optName, optValue]) => c.options[optName] === optValue
+    )
   );
 
-  return combination ? combination.stock : 0;
+  return combo ? combo.stock : 0;
 };
 
 // Get stock for specific size (total across all variants)
-const getEditSizeStock = (sizeName) => {
-  const combinations = editStockCombinations.value.filter(
-    (combo) => combo.size === sizeName
-  );
-  return combinations.reduce((total, combo) => total + combo.stock, 0);
-};
 
 // Get stock for specific variant with current size
-const getEditVariantStock = (variantName) => {
-  if (!tempSize.value) return 0;
 
-  const combination = editStockCombinations.value.find(
-    (combo) => combo.size === tempSize.value && combo.variant === variantName
+const editVariantPrice = computed(() => {
+  const combo = editStockCombinations.value.find((c) =>
+    Object.entries(tempSelections.value).every(
+      ([optName, optValue]) => c.options[optName] === optValue
+    )
   );
 
-  return combination ? combination.stock : 0;
-};
+  return combo ? combo.price : 0;
+});
 
-// Check if size has any stock
-const isSizeAvailable = (sizeName) => {
-  return getEditSizeStock(sizeName) > 0;
-};
+const editAddonTotal = computed(() => {
+  return availableAddons.value
+    .filter((a) => isAddonSelected(a))
+    .reduce((sum, a) => sum + a.price, 0);
+});
 
-// Check if variant is available for current size
-const isVariantAvailable = (variantName) => {
-  return getEditVariantStock(variantName) > 0;
-};
-
-// Get max quantity available for current selection
-const getMaxQuantityAvailable = () => {
-  return getEditCurrentStock();
-};
-
+const editTotalPrice = computed(() => {
+  return editVariantPrice.value + editAddonTotal.value;
+});
 // Edit Item Variant
-const editItemVariant = async (itemId, storeId) => {
-  for (const store of cartStores.value) {
-    const item = store.items.find((i) => i.id === itemId);
-    if (item) {
-      editingItem.value = item;
-      editingStoreId.value = storeId;
+const editItemVariant = (itemId, storeId) => {
+  const store = cartStores.value.find((s) => s.id === storeId);
+  if (!store) return;
 
-      // Set temporary values
-      tempSize.value = item.size;
-      tempVariant.value = item.variant;
-      tempAddons.value = [...(item.addons || [])];
+  const item = store.items.find((i) => i.id === itemId);
+  if (!item) return;
 
-      // Load available options with stock from API
-      try {
-        // Simulasi data dengan stock combinations
-        availableSizes.value = ["250 Ml", "500 Ml", "750 Ml", "1 L"];
-        availableVariants.value = [
-          "Original",
-          "Strawberry",
-          "Coklat",
-          "Vanilla",
-        ];
-        availableAddons.value = [
-          { name: "Tidak Pedas", available: true },
-          { name: "Sedang", available: true },
-          { name: "Pedas", available: true },
-          { name: "Extra Pedas", available: true },
-          { name: "Topping Meses", available: true },
-          { name: "Keju Parut", available: false },
-          { name: "Extra Susu", available: true },
-        ];
+  editingItem.value = item;
+  editingStoreId.value = storeId;
 
-        // Stock combinations (size + variant)
-        editStockCombinations.value = [
-          { size: "250 Ml", variant: "Original", stock: 150 },
-          { size: "250 Ml", variant: "Strawberry", stock: 8 },
-          { size: "250 Ml", variant: "Coklat", stock: 25 },
-          { size: "250 Ml", variant: "Vanilla", stock: 0 },
+  const product = item.productDetails;
 
-          { size: "500 Ml", variant: "Original", stock: 80 },
-          { size: "500 Ml", variant: "Strawberry", stock: 0 },
-          { size: "500 Ml", variant: "Coklat", stock: 15 },
-          { size: "500 Ml", variant: "Vanilla", stock: 5 },
+  /* ===============================
+   * 1. OPTIONS (Size / Variant)
+   * =============================== */
+  editOptions.value = product.options.map((opt) => ({
+    option_id: opt.id,
+    option_name: opt.option_name,
+    uses_image: opt.uses_image,
+    values: opt.values.map((v) => ({
+      value: v.option_value,
+      image_url: v.image_url,
+      available: true, // nanti bisa dikunci via stok
+    })),
+  }));
 
-          { size: "750 Ml", variant: "Original", stock: 50 },
-          { size: "750 Ml", variant: "Strawberry", stock: 15 },
-          { size: "750 Ml", variant: "Coklat", stock: 0 },
-          { size: "750 Ml", variant: "Vanilla", stock: 5 },
+  /* ===============================
+   * 2. STOCK COMBINATIONS
+   * =============================== */
+  editStockCombinations.value = product.variants.map((v) => {
+    const options = {};
 
-          { size: "1 L", variant: "Original", stock: 0 },
-          { size: "1 L", variant: "Strawberry", stock: 12 },
-          { size: "1 L", variant: "Coklat", stock: 0 },
-          { size: "1 L", variant: "Vanilla", stock: 8 },
-        ];
+    v.option_values.forEach((ov) => {
+      options[ov.option_name] = ov.option_value;
+    });
 
-        showEditModal.value = true;
-      } catch (error) {
-        console.error("Failed to load variant options:", error);
-        alert("Gagal memuat opsi varian");
-      }
+    return {
+      options,
+      stock: v.stock,
+      price: Number(v.price),
+      variantId: v.id,
+    };
+  });
 
-      break;
-    }
+  /* ===============================
+   * 3. SET CURRENT SELECTION
+   * =============================== */
+  tempSelections.value = {};
+
+  const currentVariant = product.variants.find(
+    (v) => v.id === item.selectedVariantId
+  );
+
+  if (currentVariant) {
+    currentVariant.option_values.forEach((ov) => {
+      tempSelections.value[ov.option_name] = ov.option_value;
+    });
   }
+
+  /* ===============================
+   * 4. ADDONS
+   * =============================== */
+  availableAddons.value = product.addon_groups.flatMap((group) =>
+    group.options.map((opt) => ({
+      addon_group_id: group.id,
+      addon_id: opt.addon_id,
+      name: opt.addon.addon_name,
+      price: Number(opt.addon_price),
+      available: true,
+    }))
+  );
+
+  tempAddons.value = item.selectedAddons.map((a) => ({
+    addon_group_id: a.addon_group_id,
+    addon_id: a.addon_id,
+  }));
+
+  showEditModal.value = true;
 };
 
 // Close Edit Modal
@@ -886,80 +976,43 @@ const closeEditModal = () => {
   showEditModal.value = false;
   editingItem.value = null;
   editingStoreId.value = null;
-  tempSize.value = null;
-  tempVariant.value = null;
   tempAddons.value = [];
-  availableSizes.value = [];
-  availableVariants.value = [];
+  tempSelections.value = {};
   availableAddons.value = [];
   editStockCombinations.value = [];
 };
-
+const saveLoading = ref(false);
 // Save Variant Changes with stock validation
-const saveVariantChanges = () => {
-  if (!editingItem.value) return;
+const saveVariantChanges = async () => {
+  const combo = editStockCombinations.value.find((c) =>
+    Object.entries(tempSelections.value).every(
+      ([optName, optValue]) => c.options[optName] === optValue
+    )
+  );
 
-  // Validate selection
-  if (!tempSize.value) {
-    alert("Silakan pilih ukuran");
-    return;
-  }
-  if (!tempVariant.value) {
-    alert("Silakan pilih varian");
-    return;
-  }
-
-  // Check stock availability
-  const availableStock = getEditCurrentStock();
-  if (availableStock === 0) {
-    alert(
-      `Maaf, kombinasi ${tempSize.value} - ${tempVariant.value} sedang habis`
-    );
+  if (!combo) {
+    alert("Varian tidak ditemukan");
     return;
   }
 
-  // Validate quantity doesn't exceed new stock
-  if (editingItem.value.quantity > availableStock) {
-    if (
-      confirm(
-        `Stok hanya tersedia ${availableStock} item.\nApakah Anda ingin mengubah quantity menjadi ${availableStock}?`
-      )
-    ) {
-      editingItem.value.quantity = availableStock;
-    } else {
-      return;
-    }
+  if (combo.stock === 0) {
+    alert("Stok habis");
+    return;
   }
+  saveLoading.value = true;
+  try {
+    await api.patch(`/cart/items/${editingItem.value.id}/variant`, {
+      product_variant_id: combo.variantId,
+      addons: tempAddons.value,
+    });
 
-  // Update the item
-  editingItem.value.size = tempSize.value;
-  editingItem.value.variant = tempVariant.value;
-  editingItem.value.addons = tempAddons.value.filter((addon) => {
-    const addonData = availableAddons.value.find((a) => a.name === addon);
-    return addonData && addonData.available;
-  });
-  editingItem.value.stock = availableStock;
-
-  // Recalculate price
-  const basePriceAdjustment =
-    tempSize.value === "1 L"
-      ? 10000
-      : tempSize.value === "750 Ml"
-      ? 5000
-      : tempSize.value === "500 Ml"
-      ? 2000
-      : 0;
-  const variantAdjustment = tempVariant.value !== "Original" ? 2000 : 0;
-  const addonAdjustment = editingItem.value.addons.length * 1000;
-
-  editingItem.value.unitPrice =
-    15000 + basePriceAdjustment + variantAdjustment + addonAdjustment;
-
-  // Show success message
-  alert("Varian produk berhasil diubah!");
-
-  // Close modal
-  closeEditModal();
+    await fetchCart();
+    closeEditModal();
+  } catch (e) {
+    toast.error("Gagal update varian");
+  } finally {
+    saveLoading.value = false;
+  }
 };
 
 // Format IDR
@@ -973,11 +1026,20 @@ const goBack = () => {
 };
 
 const goToHome = () => {
-  router.push({ name: "Home" });
+  router.push({ name: "Beranda" });
 };
 
 // Checkout per Store
-const checkoutStore = (storeId) => {
+const order = computed(() => ({
+  title: checkout.productTitle,
+  quantity: checkout.qty,
+  addons: checkout.selectedAddons,
+  store: checkout.store,
+}));
+
+const isFromCart = computed(() => checkout.from === "cart");
+
+const checkoutFromCart = (storeId) => {
   const store = cartStores.value.find((s) => s.id === storeId);
   if (!store) return;
 
@@ -986,70 +1048,33 @@ const checkoutStore = (storeId) => {
   );
 
   if (selectedStoreItems.length === 0) {
-    alert("Pilih minimal 1 item untuk checkout");
+    toast.error("Pilih minimal 1 item untuk checkout");
     return;
   }
 
-  // Calculate total price
-  const totalPrice = selectedStoreItems.reduce(
-    (sum, item) => sum + item.unitPrice * item.quantity,
-    0
-  );
-
-  // Calculate total quantity
-  const totalQuantity = selectedStoreItems.reduce(
-    (sum, item) => sum + item.quantity,
-    0
-  );
-
-  // Prepare order data
-  const orderTitle =
-    selectedStoreItems.length === 1
-      ? selectedStoreItems[0].name
-      : `${selectedStoreItems.length} Produk dari ${store.name}`;
-
-  const sizes = selectedStoreItems
-    .map((item) => item.size)
-    .filter(Boolean)
-    .join(", ");
-  const variants = selectedStoreItems
-    .map((item) => item.variant)
-    .filter(Boolean)
-    .join(", ");
-  const allAddons = selectedStoreItems
-    .flatMap((item) => item.addons || [])
-    .filter(Boolean);
-
-  // Navigate to PembayaranProduk
-  router.push({
-    name: "Pembayaran Produk",
-    query: {
-      type: "cart",
-      storeId: store.id,
-      storeName: store.name,
-      storePhone: store.phone,
-      storeAddress: store.address,
-      title: orderTitle,
-      image: selectedStoreItems[0]?.image || "",
-      price: totalPrice,
-      quantity: totalQuantity,
-      size: sizes || undefined,
-      variant: variants || undefined,
-      addons: allAddons.length > 0 ? JSON.stringify(allAddons) : undefined,
-      items: JSON.stringify(
-        selectedStoreItems.map((item) => ({
-          id: item.id,
-          name: item.name,
-          image: item.image,
-          size: item.size,
-          variant: item.variant,
-          addons: item.addons,
-          unitPrice: item.unitPrice,
-          quantity: item.quantity,
-        }))
-      ),
+  checkoutStore.setFromCart({
+    store: {
+      id: store.id,
+      name: store.name,
+      address: store.address,
+      phone: store.phone,
     },
+    items: selectedStoreItems.map((item) => ({
+      id: item.id,
+      name: item.name,
+      image: item.image,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      addonTotalPrice: item.addonTotalPrice,
+      size: item.size ?? "",
+      variant: item.variant ?? "",
+      addons: item.addons ?? [],
+    })),
   });
+
+  router.push("/product-payment");
+
+  return true;
 };
 </script>
 
