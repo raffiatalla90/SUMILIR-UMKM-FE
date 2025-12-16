@@ -311,15 +311,15 @@ const getSelectionTypeLabel = (group) => {
         <!-- Left Column (Images + Basic Info) -->
         <div class="lg:col-span-1 space-y-2 sm:space-y-4">
           <!-- Image Gallery Card -->
-          <div v-if="jasa.images && product.images.length > 0">
+          <div v-if="jasa.images && jasa.images.length > 0">
             <!-- Main Image -->
             <div
               class="relative aspect-square max-w-2xl mx-auto bg-gray-100 overflow-hidden mb-4 shadow-sm -mt-4 sm:mt-0 sm:rounded-2xl"
             >
               <img
                 v-if="jasa.images[currentImageIndex]?.id"
-                :src="getImageUrl(product.images[currentImageIndex].id)"
-                :alt="product.name"
+                :src="getImageUrl(jasa.images[currentImageIndex].id)"
+                :alt="jasa.name"
                 class="w-full h-full object-cover"
                 @error="(e) => (e.target.style.display = 'none')"
               />
@@ -343,7 +343,7 @@ const getSelectionTypeLabel = (group) => {
             <!-- Thumbnails -->
             <div class="grid grid-cols-4 sm:grid-cols-6 gap-2">
               <button
-                v-for="(image, index) in product.images"
+                v-for="(image, index) in jasa.images"
                 :key="image.id"
                 @click="selectImage(index)"
                 :class="{
@@ -357,7 +357,7 @@ const getSelectionTypeLabel = (group) => {
                 <img
                   v-if="image.id"
                   :src="getImageUrl(image.id)"
-                  :alt="`${product.name} ${index + 1}`"
+                  :alt="`${jasa.name} ${index + 1}`"
                   class="w-full h-full object-cover"
                   @error="(e) => (e.target.style.display = 'none')"
                 />
