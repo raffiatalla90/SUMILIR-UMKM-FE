@@ -16,16 +16,17 @@
 
       <div class="px-4 sm:px-[52px] mt-6 sm:mt-10">
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
-          <div
-            v-for="jasa in jasaCategories"
+          <router-link
+            v-for="jasa in jasaList"
             :key="jasa.id"
-            class="group cursor-pointer"
+            :to="{ name: 'JasaDetail', params: { id: jasa.id } }"
+            class="group cursor-pointer block"
           >
             <div class="relative overflow-hidden rounded-lg shadow-md hover:shadow-lg transition-shadow h-[120px] sm:h-[160px] lg:h-[180px] bg-gray-200">
               <img
                 v-if="jasa.image"
                 :src="jasa.image"
-                :alt="jasa.label"
+                :alt="jasa.name || jasa.title || 'Jasa'"
                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               />
               <div v-else class="w-full h-full flex items-center justify-center bg-gray-300">
@@ -33,17 +34,21 @@
               </div>
             </div>
             <h3 class="mt-2 text-sm sm:text-base font-medium text-gray-800 text-center">
-              {{ jasa.label }}
+              {{ jasa.name || jasa.title || jasa.label || 'Jasa' }}
             </h3>
-          </div>
+            <p v-if="jasa.price" class="text-xs sm:text-sm text-center text-merchant-primary font-semibold">
+              {{ formatPrice(jasa.price, jasa.packages) }}
+            </p>
+          </router-link>
         </div>
 
         <div class="mt-4 sm:mt-6 flex justify-center">
-          <span
+          <router-link
+            :to="{ name: 'JasaTeknisi' }"
             class="text-sm sm:text-base text-gray-600 hover:text-primary cursor-pointer"
           >
             Tampilkan semua
-          </span>
+          </router-link>
         </div>
       </div>
     </section>
@@ -79,6 +84,7 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { Form } from "vee-validate";
+import api from "@/libs/axios.js";
 
 import TextField from "@/components/forms/TextField.vue";
 import CategoryCard from "@/components/Card/CategoryCard.vue";
@@ -94,16 +100,6 @@ import kulinerIcon from "@/assets/icons/Kuliner.svg";
 import tokoIcon from "@/assets/icons/Toko.svg";
 import komunitasIcon from "@/assets/icons/Komunitas.svg";
 
-// === AUTO IMPORT JASA IMAGES ===
-const jasaImagesFiles = import.meta.glob("@/assets/jasa/*.png", {
-  eager: true,
-});
-const jasaImages = Object.keys(jasaImagesFiles).reduce((acc, key) => {
-  const name = key.split("/").pop().replace(".png", "");
-  acc[name] = jasaImagesFiles[key].default;
-  return acc;
-}, {});
-
 const categories = ref([
   { label: "Kuliner", icon: kulinerIcon, to: { name: "JasaTeknisi" } },
   { label: "Toko", icon: tokoIcon, to: { name: "JasaTeknisi" } },
@@ -111,15 +107,46 @@ const categories = ref([
   { label: "Komunitas", icon: komunitasIcon, to: { name: "community" } },
 ]);
 
-// Data kategori jasa dengan image
-const jasaCategories = ref([
-  { id: 1, label: "Les Private", image: jasaImages["lesprivate"] || null },
-  { id: 2, label: "Service AC", image: jasaImages["serviceac"] || null },
-  { id: 3, label: "Laundry", image: jasaImages["jasalaundry"] || null },
-  { id: 4, label: "Cleaning", image: jasaImages["cleaning"] || null },
-  { id: 5, label: "Plumbing", image: jasaImages["plumbing"] || null },
-  { id: 6, label: "Elektrik", image: jasaImages["elektrik"] || null },
-]);
+const jasaList = ref([]);
+
+const resolveJasaImage = (img) => {
+  if (!img) return null;
+  const s = String(img);
+  if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("/storage/")) {
+    return s;
+  }
+  if (s.startsWith("jasa/")) {
+    return `/storage/${s}`;
+  }
+  return `/storage/jasa/${s}`;
+};
+
+const formatPrice = (basePrice, packages) => {
+  if (!packages || packages.length === 0) {
+    return `Rp ${Number(basePrice || 0).toLocaleString("id-ID")}`;
+  }
+  const allPrices = [basePrice, ...packages.map(p => p.price || 0)].filter(p => p > 0);
+  const minPrice = Math.min(...allPrices);
+  const maxPrice = Math.max(...allPrices);
+  if (minPrice === maxPrice) {
+    return `Rp ${Number(minPrice).toLocaleString("id-ID")}`;
+  }
+  return `Rp ${Number(minPrice).toLocaleString("id-ID")} - ${Number(maxPrice).toLocaleString("id-ID")}`;
+};
+
+onMounted(async () => {
+  try {
+    const jasaRes = await api.get("/public/jasas");
+    console.log("Jasa Response:", jasaRes.data);
+    jasaList.value = (jasaRes.data ?? []).map((item) => ({
+      ...item,
+      image: resolveJasaImage(item.image),
+    }));
+    console.log("Jasa List after mapping:", jasaList.value);
+  } catch (e) {
+    console.error("Gagal memuat jasa:", e);
+  }
+});
 </script>
 
 <style scoped>

@@ -52,7 +52,6 @@
       <section>
         <h2 class="text-lg font-semibold mb-4">Promo Menarik</h2>
         <div class="relative group">
-          
           <!-- tombol kiri -->
           <button
             @click="scrollPromo(-1)"
@@ -99,8 +98,8 @@
 
         <div class="grid grid-cols-2 gap-4 sm:gap-6">
           <router-link
-            v-for="(jasa, index) in repeatedJasa"
-            :key="index"
+            v-for="jasa in jasaList"
+            :key="jasa.id"
             :to="{ name: 'JasaDetail', params: { id: jasa.id } }"
             class="block rounded-3xl border border-gray-200 bg-white shadow-sm overflow-hidden"
           >
@@ -121,7 +120,9 @@
                 Rp. {{ formatHarga(jasa.price) }}
               </p>
 
-              <div class="mt-2 flex items-center justify-center gap-4 text-[11px] sm:text-xs text-gray-600">
+              <div
+                class="mt-2 flex items-center justify-center gap-4 text-[11px] sm:text-xs text-gray-600"
+              >
                 <span class="flex items-center gap-1">
                   <img :src="starIcon" alt="rating" class="w-3 h-3" />
                   {{ jasa.rating ?? '4,9' }}
@@ -140,10 +141,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import api from '@/libs/axios.js'
 
-// ICONS
 import starIcon from '@/assets/icons/Bintang.png'
 import lokasiIcon from '@/assets/icons/TitikLokasi.png'
 import teknisiIcon from '@/assets/icons/Teknisi.png'
@@ -153,23 +153,37 @@ const jasaList = ref([])
 const promoList = ref([])
 const promoScroller = ref(null)
 
-// === IMPORT SEMUA PROMO (HANYA BAGIAN PROMO) ===
+// import semua banner promo
 const promoImagesFiles = import.meta.glob('@/assets/banner/*.png', { eager: true })
-const promoImages = Object.values(promoImagesFiles).map(img => img.default)
+const promoImages = Object.values(promoImagesFiles).map((img) => img.default)
 
-// === FUNGSI AMBIL GAMBAR DARI PUBLIC/STORAGE/JASA ===
-const getPublicImage = (filename) => {
-  if (!filename) return null
-  return `/storage/jasa/${filename}`   // 🔥 inilah path gambar yang benar
+// normalisasi path gambar jasa
+const resolveJasaImage = (img) => {
+  if (!img) return null
+  const s = String(img)
+
+  if (
+    s.startsWith('http://') ||
+    s.startsWith('https://') ||
+    s.startsWith('/storage/')
+  ) {
+    return s
+  }
+
+  if (s.startsWith('jasa/')) {
+    return `/storage/${s}`
+  }
+
+  return `/storage/jasa/${s}`
 }
 
-// FORMAT HARGA
+// format harga
 const formatHarga = (value) => {
   if (!value) return '0'
   return Number(value).toLocaleString('id-ID')
 }
 
-// SCROLL PROMO
+// scroll promo
 const scrollPromo = (dir = 1) => {
   const el = promoScroller.value
   if (!el) return
@@ -179,41 +193,23 @@ const scrollPromo = (dir = 1) => {
   el.scrollBy({ left: dir * step, behavior: 'smooth' })
 }
 
-// === REKOMENDASI JASA (AMBIL GAMBAR DARI BACKEND) ===
-const repeatedJasa = computed(() => {
-  const src = jasaList.value
-  if (!src.length) return []
-
-  const temp = []
-  while (temp.length < 8) temp.push(...src)
-
-  return temp.slice(0, 8).map((item, idx) => ({
-    ...item,
-    id: item.id ?? idx + 1,
-    image: getPublicImage(item.image)  // 🔥 gambar dari backend
-  }))
-})
-
-// === FETCH DATA DARI BACKEND ===
+// fetch data
 onMounted(async () => {
   try {
     const [jasaRes, promoRes] = await Promise.all([
-      api.get('/jasa'),
+      api.get('/public/jasas'),
       api.get('/promos')
     ])
 
-    // 🔥 SET Gambar Jasa Dari Backend
-    jasaList.value = (jasaRes.data ?? []).map(j => ({
+    jasaList.value = (jasaRes.data ?? []).map((j) => ({
       ...j,
-      image: j.image ? j.image : null   // di backend harus "laundryservice.png"
+      image: resolveJasaImage(j.image)
     }))
 
-    // GAMBAR PROMO
     promoList.value = (promoRes.data ?? []).map((p, i) => ({
       ...p,
       image: promoImages[i % promoImages.length]
     }))
-
   } catch (e) {
     console.error('Gagal memuat data:', e)
   }

@@ -1,4 +1,13 @@
-<script setup></script>
+<script setup>
+import { useAuthStore } from "@/stores/auth";
+
+const authStore = useAuthStore();
+
+// ✅ Initialize authentication SYNCHRONOUSLY from localStorage before app renders
+// This runs before route guards are evaluated
+authStore.initializeFromStorage();
+console.log("[App] Authentication initialized, user:", authStore.user?.email);
+</script>
 
 <template>
   <RouterView />

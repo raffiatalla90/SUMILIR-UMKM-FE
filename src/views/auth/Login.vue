@@ -136,11 +136,8 @@ const isDev = import.meta.env.DEV;
 
 // Validation Schema
 const schema = yup.object({
-  email: yup
-    .string()
-    .required("Email wajib diisi")
-    .email("Format email tidak valid"),
-  password: yup.string().required("Kata sandi wajib diisi"),
+  email: yup.string(),
+  password: yup.string(),
 });
 
 const handleLogin = async (values) => {

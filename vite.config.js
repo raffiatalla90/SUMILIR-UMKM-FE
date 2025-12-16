@@ -75,34 +75,10 @@ export default defineConfig(({ mode }) => {
         "@": fileURLToPath(new URL("./src", import.meta.url)),
       },
     },
-    build: {
-      outDir: "dist",
-      assetsDir: "assets",
-      sourcemap: false,
-      minify: "terser",
-      chunkSizeWarningLimit: 1000,
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            "vendor-vue": ["vue", "vue-router", "pinia"],
-          },
-        },
-      },
-    },
     server: {
-      port: 5173,
-      host: true,
-      proxy: {
-        "/api": {
-          target: env.VITE_API_BASE_URL || "http://localhost:8000",
-          changeOrigin: true,
-          secure: false,
-        },
-        "/sanctum": {
-          target: env.VITE_BASE_URL || "http://localhost:8000",
-          changeOrigin: true,
-          secure: false,
-        },
+      hmr: {
+        protocol: 'ws',
+        host: 'localhost',
       },
     },
   };

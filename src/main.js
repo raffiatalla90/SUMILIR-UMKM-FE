@@ -45,13 +45,9 @@ app.component("ProductCard", ProductCard);
 app.component("EventCard", EventCard);
 app.component("PromoCard", PromoCard);
 
-// Init auth state (non-blocking)
-try {
-  const authStore = useAuthStore();
-  authStore.initAuth?.();
-} catch (e) {
-  console.warn("Auth init skipped:", e);
-}
+// ✅ Auth initialization moved to App.vue (synchronous from localStorage)
+// Removed async initAuth() to prevent race condition that clears user on page refresh
+// The initializeFromStorage() call in App.vue handles session restoration
 
 // Mount ASAP
 app.mount("#app");
