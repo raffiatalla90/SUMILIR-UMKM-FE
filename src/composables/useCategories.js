@@ -41,17 +41,10 @@ export function useCategories() {
         categoriesLevel1.value = (response.data.data || [])
           .map(normalizeCategory)
           .filter(Boolean); // Remove null values
-
-        console.log(
-          "[Categories] Level 1 loaded:",
-          categoriesLevel1.value.length
-        );
-        console.log("[Categories] Sample:", categoriesLevel1.value[0]);
       } else {
         throw new Error(response.data.message || "Failed to fetch categories");
       }
     } catch (error) {
-      console.error("[Categories] Error fetching level 1:", error);
       toast.error("Gagal memuat kategori");
       categoriesLevel1.value = [];
     } finally {
@@ -79,19 +72,12 @@ export function useCategories() {
         categoriesLevel2.value = (response.data.data || [])
           .map(normalizeCategory)
           .filter(Boolean);
-
-        console.log(
-          "[Categories] Sub-categories loaded:",
-          categoriesLevel2.value.length
-        );
       } else {
         throw new Error(
           response.data.message || "Failed to fetch sub-categories"
         );
       }
     } catch (error) {
-      console.error("[Categories] Error fetching sub-categories:", error);
-
       if (error.response?.status === 404) {
         toast.warning("Kategori tidak memiliki sub-kategori");
       } else {
@@ -125,7 +111,7 @@ export function useCategories() {
       }
       return [];
     } catch (error) {
-      console.error("[Categories] Search error:", error);
+      toast.error("Gagal mencari kategori");
       return [];
     }
   };

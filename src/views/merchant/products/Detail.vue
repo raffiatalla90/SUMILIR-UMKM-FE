@@ -9,9 +9,7 @@ import Button from "@/components/common/Button.vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
-import { getImageUrl } from "@/libs/getImageUrl.js";
 import { useProducts } from "@/composables/useProducts";
-import { getVariantImageUrl } from "@/libs/getVariantImageUrl.js"; // ✅ ADD
 
 const { fetchProductDetail } = useProducts();
 const router = useRouter();
@@ -24,6 +22,37 @@ const isClamped = ref(false);
 const currentMerchantId = computed(() => {
   return route.params.merchantId ? Number(route.params.merchantId) : null;
 });
+// ===== Swipe state (mobile) =====
+const touchStartX = ref(0);
+const touchEndX = ref(0);
+const swipeThreshold = 50; // px
+const handleTouchStart = (e) => {
+  if (!e.touches || e.touches.length === 0) return;
+  touchStartX.value = e.touches[0].clientX;
+};
+
+const handleTouchMove = (e) => {
+  if (!e.touches || e.touches.length === 0) return;
+  touchEndX.value = e.touches[0].clientX;
+};
+
+const handleTouchEnd = () => {
+  const deltaX = touchEndX.value - touchStartX.value;
+
+  if (Math.abs(deltaX) < swipeThreshold) return;
+
+  if (deltaX > 0) {
+    // swipe kanan → image sebelumnya
+    prevImage();
+  } else {
+    // swipe kiri → image berikutnya
+    nextImage();
+  }
+
+  // reset
+  touchStartX.value = 0;
+  touchEndX.value = 0;
+};
 
 // ✅ Breadcrumb items
 const breadcrumbItems = computed(() => [
@@ -291,7 +320,6 @@ const loadDetail = async () => {
   product.value = null;
   try {
     const slug = route.params.slug; // ✅ gunakan slug
-    console.log("[Detail] Loading product", slug);
 
     const data = await fetchProductDetail(slug); // ✅ composable akan pakai slug
     product.value = data;
@@ -301,9 +329,8 @@ const loadDetail = async () => {
       currentImageIndex.value = 0;
     }
     await checkClamp();
-    console.log("[Detail] Product loaded", product.value);
   } catch (err) {
-    console.error("[Detail] Error loading product", err);
+    toast.error("Gagal memuat detail produk");
     const status = err?.response?.status;
     if (status === 404) {
       toast.error("Produk tidak ditemukan");
@@ -418,6 +445,9 @@ onMounted(() => {
             <!-- Main Image -->
             <div
               class="relative aspect-square max-w-2xl mx-auto bg-gray-100 overflow-hidden mb-4 shadow-sm -mt-4 sm:mt-0 sm:rounded-2xl"
+              @touchstart="handleTouchStart"
+              @touchmove="handleTouchMove"
+              @touchend="handleTouchEnd"
             >
               <img
                 v-if="product.images[currentImageIndex]?.src_url"
@@ -430,14 +460,14 @@ onMounted(() => {
               <button
                 v-if="product.images.length > 1"
                 @click="prevImage"
-                class="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white text-gray-800 rounded-full flex items-center justify-center transition shadow-lg backdrop-blur-sm active:scale-95"
+                class="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white text-gray-800 rounded-full items-center justify-center transition shadow-lg backdrop-blur-sm active:scale-95 hidden sm:flex"
               >
                 <i class="pi pi-chevron-left text-sm font-bold"></i>
               </button>
               <button
                 v-if="product.images.length > 1"
                 @click="nextImage"
-                class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white text-gray-800 rounded-full flex items-center justify-center transition shadow-lg backdrop-blur-sm active:scale-95"
+                class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white text-gray-800 rounded-full items-center justify-center transition shadow-lg backdrop-blur-sm active:scale-95 hidden sm:flex"
               >
                 <i class="pi pi-chevron-right text-sm font-bold"></i>
               </button>

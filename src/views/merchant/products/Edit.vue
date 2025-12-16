@@ -220,7 +220,6 @@ watch(description, (newDesc) => {
 });
 
 watch(selectedCategory, async (newCat) => {
-  console.log("[Categories] Selected category:", newCat);
   setFieldValue("category_id", newCat);
 
   if (newCat) {
@@ -240,12 +239,6 @@ let regenerateTimeout = null;
 watch(
   () => [useVariants.value, variants.value],
   () => {
-    // Skip during initial data load
-    if (isInitialLoad.value) {
-      console.log("[Watcher] Skipping during initial load");
-      return;
-    }
-
     // Clear previous timeout
     if (regenerateTimeout) {
       clearTimeout(regenerateTimeout);
@@ -254,7 +247,6 @@ watch(
     // ✅ Debounce: Wait 300ms before regenerating
     regenerateTimeout = setTimeout(() => {
       if (useVariants.value && variants.value.length > 0) {
-        console.log("[Watcher] Triggering smart regeneration");
         generateCombinations();
       } else {
         selectedCombinations.value.clear();
@@ -286,28 +278,9 @@ const createCombinationKey = (attributes) => {
 
   return key;
 };
-
-// ✅ ADD: Debug helper
-const debugCombination = (combo, source) => {
-  const key = createCombinationKey(combo.attributes);
-  console.log(`[${source}] Combo:`, {
-    combination: combo.combination,
-    key: key,
-    attributes: combo.attributes,
-    price: combo.price,
-    stock: combo.stock,
-  });
-  return key;
-};
-
+let existingCombosMap = new Map();
 // ✅ CRITICAL FIX: Generate combinations dengan proper attribute structure
 const generateCombinations = () => {
-  console.log("\n[Generate] ============ START GENERATION ============");
-  console.log(
-    "[Generate] Current variants:",
-    JSON.parse(JSON.stringify(variants.value))
-  );
-
   const validVariants = variants.value
     .filter((v) => v.name.trim() && v.options.some((opt) => opt.name.trim()))
     .map((v) => ({
@@ -322,31 +295,9 @@ const generateCombinations = () => {
     }));
 
   if (validVariants.length === 0) {
-    console.log("[Generate] No valid variants, clearing combinations");
     selectedCombinations.value.clear();
     return;
   }
-
-  console.log("[Generate] Valid variants:", validVariants);
-
-  // ✅ CRITICAL: Store existing with debug logging
-  const existingCombosMap = new Map();
-
-  console.log("\n[Generate] ============ EXISTING COMBINATIONS ============");
-  combinations.value.forEach((combo, idx) => {
-    const key = debugCombination(combo, `Existing[${idx}]`);
-    existingCombosMap.set(key, {
-      sku: combo.sku,
-      price: combo.price,
-      stock: combo.stock,
-    });
-  });
-
-  console.log("\n[Generate] Existing map size:", existingCombosMap.size);
-  console.log(
-    "[Generate] Existing map keys:",
-    Array.from(existingCombosMap.keys())
-  );
 
   const newCombinations = [];
 
@@ -360,22 +311,6 @@ const generateCombinations = () => {
 
       const attributeKey = createCombinationKey(normalizedAttributes);
       const existingData = existingCombosMap.get(attributeKey);
-
-      if (existingData) {
-        console.log(
-          `[Generate] ✅ MATCH FOUND: "${current.combination}"`,
-          `\n  Key: ${attributeKey}`,
-          `\n  Data:`,
-          existingData
-        );
-      } else {
-        console.log(
-          `[Generate] 🆕 NEW: "${current.combination}"`,
-          `\n  Key: ${attributeKey}`,
-          `\n  Attributes:`,
-          normalizedAttributes
-        );
-      }
 
       newCombinations.push({
         combination: current.combination,
@@ -412,24 +347,6 @@ const generateCombinations = () => {
   } else {
     combinations.value = newCombinations;
   }
-
-  console.log("\n[Generate] ============ NEW COMBINATIONS ============");
-  combinations.value.forEach((combo, idx) => {
-    debugCombination(combo, `New[${idx}]`);
-  });
-
-  console.log("\n[Generate] ============ SUMMARY ============");
-  console.log(`Total: ${newCombinations.length} combinations`);
-  console.log(
-    `Preserved: ${
-      Array.from(existingCombosMap.keys()).filter((key) =>
-        combinations.value.some(
-          (c) => createCombinationKey(c.attributes) === key && c.price > 0
-        )
-      ).length
-    }`
-  );
-  console.log("[Generate] ============ END GENERATION ============\n");
 
   selectedCombinations.value.clear();
 };
@@ -475,11 +392,8 @@ const fetchProductData = async () => {
   isInitialLoad.value = true;
 
   try {
-    console.log("[Edit] Fetching product (via composable):", productSlug.value);
     const payload = await fetchProductDetail(productSlug.value); // ✅ pakai slug
     const productData = payload;
-
-    console.log("[Edit] Product loaded (composable):", productData);
 
     // Fetch sub categories jika ada main category
     if (productData.categories && productData.categories.length > 0) {
@@ -511,7 +425,6 @@ const fetchProductData = async () => {
     // Populate rest of the form + variants/addons using helper yang sudah ada
     populateFormFromProduct(productData);
   } catch (error) {
-    console.error("[Edit] Error fetching product via composable:", error);
     // biarkan toast dan redirect seperti sebelumnya; gunakan existing toast/router yang ada
     toast.error(error.response?.data?.message || "Gagal memuat data produk");
     router.push("/merchant-center/products");
@@ -522,7 +435,6 @@ const fetchProductData = async () => {
     await nextTick();
     setTimeout(() => {
       isInitialLoad.value = false;
-      console.log("[Edit] ✅ Initial load complete, watchers now active");
     }, 300);
   }
 };
@@ -894,8 +806,6 @@ const isAddOnGroupExpanded = (groupId) => {
 // ✅ SAMA SEPERTI CREATE: Submit Handler
 const onSubmit = veeHandleSubmit(
   async (values) => {
-    console.log("[Submit] Form values:", values);
-
     if (useVariants.value && totalCombinations.value > MAX_COMBINATIONS) {
       toast.error(`Kombinasi varian maksimal ${MAX_COMBINATIONS}`);
       return;
@@ -1157,18 +1067,6 @@ const onSubmit = veeHandleSubmit(
         }
       });
 
-      // Debug FormData (development only)
-      if (import.meta.env.DEV) {
-        console.log("[FormData Entries]:");
-        for (let [key, value] of formData.entries()) {
-          if (value instanceof File) {
-            console.log(`  ${key}: <File: ${value.name}>`);
-          } else {
-            console.log(`  ${key}:`, value);
-          }
-        }
-      }
-
       // ✅ API Call
       await api.post(`/products/${productSlug.value}`, formData, {
         headers: {
@@ -1180,13 +1078,6 @@ const onSubmit = veeHandleSubmit(
       // Redirect setelah update
       router.push(`/merchant-center/${currentMerchantId.value}/products`);
     } catch (error) {
-      console.error("[Edit] Error updating product:", error);
-
-      // ✅ Log detailed error
-      if (error.response?.data) {
-        console.error("[Edit] Response data:", error.response.data);
-      }
-
       if (error.response?.status === 422) {
         const data = error.response.data;
 
@@ -1215,19 +1106,12 @@ const onSubmit = veeHandleSubmit(
           "Gagal memperbarui produk";
 
         toast.error(errorMsg);
-
-        // ✅ Log trace in console (development only)
-        if (import.meta.env.DEV && error.response?.data?.trace) {
-          console.error("[Edit] Stack trace:", error.response.data.trace);
-        }
       }
     } finally {
       loading.value = false;
     }
   },
   (errorsFromVee) => {
-    console.log("[Validation] Errors (handler):", errorsFromVee);
-
     // Helper: ambil pesan string pertama dari berbagai shape error
     function getFirstErrorMessage(errObj) {
       if (!errObj) return null;
@@ -1291,9 +1175,7 @@ const goBack = () => {
 };
 
 const populateFormFromProduct = (productData) => {
-  console.log("[Edit] Populating form from product data:", productData);
-
-  // Basic info
+  // 1️⃣ basic info
   name.value = productData.name || "";
   description.value = productData.description || "";
 
@@ -1302,154 +1184,57 @@ const populateFormFromProduct = (productData) => {
   setFieldValue("category_id", productData.categories?.[0]?.id || null);
   setFieldValue("min_purchase", productData.min_purchase ?? 1);
 
-  // Categories
-  if (productData.categories && productData.categories.length > 0) {
-    selectedCategory.value = productData.categories[0].id;
-    selectedSubCategories.value = productData.categories
-      .slice(1)
-      .map((cat) => cat.id);
-  } else {
-    selectedCategory.value = null;
-    selectedSubCategories.value = [];
-  }
+  // 2️⃣ MAP BACKEND VARIANTS → existingCombosMap
+  existingCombosMap = new Map();
 
-  // Images (main product images)
-  productImages.value = (productData.images || []).map((img) => ({
-    id: img.id,
-    preview: img.id
-      ? getImageUrl(img.id)
-      : img.image_url || absoluteImagePath(img.image_path),
-    is_cover: !!img.is_cover,
-    existing: true,
-  }));
+  productData.variants?.forEach((variant) => {
+    const attrs = variant.option_values.map((ov) => ({
+      name: ov.option_name.trim(),
+      value: ov.option_value.trim(),
+    }));
 
-  coverImageIndex.value = productImages.value.findIndex((img) => img.is_cover);
-  if (coverImageIndex.value === -1 && productImages.value.length > 0) {
-    coverImageIndex.value = 0;
-  }
+    const key = createCombinationKey(attrs);
 
-  // Variants / Options
-  if (productData.options && productData.options.length > 0) {
+    existingCombosMap.set(key, {
+      sku: variant.sku || "",
+      price: Number(variant.price || 0),
+      stock: Number(variant.stock || 0),
+    });
+  });
+
+  // 3️⃣ SET VARIANTS UI
+  if (productData.options?.length) {
     useVariants.value = true;
 
-    // Build variants array where each group = product option
     variants.value = productData.options.map((optionGroup) => ({
-      id: optionGroup.id, // product_option id
-      name: optionGroup.option_name || optionGroup.name || "",
-      options: (optionGroup.values || []).map((val) => {
-        // compute preview: image_url -> absolute image_path -> fallback to endpoint by db id
-        const preview =
-          val.image_url ||
-          (val.image_path ? absoluteImagePath(val.image_path) : null) ||
-          getVariantImageUrl(val.id) ||
-          null;
-
-        const imagesArray = preview
-          ? [
-              {
-                id: val.id, // DB id
-                preview,
-                image_path: val.image_path ?? null,
-                image_url: val.image_url ?? null,
-                existing: true,
-              },
-            ]
-          : [];
-
-        return {
-          // IMPORTANT: dbId is the DB id that points to /images/product-option-value/{dbId}
-          dbId: val.id,
-          id: val.id, // keep for compatibility
-          name: val.option_value,
-          images: imagesArray,
-          image_path: val.image_path ?? null,
-          image_url: val.image_url ?? null,
-        };
-      }),
-    }));
-
-    // Fill helpers: variantNames and variantUsesImages
-    productData.options.forEach((option) => {
-      variantNames.value[option.id] = option.option_name;
-      variantUsesImages.value[option.id] = option.uses_image ? 1 : 0;
-      expandedVariants.value.add(option.id);
-    });
-
-    // Combinations from backend variants (if present)
-    if (productData.variants && productData.variants.length > 0) {
-      combinations.value = productData.variants.map((variant) => {
-        const optionValues =
-          variant.option_values || variant.optionValues || [];
-        const attributes = optionValues.map((ov) => ({
-          name: (ov.option_name || "").trim(),
-          value: (ov.option_value || "").trim(),
-        }));
-
-        const combinationName = optionValues
-          .map((ov) => ov.option_value)
-          .join(" - ");
-
-        return {
-          combination: combinationName,
-          sku: variant.sku || "",
-          price: parseFloat(variant.price) || 0,
-          stock: parseInt(variant.stock) || 0,
-          attributes,
-        };
-      });
-    } else {
-      combinations.value = [];
-    }
-  } else {
-    // Non-variant product
-    useVariants.value = false;
-    if (productData.variants && productData.variants[0]) {
-      const variant = productData.variants[0];
-      setFieldValue("sku", variant.sku || "");
-      setFieldValue("price", parseFloat(variant.price) || 0);
-      setFieldValue("stock", parseInt(variant.stock) || 0);
-    } else {
-      setFieldValue("sku", "");
-      setFieldValue("price", 0);
-      setFieldValue("stock", 0);
-    }
-  }
-
-  // Add-on groups (unchanged)
-  const addonGroupsData =
-    productData.addon_groups ?? productData.addonGroups ?? [];
-  if (addonGroupsData && addonGroupsData.length > 0) {
-    addOnGroups.value = addonGroupsData.map((group) => ({
-      id: group.id,
-      name: group.addon_group_name || group.name || "",
-      is_required: (group.min_selection ?? 0) > 0,
-      min_selection: group.min_selection ?? 0,
-      max_selection: group.max_selection ?? 1,
-      options: (group.options || []).map((opt) => ({
-        id: opt.id,
-        name: opt.addon?.addon_name || opt.addon_name || "",
-        price: parseFloat(opt.addon_price ?? 0),
+      id: optionGroup.id,
+      name: optionGroup.option_name || "",
+      options: optionGroup.values.map((val) => ({
+        id: val.id,
+        name: val.option_value,
+        images:
+          val.image_url || val.image_path
+            ? [
+                {
+                  id: val.id,
+                  preview: val.image_url || absoluteImagePath(val.image_path),
+                  existing: true,
+                },
+              ]
+            : [],
       })),
     }));
-    addOnGroups.value.forEach((g) => expandedAddOnGroups.value.add(g.id));
-  } else {
-    addOnGroups.value = [];
+
+    productData.options.forEach((opt) => {
+      variantUsesImages.value[opt.id] = opt.uses_image ? 1 : 0;
+      expandedVariants.value.add(opt.id);
+    });
+
+    // 4️⃣ BARU generate
+    generateCombinations();
   }
 };
 
-// ✅ ADD: Debug watcher untuk monitoring form values
-watch(
-  () => values,
-  (newValues) => {
-    console.log("[Form Values Changed]:", {
-      name: newValues.name,
-      price: newValues.price,
-      stock: newValues.stock,
-      min_purchase: newValues.min_purchase,
-    });
-  },
-  { deep: true }
-);
 watch(
   () => values.sku,
   (newVal) => {
@@ -1460,7 +1245,6 @@ watch(formSku, (newVal) => {
   setFieldValue("sku", newVal);
 });
 onMounted(async () => {
-  console.log("[Edit Product] Component mounted");
   await fetchLevel1Categories();
   await fetchProductData();
 });
@@ -1526,12 +1310,7 @@ onMounted(async () => {
 
     <!-- ✅ Content (Only show when data loaded) -->
     <div v-else class="mx-auto px-0 sm:px-4 lg:px-6 sm:py-6 sm:pt-0">
-      <Form
-        ref="formRef"
-        :validation-schema="schema"
-        :initial-values="initialValues"
-        @submit="onSubmit"
-      >
+      <Form ref="formRef" :validation-schema="schema" @submit="onSubmit">
         <!-- Foto Produk -->
         <div
           class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
@@ -2523,7 +2302,7 @@ onMounted(async () => {
           ? `${selectedCombinations.size} kombinasi dipilih`
           : null
       "
-      show-footer="true"
+      :show-footer="true"
       @close="closeCombinationsModal"
     >
       <!-- Bulk Edit Section -->

@@ -46,7 +46,7 @@ export function useProducts() {
       }
       return payload;
     } catch (err) {
-      console.error("[useProducts] fetchProductDetail error:", err);
+      toast.error("Gagal memuat detail produk");
       throw err;
     }
   };
@@ -68,7 +68,7 @@ export function useProducts() {
     page = 1,
   } = {}) => {
     if (!merchantId) {
-      console.error("[fetchProducts] merchantId is required");
+      toast.error("Merchant ID diperlukan untuk memuat produk");
       return;
     }
 
@@ -92,15 +92,11 @@ export function useProducts() {
       lastRequestParams === requestSignature &&
       pendingRequest
     ) {
-      console.warn(
-        "[fetchProducts] Duplicate request detected, returning pending promise"
-      );
       return pendingRequest;
     }
 
     // jika request sama dengan request terakhir yang selesai -> pakai cache lokal
     if (lastRequestParams === requestSignature && !loading.value) {
-      console.log("[fetchProducts] Using cached result");
       return { data: products.value, meta: pagination.value };
     }
 
@@ -124,8 +120,6 @@ export function useProducts() {
       (k) => params[k] === undefined && delete params[k]
     );
 
-    console.log("[fetchProducts] Request params:", params);
-
     // Buat pendingRequest sebagai promise yang mengembalikan `data` (konsisten)
     pendingRequest = (async () => {
       try {
@@ -142,14 +136,9 @@ export function useProducts() {
           };
         }
 
-        console.log("[fetchProducts] Success:", {
-          products: products.value.length,
-          total: pagination.value.total,
-        });
-
         return data; // kembalikan bentuk yang sama seperti sebelumnya
       } catch (error) {
-        console.error("[fetchProducts] Error:", error);
+        toast.error("Gagal memuat produk");
         lastRequestParams = null;
         throw error;
       } finally {
@@ -169,7 +158,7 @@ export function useProducts() {
       products.value = products.value.filter((p) => p.slug !== productSlug);
       pagination.value.total = Math.max(0, pagination.value.total - 1);
     } catch (error) {
-      console.error("Error deleting product:", error);
+      toast.error("Gagal menghapus produk");
       throw error;
     } finally {
       loading.value = false;
@@ -186,7 +175,7 @@ export function useProducts() {
       if (index !== -1) products.value[index].status = status;
       return data;
     } catch (error) {
-      console.error("Error updating product status:", error);
+      toast.error("Gagal memperbarui status produk");
       throw error;
     } finally {
       loading.value = false;
@@ -205,7 +194,7 @@ export function useProducts() {
         pagination.value.total - productSlugs.length
       );
     } catch (error) {
-      console.error("Error bulk deleting products:", error);
+      toast.error("Gagal menghapus produk secara massal");
       throw error;
     } finally {
       loading.value = false;
@@ -223,7 +212,7 @@ export function useProducts() {
         if (productSlugs.includes(product.slug)) product.status = status;
       });
     } catch (error) {
-      console.error("Error bulk updating status:", error);
+      toast.error("Gagal memperbarui status produk secara massal");
       throw error;
     } finally {
       loading.value = false;
@@ -238,7 +227,7 @@ export function useProducts() {
       });
       return data.data || [];
     } catch (error) {
-      console.error("[fetchProductsToko] Error:", error);
+      toast.error("Gagal memuat produk toko");
       throw error;
     } finally {
       loading.value = false;
@@ -253,7 +242,7 @@ export function useProducts() {
       });
       return data.data || [];
     } catch (error) {
-      console.error("[fetchProductsKuliner] Error:", error);
+      toast.error("Gagal memuat produk kuliner");
       throw error;
     } finally {
       loading.value = false;
@@ -545,7 +534,7 @@ export function useProducts() {
         optionDefinitions: normalizedOptions,
       };
     } catch (err) {
-      console.error("[fetchPublicProductDetail] error:", err);
+      toast.error("Gagal memuat detail produk");
       throw err;
     } finally {
       loading.value = false;

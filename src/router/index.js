@@ -152,7 +152,6 @@ const routes = [
   // Halaman admin
   {
     path: "/admin",
-    name: "Admin",
     component: () => import("@/views/admin/Dashboard.vue"),
     meta: {
       requiresAuth: true,
@@ -161,6 +160,7 @@ const routes = [
     children: [
       {
         path: "",
+        name: "Admin",
         redirect: { name: "Admin Dashboard" },
       },
       {
@@ -177,7 +177,6 @@ const routes = [
   // Halaman merchant
   {
     path: "/merchant-center/:merchantId",
-    name: "Merchant",
     component: () => import("@/layouts/MerchantLayout.vue"),
     meta: {
       requiresAuth: true,
@@ -287,6 +286,20 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+
+  scrollBehavior(to, from, savedPosition) {
+    // ⬅️ untuk back/forward browser
+    if (savedPosition) {
+      return savedPosition;
+    }
+
+    // ⬅️ default: selalu ke atas
+    return {
+      top: 0,
+      left: 0,
+      behavior: "smooth", // opsional
+    };
+  },
 });
 
 // ✅ Track navigation to prevent excessive calls
@@ -304,22 +317,14 @@ router.beforeEach(async (to, from, next) => {
 
   // ✅ ADD: Skip if navigating to same path
   if (to.path === lastNavigationPath) {
-    console.log("[Router] Same path navigation detected, skipping...");
     next();
     return;
   }
 
   lastNavigationPath = to.path;
 
-  console.log("🔍 [Router Guard]", {
-    to: to.path,
-    from: from.path,
-    isAuthenticated: authStore.isAuthenticated,
-  });
-
   // ✅ 1. Jika route butuh auth tapi user belum login
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    console.warn("⚠️ Not authenticated, redirecting to /login");
     return next("/login");
   }
 
@@ -357,7 +362,6 @@ router.beforeEach(async (to, from, next) => {
     );
 
     if (!hasRequiredRole) {
-      console.warn("⚠️ Role not allowed, redirecting to /");
       return next("/");
     }
   }
@@ -370,9 +374,6 @@ router.beforeEach(async (to, from, next) => {
 
     // Wajib ada merchantId di URL
     if (!merchantIdParam || Number.isNaN(merchantIdParam)) {
-      console.warn(
-        "⚠️ merchantId kosong/tidak valid, redirect ke /merchant-register"
-      );
       return next("/merchant-register");
     }
 
@@ -381,17 +382,11 @@ router.beforeEach(async (to, from, next) => {
 
     // Jika tidak ditemukan di store (karena belum approved), blok akses
     if (!merchant) {
-      console.warn(
-        "⚠️ Merchant tidak ditemukan/ belum approved, redirect ke /merchant-register"
-      );
       return next("/merchant-register");
     }
 
     // Jika status bukan approved, blok akses
     if (merchant.status !== "approved") {
-      console.warn(
-        "⚠️ Merchant belum approved, redirect ke /merchant-register"
-      );
       return next("/merchant-register");
     }
   }

@@ -174,8 +174,6 @@ const {
 // LIFECYCLE HOOKS
 // ============================================================
 onMounted(async () => {
-  console.log("[Create Product] Component mounted");
-  console.log("[Create Product] Merchant ID:", currentMerchantId.value);
 
   // ✅ ADD: Validate merchantId on mount
   if (!currentMerchantId.value) {
@@ -206,7 +204,6 @@ watch(description, (newDesc) => {
 });
 
 watch(selectedCategory, async (newCat) => {
-  console.log("[Categories] Selected category:", newCat);
   setFieldValue("category_id", newCat);
 
   if (newCat) {
@@ -755,8 +752,6 @@ const isAddOnGroupExpanded = (groupId) => {
 // ============================================================
 const onSubmit = veeHandleSubmit(
   async (values) => {
-    console.log("[Submit] Form values:", values);
-    console.log("[Submit] Current Merchant ID:", currentMerchantId.value); // ✅ ADD: Debug log
 
     const oversizedImage = productImages.value.find(
       (img) => img.file.size > MAX_IMAGE_SIZE_BYTES
@@ -1006,21 +1001,6 @@ const onSubmit = veeHandleSubmit(
         }
       });
 
-      // ✅ ADD: Debug log FormData
-      console.log("[FormData] merchant_id:", currentMerchantId.value);
-
-      // Debug FormData (development only)
-      if (import.meta.env.DEV) {
-        console.log("[FormData Entries]:");
-        for (let [key, value] of formData.entries()) {
-          if (value instanceof File) {
-            console.log(`  ${key}: <File: ${value.name}>`);
-          } else {
-            console.log(`  ${key}:`, value);
-          }
-        }
-      }
-
       // API Call
       const response = await api.post("/products", formData, {
         headers: {
@@ -1028,14 +1008,12 @@ const onSubmit = veeHandleSubmit(
         },
       });
 
-      console.log("[Create Product] Success:", response.data);
 
       toast.success("Produk berhasil ditambahkan");
 
       // ✅ FIXED: Redirect dengan merchantId yang benar
       router.push(`/merchant-center/${currentMerchantId.value}/products`);
     } catch (error) {
-      console.error("[Create Product] Error:", error);
 
       if (error.response?.status === 422) {
         const data = error.response.data;
@@ -1069,7 +1047,6 @@ const onSubmit = veeHandleSubmit(
     }
   },
   (errorsFromVee) => {
-    console.log("[Validation] Errors (handler):", errorsFromVee);
 
     function getFirstErrorMessage(errObj) {
       if (!errObj) return null;
