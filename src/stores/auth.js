@@ -87,7 +87,20 @@ export const useAuthStore = defineStore("auth", () => {
   });
 
   const merchantType = computed(() => {
-    return activeMerchant.value?.segmentation?.name || "UMKM";
+    const m = activeMerchant.value;
+    if (m?.segmentation?.name) {
+      return m.segmentation.name === "Segmentation 3" ? "UMKM Jasa" : m.segmentation.name;
+    }
+    switch (m?.segmentation_id) {
+      case 3:
+        return "UMKM Jasa";
+      case 2:
+        return "UMKM Produk";
+      case 1:
+        return "UMKM";
+      default:
+        return "UMKM";
+    }
   });
 
   const merchantId = computed(() => {
@@ -176,11 +189,19 @@ export const useAuthStore = defineStore("auth", () => {
         api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
       }
 
-      // ✅ Store user data (complete with all merchant details)
+      // ✅ Prefer the server-provided user (should include merchants+segmentation)
       user.value = data.user;
-      // Store the complete user data with full merchant information
-      // This ensures merchant.segmentation is preserved
-      localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("user", JSON.stringify(user.value));
+
+      // ✅ Immediately refresh with /auth/me to ensure relationships loaded
+      try {
+        const me = await sanctumApi.get("/me");
+        user.value = me.data;
+        localStorage.setItem("user", JSON.stringify(user.value));
+      } catch (e) {
+        console.warn("⚠️ Failed to refresh /me after login, using login payload.");
+      }
+
       loadSelectedMerchant();
 
       toast.success("Login berhasil! Selamat datang 👋", { timeout: 2500 });
@@ -259,29 +280,8 @@ export const useAuthStore = defineStore("auth", () => {
 
       const { data } = await sanctumApi.get("/me");
       user.value = data;
-
-      // ✅ Store only essential data
-      const essentialUserData = {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        roles: data.roles.map((r) => (typeof r === "string" ? r : r.name)),
-        merchants:
-          data.merchants?.map((m) => ({
-            id: m.id,
-            name: m.name,
-            status: m.status,
-            segmentation_id: m.segmentation?.id || null,
-            segmentation: m.segmentation
-              ? {
-                  id: m.segmentation.id,
-                  name: m.segmentation.name,
-                }
-              : null,
-          })) || [],
-      };
-
-      localStorage.setItem("user", JSON.stringify(essentialUserData));
+      // ✅ Store full user to preserve relationships
+      localStorage.setItem("user", JSON.stringify(user.value));
       loadSelectedMerchant();
       console.log("✅ Session verified:", user.value);
     } catch (e) {

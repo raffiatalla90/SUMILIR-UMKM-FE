@@ -35,7 +35,23 @@ const merchantName = computed(() => {
 });
 
 const merchantType = computed(() => {
-  return currentMerchant.value?.segmentation?.name || "UMKM";
+  const m = currentMerchant.value;
+  // Prefer backend-provided segmentation name
+  if (m?.segmentation?.name) {
+    // Normalize legacy seed value "Segmentation 3" to desired label
+    return m.segmentation.name === "Segmentation 3" ? "UMKM Jasa" : m.segmentation.name;
+  }
+  // Fallback mapping by segmentation_id when relationship missing
+  switch (m?.segmentation_id) {
+    case 3:
+      return "UMKM Jasa";
+    case 2:
+      return "UMKM Produk";
+    case 1:
+      return "UMKM";
+    default:
+      return "UMKM";
+  }
 });
 
 const merchantsCount = computed(() => authStore.merchantsCount);
