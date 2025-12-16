@@ -15,6 +15,10 @@ export const useCartStore = defineStore("cart", {
   actions: {
     /** Ambil jumlah item di cart */
     async fetchCartCount(force = false) {
+      if (!localStorage.getItem("user")) {
+        this.reset();
+        return;
+      }
       if (this.loading) return;
 
       // cache ringan (hindari spam request)
@@ -32,6 +36,9 @@ export const useCartStore = defineStore("cart", {
         this.totalItems = Number(res.data?.count || 0);
         this.lastFetchedAt = Date.now();
       } catch (e) {
+        if (e.response?.status === 401) {
+          this.reset();
+        }
         console.warn("Gagal fetch cart count");
       } finally {
         this.loading = false;
