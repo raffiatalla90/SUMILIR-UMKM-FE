@@ -4,7 +4,7 @@
     :disabled="isDisabled"
     :aria-busy="loading ? 'true' : 'false'"
     :class="[
-      'inline-flex items-center justify-center rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 ',
+      'inline-flex items-center justify-center rounded-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 hover:-translate-y-0.5',
       block ? 'w-full' : 'w-auto',
       sizeClasses[size],
       variantClasses[variant],
