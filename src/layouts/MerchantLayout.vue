@@ -64,34 +64,45 @@ watch(
   { immediate: true }
 );
 
-// ✅ Menu items dengan dynamic merchantId
-const menuItems = computed(() => [
-  {
-    label: "Dashboard",
-    icon: "pi-chart-bar",
-    route: `/merchant-center/${currentMerchantId.value}/dashboard`,
-  },
-  {
-    label: "Pesanan",
-    icon: "pi-shopping-bag",
-    route: `/merchant-center/${currentMerchantId.value}/orders`,
-  },
-  {
-    label: "Produk",
-    icon: "pi-box",
-    route: `/merchant-center/${currentMerchantId.value}/products`,
-  },
-  {
-    label: "Komunitas",
-    icon: "pi-comments",
-    route: `/merchant-center/${currentMerchantId.value}/community`,
-  },
-  {
-    label: "Potongan Harga",
-    icon: "pi-tag",
-    route: `/merchant-center/${currentMerchantId.value}/discounts`,
-  },
-]);
+// ✅ Check if current merchant is UMKM Jasa (segmentation_id = 3)
+const isJasaMerchant = computed(() => {
+  const merchant = currentMerchant.value;
+  return merchant?.segmentation_id === 3;
+});
+
+// ✅ Menu items dengan dynamic merchantId dan dynamic product/jasa route
+const menuItems = computed(() => {
+  const isJasa = isJasaMerchant.value;
+  const items = [
+    {
+      label: "Dashboard",
+      icon: "pi-chart-bar",
+      route: `/merchant-center/${currentMerchantId.value}/dashboard`,
+    },
+    {
+      label: "Pesanan",
+      icon: "pi-shopping-bag",
+      route: `/merchant-center/${currentMerchantId.value}/orders`,
+    },
+    {
+      label: isJasa ? "Jasa" : "Produk",
+      icon: "pi-box",
+      route: `/merchant-center/${currentMerchantId.value}/${isJasa ? "jasas" : "products"}`,
+    },
+    {
+      label: "Komunitas",
+      icon: "pi-comments",
+      route: `/merchant-center/${currentMerchantId.value}/community`,
+    },
+    {
+      label: "Potongan Harga",
+      icon: "pi-tag",
+      route: `/merchant-center/${currentMerchantId.value}/discounts`,
+    },
+  ];
+  
+  return items;
+});
 
 const logout = async () => {
   try {
@@ -396,7 +407,6 @@ defineExpose({
     <ResponsiveModal
       v-model:show="showLogoutModal"
       title="Konfirmasi Logout"
-      size="sm"
     >
       <div class="text-center py-4">
         <i

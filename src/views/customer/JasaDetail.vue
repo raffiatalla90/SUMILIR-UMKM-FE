@@ -22,7 +22,7 @@
       </div>
 
       <div class="mt-2 text-gray-900 font-semibold">
-        Rp {{ formatIDR(jasa?.price ?? 100000) }}
+        {{ priceDisplay }}
       </div>
 
       <!-- badge & info -->
@@ -287,17 +287,46 @@ const jasaDesc = computed(
     "Layanan servis dan perawatan AC untuk menjaga udara tetap sejuk dan bersih. Termasuk cuci unit indoor/outdoor, pemeriksaan sistem pendingin, pengisian freon (jika dibutuhkan), dan pengecekan kelistrikan. Dikerjakan teknisi berpengalaman dengan garansi hasil kerja."
 );
 
+// ----- harga display (range jika ada paket) -----
+const priceDisplay = computed(() => {
+  if (!jasa.value) return "Rp 0";
+  
+  const basePrice = jasa.value.price || 0;
+  const packages = jasa.value.packages || [];
+  
+  // Jika tidak ada paket, tampilkan harga dasar saja
+  if (packages.length === 0) {
+    return `Rp ${formatIDR(basePrice)}`;
+  }
+  
+  // Jika ada paket, hitung range harga
+  const allPrices = [basePrice, ...packages.map(p => p.price || 0)].filter(p => p > 0);
+  const minPrice = Math.min(...allPrices);
+  const maxPrice = Math.max(...allPrices);
+  
+  // Jika semua harga sama, tampilkan satu harga saja
+  if (minPrice === maxPrice) {
+    return `Rp ${formatIDR(minPrice)}`;
+  }
+  
+  // Tampilkan range
+  return `Rp ${formatIDR(minPrice)} - Rp ${formatIDR(maxPrice)}`;
+});
+
 const formatIDR = (v) => Number(v || 0).toLocaleString("id-ID");
 
 onMounted(async () => {
   try {
-    const { data } = await api.get(`/jasa/${route.params.id}`);
+    console.log("[JasaDetail] Fetching jasa ID:", route.params.id);
+    const { data } = await api.get(`/public/jasas/${route.params.id}`);
+    console.log("[JasaDetail] Jasa data:", data);
     jasa.value = data;
 
     if (jasa.value?.packages?.length) {
       activePackage.value = jasa.value.packages[0].id;
     }
   } catch (e) {
+    console.error("[JasaDetail] Error fetching jasa:", e);
     jasa.value = {
       title: "Jasa Servis & Perawatan AC",
       price: 100000,

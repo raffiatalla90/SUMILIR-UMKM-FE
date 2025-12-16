@@ -159,6 +159,20 @@ async function ensureCsrfToken() {
   return csrfFetchPromise;
 }
 
+// ✅ Restore auth token from localStorage on module load
+function initAuthToken() {
+  if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      console.log("[API] ✅ Auth token restored from localStorage");
+    }
+  }
+}
+
+// Call on module load
+initAuthToken();
+
 // Sinkronisasi saat module di-import
 try {
   syncXsrfFromCookie();
@@ -238,20 +252,9 @@ api.interceptors.response.use(
       }
 
       // Handle 401 Unauthenticated
-      if (error.response.status === 401) {
-        console.log("[API] 401 Unauthorized - Session expired");
-
-        const skipRoutes = [
-          "/login",
-          "/register",
-          "/sanctum/csrf-cookie",
-          "/me",
-        ];
-        const isSkipRoute = skipRoutes.some((route) => full.includes(route));
-
-        if (!isSkipRoute) {
-          handleSessionExpired();
-        }
+        if (error.response.status === 401) {
+          console.log("[API] 401 Unauthorized - skipping auto-logout");
+          return Promise.reject(error);
       }
     } else {
       console.error(`[API] ✖ ${method} ${full} failed:`, error.message);
@@ -283,20 +286,8 @@ sanctumApi.interceptors.response.use(
       );
 
       if (error.response.status === 401 || error.response.status === 419) {
-        console.log("[Sanctum API] 401/419 - Session expired");
-
-        const skipRoutes = [
-          "/login",
-          "/register",
-          "/sanctum/csrf-cookie",
-          "/me",
-          "/logout",
-        ];
-        const isSkipRoute = skipRoutes.some((route) => full.includes(route));
-
-        if (!isSkipRoute) {
-          handleSessionExpired();
-        }
+        console.log("[Sanctum API] 401/419 - skipping auto-logout");
+        return Promise.reject(error);
       }
     } else {
       console.error(`[Sanctum API] ✖ ${method} ${full} failed:`, error.message);
@@ -308,6 +299,13 @@ sanctumApi.interceptors.response.use(
 
 // ✅ Function untuk handle session expired
 function handleSessionExpired() {
+  // ✅ Only act if we actually have a logged-in session stored
+  const hasUserSession = !!localStorage.getItem("user");
+  if (!hasUserSession) {
+    console.log("[API] Session-expired handler skipped (no stored user)");
+    return;
+  }
+
   if (window.location.pathname === "/login") {
     return;
   }
@@ -333,6 +331,11 @@ function handleSessionExpired() {
   setTimeout(() => {
     window.location.href = `/login${redirectUrl}`;
   }, 500);
+}
+
+// Helper: detect public endpoints
+function isPublicEndpoint(fullUrl = "") {
+  return fullUrl.includes("/api/public/");
 }
 
 // ✅ Export utility to manually refresh CSRF token

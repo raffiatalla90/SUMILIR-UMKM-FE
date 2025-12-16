@@ -91,7 +91,7 @@ const onSearch = () => {
 onMounted(async () => {
   try {
     const [jasaRes, promoRes] = await Promise.all([
-      api.get("/jasa"),
+      api.get("/public/jasas"),
       api.get("/promos"),
     ]);
 
@@ -203,7 +203,7 @@ onMounted(async () => {
     <section id="umkm-recommendation" class="relative pt-6 sm:pt-24">
       <div class="pl-4 sm:pl-[54px]">
         <span class="text-base sm:text-section-title font-semibold">
-          Rekomendasi Produk dan Jasa
+          Rekomendasi Produk dan Jasa danasnansansq
         </span>
       </div>
 

@@ -25,6 +25,42 @@ export const useAuthStore = defineStore("auth", () => {
 
   const isAuthenticated = computed(() => !!user.value);
 
+  // ✅ Initialize user from localStorage on app startup (synchronous, non-blocking)
+  function initializeFromStorage() {
+    console.log("[Auth] Starting initialization from localStorage...");
+    const stored = localStorage.getItem("user");
+    const token = localStorage.getItem("auth_token");
+    
+    console.log("[Auth] localStorage.getItem('user'):", stored ? "exists" : "empty");
+    console.log("[Auth] localStorage.getItem('auth_token'):", token ? "exists" : "empty");
+    
+    if (stored) {
+      try {
+        user.value = JSON.parse(stored);
+        
+        // ✅ Restore token to axios headers
+        if (token) {
+          api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+        }
+        
+        console.log("[Auth] ✅ User restored from localStorage:", {
+          email: user.value?.email,
+          id: user.value?.id,
+          isAuthenticated: !!user.value,
+          tokenSet: !!token
+        });
+      } catch (e) {
+        console.error("[Auth] ❌ Failed to restore user from localStorage:", e);
+        localStorage.removeItem("user");
+        localStorage.removeItem("auth_token");
+        user.value = null;
+      }
+    } else {
+      console.log("[Auth] No user data in localStorage");
+      user.value = null;
+    }
+  }
+
   // ✅ Active merchant based on selectedMerchantId
   const activeMerchant = computed(() => {
     const merchants = user.value?.merchants || [];
@@ -107,57 +143,53 @@ export const useAuthStore = defineStore("auth", () => {
 
   // ✅ Clear user data
   function clearUser() {
+    console.log("[Auth] 🗑️ Clearing user data.");
     user.value = null;
     selectedMerchantId.value = null;
     localStorage.removeItem("user");
+    localStorage.removeItem("auth_token");
     localStorage.removeItem("selected_merchant_id");
+    
+    // ✅ Remove token from axios headers
+    delete api.defaults.headers.common["Authorization"];
     setXsrfTokenHeader(null);
-    console.log("✅ User data cleared");
+    
+    console.log("[Auth] ✅ User data cleared");
   }
 
   async function login(credentials) {
     try {
       console.log("🔍 Logging in with credentials:", credentials);
 
-      // ✅ Use ensureCsrfToken instead of direct call
+      // ✅ Get CSRF token first
       await ensureCsrfToken();
       console.log("✅ CSRF cookie obtained");
 
-      await sanctumApi.post("/login", credentials);
-      console.log("✅ Login successful");
+      // ✅ Post to /api/auth/login (returns token + user data)
+      const { data } = await api.post("/auth/login", credentials);
+      console.log("✅ Login successful, token:", data.token?.substring(0, 20) + "...");
 
-      syncXsrfFromCookie();
+      // ✅ Store token in localStorage for API requests
+      if (data.token) {
+        localStorage.setItem("auth_token", data.token);
+        // Set token in axios headers for future requests
+        api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
+      }
 
-      const { data } = await sanctumApi.get("/me");
-      console.log("✅ User data fetched:", data);
-
-      user.value = data;
-
-      // ✅ Only store essential user data in localStorage (not full response)
+      // ✅ Store user data
+      user.value = data.user;
       const essentialUserData = {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        roles: data.roles.map((r) => (typeof r === "string" ? r : r.name)),
-        merchants:
-          data.merchants?.map((m) => ({
-            id: m.id,
-            name: m.name,
-            status: m.status,
-            segmentation: m.segmentation
-              ? {
-                  id: m.segmentation.id,
-                  name: m.segmentation.name,
-                }
-              : null,
-          })) || [],
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        roles: data.user.roles,
+        merchants: data.user.merchants || [],
       };
-
       localStorage.setItem("user", JSON.stringify(essentialUserData));
       loadSelectedMerchant();
 
       toast.success("Login berhasil! Selamat datang 👋", { timeout: 2500 });
-      return data;
+      return data.user;
     } catch (error) {
       console.error("❌ Login error:", error);
 
@@ -165,7 +197,7 @@ export const useAuthStore = defineStore("auth", () => {
         toast.error("Cookie terlalu besar. Silakan clear cache browser.", {
           timeout: 4000,
         });
-      } else if (error.response?.status === 401) {
+      } else if (error.response?.status === 401 || error.response?.status === 422) {
         toast.error("Email atau password salah.", { timeout: 3000 });
       } else if (error.response?.status === 403) {
         const msg =
@@ -183,7 +215,7 @@ export const useAuthStore = defineStore("auth", () => {
 
   async function logout() {
     try {
-      await sanctumApi.post("/logout");
+      await sanctumApi.post("/api/auth/logout");
       toast.success("Berhasil logout. Sampai jumpa! 👋", { timeout: 2500 });
     } catch (error) {
       console.error("Logout error:", error);
@@ -244,6 +276,7 @@ export const useAuthStore = defineStore("auth", () => {
             id: m.id,
             name: m.name,
             status: m.status,
+            segmentation_id: m.segmentation?.id || null,
             segmentation: m.segmentation
               ? {
                   id: m.segmentation.id,
@@ -278,6 +311,7 @@ export const useAuthStore = defineStore("auth", () => {
     allMerchants,
     getMerchantById, // ✅ Export
     // Actions
+    initializeFromStorage, // ✅ Export init function
     login,
     logout,
     register,
