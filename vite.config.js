@@ -7,17 +7,19 @@ import { VitePWA } from "vite-plugin-pwa";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const apiBase = env.VITE_API_BASE_URL || "/api";
+  const isDev = mode === 'development';
 
-  return {
-    // ✅ Vue di root, tidak perlu /build/
-    base: "/",
+  const plugins = [
+    vue(),
+    tailwindcss(),
+  ];
 
-    plugins: [
-      vue(),
-      tailwindcss(),
+  // Only add PWA plugin in production
+  if (!isDev) {
+    plugins.push(
       VitePWA({
         registerType: "autoUpdate",
-        devOptions: { enabled: mode === "development" },
+        devOptions: { enabled: false },
         manifest: {
           name: "Sumilir",
           short_name: "Sumilir",
@@ -68,8 +70,12 @@ export default defineConfig(({ mode }) => {
             },
           ],
         },
-      }),
-    ],
+      })
+    );
+  }
+
+  return {
+    plugins,
     resolve: {
       alias: {
         "@": fileURLToPath(new URL("./src", import.meta.url)),
