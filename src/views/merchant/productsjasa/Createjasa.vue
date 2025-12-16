@@ -272,7 +272,8 @@ onMounted(() => {
             <!-- 3. DURASI & WAKTU -->
             <div class="border-b pb-6">
               <h2 class="text-lg font-semibold text-gray-800 mb-4">3. Durasi & Waktu Layanan</h2>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="space-y-4">
+                <!-- Estimasi Durasi -->
                 <Field name="estimated_duration" v-slot="{ field }">
                   <TextField
                     label="Estimasi Durasi"
@@ -281,30 +282,159 @@ onMounted(() => {
                   />
                 </Field>
 
-                <Field name="operating_hours_start" v-slot="{ field }">
-                  <TextField
-                    label="Jam Mulai"
-                    type="time"
-                    v-bind="field"
-                  />
-                </Field>
+                <!-- Jam Layanan (Mulai & Selesai dalam satu baris) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field name="operating_hours_start" v-slot="{ field }">
+                    <TextField
+                      label="Jam Layanan - Mulai"
+                      type="time"
+                      v-bind="field"
+                    />
+                  </Field>
 
-                <Field name="operating_hours_end" v-slot="{ field }">
-                  <TextField
-                    label="Jam Selesai"
-                    type="time"
-                    v-bind="field"
-                  />
-                </Field>
+                  <Field name="operating_hours_end" v-slot="{ field }">
+                    <TextField
+                      label="Jam Layanan - Selesai"
+                      type="time"
+                      v-bind="field"
+                    />
+                  </Field>
+                </div>
 
-                <Field name="operating_days" v-slot="{ field }">
-                  <TextField
-                    label="Hari Operasional"
-                    placeholder="1,2,3,4,5,6,7"
-                    v-bind="field"
-                  />
-                </Field>
+                <!-- Hari Operasional dengan Checkbox -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-3">Hari Operasional</label>
+                  <div class="space-y-2">
+                    <div class="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="day_1"
+                        :checked="formData.operating_days.includes('1')"
+                        @change="(e) => {
+                          const days = formData.operating_days.split(',').filter(d => d).map(d => d.trim());
+                          if (e.target.checked) {
+                            if (!days.includes('1')) days.push('1');
+                          } else {
+                            days.splice(days.indexOf('1'), 1);
+                          }
+                          formData.operating_days = days.join(',');
+                        }"
+                        class="w-4 h-4 text-merchant-primary rounded"
+                      />
+                      <label for="day_1" class="text-sm text-gray-700">Senin</label>
+                    </div>
+                    <div class="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="day_2"
+                        :checked="formData.operating_days.includes('2')"
+                        @change="(e) => {
+                          const days = formData.operating_days.split(',').filter(d => d).map(d => d.trim());
+                          if (e.target.checked) {
+                            if (!days.includes('2')) days.push('2');
+                          } else {
+                            days.splice(days.indexOf('2'), 1);
+                          }
+                          formData.operating_days = days.join(',');
+                        }"
+                        class="w-4 h-4 text-merchant-primary rounded"
+                      />
+                      <label for="day_2" class="text-sm text-gray-700">Selasa</label>
+                    </div>
+                    <div class="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="day_3"
+                        :checked="formData.operating_days.includes('3')"
+                        @change="(e) => {
+                          const days = formData.operating_days.split(',').filter(d => d).map(d => d.trim());
+                          if (e.target.checked) {
+                            if (!days.includes('3')) days.push('3');
+                          } else {
+                            days.splice(days.indexOf('3'), 1);
+                          }
+                          formData.operating_days = days.join(',');
+                        }"
+                        class="w-4 h-4 text-merchant-primary rounded"
+                      />
+                      <label for="day_3" class="text-sm text-gray-700">Rabu</label>
+                    </div>
+                    <div class="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="day_4"
+                        :checked="formData.operating_days.includes('4')"
+                        @change="(e) => {
+                          const days = formData.operating_days.split(',').filter(d => d).map(d => d.trim());
+                          if (e.target.checked) {
+                            if (!days.includes('4')) days.push('4');
+                          } else {
+                            days.splice(days.indexOf('4'), 1);
+                          }
+                          formData.operating_days = days.join(',');
+                        }"
+                        class="w-4 h-4 text-merchant-primary rounded"
+                      />
+                      <label for="day_4" class="text-sm text-gray-700">Kamis</label>
+                    </div>
+                    <div class="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="day_5"
+                        :checked="formData.operating_days.includes('5')"
+                        @change="(e) => {
+                          const days = formData.operating_days.split(',').filter(d => d).map(d => d.trim());
+                          if (e.target.checked) {
+                            if (!days.includes('5')) days.push('5');
+                          } else {
+                            days.splice(days.indexOf('5'), 1);
+                          }
+                          formData.operating_days = days.join(',');
+                        }"
+                        class="w-4 h-4 text-merchant-primary rounded"
+                      />
+                      <label for="day_5" class="text-sm text-gray-700">Jumat</label>
+                    </div>
+                    <div class="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="day_6"
+                        :checked="formData.operating_days.includes('6')"
+                        @change="(e) => {
+                          const days = formData.operating_days.split(',').filter(d => d).map(d => d.trim());
+                          if (e.target.checked) {
+                            if (!days.includes('6')) days.push('6');
+                          } else {
+                            days.splice(days.indexOf('6'), 1);
+                          }
+                          formData.operating_days = days.join(',');
+                        }"
+                        class="w-4 h-4 text-merchant-primary rounded"
+                      />
+                      <label for="day_6" class="text-sm text-gray-700">Sabtu</label>
+                    </div>
+                    <div class="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="day_7"
+                        :checked="formData.operating_days.includes('7')"
+                        @change="(e) => {
+                          const days = formData.operating_days.split(',').filter(d => d).map(d => d.trim());
+                          if (e.target.checked) {
+                            if (!days.includes('7')) days.push('7');
+                          } else {
+                            days.splice(days.indexOf('7'), 1);
+                          }
+                          formData.operating_days = days.join(',');
+                        }"
+                        class="w-4 h-4 text-merchant-primary rounded"
+                      />
+                      <label for="day_7" class="text-sm text-gray-700">Minggu</label>
+                    </div>
+                  </div>
+                </div>
 
+                <!-- Pemesanan Dimuka -->
                 <Field name="booking_advance_days" v-slot="{ field }">
                   <TextField
                     label="Pemesanan Dimuka (hari)"
