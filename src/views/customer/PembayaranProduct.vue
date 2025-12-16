@@ -41,11 +41,7 @@
         <h2 class="font-semibold text-gray-800 mb-3">Detail Pesanan</h2>
 
         <div class="space-y-3">
-          <!-- Single Product Item -->
-          <div
-            v-if="!isFromCart"
-            class="flex items-center gap-3 pb-3 border-b border-gray-100"
-          >
+          <div class="space-y-4">
             <div
               class="w-20 h-20 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0"
             >

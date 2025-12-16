@@ -72,6 +72,55 @@ export const useCheckoutStore = defineStore("checkout", {
         0
       );
 
+      // reset cart
+      this.cartItems = [];
+
+      this.lastUpdatedAt = Date.now();
+    },
+
+    /* ---------- FROM CART ---------- */
+    setFromCart(payload) {
+      this.from = "cart";
+
+      this.store = {
+        id: payload.store?.id ?? null,
+        slug: payload.store?.slug ?? null,
+        name: payload.store?.name ?? null,
+        address: payload.store?.address ?? null,
+        phone: payload.store?.phone ?? null,
+      };
+
+      this.cartItems = payload.items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        image: item.image,
+        quantity: Number(item.quantity || 1),
+        unitPrice: Number(item.unitPrice || 0),
+        addonTotalPrice: Number(item.addonTotalPrice || 0),
+        variant: item.variant ?? "",
+        size: item.size ?? "",
+        addons: Array.isArray(item.addons)
+          ? item.addons.map((a) => ({
+              name: a.label,
+              price: Number(a.price || 0),
+            }))
+          : [],
+      }));
+
+      // reset single product state
+      this.productSlug = null;
+      this.productTitle = null;
+      this.productImage = null;
+      this.qty = 1;
+      this.selectedSizeId = null;
+      this.selectedSizeName = null;
+      this.selectedVariantId = null;
+      this.selectedVariantName = null;
+      this.selectedAddons = [];
+      this.unitPrice = 0;
+      this.addonTotal = 0;
+      this.combination = { sizeId: 0, variantId: 0, stock: 0 };
+
       this.lastUpdatedAt = Date.now();
     },
     updateSelection({

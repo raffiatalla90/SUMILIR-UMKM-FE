@@ -142,7 +142,9 @@
               </button>
 
               <!-- Price & Quantity -->
-              <div class="flex items-center justify-between">
+              <div
+                class="flex flex-wrap gap-y-2 gap-x-6 items-center justify-between"
+              >
                 <div class="text-sm font-bold text-[#FFA30E]">
                   Rp {{ formatIDR(item.unitPrice) }}
                 </div>
@@ -168,11 +170,15 @@
                     </svg>
                   </button>
 
-                  <span
-                    class="text-sm font-semibold text-gray-900 w-8 text-center"
-                  >
-                    {{ item.quantity }}
-                  </span>
+                  <input
+                    type="number"
+                    class="text-center border border-gray-300 rounded-md text-sm font-semibold py-1 sm:px-2"
+                    :min="1"
+                    :max="item.stock"
+                    :value="item.quantity"
+                    @input="onQuantityInput(item.id, $event.target.value)"
+                    @blur="onQuantityBlur(item.id)"
+                  />
 
                   <button
                     @click="increaseQuantity(item.id)"
