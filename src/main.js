@@ -10,20 +10,8 @@ import ProductCard from "@/components/Card/ProductCard.vue";
 import EventCard from "@/components/Card/EventCard.vue";
 import PromoCard from "@/components/Card/PromoCard.vue";
 
-// ✅ Only register SW in production
-let updateSW = null;
-if (import.meta.env.PROD) {
-  const { registerSW } = await import("virtual:pwa-register");
-  updateSW = registerSW({
-    immediate: true,
-    onNeedRefresh() {
-      updateSW(true);
-    },
-    onOfflineReady() {
-      // optional: show toast "Siap offline"
-    },
-  });
-}
+// ✅ PWA registration happens only in production build
+// In development mode, the PWA plugin is disabled, so virtual:pwa-register doesn't exist
 
 // Minimal waktu splash (ms)
 const MIN_SPLASH_MS = Number(import.meta.env.VITE_SPLASH_MIN_MS || 1000);
