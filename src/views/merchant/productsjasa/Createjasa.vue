@@ -186,26 +186,23 @@ onMounted(() => {
                   />
                 </Field>
 
-                <Field name="jasa_category_id" v-slot="{ field, errors }">
-                  <SelectField
-                    label="Kategori Utama *"
-                    placeholder="Pilih kategori..."
-                    :options="jasaCategories.map(c => ({ value: c.id, label: c.name }))"
-                    :modelValue="field.value"
-                    @update:modelValue="handleCategoryChange"
-                    :error="errors[0]"
-                    required
-                  />
-                </Field>
+                <SelectField
+                  name="jasa_category_id"
+                  label="Kategori Utama *"
+                  placeholder="Pilih kategori..."
+                  :options="jasaCategories.map(c => ({ value: c.id, label: c.name }))"
+                  v-model="formData.jasa_category_id"
+                  @update:modelValue="handleCategoryChange"
+                  required
+                />
 
-                <Field name="jasa_subcategory_id" v-slot="{ field }">
-                  <SelectField
-                    label="Sub Kategori"
-                    placeholder="Pilih sub kategori..."
-                    :options="jasaSubcategories.map(s => ({ value: s.id, label: s.name }))"
-                    v-bind="field"
-                  />
-                </Field>
+                <SelectField
+                  name="jasa_subcategory_id"
+                  label="Sub Kategori"
+                  placeholder="Pilih sub kategori..."
+                  :options="jasaSubcategories.map(s => ({ value: s.id, label: s.name }))"
+                  v-model="formData.jasa_subcategory_id"
+                />
 
                 <Field name="description" v-slot="{ field }">
                   <div>
@@ -225,19 +222,18 @@ onMounted(() => {
             <div class="border-b pb-6">
               <h2 class="text-lg font-semibold text-gray-800 mb-4">2. Pengaturan Harga</h2>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field name="price_type" v-slot="{ field }">
-                  <SelectField
-                    label="Tipe Harga *"
-                    :options="[
-                      { value: 'per_jam', label: 'Per Jam' },
-                      { value: 'per_sesi', label: 'Per Sesi' },
-                      { value: 'per_hari', label: 'Per Hari' },
-                      { value: 'per_project', label: 'Per Project' },
-                    ]"
-                    v-bind="field"
-                    required
-                  />
-                </Field>
+                <SelectField
+                  name="price_type"
+                  label="Tipe Harga *"
+                  :options="[
+                    { value: 'per_jam', label: 'Per Jam' },
+                    { value: 'per_sesi', label: 'Per Sesi' },
+                    { value: 'per_hari', label: 'Per Hari' },
+                    { value: 'per_project', label: 'Per Project' },
+                  ]"
+                  v-model="formData.price_type"
+                  required
+                />
 
                 <Field name="base_price" v-slot="{ field }">
                   <TextField
@@ -323,18 +319,17 @@ onMounted(() => {
             <div class="border-b pb-6">
               <h2 class="text-lg font-semibold text-gray-800 mb-4">4. Lokasi & Area Layanan</h2>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field name="service_type" v-slot="{ field }">
-                  <SelectField
-                    label="Tipe Layanan *"
-                    :options="[
-                      { value: 'at_location', label: 'Di Tempat Penyedia' },
-                      { value: 'on_site', label: 'Datang ke Pelanggan' },
-                      { value: 'online', label: 'Online' },
-                    ]"
-                    v-bind="field"
-                    required
-                  />
-                </Field>
+                <SelectField
+                  name="service_type"
+                  label="Tipe Layanan *"
+                  :options="[
+                    { value: 'at_location', label: 'Di Tempat Penyedia' },
+                    { value: 'on_site', label: 'Datang ke Pelanggan' },
+                    { value: 'online', label: 'Online' },
+                  ]"
+                  v-model="formData.service_type"
+                  required
+                />
 
                 <Field name="location_address" v-slot="{ field }">
                   <TextField
@@ -449,17 +444,16 @@ onMounted(() => {
             <div class="pb-6">
               <h2 class="text-lg font-semibold text-gray-800 mb-4">9. Info Admin</h2>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field name="status" v-slot="{ field }">
-                  <SelectField
-                    label="Status"
-                    :options="[
-                      { value: 'draft', label: 'Draft' },
-                      { value: 'active', label: 'Aktif' },
-                      { value: 'inactive', label: 'Non-aktif' },
-                    ]"
-                    v-bind="field"
-                  />
-                </Field>
+                <SelectField
+                  name="status"
+                  label="Status"
+                  :options="[
+                    { value: 'draft', label: 'Draft' },
+                    { value: 'active', label: 'Aktif' },
+                    { value: 'inactive', label: 'Non-aktif' },
+                  ]"
+                  v-model="formData.status"
+                />
 
                 <Field name="internal_code" v-slot="{ field }">
                   <TextField
