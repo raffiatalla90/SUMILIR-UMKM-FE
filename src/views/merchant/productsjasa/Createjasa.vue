@@ -29,6 +29,7 @@ const breadcrumbItems = computed(() => [
 const loading = ref(false);
 const jasaCategories = ref([]);
 const jasaSubcategories = ref([]);
+const packages = ref([]);
 
 // Form data
 const formData = ref({
@@ -126,6 +127,18 @@ const handleCategoryChange = (value) => {
   loadSubcategories(value);
 };
 
+const addPackage = () => {
+  packages.value.push({
+    name: "",
+    description: "",
+    price: 0,
+  });
+};
+
+const removePackage = (index) => {
+  packages.value.splice(index, 1);
+};
+
 const submitForm = async (values) => {
   if (!currentMerchantId.value) {
     toast.error("Merchant ID tidak ditemukan");
@@ -138,6 +151,7 @@ const submitForm = async (values) => {
       ...values,
       negotiable: values.negotiable || false,
       is_featured: values.is_featured || false,
+      packages: packages.value.filter(p => p.name && p.price > 0),
     };
 
     const { data } = await api.post(
@@ -270,6 +284,76 @@ onMounted(() => {
                     <label class="text-sm font-medium text-gray-700">Harga Bisa Dinegosiasikan</label>
                   </div>
                 </Field>
+              </div>
+            </div>
+
+            <!-- 2.5 PAKET LAYANAN -->
+            <div class="border-b pb-6">
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-800">2.5. Paket Layanan (Opsional)</h2>
+                <Button
+                  type="button"
+                  variant="primary"
+                  @click="addPackage"
+                  class="text-sm"
+                >
+                  + Tambah Paket
+                </Button>
+              </div>
+
+              <div v-if="packages.length === 0" class="text-center py-8 text-gray-500">
+                <p class="text-sm">Belum ada paket. Klik tombol "Tambah Paket" untuk membuat paket layanan.</p>
+              </div>
+
+              <div v-else class="space-y-4">
+                <div
+                  v-for="(pkg, index) in packages"
+                  :key="index"
+                  class="border border-gray-200 rounded-lg p-4 bg-gray-50"
+                >
+                  <div class="flex items-start justify-between mb-4">
+                    <h3 class="font-semibold text-gray-800">Paket {{ index + 1 }}</h3>
+                    <button
+                      type="button"
+                      @click="removePackage(index)"
+                      class="text-red-600 hover:text-red-700 text-sm font-medium"
+                    >
+                      Hapus
+                    </button>
+                  </div>
+
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">Nama Paket</label>
+                      <input
+                        v-model="pkg.name"
+                        type="text"
+                        placeholder="Contoh: Paket Standar"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary"
+                      />
+                    </div>
+
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">Harga Paket (Rp)</label>
+                      <input
+                        v-model.number="pkg.price"
+                        type="number"
+                        placeholder="0"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary"
+                      />
+                    </div>
+
+                    <div class="sm:col-span-2">
+                      <label class="block text-sm font-medium text-gray-700 mb-1">Deskripsi Paket</label>
+                      <textarea
+                        v-model="pkg.description"
+                        placeholder="Jelaskan apa yang termasuk dalam paket ini..."
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary"
+                        rows="2"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -535,13 +619,6 @@ onMounted(() => {
             <div class="border-b pb-6">
               <h2 class="text-lg font-semibold text-gray-800 mb-4">8. Media Pendukung</h2>
               <div class="space-y-4">
-                <Field name="contact_person" v-slot="{ field }">
-                  <TextField
-                    label="Link Whatsapp"
-                    placeholder="https://..."
-                    v-bind="field"
-                  />
-                </Field>
 
                 <Field name="social_media" v-slot="{ field }">
                   <TextField
@@ -608,7 +685,7 @@ onMounted(() => {
                     v-bind="field"
                   />
                 </Field>
-                <p class="text-xs text-gray-500">💡 Customer akan klik tombol ini untuk chat Anda via WhatsApp</p>
+                <p class="text-xs text-gray-500">Customer akan klik tombol ini untuk chat Anda via WhatsApp</p>
               </div>
             </div>
 
