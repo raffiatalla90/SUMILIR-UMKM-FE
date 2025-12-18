@@ -36,8 +36,8 @@
             <h3 class="mt-2 text-sm sm:text-base font-medium text-gray-800 text-center">
               {{ jasa.name || jasa.title || jasa.label || 'Jasa' }}
             </h3>
-            <p v-if="jasa.price" class="text-xs sm:text-sm text-center text-merchant-primary font-semibold">
-              {{ formatPrice(jasa.price, jasa.packages) }}
+            <p v-if="jasa.base_price" class="text-xs sm:text-sm text-center text-merchant-primary font-semibold">
+              {{ formatPrice(jasa.base_price, jasa.packages) }}
             </p>
           </router-link>
         </div>

@@ -95,9 +95,17 @@ export function useJasa() {
     }
   };
 
-  const fetchJasaDetail = async (id) => {
+  const fetchJasaDetail = async (id, isOwnerView = false, merchantId = null) => {
     try {
-      const { data } = await api.get(`/jasas/${id}`);
+      let endpoint;
+      if (isOwnerView) {
+        // Owner view: use authenticated endpoint (/jasas/{id} with auth)
+        endpoint = `/jasas/${id}`;
+      } else {
+        // Public view: use public endpoint
+        endpoint = `/public/jasas/${id}`;
+      }
+      const { data } = await api.get(endpoint);
       const payload = data.data ?? data;
       if (payload.addon_groups) payload.addonGroups = payload.addon_groups;
       if (!Array.isArray(payload.images)) payload.images = payload.images ? [payload.images] : [];
