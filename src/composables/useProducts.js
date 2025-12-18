@@ -449,6 +449,7 @@ export function useProducts() {
               items: Array.isArray(g.options)
                 ? g.options.map((opt) => ({
                     id: opt.id,
+                    addon_id: opt.addon_id,
                     name: opt.addon?.addon_name || opt.name,
                     price: Number(opt.addon_price ?? 0),
                     description: opt.description || null,

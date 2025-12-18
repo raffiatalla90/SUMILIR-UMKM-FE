@@ -16,6 +16,7 @@ const showLogoutModal = ref(false);
 
 // ✅ Get merchantId dari route params
 const currentMerchantId = computed(() => {
+  if (!route || !route.params) return authStore.merchantId;
   return route.params.merchantId
     ? Number(route.params.merchantId)
     : authStore.merchantId;

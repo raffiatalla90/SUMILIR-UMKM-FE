@@ -191,8 +191,8 @@ onMounted(() => {
     shadowSize: [41, 41],
   });
 
-  const startLat = props.lat ?? -2.5;
-  const startLng = props.lng ?? 118.0;
+  const startLat = props.lat ?? -7.539493;
+  const startLng = props.lng ?? 110.80573;
 
   map = L.map(mapEl.value).setView([startLat, startLng], props.zoom);
   L.tileLayer(tileUrl, { attribution }).addTo(map);
