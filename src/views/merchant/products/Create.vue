@@ -834,6 +834,20 @@ const onSubmit = veeHandleSubmit(
         toast.error("Minimal tambahkan 1 varian");
         return;
       }
+      const hasVariantWithAtLeastTwoOptions = variants.value.some((variant) => {
+        const validOptionsCount = variant.options.filter(
+          (opt) => opt.name && opt.name.trim()
+        ).length;
+
+        return validOptionsCount >= 2;
+      });
+
+      if (!hasVariantWithAtLeastTwoOptions) {
+        toast.error(
+          "Jika menggunakan variasi, minimal salah satu varian harus memiliki 2 pilihan atau lebih"
+        );
+        return;
+      }
 
       const hasEmptyVariantName = variants.value.some((v) => !v.name.trim());
       if (hasEmptyVariantName) {

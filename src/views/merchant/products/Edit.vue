@@ -639,11 +639,13 @@ const toggleVariantImages = (clientKey) => {
     ? 0
     : 1;
 
-  if (variantUsesImages.value[clientKey] === 0) {
-    const variant = variants.value.find((v) => v.clientKey === clientKey);
-    if (variant) {
-      variant.options.forEach((opt) => (opt.images = []));
-    }
+  const variant = variants.value.find((v) => v.clientKey === clientKey);
+  if (variant) {
+    variant.uses_images = variantUsesImages.value[clientKey]; // ✅ SYNC
+  }
+
+  if (variantUsesImages.value[clientKey] === 0 && variant) {
+    variant.options.forEach((opt) => (opt.images = []));
   }
 };
 
@@ -846,6 +848,14 @@ const isAddOnGroupExpanded = (groupId) => {
 // ✅ SAMA SEPERTI CREATE: Submit Handler
 const onSubmit = veeHandleSubmit(
   async (values) => {
+    combinations.value.forEach((combo) => {
+      const hasNewOption = combo.attributes.some((a) => !a.option_value_id);
+
+      if (hasNewOption) {
+        combo.id = null; // 🔥 FORCE CREATE
+      }
+    });
+
     if (useVariants.value && totalCombinations.value > MAX_COMBINATIONS) {
       toast.error(`Kombinasi varian maksimal ${MAX_COMBINATIONS}`);
       return;
@@ -892,7 +902,20 @@ const onSubmit = veeHandleSubmit(
         toast.error("Minimal tambahkan 1 varian");
         return;
       }
+      const hasVariantWithAtLeastTwoOptions = variants.value.some((variant) => {
+        const validOptionsCount = variant.options.filter(
+          (opt) => opt.name && opt.name.trim()
+        ).length;
 
+        return validOptionsCount >= 2;
+      });
+
+      if (!hasVariantWithAtLeastTwoOptions) {
+        toast.error(
+          "Jika menggunakan variasi, minimal salah satu varian harus memiliki 2 pilihan atau lebih"
+        );
+        return;
+      }
       const hasEmptyVariantName = variants.value.some((v) => !v.name.trim());
       if (hasEmptyVariantName) {
         toast.error("Semua nama varian harus diisi");
@@ -1030,7 +1053,7 @@ const onSubmit = veeHandleSubmit(
                 opt.images.forEach((img, iIndex) => {
                   if (img.existing) {
                     formData.append(
-                      `variants[${vIndex}][options][${oIndex}][existing_images][${iIndex}]`,
+                      `variants[${vIndex}][options][${oIndex}][existing_images][${iIndex}][id]`,
                       img.id
                     );
                   } else {
@@ -1295,6 +1318,7 @@ const populateFormFromProduct = async (productData) => {
         id: optionGroup.id, // ID DB
         clientKey: optionGroup.id, // 🔑 ID UI
         name: optionGroup.option_name || "",
+        uses_images: optionGroup.uses_image ? 1 : 0, // ✅ TAMBAH INI
         options: optionGroup.values.map((val) => ({
           id: val.id,
           clientKey: val.id ?? `${Date.now()}-${Math.random()}`,

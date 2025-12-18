@@ -1459,7 +1459,29 @@ async function copyLink() {
   }
 }
 
-function shareVia(platform) {
+async function shareVia(platform) {
+  const isMobile = window.innerWidth < 640;
+  const canNativeShare = !!navigator.share;
+
+  const data = {
+    title: product.value?.name || "Produk",
+    text: shareText.value,
+    url: shareUrl.value,
+  };
+
+  // 📱 MOBILE → Native Share (langsung ke app sosmed)
+  if (isMobile && canNativeShare) {
+    try {
+      await navigator.share(data);
+      showShareModal.value = false;
+      return;
+    } catch (err) {
+      // user cancel → silent
+      console.warn("Native share cancelled", err);
+    }
+  }
+
+  // 💻 DESKTOP / FALLBACK → Link manual
   const url = encodeURIComponent(shareUrl.value);
   const text = encodeURIComponent(shareText.value);
 
@@ -1467,7 +1489,6 @@ function shareVia(platform) {
 
   switch (platform) {
     case "whatsapp":
-      // Mobile & desktop support
       shareLink = `https://wa.me/?text=${text}%20${url}`;
       break;
 
@@ -1476,7 +1497,6 @@ function shareVia(platform) {
       break;
 
     case "twitter":
-      // Twitter / X
       shareLink = `https://twitter.com/intent/tweet?text=${text}&url=${url}`;
       break;
 
@@ -1485,6 +1505,7 @@ function shareVia(platform) {
   }
 
   window.open(shareLink, "_blank", "noopener,noreferrer");
+  showShareModal.value = false;
 }
 
 // body scroll lock for modals
@@ -1507,50 +1528,6 @@ useBodyScrollLock(isAnyModalOpen);
 const goBack = () => {
   router.back();
 };
-// helper: safe getter for image URL (handles multiple shapes)
-function resolveImageUrlFromSource(src) {
-  if (!src) return null;
-  if (typeof src === "string") return src;
-  if (typeof src === "object") {
-    if (src.image_url) return src.image_url;
-    if (src.url) return src.url;
-    if (src.image_path) {
-      // if path only, try to use getImageUrl when id absent — but better to return null and rely on getVariantImageUrl
-      return null;
-    }
-    if (src.id) {
-      // try id-based endpoint
-      try {
-        return getImageUrl(src.id); // for product images stored as id => build via getImageUrl
-      } catch (e) {
-        // fallback to variant endpoint
-        return null;
-      }
-    }
-  }
-  return null;
-}
-
-// map productImages in robust way:
-// - if mapped.productImages is array of string => use directly
-// - if array of objects with id/image_url => convert
-function normalizeProductImages(raw) {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((it) => {
-      const url = resolveImageUrlFromSource(it);
-      if (url) return url;
-      // fallback: if item has "image_path" and product has base URL build absolute
-      if (it && it.image_path && typeof it.image_path === "string") {
-        // try to build from getImageUrl? getImageUrl expects image id, so we can't use it here.
-        // leave as `/storage/${it.image_path}` as last resort (assuming backend serves)
-        // but better to return null so UI hides broken images.
-        return null;
-      }
-      return null;
-    })
-    .filter(Boolean);
-}
 
 // -------------- stock/price helpers (kept dari kode Anda, sedikit disesuaikan) --------------
 function getSizeIdByName(name) {
@@ -1676,9 +1653,31 @@ function resetStateBeforeFetch() {
   relatedProducts.value = [];
 }
 
-const shareProduct = () => {
+const shareProduct = async () => {
+  const isMobile = window.innerWidth < 640;
+  const canNativeShare = !!navigator.share;
+
+  const data = {
+    title: product.value?.name || "Produk",
+    text: `${product.value?.name} - Rp ${formatIDR(getCurrentPrice())}`,
+    url: window.location.href,
+  };
+
+  // 📱 MOBILE → Native Share
+  if (isMobile && canNativeShare) {
+    try {
+      await navigator.share(data);
+    } catch (err) {
+      // user cancel → tidak perlu error
+      console.warn("Share cancelled", err);
+    }
+    return;
+  }
+
+  // 💻 DESKTOP → Modal
   showShareModal.value = true;
 };
+
 function initDefaultRequiredAddons() {
   const defaults = [];
 
@@ -2027,7 +2026,7 @@ function buyNow() {
 
 function isAddonSelected(addon) {
   return tempSelectedAddons.value.some(
-    (a) => Number(a.id) === Number(addon.id)
+    (a) => Number(a.addon_id) === Number(addon.addon_id ?? addon.addon?.id)
   );
 }
 
@@ -2046,8 +2045,10 @@ function toggleAddon(addon, group) {
     ).length;
     if (currentCountInGroup < Number(group.maxSelection || 1)) {
       tempSelectedAddons.value.push({
-        ...addon,
+        addon_id: addon.addon_id ?? addon.addon?.id, // 🔥 FIX UTAMA
         addon_group_id: group.id,
+        name: addon.addon?.addon_name ?? addon.name,
+        price: Number(addon.addon_price ?? addon.price ?? 0),
       });
     }
   }
@@ -2062,8 +2063,10 @@ function selectSingleAddon(addon, group) {
   // tambahkan addon terpilih jika tersedia
   if (addon.available !== false) {
     tempSelectedAddons.value.push({
-      ...addon,
+      addon_id: addon.addon_id ?? addon.addon?.id, // 🔥 FIX UTAMA
       addon_group_id: group.id,
+      name: addon.addon?.addon_name ?? addon.name,
+      price: Number(addon.addon_price ?? addon.price ?? 0),
     });
   }
 }
@@ -2089,25 +2092,25 @@ function calculateTempAddonPrice() {
 
 // Reset pilihan di modal (kosongkan semua atau kembalikan default wajib)
 function resetAddons() {
-  // kosongkan sementara
   tempSelectedAddons.value = [];
-  // jika ada group wajib (min_selection > 0) dengan single pilihan, pilih item pertama yang available
+
   addonGroups.value.forEach((group) => {
     const minSel = Number(group.required ? 1 : group.minSelection ?? 0);
     const maxSel = Number(group.maxSelection || 1);
-    if (
-      minSel > 0 &&
-      maxSel === 1 &&
-      Array.isArray(group.items) &&
-      group.items.length
-    ) {
+
+    if (minSel > 0 && maxSel === 1 && Array.isArray(group.items)) {
       const firstAvailable = group.items.find(
         (item) => item.available !== false
       );
+
       if (firstAvailable) {
         tempSelectedAddons.value.push({
-          ...firstAvailable,
+          addon_id: firstAvailable.addon_id ?? firstAvailable.addon?.id, // ✅ FIX
           addon_group_id: group.id,
+          name: firstAvailable.addon?.addon_name ?? firstAvailable.name,
+          price: Number(
+            firstAvailable.addon_price ?? firstAvailable.price ?? 0
+          ),
         });
       }
     }
