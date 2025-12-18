@@ -138,7 +138,6 @@ async function ensureCsrfToken() {
       syncXsrfFromCookie();
       const token = readCookie("XSRF-TOKEN");
       csrfFetchPromise = null;
-      toast.success("Token CSRF berhasil diperbarui");
       return token;
     })
     .catch((err) => {
@@ -190,13 +189,6 @@ api.interceptors.response.use(
     const method = (cfg.method || "get").toUpperCase();
 
     if (error.response) {
-      toast.error(
-        "Terjadi kesalahan pada server :" +
-          error.response.status +
-          " " +
-          error.response.data
-      );
-
       // ✅ Handle 419 (CSRF token mismatch) - Retry once
       if (error.response.status === 419) {
         toast.error("Token CSRF tidak valid. Mencoba memperbarui sesi...");
@@ -252,16 +244,7 @@ sanctumApi.interceptors.response.use(
     const method = (cfg.method || "get").toUpperCase();
 
     if (error.response) {
-      toast.error(
-        "Terjadi kesalahan pada server :" +
-          error.response.status +
-          " " +
-          error.response.data
-      );
-
       if (error.response.status === 401 || error.response.status === 419) {
-        toast.error("Sesi Anda telah habis. Silakan login kembali.");
-
         const skipRoutes = [
           "/login",
           "/register",

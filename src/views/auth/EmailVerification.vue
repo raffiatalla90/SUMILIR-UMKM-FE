@@ -107,8 +107,8 @@ try {
 } catch {}
 
 const isAuthenticated = computed(() => !!auth?.isAuthenticated?.value);
-const status = computed(() => (route.query.status || "").toString());
-const email = ref((route.query.email || "").toString());
+const status = computed(() => (route?.query?.status || "").toString());
+const email = ref((route?.query?.email || "").toString());
 const sending = ref(false);
 
 // Tampilkan toast sekali per perubahan status

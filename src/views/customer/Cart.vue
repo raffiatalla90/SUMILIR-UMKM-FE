@@ -112,7 +112,11 @@
                   />
                 </svg>
               </div>
-              <span class="font-semibold text-gray-900">{{ store.name }}</span>
+              <span
+                class="font-semibold text-gray-900 cursor-pointer hover:text-primary duration-200 transition-colors"
+                @click="goToStorePage(store.id)"
+                >{{ store.name }}</span
+              >
             </div>
           </div>
         </div>
@@ -122,7 +126,8 @@
           <div
             v-for="item in store.items"
             :key="item.id"
-            class="px-4 py-3 flex items-start gap-3"
+            class="px-4 py-3 flex items-start gap-3 group cursor-pointer"
+            :class="item.isUnavailable ? 'opacity-60 ' : ''"
           >
             <!-- Checkbox -->
             <input
@@ -130,14 +135,22 @@
               :checked="isItemSelected(item.id)"
               @change="toggleItemSelection(item.id, store.id)"
               class="mt-1 w-4 h-4 text-[#FFA30E] border-gray-300 rounded focus:ring-[#FFA30E]"
+              :class="{
+                'cursor-not-allowed':
+                  item.isUnavailable ||
+                  item.isOverStock ||
+                  hasConfigurationIssue(item),
+              }"
+              :disabled="item.isUnavailable || item.isOverStock"
             />
 
             <!-- Product Image -->
             <div
-              class="w-20 h-20 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0"
+              class="w-20 h-20 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0 group-hover:-translate-y-0.5 duration-200 transition-transform"
+              @click="goToProductPage(item.slug)"
             >
               <img
-                :src="item.image || 'https://via.placeholder.com/80'"
+                :src="item.image"
                 :alt="item.name"
                 class="w-full h-full object-cover"
               />
@@ -145,16 +158,31 @@
 
             <!-- Product Info -->
             <div class="flex-1 min-w-0">
-              <h3 class="text-sm font-semibold text-gray-900 mb-1">
+              <h3
+                class="text-sm font-semibold text-gray-900 mb-1 group-hover:text-primary duration-200 transition-colors"
+                @click="goToProductPage(item.slug)"
+              >
                 {{ item.name }}
               </h3>
 
+              <!-- Info Unavailable -->
+              <div
+                v-if="item.isUnavailable"
+                class="text-xs text-red-500 font-semibold mb-1"
+              >
+                <span v-if="item.stock === 0">Produk habis</span>
+                <span v-else>Produk ini sedang tidak tersedia</span>
+              </div>
+
               <!-- Variants -->
-              <div class="text-xs text-gray-600 space-y-0.5 mb-2">
+              <div
+                class="text-xs text-gray-600 space-y-0.5 mb-2"
+                @click="goToProductPage(item.slug)"
+              >
                 <div class="font-medium">
                   Rp {{ formatIDR(item.unitPrice) }}
                 </div>
-                <div v-if="item.variant">Varian: {{ item.variant }}</div>
+                <div v-if="item.variant">{{ item.variant }}</div>
                 <div v-if="item.addons.length" class="space-y-0.5">
                   <div
                     v-for="addon in item.addons"
@@ -173,6 +201,10 @@
               <button
                 @click="editItemVariant(item.id, store.id)"
                 class="cursor-pointer text-xs text-[#FFA30E] hover:text-[#e5920d] font-semibold mb-2 flex items-center gap-1"
+                :class="[
+                  item.isUnavailable && 'opacity-60 pointer-events-none',
+                  hasConfigurationIssue(item) && 'hidden',
+                ]"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -193,6 +225,9 @@
               <!-- Price & Quantity -->
               <div
                 class="flex flex-wrap gap-y-2 gap-x-6 items-center justify-between"
+                :class="
+                  item.isUnavailable ? 'opacity-60 pointer-events-none' : ''
+                "
               >
                 <div class="text-sm font-bold text-[#FFA30E]">
                   Rp {{ formatIDR(item.unitPrice + item.addonTotalPrice) }}
@@ -247,17 +282,55 @@
                   </button>
                 </div>
               </div>
-
+              <p
+                v-if="item.isOverStock && item.stock > 0"
+                class="text-red-500 text-xs text-right pt-1"
+              >
+                Stok berubah. Maksimal {{ item.stock }}.
+              </p>
               <!-- Stock Warning -->
-              <div v-if="item.stock < 10" class="mt-1 text-xs text-amber-600">
+              <div
+                v-if="item.stock < 10 && item.stock > 0"
+                class="mt-1 text-xs text-amber-600"
+              >
                 Stok tersisa {{ item.stock }}
+              </div>
+              <!-- ⚠️ CONFIGURATION ISSUE -->
+              <div
+                v-if="hasConfigurationIssue(item)"
+                class="mt-1 p-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-2"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  class="w-4 h-4 mt-0.5 text-red-500"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M8.485 2.495a1.5 1.5 0 012.53 0l6.514 10.857A1.5 1.5 0 0116.514 16H3.486a1.5 1.5 0 01-1.515-2.648L8.485 2.495zM10 12a.75.75 0 00-.75.75v.5a.75.75 0 001.5 0v-.5A.75.75 0 0010 12zm0-6a.75.75 0 00-.75.75v3a.75.75 0 001.5 0v-3A.75.75 0 0010 6z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+
+                <div class="flex-1">
+                  <p class="">Mohon tambahkan ulang ke keranjang</p>
+
+                  <p v-if="hasDeletedVariant(item)" class="font-semibold">
+                    Varian yang Anda pilih sudah tidak tersedia.
+                  </p>
+
+                  <p v-if="hasDeletedAddon(item)" class="font-semibold">
+                    Add-on yang Anda pilih sudah tidak tersedia.
+                  </p>
+                </div>
               </div>
             </div>
 
             <!-- Delete Button -->
             <button
               @click="removeItem(item.id)"
-              class="p-1 text-gray-400 hover:text-red-500 transition"
+              class="p-1 text-gray-400 hover:text-red-500 transition cursor-pointer"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -290,7 +363,11 @@
           <Button
             type="button"
             @click="checkoutFromCart(store.id)"
-            :disabled="getStoreSelectedCount(store.id) === 0"
+            :disabled="
+              getStoreSelectedCount(store.id) === 0 ||
+              hasOverStockSelected(store.id) ||
+              store.items.some(hasConfigurationIssue)
+            "
             variant="primary"
             customClass="w-full"
           >
@@ -530,6 +607,15 @@ const shouldShowStockOnOption = (optionIndex) => {
 
   return optionIndex === 1;
 };
+const canCheckout = computed(() =>
+  cartStores.value.every((store) =>
+    store.items.every((item) => !item.isOverStock)
+  )
+);
+
+const updateStockFlags = (item) => {
+  item.isOverStock = item.quantity > item.stock;
+};
 
 const onQuantityInput = (itemId, value) => {
   const qty = Number(value);
@@ -538,12 +624,10 @@ const onQuantityInput = (itemId, value) => {
     const item = store.items.find((i) => i.id === itemId);
     if (!item) continue;
 
-    // simpan snapshot pertama kali
     if (!quantitySnapshots.value[itemId]) {
       quantitySnapshots.value[itemId] = item.quantity;
     }
 
-    // validasi ringan (UI only)
     if (isNaN(qty)) return;
 
     if (qty < 1) {
@@ -554,14 +638,15 @@ const onQuantityInput = (itemId, value) => {
       item.quantity = qty;
     }
 
+    // 🔥 UPDATE FLAG DI SINI
+    updateStockFlags(item);
+
     quantityDrafts.value[itemId] = item.quantity;
-
-    // debounce API
     debounceUpdateQuantity(itemId);
-
     break;
   }
 };
+
 const debounceUpdateQuantity = debounce(async (itemId) => {
   const newQty = quantityDrafts.value[itemId];
   const oldQty = quantitySnapshots.value[itemId];
@@ -601,6 +686,8 @@ const onQuantityBlur = (itemId) => {
       item.quantity = item.stock;
     }
 
+    updateStockFlags(item);
+
     quantityDrafts.value[itemId] = item.quantity;
     debounceUpdateQuantity(itemId);
 
@@ -624,9 +711,15 @@ const tempAddons = ref([]);
 
 const cartStores = ref([]);
 const loading = ref(false);
+const resolveUnitPrice = (item) => {
+  return item.changes.price_changed
+    ? item.live.unit_price
+    : item.snapshot.unit_price;
+};
 
 const fetchCart = async () => {
   loading.value = true;
+
   try {
     const res = await api.get("/cart");
 
@@ -635,26 +728,57 @@ const fetchCart = async () => {
       name: cart.merchant.name,
       phone: cart.merchant.phone,
       address: cart.merchant.address,
-      items: cart.items.map((item) => ({
-        id: item.cart_item_id,
-        name: item.display.name,
-        image: item.display.image,
 
-        unitPrice: item.display.unit_price,
-        addonTotalPrice: item.display.addon_total_price,
-        quantity: item.quantity,
-        stock: item.display.max_stock,
+      items: cart.items
+        .map((item) => {
+          // =========================
+          // 🔥 RESOLVE HARGA FINAL
+          // =========================
+          const unitPrice = item.changes?.price_changed
+            ? item.live.unit_price
+            : item.snapshot.unit_price;
 
-        // LABEL
-        variant: item.display.variant_label,
-        addons: item.display.addons, // ⬅️ array {label, price}
+          return {
+            // BASIC
+            id: item.cart_item_id,
+            quantity: item.quantity,
+            stock: item.live.max_stock,
+            status: item.product_details.status,
+            slug: item.product_details.slug,
 
-        // SELECTION DATA
-        selectedVariantId: item.selected_configuration.variant_id,
-        selectedAddons: item.selected_configuration.addon_ids,
+            // DISPLAY
+            name: item.snapshot.name,
+            image:
+              item.snapshot.image ?? item.product_details.cover_image.src_url,
+            variant: item.snapshot.variant_label,
 
-        productDetails: item.product_details,
-      })),
+            // PRICE
+            unitPrice,
+            addonTotalPrice: item.snapshot.addon_total_price,
+
+            // ADDONS
+            addons: item.snapshot.addons,
+
+            // FLAGS (UX)
+            hasPriceChanged: item.changes?.price_changed ?? false,
+            hasStockIssue: item.changes?.stock_changed ?? false,
+            isAvailable: item.live.is_available,
+            isOverStock: item.changes?.is_over_stock ?? false,
+            isUnavailable:
+              item.product_details.status !== "published" ||
+              item.live.max_stock === 0,
+
+            // SELECTION (UNTUK EDIT)
+            selectedVariantId: item.selected_configuration.variant_id,
+            selectedAddons: item.selected_configuration.addon_ids,
+
+            // PRODUCT DETAIL (MODAL EDIT)
+            productDetails: item.product_details,
+          };
+        })
+        .sort((a, b) => {
+          return Number(a.isUnavailable) - Number(b.isUnavailable);
+        }),
     }));
   } catch (error) {
     toast.error("Gagal memuat keranjang");
@@ -692,6 +816,20 @@ const isItemSelected = (itemId) => {
 
 // Toggle item selection (with store validation)
 const toggleItemSelection = (itemId, storeId) => {
+  const store = cartStores.value.find((s) => s.id === storeId);
+  if (!store) return;
+
+  const item = store.items.find((i) => i.id === itemId);
+  if (!item) return;
+
+  // ❌ BLOCK jika over stock
+  if (item.isOverStock) {
+    toast.warning(
+      "Jumlah melebihi stok. Silakan sesuaikan jumlah terlebih dahulu."
+    );
+    return;
+  }
+
   const index = selectedItems.value.indexOf(itemId);
 
   if (index > -1) {
@@ -700,7 +838,7 @@ const toggleItemSelection = (itemId, storeId) => {
     const selectedStoreId = getSelectedStoreId();
 
     if (selectedStoreId && selectedStoreId !== storeId) {
-      alert(
+      toast.warning(
         `Tidak dapat memilih item dari toko berbeda.\nSilakan checkout toko "${getStoreName(
           selectedStoreId
         )}" terlebih dahulu atau batalkan pilihan.`
@@ -737,9 +875,13 @@ const isStoreSelected = (storeId) => {
   const store = cartStores.value.find((s) => s.id === storeId);
   if (!store) return false;
 
+  const selectableItems = store.items.filter(
+    (item) => !item.isUnavailable && !item.isOverStock
+  );
+
   return (
-    store.items.length > 0 &&
-    store.items.every((item) => selectedItems.value.includes(item.id))
+    selectableItems.length > 0 &&
+    selectableItems.every((item) => selectedItems.value.includes(item.id))
   );
 };
 
@@ -748,19 +890,29 @@ const toggleStoreSelection = (storeId) => {
   const store = cartStores.value.find((s) => s.id === storeId);
   if (!store) return;
 
-  const allSelected = isStoreSelected(storeId);
+  const selectableItems = store.items.filter(
+    (item) => !item.isUnavailable && !item.isOverStock
+  );
+
+  if (selectableItems.length === 0) {
+    toast.warning("Ada produk yang melebihi stok. Silakan perbaiki jumlah.");
+    return;
+  }
+
+  const allSelected = selectableItems.every((item) =>
+    selectedItems.value.includes(item.id)
+  );
+
   const selectedStoreId = getSelectedStoreId();
 
   if (allSelected) {
-    store.items.forEach((item) => {
-      const index = selectedItems.value.indexOf(item.id);
-      if (index > -1) {
-        selectedItems.value.splice(index, 1);
-      }
+    selectableItems.forEach((item) => {
+      const idx = selectedItems.value.indexOf(item.id);
+      if (idx > -1) selectedItems.value.splice(idx, 1);
     });
   } else {
     if (selectedStoreId && selectedStoreId !== storeId) {
-      alert(
+      toast.warning(
         `Tidak dapat memilih item dari toko berbeda.\nSilakan checkout toko "${getStoreName(
           selectedStoreId
         )}" terlebih dahulu atau batalkan pilihan.`
@@ -768,12 +920,20 @@ const toggleStoreSelection = (storeId) => {
       return;
     }
 
-    store.items.forEach((item) => {
+    selectableItems.forEach((item) => {
       if (!selectedItems.value.includes(item.id)) {
         selectedItems.value.push(item.id);
       }
     });
   }
+};
+const hasOverStockSelected = (storeId) => {
+  const store = cartStores.value.find((s) => s.id === storeId);
+  if (!store) return false;
+
+  return store.items.some(
+    (item) => selectedItems.value.includes(item.id) && item.isOverStock
+  );
 };
 
 // Get selected item count for a store
@@ -880,6 +1040,26 @@ const editVariantPrice = computed(() => {
 
   return combo ? combo.price : 0;
 });
+const hasDeletedVariant = (item) => {
+  if (!item.selectedVariantId) return false;
+
+  return !item.productDetails.variants.some(
+    (v) => v.id === item.selectedVariantId
+  );
+};
+
+const hasDeletedAddon = (item) => {
+  if (!item.selectedAddons?.length) return false;
+
+  const validAddonIds = item.productDetails.addon_groups.flatMap((g) =>
+    g.options.map((o) => o.addon_id)
+  );
+
+  return item.selectedAddons.some((a) => !validAddonIds.includes(a.addon_id));
+};
+
+const hasConfigurationIssue = (item) =>
+  hasDeletedVariant(item) || hasDeletedAddon(item);
 
 const editAddonTotal = computed(() => {
   return availableAddons.value
@@ -1029,16 +1209,6 @@ const goToHome = () => {
   router.push({ name: "Beranda" });
 };
 
-// Checkout per Store
-const order = computed(() => ({
-  title: checkout.productTitle,
-  quantity: checkout.qty,
-  addons: checkout.selectedAddons,
-  store: checkout.store,
-}));
-
-const isFromCart = computed(() => checkout.from === "cart");
-
 const checkoutFromCart = (storeId) => {
   const store = cartStores.value.find((s) => s.id === storeId);
   if (!store) return;
@@ -1075,6 +1245,14 @@ const checkoutFromCart = (storeId) => {
   router.push("/product-payment");
 
   return true;
+};
+
+const goToStorePage = (storeId) => {
+  router.push({ name: "TokoDetail", params: { id: storeId } });
+};
+
+const goToProductPage = (slug) => {
+  router.push({ name: "Product Detail", params: { slug } });
 };
 </script>
 

@@ -26,7 +26,7 @@ const MAX_COMBINATIONS = 50;
 
 // ✅ FIXED: Get merchantId from route params
 const currentMerchantId = computed(() => {
-  return route.params.merchantId ? Number(route.params.merchantId) : null;
+  return route?.params?.merchantId ? Number(route.params.merchantId) : null;
 });
 
 // ✅ ADD: Validate merchant ownership
@@ -174,7 +174,6 @@ const {
 // LIFECYCLE HOOKS
 // ============================================================
 onMounted(async () => {
-
   // ✅ ADD: Validate merchantId on mount
   if (!currentMerchantId.value) {
     toast.error("Merchant ID tidak valid");
@@ -752,7 +751,6 @@ const isAddOnGroupExpanded = (groupId) => {
 // ============================================================
 const onSubmit = veeHandleSubmit(
   async (values) => {
-
     const oversizedImage = productImages.value.find(
       (img) => img.file.size > MAX_IMAGE_SIZE_BYTES
     );
@@ -1008,13 +1006,11 @@ const onSubmit = veeHandleSubmit(
         },
       });
 
-
       toast.success("Produk berhasil ditambahkan");
 
       // ✅ FIXED: Redirect dengan merchantId yang benar
       router.push(`/merchant-center/${currentMerchantId.value}/products`);
     } catch (error) {
-
       if (error.response?.status === 422) {
         const data = error.response.data;
 
@@ -1047,7 +1043,6 @@ const onSubmit = veeHandleSubmit(
     }
   },
   (errorsFromVee) => {
-
     function getFirstErrorMessage(errObj) {
       if (!errObj) return null;
       if (typeof errObj === "string") return errObj;
