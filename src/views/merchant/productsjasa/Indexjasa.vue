@@ -18,6 +18,8 @@ import JasaCard from "@/components/common/ProductCard.vue"; // reuse ProductCard
 import MobilePagination from "@/components/common/MobilePagination.vue";
 import BulkActionBar from "@/components/common/BulkActionBar.vue";
 import { useJasa } from "@/composables/useJasa"; // ✅ GANTI: import useJasa
+import { useChat } from "@/composables/useChat";
+import ChatWindow from "@/components/common/ChatWindow.vue";
 import { useCategories } from "@/composables/useCategories";
 import { getImageUrl } from "@/libs/getImageUrl.js";
 import api from "@/libs/axios";
@@ -195,6 +197,14 @@ onMounted(async () => {
 
   // Load jasa data
   await loadJasas();
+});
+
+// Watch for route query changes to trigger reload (e.g., after edit)
+watch(() => route.query.t, (newVal, oldVal) => {
+  if (newVal && newVal !== oldVal) {
+    console.log('[Indexjasa] Route query changed, reloading...');
+    loadJasas();
+  }
 });
 
 // ✅ UPDATED: Load jasas dengan merchantId dari route
@@ -585,6 +595,17 @@ const formatPrice = (min, max) => {
   return `${formatCompact(min)} - ${formatCompact(max)}`;
 };
 
+// Format single price (IDR)
+const formatPriceId = (num) => {
+  const formatter = new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+  return formatter.format(num || 0);
+};
+
 // ✅ UPDATED: Pagination methods - sync dengan backend pagination
 const goToPage = (page) => {
   if (page >= 1 && page <= totalPages.value) {
@@ -688,6 +709,54 @@ const closeBulkStatusChangeModal = () => {
   showBulkStatusChangeModal.value = false;
   newBulkStatus.value = null;
 };
+
+// Helper: pilih cover image dari relasi baru atau fallback ke field legacy `image`
+const getPrimaryImageSrc = (jasaItem) => {
+  if (!jasaItem) return "";
+  const images = jasaItem.images || [];
+  if (images.length) {
+    const image = images.find((img) => img.is_cover) || images[0];
+    return getImageUrl(image?.path || image?.id || jasaItem.image);
+  }
+  if (jasaItem.image) {
+    return getImageUrl(jasaItem.image);
+  }
+  return "";
+};
+
+// =======================
+// Chat (Daftar Percakapan)
+// =======================
+const { conversations, fetchConversations } = useChat();
+const showChatPanel = ref(false);
+const selectedConversationId = ref(null);
+
+// Kunci scroll body ketika popup chat terbuka
+useBodyScrollLock(showChatPanel);
+
+const hasConversations = computed(() => {
+  return Array.isArray(conversations.value) && conversations.value.length > 0;
+});
+
+const openChatModal = async () => {
+  showChatPanel.value = true;
+  try {
+    await fetchConversations();
+    if (!selectedConversationId.value && hasConversations.value) {
+      selectedConversationId.value = conversations.value[0]?.id || null;
+    }
+  } catch (e) {
+    console.error("Gagal memuat percakapan", e);
+  }
+};
+
+const closeChatModal = () => {
+  showChatPanel.value = false;
+};
+
+const selectConversation = (conversation) => {
+  selectedConversationId.value = conversation.id;
+};
 </script>
 
 <template>
@@ -709,9 +778,21 @@ const closeBulkStatusChangeModal = () => {
     
     <!-- Data Table -->
     <div v-else>
-      <div class="mb-4">
-        <button @click="goToCreate" class="px-4 py-2 bg-merchant-primary text-white rounded">
+      <div
+        class="mb-4 flex flex-wrap items-center gap-2 justify-between"
+      >
+        <button
+          @click="goToCreate"
+          class="px-4 py-2 bg-merchant-primary text-white rounded"
+        >
           Tambah Jasa
+        </button>
+        <button
+          @click="openChatModal"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded border border-merchant-primary/50 text-merchant-primary bg-merchant-primary/5 hover:bg-merchant-primary/10 transition"
+        >
+          <i class="pi pi-comments text-sm"></i>
+          <span class="text-sm font-medium">Chat Pembeli</span>
         </button>
       </div>
       
@@ -719,33 +800,270 @@ const closeBulkStatusChangeModal = () => {
         <table class="w-full">
           <thead>
             <tr class="border-b">
+              <th class="p-4 text-left w-24">Gambar</th>
               <th class="p-4 text-left">Nama Jasa</th>
-              <th class="p-4 text-left">Harga</th>
+              <th class="p-4 text-left">
+                <div class="flex items-center gap-2">
+                  <i class="pi pi-tag text-gray-500"></i>
+                  Kategori
+                </div>
+              </th>
+              <th class="p-4 text-left">
+                <div class="flex items-center gap-2">
+                  <i class="pi pi-tag-dollar text-gray-500"></i>
+                  Harga
+                </div>
+              </th>
               <th class="p-4 text-left">Status</th>
-              <th class="p-4 text-left">Aksi</th>
+              <th class="p-4 text-left">
+                <div class="flex items-center gap-2">
+                  <i class="pi pi-cog text-gray-500"></i>
+                  Aksi
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="jasa in jasas" :key="jasa.id" class="border-b hover:bg-gray-50">
-              <td class="p-4">{{ jasa.title }}</td>
-              <td class="p-4">Rp {{ jasa.price?.toLocaleString('id-ID') }}</td>
+            <tr 
+              v-for="jasa in jasas" 
+              :key="jasa.id" 
+              :class="[
+                'border-b hover:bg-gray-50',
+                (!jasa.is_active || jasa.status === 'draft') ? 'opacity-50' : ''
+              ]"
+            >
               <td class="p-4">
-                <span :class="jasa.is_active ? 'text-green-600' : 'text-gray-400'">
-                  {{ jasa.is_active ? 'Aktif' : 'Tidak Aktif' }}
-                </span>
+                <div v-if="(jasa.images && jasa.images.length > 0) || jasa.image" class="w-16 h-16 rounded-lg overflow-hidden bg-gray-100">
+                  <img
+                    :src="getPrimaryImageSrc(jasa)"
+                    :alt="jasa.title"
+                    class="w-full h-full object-cover"
+                    @error="(e) => e.target.src = 'data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Crect fill=%27%23f3f4f6%27 width=%27100%27 height=%27100%27/%3E%3Ctext x=%2750%27 y=%2750%27 font-size=%2714%27 text-anchor=%27middle%27 dy=%27.3em%27 fill=%27%239ca3af%27%3ENo Image%3C/text%3E%3C/svg%3E'"
+                  />
+                </div>
+                <div v-else class="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center">
+                  <i class="pi pi-image text-gray-400 text-xl"></i>
+                </div>
+              </td>
+              <td class="p-4">{{ jasa.title }}</td>
+              <td class="p-4">
+                <div class="text-sm">
+                  <div class="font-medium text-gray-900">
+                    {{ jasa.category?.name || '-' }}
+                  </div>
+                  <div v-if="jasa.subcategory?.name" class="text-xs text-gray-500 mt-0.5">
+                    {{ jasa.subcategory.name }}
+                  </div>
+                </div>
               </td>
               <td class="p-4">
-                <button @click="goToDetail(jasa)" class="text-blue-600 hover:underline mr-2">
-                  Detail
-                </button>
-                <button @click="deleteJasaAction(jasa)" class="text-red-600 hover:underline">
-                  Hapus
-                </button>
+                <template v-if="jasa.fixed_price && jasa.fixed_price > 0">
+                  {{ formatPriceId(jasa.fixed_price) }}
+                </template>
+                <template v-else-if="jasa.base_price && jasa.base_price > 0">
+                  {{ formatPriceId(jasa.base_price) }}
+                  <span class="text-xs text-gray-500">(Mulai dari)</span>
+                </template>
+                <template v-else>
+                  -
+                </template>
+              </td>
+              <td class="p-4">
+                <span :class="(jasa.status === 'active' && jasa.is_active) ? 'text-green-600' : 'text-gray-400'">
+                  {{ (jasa.status === 'active' && jasa.is_active) ? 'Aktif' : 'Tidak Aktif' }}
+                </span>
+              </td>
+              <td class="p-2 sm:p-4">
+                <div
+                  class="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2"
+                >
+                  <button
+                    @click="goToEdit(jasa)"
+                    class="inline-flex items-center justify-center px-2 py-1 rounded border border-merchant-primary/40 text-merchant-primary text-xs sm:text-sm bg-merchant-primary/5 hover:bg-merchant-primary/10 transition"
+                    title="Edit jasa"
+                  >
+                    <i class="pi pi-pencil text-xs sm:text-sm mr-1"></i>
+                    <span class="leading-none">Edit</span>
+                  </button>
+                  <button
+                    @click="goToDetail(jasa)"
+                    class="inline-flex items-center justify-center px-2 py-1 rounded border border-blue-500/30 text-blue-600 text-xs sm:text-sm bg-blue-50 hover:bg-blue-100 transition"
+                    title="Lihat detail"
+                  >
+                    <i class="pi pi-eye text-xs sm:text-sm mr-1"></i>
+                    <span class="leading-none">Detail</span>
+                  </button>
+                  <button
+                    @click="deleteJasaAction(jasa)"
+                    class="inline-flex items-center justify-center px-2 py-1 rounded border border-red-500/30 text-red-600 text-xs sm:text-sm bg-red-50 hover:bg-red-100 transition"
+                    title="Hapus jasa"
+                  >
+                    <i class="pi pi-trash text-xs sm:text-sm mr-1"></i>
+                    <span class="leading-none">Hapus</span>
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
+
+      <!-- Delete Confirmation Modal -->
+      <ResponsiveModal
+        v-model:show="showDeleteModal"
+        title="Hapus Jasa"
+        show-footer
+        @close="closeDeleteModal"
+      >
+        <p class="text-sm text-gray-600">
+          Apakah Anda yakin ingin menghapus jasa
+          <span class="font-semibold">{{ selectedJasaForDelete?.title }}</span>?
+          Tindakan ini tidak dapat dibatalkan.
+        </p>
+        <template #footer>
+          <div class="flex gap-2 w-full">
+            <Button
+              variant="muted-outline"
+              class="flex-1"
+              @click="closeDeleteModal"
+            >
+              Batal
+            </Button>
+            <Button
+              variant="danger"
+              class="flex-1"
+              @click="confirmDeleteJasa"
+            >
+              Hapus
+            </Button>
+          </div>
+        </template>
+      </ResponsiveModal>
+
+      <!-- Chat Popup dengan blur background -->
+      <transition
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition duration-150 ease-in"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div
+          v-if="showChatPanel"
+          class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm"
+          @click.self="closeChatModal"
+        >
+          <div
+            class="w-full max-w-full sm:max-w-5xl mx-0 sm:mx-4 bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col h-[90vh] sm:max-h-[90vh]"
+          >
+            <!-- Header -->
+            <div
+              class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-2xl"
+            >
+              <div>
+                <h2 class="text-sm sm:text-base font-semibold text-gray-900">
+                  Chat Pembeli
+                </h2>
+                <p class="text-[11px] sm:text-xs text-gray-500">
+                  Balas pertanyaan dan berikan penawaran harga ke pembeli.
+                </p>
+              </div>
+              <button
+                type="button"
+                class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 text-gray-500"
+                @click="closeChatModal"
+              >
+                <i class="pi pi-times text-sm"></i>
+              </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-3 sm:p-4 flex-1 flex flex-col overflow-hidden">
+              <div class="flex flex-col md:flex-row gap-4 flex-1 min-h-[320px] overflow-hidden">
+                <!-- Daftar percakapan -->
+                <div
+                  class="w-full md:w-1/3 border border-gray-200 rounded-xl bg-white overflow-hidden flex flex-col"
+                >
+                  <div class="px-3 py-2 border-b border-gray-200 bg-gray-50">
+                    <p
+                      class="text-xs font-semibold text-gray-700 flex items-center gap-2"
+                    >
+                      <i class="pi pi-inbox text-gray-500"></i>
+                      Daftar Percakapan
+                    </p>
+                  </div>
+                  <div
+                    class="flex-1 overflow-y-auto divide-y divide-gray-100"
+                  >
+                    <div
+                      v-if="!hasConversations"
+                      class="px-3 py-4 text-xs text-gray-500 text-center"
+                    >
+                      Belum ada percakapan dari pembeli.
+                    </div>
+                    <button
+                      v-else
+                      v-for="convo in conversations"
+                      :key="convo.id"
+                      type="button"
+                      @click="selectConversation(convo)"
+                      :class="[
+                        'w-full text-left px-3 py-2 flex flex-col gap-0.5 hover:bg-gray-50 transition',
+                        selectedConversationId === convo.id
+                          ? 'bg-merchant-primary/5 border-l-4 border-merchant-primary'
+                          : '',
+                      ]"
+                    >
+                      <p
+                        class="text-xs font-semibold text-gray-900 truncate"
+                      >
+                        {{ convo?.buyer?.name || 'Pembeli' }}
+                      </p>
+                      <p class="text-[11px] text-gray-500 truncate">
+                        Jasa:
+                        {{ convo?.jasa?.title || convo?.jasa?.name || '-' }}
+                      </p>
+                      <p
+                        v-if="convo?.last_message"
+                        class="text-[11px] text-gray-400 truncate"
+                      >
+                        {{ convo.last_message.body || 'Pesan terbaru' }}
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Chat window -->
+                <div class="w-full md:flex-1">
+                  <div
+                    v-if="!selectedConversationId && !hasConversations"
+                    class="text-xs text-gray-500 text-center border border-dashed border-gray-300 rounded-xl bg-gray-50/60 px-4 py-6"
+                  >
+                    Belum ada percakapan.
+                    <br />
+                    Saat ada pembeli yang menghubungi Anda, percakapan akan
+                    muncul di sini.
+                  </div>
+                  <div
+                    v-else-if="!selectedConversationId && hasConversations"
+                    class="text-xs text-gray-500 text-center border border-dashed border-gray-300 rounded-xl bg-gray-50/60 px-4 py-6"
+                  >
+                    Pilih salah satu percakapan di sebelah kiri untuk mulai
+                    membalas pesan.
+                  </div>
+                  <div v-else class="h-full">
+                    <ChatWindow
+                      :conversation-id="selectedConversationId"
+                      mode="merchant"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
       
       <!-- Pagination -->
       <div v-if="totalPages > 1" class="mt-4 flex justify-center gap-2">

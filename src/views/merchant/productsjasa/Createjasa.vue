@@ -11,6 +11,25 @@ import SelectField from "@/components/forms/SelectField.vue";
 import Button from "@/components/common/Button.vue";
 import api from "@/libs/axios";
 
+// File uploads
+const imageFiles = ref([]);
+
+const getNewImagePreviewUrl = (file) => {
+  return URL.createObjectURL(file);
+};
+
+// Format currency helper
+const formatCurrency = (value) => {
+  if (!value) return "";
+  const num = Number(value);
+  return `Rp ${num.toLocaleString("id-ID")}`;
+};
+
+const parseCurrency = (value) => {
+  if (!value) return 0;
+  return Number(String(value).replace(/\D/g, ""));
+};
+
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
@@ -29,7 +48,6 @@ const breadcrumbItems = computed(() => [
 const loading = ref(false);
 const jasaCategories = ref([]);
 const jasaSubcategories = ref([]);
-const packages = ref([]);
 
 // Form data
 const formData = ref({
@@ -37,31 +55,14 @@ const formData = ref({
   description: "",
   jasa_category_id: null,
   jasa_subcategory_id: null,
-  price_type: "per_sesi",
+  fixed_price: 0,
   base_price: 0,
-  min_order: 1,
-  negotiable: false,
-  estimated_duration: "",
-  operating_hours_start: "09:00",
-  operating_hours_end: "17:00",
-  operating_days: "1,2,3,4,5,6,7",
-  booking_advance_days: 0,
   service_type: "at_location",
   location_address: "",
   service_area: "",
-  capacity_per_slot: 1,
-  max_orders_per_day: null,
-  cancellation_policy: "",
-  customer_requirements: "",
   special_notes: "",
-  portfolio: "",
-  social_media: "",
   payment_methods: "cod",
-  whatsapp_link: "",
   status: "draft",
-  internal_code: "",
-  is_featured: false,
-  image: "",
 });
 
 // Validation schema
@@ -70,36 +71,19 @@ const validationSchema = yup.object({
   description: yup.string().nullable(),
   jasa_category_id: yup.number().required("Kategori layanan wajib dipilih"),
   jasa_subcategory_id: yup.number().nullable(),
-  price_type: yup.string().required("Tipe harga wajib dipilih"),
-  base_price: yup.number().min(0).required("Harga wajib diisi"),
-  min_order: yup.number().min(1).required("Minimal order wajib diisi"),
-  negotiable: yup.boolean(),
-  estimated_duration: yup.string().nullable(),
-  operating_hours_start: yup.string().nullable(),
-  operating_hours_end: yup.string().nullable(),
-  operating_days: yup.string().nullable(),
-  booking_advance_days: yup.number().min(0),
+  fixed_price: yup.number().min(0).required("Harga tetap wajib diisi"),
+  base_price: yup.number().min(0).required("Harga mulai dari wajib diisi"),
   service_type: yup.string().required("Tipe layanan wajib dipilih"),
   location_address: yup.string().nullable(),
   service_area: yup.string().nullable(),
-  capacity_per_slot: yup.number().min(1),
-  max_orders_per_day: yup.number().nullable(),
-  cancellation_policy: yup.string().nullable(),
-  customer_requirements: yup.string().nullable(),
   special_notes: yup.string().nullable(),
-  portfolio: yup.string().nullable(),
-  social_media: yup.string().nullable(),
   payment_methods: yup.string().nullable(),
-  whatsapp_link: yup.string().nullable(),
   status: yup.string(),
-  internal_code: yup.string().nullable(),
-  is_featured: yup.boolean(),
-  image: yup.string().nullable(),
 });
 
 const loadCategories = async () => {
   try {
-    const { data } = await api.get("/jasa-categories", {
+    const { data } = await api.get("/public/jasa-categories", {
       params: { is_active: true },
     });
     jasaCategories.value = data;
@@ -114,17 +98,21 @@ const loadSubcategories = async (categoryId) => {
     return;
   }
   try {
-    const { data } = await api.get(`/jasa-categories/${categoryId}/subcategories`);
+    console.log("Loading subcategories for category:", categoryId);
+    const { data } = await api.get(`/public/jasa-categories/${categoryId}/subcategories`);
+    console.log("Subcategories loaded:", data);
     jasaSubcategories.value = data;
   } catch (error) {
     console.error("Error loading subcategories:", error);
+    jasaSubcategories.value = [];
   }
 };
 
-const handleCategoryChange = (value) => {
+const handleCategoryChange = async (value) => {
+  console.log("Category changed to:", value);
   formData.value.jasa_category_id = value;
   formData.value.jasa_subcategory_id = null;
-  loadSubcategories(value);
+  await loadSubcategories(value);
 };
 
 const addPackage = () => {
@@ -145,18 +133,31 @@ const submitForm = async (values) => {
     return;
   }
 
+  // Check authentication
+  if (!authStore.isAuthenticated) {
+    toast.error("Anda belum login. Silakan login terlebih dahulu.");
+    router.push("/login");
+    return;
+  }
+
   loading.value = true;
   try {
-    const payload = {
-      ...values,
-      negotiable: values.negotiable || false,
-      is_featured: values.is_featured || false,
-      packages: packages.value.filter(p => p.name && p.price > 0),
-    };
+    // Build multipart form data
+    const fd = new FormData();
+    Object.entries(values).forEach(([k, v]) => {
+      fd.append(k, v ?? "");
+    });
+    // Append images[] if any
+    if (imageFiles.value && imageFiles.value.length) {
+      imageFiles.value.forEach((file) => fd.append("images[]", file));
+    }
 
+    console.log("Submitting jasa with FormData:", { ...values, images_count: imageFiles.value.length });
+
+    // Biarkan axios yang set header multipart/form-data + boundary secara otomatis
     const { data } = await api.post(
       `/merchants/${currentMerchantId.value}/jasas`,
-      payload
+      fd
     );
 
     toast.success("Jasa berhasil dibuat!");
@@ -187,12 +188,12 @@ onMounted(() => {
           :validationSchema="validationSchema"
           @submit="submitForm"
           :initialValues="formData"
-          v-slot="{ handleSubmit, errors }"
+          v-slot="{ handleSubmit, errors, setFieldValue }"
         >
-          <form @submit="handleSubmit" class="space-y-6">
+          <form @submit.prevent="handleSubmit(submitForm)" class="space-y-6">
             <!-- 1. KLASIFIKASI LAYANAN -->
             <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">1. Klasifikasi Layanan</h2>
+              <h2 class="text-lg font-semibold text-gray-800 mb-4">1. Identitas Layanan</h2>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field name="title" v-slot="{ field, errors }">
                   <TextField
@@ -240,288 +241,94 @@ onMounted(() => {
             <div class="border-b pb-6">
               <h2 class="text-lg font-semibold text-gray-800 mb-4">2. Pengaturan Harga</h2>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <SelectField
-                  name="price_type"
-                  label="Pengaturan Harga"
-                  :options="[
-                    { value: 'per_jam', label: 'Per Jam' },
-                    { value: 'per_sesi', label: 'Per Sesi' },
-                    { value: 'per_hari', label: 'Per Hari' },
-                    { value: 'per_project', label: 'Per Proyek' },
-                  ]"
-                  v-model="formData.price_type"
-                  required
-                />
-
-                <Field name="base_price" v-slot="{ field }">
-                  <TextField
-                    label="Harga Mulai Dari (Rp)"
-                    type="number"
-                    placeholder="150000"
-                    v-bind="field"
-                    required
-                  />
-                </Field>
-
-                <Field name="min_order" v-slot="{ field }">
-                  <TextField
-                    label="Minimal Jumlah Pemesanan"
-                    type="number"
-                    placeholder="2"
-                    v-bind="field"
-                    required
-                  />
-                </Field>
-
-                <Field name="negotiable" v-slot="{ field }">
-                  <div class="flex items-center gap-2 pt-6">
-                    <input
-                      type="checkbox"
-                      v-bind="field"
-                      :value="true"
-                      class="w-4 h-4 text-merchant-primary rounded"
-                    />
-                    <label class="text-sm font-medium text-gray-700">Harga Bisa Dinegosiasikan</label>
-                  </div>
-                </Field>
-              </div>
-            </div>
-
-            <!-- 2.5 PAKET LAYANAN -->
-            <div class="border-b pb-6">
-              <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold text-gray-800">2.5. Paket Layanan (Opsional)</h2>
-                <Button
-                  type="button"
-                  variant="primary"
-                  @click="addPackage"
-                  class="text-sm"
-                >
-                  + Tambah Paket
-                </Button>
-              </div>
-
-              <div v-if="packages.length === 0" class="text-center py-8 text-gray-500">
-                <p class="text-sm">Belum ada paket. Klik tombol "Tambah Paket" untuk membuat paket layanan.</p>
-              </div>
-
-              <div v-else class="space-y-4">
-                <div
-                  v-for="(pkg, index) in packages"
-                  :key="index"
-                  class="border border-gray-200 rounded-lg p-4 bg-gray-50"
-                >
-                  <div class="flex items-start justify-between mb-4">
-                    <h3 class="font-semibold text-gray-800">Paket {{ index + 1 }}</h3>
-                    <button
-                      type="button"
-                      @click="removePackage(index)"
-                      class="text-red-600 hover:text-red-700 text-sm font-medium"
-                    >
-                      Hapus
-                    </button>
-                  </div>
-
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">Nama Paket</label>
+                <Field name="fixed_price" v-slot="{ field, errors }">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Harga Tetap</label>
+                    <div class="relative">
                       <input
-                        v-model="pkg.name"
+                        :value="formatCurrency(field.value || 0)"
+                        @input="(e) => field.onChange(parseCurrency(e.target.value))"
+                        @blur="field.onBlur"
                         type="text"
-                        placeholder="Contoh: Paket Standar"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary"
-                      />
-                    </div>
-
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">Harga Paket (Rp)</label>
-                      <input
-                        v-model.number="pkg.price"
-                        type="number"
                         placeholder="0"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary"
                       />
                     </div>
+                    <p v-if="errors[0]" class="text-red-500 text-sm mt-1">{{ errors[0] }}</p>
+                  </div>
+                </Field>
 
-                    <div class="sm:col-span-2">
-                      <label class="block text-sm font-medium text-gray-700 mb-1">Deskripsi Paket</label>
-                      <textarea
-                        v-model="pkg.description"
-                        placeholder="Jelaskan apa yang termasuk dalam paket ini..."
+                <Field name="base_price" v-slot="{ field, errors }">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Harga Mulai Dari</label>
+                    <div class="relative">
+                      <input
+                        :value="formatCurrency(field.value || 0)"
+                        @input="(e) => field.onChange(parseCurrency(e.target.value))"
+                        @blur="field.onBlur"
+                        type="text"
+                        placeholder="0"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary"
-                        rows="2"
                       />
                     </div>
+                    <p v-if="errors[0]" class="text-red-500 text-sm mt-1">{{ errors[0] }}</p>
                   </div>
-                </div>
+                </Field>
               </div>
             </div>
 
-            <!-- 3. DURASI & WAKTU -->
+            <!-- 3. GAMBAR -->
             <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">3. Durasi & Waktu Layanan</h2>
-              <div class="space-y-4">
-                <!-- Estimasi Durasi -->
-                <Field name="estimated_duration" v-slot="{ field }">
-                  <TextField
-                    label="Berapa Lama Layanan"
-                    placeholder="Contoh: 60 menit, 3 jam, 1 hari"
-                    v-bind="field"
+              <h2 class="text-lg font-semibold text-gray-800 mb-4">3. Gambar</h2>
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Unggah Gambar (satu atau lebih)</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    @change="(e) => { imageFiles.value = Array.from(e.target.files || []); }"
+                    class="block w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-merchant-primary/10 file:text-merchant-primary hover:file:bg-merchant-primary/20"
                   />
-                </Field>
-
-                <!-- Jam Layanan (Mulai & Selesai dalam satu baris) -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field name="operating_hours_start" v-slot="{ field }">
-                    <TextField
-                      label="Jam Mulai Layanan"
-                      type="time"
-                      v-bind="field"
-                    />
-                  </Field>
-
-                  <Field name="operating_hours_end" v-slot="{ field }">
-                    <TextField
-                      label="Jam Selesai Layanan"
-                      type="time"
-                      v-bind="field"
-                    />
-                  </Field>
+                  <p class="text-xs text-gray-500 mt-1">
+                    <span class="inline-flex items-center gap-1">
+                      <i class="pi pi-image text-gray-400 text-xs"></i>
+                      <span>Gambar pertama akan dijadikan cover.</span>
+                    </span>
+                  </p>
                 </div>
 
-                <!-- Hari Operasional dengan Checkbox -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-3">Hari Operasional (Hari Apa Saja Anda Bekerja?)</label>
-                  <div class="space-y-2">
-                    <div class="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        id="day_1"
-                        :checked="formData.operating_days.includes('1')"
-                        @change="(e) => {
-                          const days = formData.operating_days.split(',').filter(d => d).map(d => d.trim());
-                          if (e.target.checked) {
-                            if (!days.includes('1')) days.push('1');
-                          } else {
-                            days.splice(days.indexOf('1'), 1);
-                          }
-                          formData.operating_days = days.join(',');
-                        }"
-                        class="w-4 h-4 text-merchant-primary rounded"
-                      />
-                      <label for="day_1" class="text-sm text-gray-700">Senin</label>
-                    </div>
-                    <div class="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        id="day_2"
-                        :checked="formData.operating_days.includes('2')"
-                        @change="(e) => {
-                          const days = formData.operating_days.split(',').filter(d => d).map(d => d.trim());
-                          if (e.target.checked) {
-                            if (!days.includes('2')) days.push('2');
-                          } else {
-                            days.splice(days.indexOf('2'), 1);
-                          }
-                          formData.operating_days = days.join(',');
-                        }"
-                        class="w-4 h-4 text-merchant-primary rounded"
-                      />
-                      <label for="day_2" class="text-sm text-gray-700">Selasa</label>
-                    </div>
-                    <div class="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        id="day_3"
-                        :checked="formData.operating_days.includes('3')"
-                        @change="(e) => {
-                          const days = formData.operating_days.split(',').filter(d => d).map(d => d.trim());
-                          if (e.target.checked) {
-                            if (!days.includes('3')) days.push('3');
-                          } else {
-                            days.splice(days.indexOf('3'), 1);
-                          }
-                          formData.operating_days = days.join(',');
-                        }"
-                        class="w-4 h-4 text-merchant-primary rounded"
-                      />
-                      <label for="day_3" class="text-sm text-gray-700">Rabu</label>
-                    </div>
-                    <div class="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        id="day_4"
-                        :checked="formData.operating_days.includes('4')"
-                        @change="(e) => {
-                          const days = formData.operating_days.split(',').filter(d => d).map(d => d.trim());
-                          if (e.target.checked) {
-                            if (!days.includes('4')) days.push('4');
-                          } else {
-                            days.splice(days.indexOf('4'), 1);
-                          }
-                          formData.operating_days = days.join(',');
-                        }"
-                        class="w-4 h-4 text-merchant-primary rounded"
-                      />
-                      <label for="day_4" class="text-sm text-gray-700">Kamis</label>
-                    </div>
-                    <div class="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        id="day_5"
-                        :checked="formData.operating_days.includes('5')"
-                        @change="(e) => {
-                          const days = formData.operating_days.split(',').filter(d => d).map(d => d.trim());
-                          if (e.target.checked) {
-                            if (!days.includes('5')) days.push('5');
-                          } else {
-                            days.splice(days.indexOf('5'), 1);
-                          }
-                          formData.operating_days = days.join(',');
-                        }"
-                        class="w-4 h-4 text-merchant-primary rounded"
-                      />
-                      <label for="day_5" class="text-sm text-gray-700">Jumat</label>
-                    </div>
-                    <div class="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        id="day_6"
-                        :checked="formData.operating_days.includes('6')"
-                        @change="(e) => {
-                          const days = formData.operating_days.split(',').filter(d => d).map(d => d.trim());
-                          if (e.target.checked) {
-                            if (!days.includes('6')) days.push('6');
-                          } else {
-                            days.splice(days.indexOf('6'), 1);
-                          }
-                          formData.operating_days = days.join(',');
-                        }"
-                        class="w-4 h-4 text-merchant-primary rounded"
-                      />
-                      <label for="day_6" class="text-sm text-gray-700">Sabtu</label>
-                    </div>
-                    <div class="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        id="day_7"
-                        :checked="formData.operating_days.includes('7')"
-                        @change="(e) => {
-                          const days = formData.operating_days.split(',').filter(d => d).map(d => d.trim());
-                          if (e.target.checked) {
-                            if (!days.includes('7')) days.push('7');
-                          } else {
-                            days.splice(days.indexOf('7'), 1);
-                          }
-                          formData.operating_days = days.join(',');
-                        }"
-                        class="w-4 h-4 text-merchant-primary rounded"
-                      />
-                      <label for="day_7" class="text-sm text-gray-700">Minggu</label>
+                <div
+                  v-if="imageFiles.length"
+                  class="grid grid-cols-2 sm:grid-cols-4 gap-3"
+                >
+                  <div
+                    v-for="(file, idx) in imageFiles"
+                    :key="idx"
+                    class="relative rounded-lg border border-gray-200 overflow-hidden group bg-gray-50"
+                  >
+                    <img
+                      :src="getNewImagePreviewUrl(file)"
+                      alt="preview"
+                      class="w-full h-28 object-cover"
+                    />
+                    <span
+                      v-if="idx === 0"
+                      class="absolute top-1 left-1 bg-emerald-600 text-white text-[10px] px-1.5 py-0.5 rounded shadow"
+                    >
+                      Cover
+                    </span>
+                    <div
+                      class="absolute bottom-1 right-1 bg-white/90 text-gray-500 rounded-full p-1 shadow-sm flex items-center justify-center text-[10px] group-hover:bg-merchant-primary/90 group-hover:text-white transition"
+                    >
+                      <i class="pi pi-image"></i>
                     </div>
                   </div>
                 </div>
 
+                <p v-if="imageFiles.length" class="text-xs text-gray-500">
+                  {{ imageFiles.length }} gambar dipilih.
+                </p>
               </div>
             </div>
 
@@ -551,88 +358,9 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- 5. KAPASITAS -->
+            <!-- 5. PEMBAYARAN -->
             <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">5. Kapasitas & Batasan</h2>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field name="capacity_per_slot" v-slot="{ field }">
-                  <TextField
-                    label="Kapasitas Per Sesi"
-                    type="number"
-                    v-bind="field"
-                  />
-                </Field>
-
-                <Field name="max_orders_per_day" v-slot="{ field }">
-                  <TextField
-                    label="Maks Order Per Hari"
-                    type="number"
-                    v-bind="field"
-                  />
-                </Field>
-              </div>
-            </div>
-
-            <!-- 7. SYARAT -->
-            <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">7. Syarat & Ketentuan</h2>
-              <div class="space-y-4">
-                <Field name="cancellation_policy" v-slot="{ field }">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Syarat Pembatalan Pesanan</label>
-                    <textarea
-                      v-bind="field"
-                      placeholder="Contoh: Bisa dibatalkan H-1, setelah itu kena charge 50%"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      rows="2"
-                    />
-                  </div>
-                </Field>
-
-                <Field name="customer_requirements" v-slot="{ field }">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Apa Yang Pelanggan Perlu Siapkan?</label>
-                    <textarea
-                      v-bind="field"
-                      placeholder="Contoh: Ruangan kosong, colokan listrik, dokumen"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      rows="2"
-                    />
-                  </div>
-                </Field>
-
-                <Field name="special_notes" v-slot="{ field }">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Catatan Khusus (Opsional)</label>
-                    <textarea
-                      v-bind="field"
-                      placeholder="Contoh: Hasil bergantung kondisi lapangan dan cuaca"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      rows="2"
-                    />
-                  </div>
-                </Field>
-              </div>
-            </div>
-
-            <!-- 8. MEDIA -->
-            <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">8. Media Pendukung</h2>
-              <div class="space-y-4">
-
-                <Field name="social_media" v-slot="{ field }">
-                  <TextField
-                    label="Link Instagram, Website, Atau Kontak Lain"
-                    placeholder="https://instagram.com/... (pisahkan dengan koma jika lebih dari satu)"
-                    v-bind="field"
-                  />
-                </Field>
-              </div>
-            </div>
-
-            <!-- 9. PEMBAYARAN & KONTAK -->
-            <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">9. Pembayaran & Kontak</h2>
+              <h2 class="text-lg font-semibold text-gray-800 mb-4">6. Pembayaran</h2>
               <div class="space-y-4">
                 <!-- Metode Pembayaran -->
                 <div>
@@ -656,42 +384,14 @@ onMounted(() => {
                       />
                       <label for="payment_cod" class="text-sm text-gray-700">COD (Bayar di Tempat)</label>
                     </div>
-                    <div class="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        id="payment_qris"
-                        :checked="formData.payment_methods.includes('qris')"
-                        @change="(e) => {
-                          const methods = formData.payment_methods.split(',').filter(m => m).map(m => m.trim());
-                          if (e.target.checked) {
-                            if (!methods.includes('qris')) methods.push('qris');
-                          } else {
-                            methods.splice(methods.indexOf('qris'), 1);
-                          }
-                          formData.payment_methods = methods.length ? methods.join(',') : 'cod';
-                        }"
-                        class="w-4 h-4 text-merchant-primary rounded"
-                      />
-                      <label for="payment_qris" class="text-sm text-gray-700">QRIS (Scan & Transfer)</label>
-                    </div>
                   </div>
                 </div>
-
-                <!-- Link WhatsApp -->
-                <Field name="whatsapp_link" v-slot="{ field }">
-                  <TextField
-                    label="Link WhatsApp untuk Hubungi Penjual"
-                    placeholder="Contoh: https://wa.me/6281234567890"
-                    v-bind="field"
-                  />
-                </Field>
-                <p class="text-xs text-gray-500">Customer akan klik tombol ini untuk chat Anda via WhatsApp</p>
               </div>
             </div>
 
-            <!-- 10. ADMIN -->
+            <!-- 7. ADMIN -->
             <div class="pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">10. Info Admin</h2>
+              <h2 class="text-lg font-semibold text-gray-800 mb-4">7. Admin</h2>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <SelectField
                   name="status"
@@ -703,34 +403,6 @@ onMounted(() => {
                   ]"
                   v-model="formData.status"
                 />
-
-                <Field name="internal_code" v-slot="{ field }">
-                  <TextField
-                    label="Kode Referensi (Untuk Arsip Anda)"
-                    placeholder="Contoh: JASA-001"
-                    v-bind="field"
-                  />
-                </Field>
-
-                <Field name="priority" v-slot="{ field }">
-                  <TextField
-                    label="Urutan Tampilan (1-10, Angka Kecil Lebih Atas)"
-                    type="number"
-                    v-bind="field"
-                  />
-                </Field>
-
-                <Field name="is_featured" v-slot="{ field }">
-                  <div class="flex items-center gap-2 pt-6">
-                    <input
-                      type="checkbox"
-                      v-bind="field"
-                      :value="true"
-                      class="w-4 h-4 text-merchant-primary rounded"
-                    />
-                    <label class="text-sm font-medium text-gray-700">Tampilkan di Unggulan?</label>
-                  </div>
-                </Field>
               </div>
             </div>
 

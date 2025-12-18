@@ -83,6 +83,96 @@
       </p>
     </section>
 
+    <!-- Detail Layanan -->
+    <section class="bg-white mt-3 px-4 py-4">
+      <h2 class="text-sm font-semibold text-gray-800 mb-3">Detail Layanan</h2>
+      <div class="space-y-3 text-sm">
+        <div v-if="jasa?.estimated_duration" class="flex justify-between">
+          <span class="text-gray-600">⏱️ Durasi</span>
+          <span class="font-medium text-gray-900">{{ jasa.estimated_duration }}</span>
+        </div>
+        <div v-if="jasa?.price_type" class="flex justify-between">
+          <span class="text-gray-600">💰 Tipe Harga</span>
+          <span class="font-medium text-gray-900">{{ formatPriceType(jasa.price_type) }}</span>
+        </div>
+        <div v-if="jasa?.service_type" class="flex justify-between">
+          <span class="text-gray-600">📍 Tempat Layanan</span>
+          <span class="font-medium text-gray-900">{{ formatServiceType(jasa.service_type) }}</span>
+        </div>
+        <div v-if="jasa?.min_order" class="flex justify-between">
+          <span class="text-gray-600">📦 Minimal Order</span>
+          <span class="font-medium text-gray-900">{{ jasa.min_order }}</span>
+        </div>
+        <div v-if="jasa?.capacity_per_slot" class="flex justify-between">
+          <span class="text-gray-600">👥 Kapasitas Per Sesi</span>
+          <span class="font-medium text-gray-900">{{ jasa.capacity_per_slot }} orang</span>
+        </div>
+        <div v-if="jasa?.negotiable" class="flex justify-between">
+          <span class="text-gray-600">💬 Harga Bisa Dinegosiasikan</span>
+          <span class="font-medium text-green-600">✓ Ya</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Jam Operasional -->
+    <section class="bg-white mt-3 px-4 py-4">
+      <h2 class="text-sm font-semibold text-gray-800 mb-3">Jam & Hari Operasional</h2>
+      <div class="space-y-2 text-sm">
+        <div v-if="jasa?.operating_hours_start" class="flex justify-between">
+          <span class="text-gray-600">⏰ Jam Operasional</span>
+          <span class="font-medium text-gray-900">
+            {{ formatTime(jasa.operating_hours_start) }} - {{ formatTime(jasa.operating_hours_end) }}
+          </span>
+        </div>
+        <div v-if="jasa?.operating_days" class="flex justify-between">
+          <span class="text-gray-600">📅 Hari Kerja</span>
+          <span class="font-medium text-gray-900">{{ formatOperatingDays(jasa.operating_days) }}</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lokasi Layanan -->
+    <section v-if="jasa?.location_address" class="bg-white mt-3 px-4 py-4">
+      <h2 class="text-sm font-semibold text-gray-800 mb-2">📍 Lokasi Layanan</h2>
+      <p class="text-sm text-gray-700">{{ jasa.location_address }}</p>
+    </section>
+
+    <!-- Pembayaran & Kontak -->
+    <section class="bg-white mt-3 px-4 py-4">
+      <h2 class="text-sm font-semibold text-gray-800 mb-3">Pembayaran & Kontak</h2>
+      <div class="space-y-3 text-sm">
+        <div v-if="jasa?.payment_methods">
+          <span class="text-gray-600">💳 Metode Pembayaran</span>
+          <p class="font-medium text-gray-900 mt-1">{{ formatPaymentMethods(jasa.payment_methods) }}</p>
+        </div>
+        <div v-if="jasa?.whatsapp_link">
+          <span class="text-gray-600">💬 WhatsApp</span>
+          <a :href="jasa.whatsapp_link" target="_blank" class="text-[#FFA30E] font-medium hover:underline mt-1 block">
+            Hubungi via WhatsApp →
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Syarat & Ketentuan -->
+    <section class="bg-white mt-3 px-4 py-4">
+      <h2 class="text-sm font-semibold text-gray-800 mb-3">📋 Syarat & Ketentuan</h2>
+      <div class="space-y-3 text-sm">
+        <div v-if="jasa?.cancellation_policy">
+          <span class="text-gray-600 block mb-1">Kebijakan Pembatalan</span>
+          <p class="text-gray-700">{{ jasa.cancellation_policy }}</p>
+        </div>
+        <div v-if="jasa?.customer_requirements">
+          <span class="text-gray-600 block mb-1">Yang Perlu Disiapkan</span>
+          <p class="text-gray-700">{{ jasa.customer_requirements }}</p>
+        </div>
+        <div v-if="jasa?.special_notes">
+          <span class="text-gray-600 block mb-1">Catatan Khusus</span>
+          <p class="text-gray-700">{{ jasa.special_notes }}</p>
+        </div>
+      </div>
+    </section>
+
     <!-- Pilih Jadwal -->
     <section class="bg-white mt-3 px-4 py-4">
       <h3 class="text-sm font-semibold mb-3">Pilih Jadwal</h3>
@@ -163,6 +253,7 @@
         <button
           type="button"
           class="flex items-center justify-center w-11 h-11 rounded-xl bg-[#FFA30E] hover:bg-[#e5920d] transition"
+          @click="showChat = true"
         >
           <img :src="chatIcon" alt="Chat" class="w-5 h-5" />
         </button>
@@ -193,6 +284,50 @@
       :open="calendarOpen"
       @close="calendarOpen = false"
     />
+
+    <!-- Chat Pembeli: bottom sheet sederhana -->
+    <transition
+      enter-active-class="transition duration-200 ease-out"
+      enter-from-class="opacity-0 translate-y-full"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition duration-200 ease-in"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 translate-y-full"
+    >
+      <div
+        v-if="showChat"
+        class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40"
+        @click.self="showChat = false"
+      >
+        <div
+          class="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl h-[70vh] sm:h-[520px] flex flex-col"
+        >
+          <div
+            class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-2xl"
+          >
+            <div>
+              <p class="text-sm font-semibold text-gray-900">
+                Chat dengan Penjual
+              </p>
+              <p class="text-xs text-gray-500">
+                Tanyakan detail jasa atau minta penawaran harga.
+              </p>
+            </div>
+            <button
+              type="button"
+              class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500"
+              @click="showChat = false"
+            >
+              <i class="pi pi-times text-sm"></i>
+            </button>
+          </div>
+
+          <div class="flex-1 p-3">
+            <ChatWindow :jasa-id="route.params.id" mode="buyer" />
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -201,6 +336,7 @@ import { ref, onMounted, computed } from "vue";
 import { useRoute } from "vue-router";
 import api from "@/libs/axios.js";
 import CalendarModal from "@/components/CalendarModal.vue";
+import ChatWindow from "@/components/common/ChatWindow.vue";
 
 import starIcon from "@/assets/icons/Bintang.png";
 import lokasiIcon from "@/assets/icons/TitikLokasi.png";
@@ -209,6 +345,7 @@ import chatIcon from "@/assets/icons/Chat.png";
 
 const route = useRoute();
 const jasa = ref(null);
+const showChat = ref(false);
 
 // paket aktif
 const activePackage = ref(null);
@@ -291,7 +428,7 @@ const jasaDesc = computed(
 const priceDisplay = computed(() => {
   if (!jasa.value) return "Rp 0";
   
-  const basePrice = jasa.value.price || 0;
+  const basePrice = jasa.value.base_price || 0;
   const packages = jasa.value.packages || [];
   
   // Jika tidak ada paket, tampilkan harga dasar saja
@@ -314,6 +451,49 @@ const priceDisplay = computed(() => {
 });
 
 const formatIDR = (v) => Number(v || 0).toLocaleString("id-ID");
+
+// Helper functions untuk format data
+const formatTime = (timeStr) => {
+  if (!timeStr) return "-";
+  const [hours, minutes] = timeStr.split(":");
+  return `${hours}:${minutes}`;
+};
+
+const formatPriceType = (type) => {
+  const map = {
+    per_jam: "Per Jam",
+    per_sesi: "Per Sesi",
+    per_hari: "Per Hari",
+    per_project: "Per Proyek",
+  };
+  return map[type] || type;
+};
+
+const formatServiceType = (type) => {
+  const map = {
+    at_location: "Di Tempat Saya",
+    on_site: "Ke Lokasi Pelanggan",
+    online: "Online",
+  };
+  return map[type] || type;
+};
+
+const formatOperatingDays = (days) => {
+  if (!days) return "-";
+  const daysMap = { 1: "Sen", 2: "Sel", 3: "Rab", 4: "Kam", 5: "Jum", 6: "Sab", 7: "Min" };
+  const dayList = days.split(",").map(d => daysMap[d.trim()]).filter(Boolean);
+  return dayList.join(", ");
+};
+
+const formatPaymentMethods = (methods) => {
+  if (!methods) return "-";
+  const methodsMap = { cod: "COD (Bayar di Tempat)", qris: "QRIS (Scan & Transfer)" };
+  return methods
+    .split(",")
+    .map(m => methodsMap[m.trim()])
+    .filter(Boolean)
+    .join(", ");
+};
 
 onMounted(async () => {
   try {

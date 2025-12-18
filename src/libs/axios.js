@@ -146,6 +146,21 @@ api.interceptors.request.use(
   async (config) => {
     const method = (config.method || "get").toUpperCase();
 
+    // Jika payload adalah FormData, biarkan browser yang menentukan
+    // header Content-Type (multipart/form-data + boundary)
+    if (config.data instanceof FormData) {
+      if (config.headers && config.headers["Content-Type"]) {
+        delete config.headers["Content-Type"];
+      }
+    }
+
+    // ✅ Add Authorization header if token exists in localStorage
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+      console.log("[API] Authorization header added");
+    }
+
     // ✅ Only ensure CSRF token for state-changing requests
     if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
       await ensureCsrfToken();
@@ -162,6 +177,7 @@ api.interceptors.request.use(
       params: config.params,
       hasData: !!config.data,
       hasCsrfToken: !!api.defaults.headers.common["X-XSRF-TOKEN"],
+      hasAuthToken: !!token,
     });
 
     return config;

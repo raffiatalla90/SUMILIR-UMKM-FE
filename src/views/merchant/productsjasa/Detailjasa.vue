@@ -125,6 +125,23 @@ const addOnPriceRange = computed(() => {
   return `+${formatPrice(min)} - ${formatPrice(max)}`;
 });
 
+// Main image src: pakai relasi images dulu, fallback ke field legacy `image`
+const mainImageSrc = computed(() => {
+  if (!jasa.value) return "";
+
+  const images = jasa.value.images || [];
+  if (images.length) {
+    const img = images[currentImageIndex.value] || images[0];
+    return getImageUrl(img?.path || img?.id || jasa.value.image);
+  }
+
+  if (jasa.value.image) {
+    return getImageUrl(jasa.value.image);
+  }
+
+  return "";
+});
+
 // ✅ Methods
 const formatNumber = (num) => {
   if (num >= 1000000000) {
@@ -190,16 +207,16 @@ const loadDetail = async () => {
     const productId = route.params.id;
     console.log("[Detail] Loading jasa", productId);
 
-    const data = await fetchJasaDetail(productId);
+    const data = await fetchJasaDetail(productId, true, currentMerchantId.value);
     jasa.value = data;
 
     if (jasa.value?.images && jasa.value.images.length > 0) {
       currentImageIndex.value = 0;
     }
 
-    console.log("[Detail] Product loaded", jasa.value);
+    console.log("[Detail] Jasa loaded", jasa.value);
   } catch (err) {
-    console.error("[Detail] Error loading product", err);
+    console.error("[Detail] Error loading jasa", err);
     const status = err?.response?.status;
     if (status === 404) {
       toast.error("Jasa tidak ditemukan");
@@ -261,11 +278,26 @@ const getSelectionTypeLabel = (group) => {
             :merchantId="currentMerchantId"
           />
           <p class="text-muted-foreground text-xs lg:text-sm">
-            {{ jasa?.name || "Loading..." }}
+            {{ jasa?.title || "Loading..." }}
           </p>
         </div>
 
         <div v-if="jasa" class="flex items-center gap-3">
+          <div class="hidden sm:flex items-center gap-3 mr-4 text-xs text-gray-500">
+            <div class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 border border-gray-200">
+              <i class="pi pi-image text-gray-400 text-xs"></i>
+              <span>Galeri</span>
+            </div>
+            <div class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 border border-gray-200">
+              <i class="pi pi-wallet text-gray-400 text-xs"></i>
+              <span>Harga</span>
+            </div>
+            <div class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 border border-gray-200">
+              <i class="pi pi-check-circle text-gray-400 text-xs"></i>
+              <span>Status</span>
+            </div>
+          </div>
+
           <Button @click="editProduct" variant="merchant" size="md">
             <i class="pi pi-pencil"></i>
             <span>Edit Jasa</span>
@@ -311,15 +343,15 @@ const getSelectionTypeLabel = (group) => {
         <!-- Left Column (Images + Basic Info) -->
         <div class="lg:col-span-1 space-y-2 sm:space-y-4">
           <!-- Image Gallery Card -->
-          <div v-if="jasa.images && jasa.images.length > 0">
+          <div v-if="(jasa.images && jasa.images.length > 0) || jasa.image">
             <!-- Main Image -->
             <div
               class="relative aspect-square max-w-2xl mx-auto bg-gray-100 overflow-hidden mb-4 shadow-sm -mt-4 sm:mt-0 sm:rounded-2xl"
             >
               <img
-                v-if="jasa.images[currentImageIndex]?.id"
-                :src="getImageUrl(jasa.images[currentImageIndex].id)"
-                :alt="jasa.name"
+                v-if="mainImageSrc"
+                :src="mainImageSrc"
+                :alt="jasa.title"
                 class="w-full h-full object-cover"
                 @error="(e) => (e.target.style.display = 'none')"
               />
@@ -341,7 +373,7 @@ const getSelectionTypeLabel = (group) => {
             </div>
 
             <!-- Thumbnails -->
-            <div class="grid grid-cols-4 sm:grid-cols-6 gap-2">
+            <div v-if="jasa.images && jasa.images.length > 0" class="grid grid-cols-4 sm:grid-cols-6 gap-2">
               <button
                 v-for="(image, index) in jasa.images"
                 :key="image.id"
@@ -355,9 +387,9 @@ const getSelectionTypeLabel = (group) => {
                 class="relative border rounded-lg overflow-hidden transition aspect-square"
               >
                 <img
-                  v-if="image.id"
-                  :src="getImageUrl(image.id)"
-                  :alt="`${jasa.name} ${index + 1}`"
+                  v-if="image.id || image.path"
+                  :src="getImageUrl(image.path || image.id)"
+                  :alt="`${jasa.title} ${index + 1}`"
                   class="w-full h-full object-cover"
                   @error="(e) => (e.target.style.display = 'none')"
                 />
@@ -366,10 +398,18 @@ const getSelectionTypeLabel = (group) => {
           </div>
 
           <!-- No Images State -->
-          <div v-else>
-            <p class="text-center text-gray-500">
-              Tidak ada gambar untuk jasa ini.
-            </p>
+          <div v-else class="flex items-center justify-center">
+            <div class="inline-flex flex-col items-center justify-center px-4 py-6 rounded-xl border border-dashed border-gray-300 bg-gray-50 text-center max-w-xs">
+              <div class="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center mb-2">
+                <i class="pi pi-image text-gray-400 text-lg"></i>
+              </div>
+              <p class="text-sm font-medium text-gray-600">
+                Tidak ada gambar untuk jasa ini.
+              </p>
+              <p class="text-xs text-gray-400 mt-1">
+                Tambahkan gambar dari halaman edit agar pelanggan lebih mudah mengenali layanan.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -377,12 +417,82 @@ const getSelectionTypeLabel = (group) => {
         <div class="lg:col-span-1 space-y-2 sm:space-y-4">
           <!-- Product Name Card -->
           <div class="bg-white p-4 sm:p-6 sm:rounded-xl sm:shadow-sm">
-            <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-2">
-              {{ jasa.name }}
-            </h2>
-            <p class="text-sm text-gray-500 font-mono">
-              SKU: {{ jasa.variants?.[0]?.sku || "-" }}
-            </p>
+            <div class="flex items-start gap-3">
+              <div
+                class="w-10 h-10 rounded-full bg-merchant-primary/10 flex items-center justify-center flex-shrink-0"
+              >
+                <i class="pi pi-briefcase text-merchant-primary text-lg"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-1 truncate">
+                  {{ jasa.title }}
+                </h2>
+                <p class="text-xs text-gray-500 flex items-center gap-2">
+                  <i class="pi pi-tag text-gray-400 text-xs"></i>
+                  <span class="truncate">{{ jasa.category?.name || 'Tanpa kategori' }}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Harga Card -->
+          <div class="bg-white p-4 sm:p-6 sm:rounded-xl sm:shadow-sm">
+            <h3 class="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+              <i class="pi pi-wallet text-gray-400"></i>
+              Harga
+            </h3>
+
+            <!-- Kedua harga diisi -->
+            <div v-if="jasa.fixed_price && jasa.fixed_price > 0 && jasa.base_price && jasa.base_price > 0" class="space-y-1">
+              <div class="flex items-center justify-between gap-3">
+                <span class="text-xs text-gray-500 flex items-center gap-1">
+                  <i class="pi pi-check-circle text-emerald-500 text-xs"></i>
+                  <span>Harga tetap</span>
+                </span>
+                <span class="text-lg sm:text-2xl font-bold text-merchant-primary">
+                  {{ formatPrice(jasa.fixed_price) }}
+                </span>
+              </div>
+              <div class="flex items-center justify-between gap-3">
+                <span class="text-xs text-gray-500 flex items-center gap-1">
+                  <i class="pi pi-arrow-right text-gray-400 text-xs"></i>
+                  <span>Mulai dari</span>
+                </span>
+                <span class="text-base sm:text-lg font-semibold text-gray-900">
+                  {{ formatPrice(jasa.base_price) }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Hanya fixed price -->
+            <div v-else-if="jasa.fixed_price && jasa.fixed_price > 0">
+              <p class="text-2xl font-bold text-merchant-primary">
+                {{ formatPrice(jasa.fixed_price) }}
+              </p>
+              <p class="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                <i class="pi pi-check-circle text-emerald-500 text-xs"></i>
+                <span>Harga tetap</span>
+              </p>
+            </div>
+
+            <!-- Hanya base price -->
+            <div v-else-if="jasa.base_price && jasa.base_price > 0">
+              <p class="text-2xl font-bold text-merchant-primary">
+                {{ formatPrice(jasa.base_price) }}
+              </p>
+              <p class="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                <i class="pi pi-arrow-right text-gray-400 text-xs"></i>
+                <span>Mulai dari</span>
+              </p>
+            </div>
+
+            <!-- Tidak ada harga -->
+            <div v-else>
+              <p class="text-sm text-gray-500 flex items-center gap-2">
+                <i class="pi pi-info-circle text-gray-400 text-sm"></i>
+                <span>Belum ada harga yang diatur.</span>
+              </p>
+            </div>
           </div>
 
           <!-- Description Card - Desktop Only -->
@@ -406,11 +516,15 @@ const getSelectionTypeLabel = (group) => {
           <!-- Status & Category Card -->
           <div class="bg-white p-4 sm:p-6 space-y-3 sm:rounded-xl sm:shadow-sm">
             <!-- Status -->
-            <div class="flex items-center justify-between">
-              <span class="text-sm text-gray-600">Status</span>
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-sm text-gray-600 flex items-center gap-2">
+                <i class="pi pi-check-circle text-gray-400 text-sm"></i>
+                <span>Status</span>
+              </span>
               <StatusLabel
-                :status="product.status"
-                variant="jasa"
+                :status="(jasa?.is_active ?? (jasa?.status === 'active')) ? 'success' : 'muted'"
+                variant="general"
+                :label="(jasa?.is_active ?? (jasa?.status === 'active')) ? 'Aktif' : 'Tidak Aktif'"
                 size="md"
               />
             </div>
@@ -421,9 +535,12 @@ const getSelectionTypeLabel = (group) => {
             <!-- Main Category -->
             <div class="flex items-center justify-between">
               <span class="text-sm text-gray-600">Kategori</span>
-              <span class="text-sm font-medium text-gray-900">
-                {{ jasa.mainCategory?.name || "-" }}
-              </span>
+              <div class="text-sm font-medium text-gray-900 text-right">
+                <div>{{ jasa.category?.name || "-" }}</div>
+                <div v-if="jasa.subcategory?.name" class="text-xs text-gray-500">
+                  {{ jasa.subcategory.name }}
+                </div>
+              </div>
             </div>
 
             <!-- Min Purchase -->
@@ -438,6 +555,79 @@ const getSelectionTypeLabel = (group) => {
                 </span>
               </div>
             </div>
+          </div>
+
+          <!-- Lokasi & Layanan Card -->
+          <div class="bg-white p-4 sm:p-6 space-y-3 sm:rounded-xl sm:shadow-sm">
+            <h3 class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <i class="pi pi-map-marker text-gray-400"></i>
+              Lokasi & Layanan
+            </h3>
+            
+            <!-- Service Type -->
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-gray-600">Tipe Layanan</span>
+              <span class="text-sm font-medium text-gray-900">
+                <template v-if="jasa.service_type === 'at_location'">Di Tempat Saya</template>
+                <template v-else-if="jasa.service_type === 'on_site'">Ke Rumah/Lokasi Pelanggan</template>
+                <template v-else-if="jasa.service_type === 'online'">Online</template>
+                <template v-else>{{ jasa.service_type || '-' }}</template>
+              </span>
+            </div>
+
+            <!-- Location Address -->
+            <div v-if="jasa.location_address">
+              <div class="border-t border-gray-100 mb-3"></div>
+              <div class="flex items-start justify-between gap-3">
+                <span class="text-sm text-gray-600 flex-shrink-0">Alamat Tempat Layanan</span>
+                <span class="text-sm font-medium text-gray-900 text-right">
+                  {{ jasa.location_address }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Service Area -->
+            <div v-if="jasa.service_area">
+              <div class="border-t border-gray-100 mb-3"></div>
+              <div class="flex items-start justify-between gap-3">
+                <span class="text-sm text-gray-600 flex-shrink-0">Area Layanan</span>
+                <span class="text-sm font-medium text-gray-900 text-right">
+                  {{ jasa.service_area }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payment Methods Card -->
+          <div class="bg-white p-4 sm:p-6 space-y-3 sm:rounded-xl sm:shadow-sm">
+            <h3 class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <i class="pi pi-wallet text-gray-400"></i>
+              Metode Pembayaran
+            </h3>
+            <div class="flex flex-wrap gap-2">
+              <span 
+                v-for="method in (jasa.payment_methods || '').split(',').filter(m => m.trim())" 
+                :key="method"
+                class="px-3 py-1 bg-green-100 text-green-700 text-sm rounded-full"
+              >
+                <template v-if="method.trim() === 'cod'">COD (Bayar di Tempat)</template>
+                <template v-else>{{ method.trim() }}</template>
+              </span>
+              <span v-if="!jasa.payment_methods || !jasa.payment_methods.trim()" class="text-sm text-gray-500">
+                Tidak ada metode pembayaran
+              </span>
+            </div>
+          </div>
+
+          <!-- Special Notes Card -->
+          <div v-if="jasa.special_notes" class="bg-white p-4 sm:p-6 sm:rounded-xl sm:shadow-sm">
+            <h3 class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <i class="pi pi-info-circle text-gray-400"></i>
+              Catatan Khusus
+            </h3>
+            <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+              {{ jasa.special_notes }}
+            </p>
           </div>
 
           <!-- Add-ons Card -->
@@ -474,7 +664,7 @@ const getSelectionTypeLabel = (group) => {
       footer-class="inline sm:hidden"
       @close="closeAddOnsModal"
     >
-      <div v-if="product && product.addonGroups">
+      <div v-if="jasa && jasa.addonGroups">
         <!-- Summary Card -->
         <div
           class="bg-merchant-primary/5 rounded-xl p-4 border border-merchant-primary/20 mb-4"
@@ -509,7 +699,7 @@ const getSelectionTypeLabel = (group) => {
         <!-- Add-on Groups List -->
         <div class="space-y-4">
           <div
-            v-for="(group, gIndex) in product.addonGroups"
+            v-for="(group, gIndex) in jasa.addonGroups"
             :key="group.id"
             class="bg-white border border-muted-background rounded-xl overflow-hidden"
           >

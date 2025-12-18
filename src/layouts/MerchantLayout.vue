@@ -400,6 +400,30 @@ defineExpose({
         !isOpen ? 'sm:ml-16' : 'sm:ml-64',
       ]"
     >
+      <!-- Mobile Top Bar with Sidebar Toggle -->
+      <header
+        class="sm:hidden sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm"
+      >
+        <div class="flex items-center gap-3 px-4 py-3">
+          <button
+            @click="toggleSidebar"
+            class="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 active:scale-95 transition"
+            aria-label="Toggle sidebar"
+          >
+            <i class="pi pi-bars text-base"></i>
+          </button>
+
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-gray-900 truncate">
+              {{ merchantName }}
+            </p>
+            <p class="text-[11px] text-gray-500 truncate">
+              {{ merchantType }}
+            </p>
+          </div>
+        </div>
+      </header>
+
       <router-view v-slot="{ Component }">
         <transition
           name="fade"
