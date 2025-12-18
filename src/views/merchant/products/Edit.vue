@@ -258,26 +258,15 @@ watch(
 
 // ✅ IMPROVED: Helper function dengan EXPLICIT sorting
 const createCombinationKey = (attributes) => {
-  if (!attributes || attributes.length === 0) return "";
+  if (!Array.isArray(attributes) || attributes.length === 0) return "";
 
-  // Sort by name (case-insensitive)
-  const sorted = [...attributes].sort((a, b) => {
-    const nameA = (a.name || "").toLowerCase().trim();
-    const nameB = (b.name || "").toLowerCase().trim();
-    return nameA.localeCompare(nameB);
-  });
-
-  // Create key with normalized values
-  const key = sorted
-    .map((attr) => {
-      const name = (attr.name || "").toLowerCase().trim();
-      const value = (attr.value || "").toLowerCase().trim();
-      return `${name}:${value}`;
-    })
+  return attributes
+    .filter((a) => a.option_value_id)
+    .map((a) => Number(a.option_value_id))
+    .sort((a, b) => a - b)
     .join("|");
-
-  return key;
 };
+
 let existingCombosMap = new Map();
 // ✅ CRITICAL FIX: Generate combinations dengan proper attribute structure
 const generateCombinations = () => {
@@ -302,27 +291,60 @@ const generateCombinations = () => {
   const newCombinations = [];
 
   const generateRecursive = (variantIndex, current) => {
+    // ==========================
+    // BASE CASE (WAJIB RETURN)
+    // ==========================
     if (variantIndex === validVariants.length) {
-      // ✅ CRITICAL: Ensure attributes are in SAME ORDER as when stored
-      const normalizedAttributes = current.attributes.map((attr) => ({
-        name: attr.name.trim(),
-        value: attr.value.trim(),
-      }));
+      const normalizedAttributes = current.attributes;
 
-      const attributeKey = createCombinationKey(normalizedAttributes);
-      const existingData = existingCombosMap.get(attributeKey);
+      const attributeKey = normalizedAttributes.every((a) => a.option_value_id)
+        ? createCombinationKey(normalizedAttributes)
+        : null;
+
+      const existingData = attributeKey
+        ? existingCombosMap.get(attributeKey)
+        : null;
+
+      let variantId = null;
+
+      if (attributeKey && existingCombosMap.has(attributeKey)) {
+        const existing = existingCombosMap.get(attributeKey);
+
+        const currentOptionIds = normalizedAttributes
+          .map((a) => a.option_value_id)
+          .filter(Boolean)
+          .sort((a, b) => a - b);
+
+        const isSameStructure =
+          JSON.stringify(currentOptionIds) ===
+          JSON.stringify(existing.optionValueIds);
+
+        if (isSameStructure) {
+          variantId = existing.id;
+        }
+      }
 
       newCombinations.push({
+        id: variantId,
         combination: current.combination,
         sku: existingData?.sku || "",
         price: existingData?.price || 0,
         stock: existingData?.stock || 0,
         attributes: normalizedAttributes,
       });
-      return;
+
+      return; // 🔥🔥🔥 INI KUNCI UTAMANYA
     }
 
+    // ==========================
+    // RECURSIVE STEP
+    // ==========================
     const variant = validVariants[variantIndex];
+
+    if (!variant || !Array.isArray(variant.options)) {
+      return; // safety guard
+    }
+
     variant.options.forEach((option) => {
       generateRecursive(variantIndex + 1, {
         combination: current.combination
@@ -333,6 +355,7 @@ const generateCombinations = () => {
           {
             name: variant.name,
             value: option.name,
+            option_value_id: option.id || null,
           },
         ],
       });
@@ -349,6 +372,11 @@ const generateCombinations = () => {
   }
 
   selectedCombinations.value.clear();
+  combinations.value.forEach((combo) => {
+    if (combo.id && combo.attributes.some((a) => !a.option_value_id)) {
+      combo.id = null; // 🔥 PAKSA CREATE BARU
+    }
+  });
 };
 const absoluteImagePath = (img) => {
   // img bisa berupa string (path) atau object { id, image_path }
@@ -555,7 +583,8 @@ const addVariant = () => {
 
   const variantId = Date.now() + Math.random();
   variants.value.push({
-    id: variantId,
+    id: null,
+    clientKey: variantId,
     name: "",
     options: [{ id: null, name: "", images: [] }],
   });
@@ -566,9 +595,12 @@ const addVariant = () => {
 };
 
 const removeVariant = (index) => {
-  const variantId = variants.value[index].id;
-  delete variantNames.value[variantId];
-  delete variantUsesImages.value[variantId];
+  const clientKey = variants.value[index].clientKey;
+
+  delete variantNames.value[clientKey];
+  delete variantUsesImages.value[clientKey];
+  expandedVariants.value.delete(clientKey);
+
   variants.value.splice(index, 1);
 };
 
@@ -602,13 +634,13 @@ const removeOption = (variantIndex, optionIndex) => {
 };
 
 // ✅ SAMA SEPERTI CREATE: Toggle antara 0 dan 1
-const toggleVariantImages = (variantId) => {
-  variantUsesImages.value[variantId] = variantUsesImages.value[variantId]
+const toggleVariantImages = (clientKey) => {
+  variantUsesImages.value[clientKey] = variantUsesImages.value[clientKey]
     ? 0
     : 1;
 
-  if (variantUsesImages.value[variantId] === 0) {
-    const variant = variants.value.find((v) => v.id === variantId);
+  if (variantUsesImages.value[clientKey] === 0) {
+    const variant = variants.value.find((v) => v.clientKey === clientKey);
     if (variant) {
       variant.options.forEach((opt) => (opt.images = []));
     }
@@ -745,27 +777,34 @@ const applyBulkEdit = () => {
 
 // ✅ SAMA SEPERTI CREATE: Add-on Group Methods
 const addAddOnGroup = () => {
-  if (canAddAddOnGroup.value) {
-    const groupId = Date.now() + Math.random();
-    addOnGroups.value.push({
-      id: groupId,
-      name: "",
-      is_required: false,
-      min_selection: 0,
-      max_selection: 1,
-      options: [
-        {
-          id: Date.now(),
-          name: "",
-          price: 0,
-        },
-      ],
-    });
-    expandedAddOnGroups.value.add(groupId);
-  }
+  if (!canAddAddOnGroup.value) return;
+
+  const groupClientKey = Date.now(); // ✅ DEFINISIKAN DULU
+
+  addOnGroups.value.push({
+    id: null, // DB ID (kosong = baru)
+    clientKey: groupClientKey, // UI key
+    name: "",
+    is_required: false,
+    min_selection: 0,
+    max_selection: 1,
+    options: [
+      {
+        id: null, // DB ID
+        clientKey: Date.now(), // UI key
+        name: "",
+        price: 0,
+      },
+    ],
+  });
+
+  // ✅ pakai clientKey, BUKAN groupId
+  expandedAddOnGroups.value.add(groupClientKey);
 };
 
 const removeAddOnGroup = (index) => {
+  const key = addOnGroups.value[index].clientKey;
+  expandedAddOnGroups.value.delete(key);
   addOnGroups.value.splice(index, 1);
 };
 
@@ -777,7 +816,8 @@ const addAddOnOption = (groupIndex) => {
   }
   if (group.options.length < maxAddOnOptions) {
     group.options.push({
-      id: Date.now() + Math.random(),
+      id: null, // ⬅️ DB ID (kosong = option baru)
+      clientKey: Date.now(), // ⬅️ KHUSUS UI
       name: "",
       price: 0,
     });
@@ -961,13 +1001,13 @@ const onSubmit = veeHandleSubmit(
       // ✅ Variants or direct pricing (SAMA SEPERTI CREATE)
       if (useVariants.value) {
         variants.value.forEach((variant, vIndex) => {
-          if (variant.id && Number.isInteger(variant.id)) {
+          if (variant.id) {
             formData.append(`variants[${vIndex}][id]`, variant.id);
           }
           formData.append(`variants[${vIndex}][name]`, variant.name);
           formData.append(
             `variants[${vIndex}][uses_images]`,
-            variantUsesImages.value[variant.id] || 0
+            variantUsesImages.value[variant.clientKey] || 0
           );
 
           variant.options.forEach((opt, oIndex) => {
@@ -984,7 +1024,7 @@ const onSubmit = veeHandleSubmit(
               );
 
               if (
-                variantUsesImages.value[variant.id] === 1 &&
+                variantUsesImages.value[variant.clientKey] === 1 &&
                 opt.images.length > 0
               ) {
                 opt.images.forEach((img, iIndex) => {
@@ -1010,11 +1050,21 @@ const onSubmit = veeHandleSubmit(
             `combinations[${cIndex}][combination]`,
             combo.combination
           );
+          if (combo.id && combo.attributes.every((a) => a.option_value_id)) {
+            formData.append(`combinations[${cIndex}][id]`, combo.id);
+          }
           formData.append(`combinations[${cIndex}][sku]`, combo.sku || "");
           formData.append(`combinations[${cIndex}][price]`, combo.price);
           formData.append(`combinations[${cIndex}][stock]`, combo.stock);
 
+          // 🔑 attributes pakai option_value_id
           combo.attributes.forEach((attr, aIndex) => {
+            if (attr.option_value_id) {
+              formData.append(
+                `combinations[${cIndex}][attributes][${aIndex}][option_value_id]`,
+                attr.option_value_id
+              );
+            }
             formData.append(
               `combinations[${cIndex}][attributes][${aIndex}][name]`,
               attr.name
@@ -1026,6 +1076,7 @@ const onSubmit = veeHandleSubmit(
           });
         });
       } else {
+        formData.append("sku", values.sku || "");
         formData.append("price", values.price);
         formData.append("stock", values.stock);
       }
@@ -1033,7 +1084,7 @@ const onSubmit = veeHandleSubmit(
       // ✅ Add-on groups (SAMA SEPERTI CREATE)
       addOnGroups.value.forEach((group, gIndex) => {
         if (group.name.trim()) {
-          if (group.id && Number.isInteger(group.id)) {
+          if (Number.isInteger(group.id)) {
             formData.append(`add_on_groups[${gIndex}][id]`, group.id);
           }
           formData.append(`add_on_groups[${gIndex}][name]`, group.name.trim());
@@ -1048,7 +1099,7 @@ const onSubmit = veeHandleSubmit(
 
           group.options.forEach((opt, oIndex) => {
             if (opt.name.trim()) {
-              if (opt.id && Number.isInteger(opt.id)) {
+              if (Number.isInteger(opt.id)) {
                 formData.append(
                   `add_on_groups[${gIndex}][options][${oIndex}][id]`,
                   opt.id
@@ -1064,6 +1115,11 @@ const onSubmit = veeHandleSubmit(
               );
             }
           });
+        }
+      });
+      combinations.value.forEach((combo) => {
+        if (combo.id && combo.attributes.some((a) => !a.option_value_id)) {
+          combo.id = null;
         }
       });
 
@@ -1174,66 +1230,140 @@ const goBack = () => {
   router.back();
 };
 
-const populateFormFromProduct = (productData) => {
-  // 1️⃣ basic info
+const populateFormFromProduct = async (productData) => {
+  // 1️⃣ Basic info
   name.value = productData.name || "";
   description.value = productData.description || "";
 
   setFieldValue("name", productData.name || "");
   setFieldValue("description", productData.description || "");
-  setFieldValue("category_id", productData.categories?.[0]?.id || null);
   setFieldValue("min_purchase", productData.min_purchase ?? 1);
 
-  // 2️⃣ MAP BACKEND VARIANTS → existingCombosMap
+  // ==============================
+  // 2️⃣ KATEGORI UTAMA & SUB KATEGORI
+  // ==============================
+  if (Array.isArray(productData.categories) && productData.categories.length) {
+    const mainCategory = productData.categories[0];
+    const subCategories = productData.categories.slice(1);
+
+    // set kategori utama
+    selectedCategory.value = mainCategory.id;
+    setFieldValue("category_id", mainCategory.id);
+
+    // fetch sub categories dulu (penting!)
+    await fetchSubCategories(mainCategory.id);
+
+    // set sub kategori (id saja)
+    selectedSubCategories.value = subCategories.map((c) => c.id);
+  } else {
+    selectedCategory.value = null;
+    selectedSubCategories.value = [];
+  }
+
+  // ==============================
+  // 3️⃣ VARIANTS (lanjutkan seperti sekarang)
+  // ==============================
   existingCombosMap = new Map();
 
   productData.variants?.forEach((variant) => {
     const attrs = variant.option_values.map((ov) => ({
-      name: ov.option_name.trim(),
-      value: ov.option_value.trim(),
+      option_value_id: ov.id,
     }));
 
     const key = createCombinationKey(attrs);
 
     existingCombosMap.set(key, {
+      id: variant.id, // 🔑 SIMPAN ID VARIANT
       sku: variant.sku || "",
       price: Number(variant.price || 0),
       stock: Number(variant.stock || 0),
+      optionValueIds: attrs.map((a) => a.option_value_id).sort(),
     });
   });
 
-  // 3️⃣ SET VARIANTS UI
   if (productData.options?.length) {
     useVariants.value = true;
 
-    variants.value = productData.options.map((optionGroup) => ({
-      id: optionGroup.id,
-      name: optionGroup.option_name || "",
-      options: optionGroup.values.map((val) => ({
-        id: val.id,
-        name: val.option_value,
-        images:
-          val.image_url || val.image_path
-            ? [
-                {
-                  id: val.id,
-                  preview: val.image_url || absoluteImagePath(val.image_path),
-                  existing: true,
-                },
-              ]
-            : [],
-      })),
-    }));
+    variants.value = productData.options.map((optionGroup) => {
+      const clientKey = optionGroup.id; // 🔑 PENTING
+
+      variantNames.value[clientKey] = optionGroup.option_name || "";
+      variantUsesImages.value[clientKey] = optionGroup.uses_image ? 1 : 0;
+      expandedVariants.value.add(clientKey);
+
+      return {
+        id: optionGroup.id, // ID DB
+        clientKey: optionGroup.id, // 🔑 ID UI
+        name: optionGroup.option_name || "",
+        options: optionGroup.values.map((val) => ({
+          id: val.id,
+          clientKey: val.id ?? `${Date.now()}-${Math.random()}`,
+          name: val.option_value,
+          images:
+            val.image_url || val.image_path
+              ? [
+                  {
+                    id: val.id,
+                    preview: val.image_url || absoluteImagePath(val.image_path),
+                    existing: true,
+                  },
+                ]
+              : [],
+        })),
+      };
+    });
 
     productData.options.forEach((opt) => {
       variantUsesImages.value[opt.id] = opt.uses_image ? 1 : 0;
       expandedVariants.value.add(opt.id);
     });
 
-    // 4️⃣ BARU generate
     generateCombinations();
+  } else {
+    // ===== MODE TANPA VARIAN =====
+    useVariants.value = false;
+
+    const singleVariant = productData.variants?.[0];
+
+    if (singleVariant) {
+      // 🔥 INI YANG KAMU LUPA
+      setFieldValue("price", Number(singleVariant.price || 0));
+      setFieldValue("stock", Number(singleVariant.stock || 0));
+      setFieldValue("sku", singleVariant.sku || "");
+
+      formSku.value = singleVariant.sku || "";
+    }
+  }
+
+  // ==============================
+  // 4️⃣ ADD-ON GROUPS (kalau mau sekalian)
+  // ==============================
+  if (Array.isArray(productData.addon_groups)) {
+    addOnGroups.value = productData.addon_groups.map((group) => ({
+      id: group.id,
+      clientKey: group.id, // UI key
+      name: group.addon_group_name,
+      min_selection: group.min_selection,
+      max_selection: group.max_selection,
+      options: group.options.map((opt) => ({
+        id: opt.id,
+        clientKey: opt.id, // UI key
+        name: opt.addon.addon_name,
+        price: Number(opt.addon_price),
+      })),
+    }));
+
+    addOnGroups.value.forEach((g) => expandedAddOnGroups.value.add(g.id));
   }
 };
+watch(useVariants, (val) => {
+  if (val) {
+    // pindah ke variant → bersihkan single price
+    setFieldValue("price", 0);
+    setFieldValue("stock", 0);
+    setFieldValue("sku", "");
+  }
+});
 
 watch(
   () => values.sku,
@@ -1580,7 +1710,7 @@ onMounted(async () => {
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div
               v-for="(variant, vIndex) in variants"
-              :key="variant.id"
+              :key="variant.clientKey"
               class="border-2 border-gray-200 rounded-xl overflow-hidden bg-white hover:border-merchant-primary/50 transition"
             >
               <!-- Variant Header -->
@@ -1619,10 +1749,10 @@ onMounted(async () => {
                 <!-- PERBAIKAN: TextField dengan name unique per variant -->
                 <div>
                   <TextField
-                    :name="`variant_name_${variant.id}`"
+                    :name="`variant_name_${variant.clientKey}`"
                     type="text"
-                    v-model="variantNames[variant.id]"
-                    @input="variant.name = variantNames[variant.id]"
+                    v-model="variantNames[variant.clientKey]"
+                    @input="variant.name = variantNames[variant.clientKey]"
                     :label="`Nama Varian`"
                     :placeholder="`Contoh: ${
                       vIndex === 0 ? 'Warna' : 'Ukuran'
@@ -1633,7 +1763,7 @@ onMounted(async () => {
 
                 <div v-if="vIndex === 0">
                   <label
-                    @click="toggleVariantImages(variant.id)"
+                    @click="toggleVariantImages(variant.clientKey)"
                     class="flex items-center justify-between cursor-pointer py-3 px-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition"
                   >
                     <div class="flex items-center gap-2">
@@ -1645,7 +1775,7 @@ onMounted(async () => {
                     <div
                       :class="[
                         'relative w-11 h-6 rounded-full transition flex-shrink-0',
-                        variantUsesImages[variant.id]
+                        variantUsesImages[variant.clientKey]
                           ? 'bg-merchant-primary'
                           : 'bg-gray-300',
                       ]"
@@ -1653,7 +1783,7 @@ onMounted(async () => {
                       <span
                         :class="[
                           'absolute top-1 w-4 h-4 bg-white rounded-full transition-transform shadow-sm',
-                          variantUsesImages[variant.id]
+                          variantUsesImages[variant.clientKey]
                             ? 'translate-x-6'
                             : 'translate-x-1',
                         ]"
@@ -1664,7 +1794,7 @@ onMounted(async () => {
 
                 <!-- Accordion Toggle -->
                 <button
-                  @click="toggleVariantExpand(variant.id)"
+                  @click="toggleVariantExpand(variant.clientKey)"
                   type="button"
                   class="w-full flex items-center justify-between py-3 px-4 bg-merchant-primary/5 rounded-lg border border-merchant-primary/20 hover:bg-merchant-primary/10 transition"
                 >
@@ -1683,7 +1813,7 @@ onMounted(async () => {
                   <i
                     :class="[
                       'pi text-merchant-primary transition-transform duration-300',
-                      isVariantExpanded(variant.id)
+                      isVariantExpanded(variant.clientKey)
                         ? 'pi-chevron-up'
                         : 'pi-chevron-down',
                     ]"
@@ -1701,7 +1831,7 @@ onMounted(async () => {
                 leave-to-class="max-h-0 opacity-0"
               >
                 <div
-                  v-if="isVariantExpanded(variant.id)"
+                  v-if="isVariantExpanded(variant.clientKey)"
                   class="border-t border-gray-200 overflow-hidden"
                 >
                   <div class="p-4 pt-3 bg-gray-50 space-y-3">
@@ -1726,7 +1856,7 @@ onMounted(async () => {
                     <div class="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
                       <div
                         v-for="(option, oIndex) in variant.options"
-                        :key="option.id"
+                        :key="option.clientKey || option.id"
                         class="bg-white border border-gray-200 rounded-lg p-3 space-y-2.5 hover:shadow-md transition-shadow"
                       >
                         <div class="flex items-start gap-2.5">
@@ -1747,7 +1877,8 @@ onMounted(async () => {
 
                             <div
                               v-if="
-                                vIndex === 0 && variantUsesImages[variant.id]
+                                vIndex === 0 &&
+                                variantUsesImages[variant.clientKey]
                               "
                             >
                               <label
@@ -1952,7 +2083,7 @@ onMounted(async () => {
           >
             <div
               v-for="(group, gIndex) in addOnGroups"
-              :key="group.id"
+              :key="group.clientKey"
               class="border-2 border-gray-200 rounded-xl overflow-hidden bg-white hover:border-merchant-primary/50 transition"
             >
               <!-- Group Header -->
@@ -1993,7 +2124,7 @@ onMounted(async () => {
 
                 <!-- Group Name -->
                 <TextField
-                  :name="`addon_group_name_${group.id}`"
+                  :name="`addon_group_name_${group.clientKey}`"
                   v-model="group.name"
                   label="Nama Grup Add-on"
                   placeholder="Contoh: Tingkat Kepedasan, Topping"
@@ -2014,7 +2145,7 @@ onMounted(async () => {
                       <!-- Min Selection -->
                       <div>
                         <TextField
-                          :name="`addon_group_${group.id}_min_selection`"
+                          :name="`addon_group_${group.clientKey}_min_selection`"
                           label="Minimal Pilihan"
                           v-model.number="group.min_selection"
                           type="number"
@@ -2032,7 +2163,7 @@ onMounted(async () => {
                       <!-- Max Selection -->
                       <div>
                         <TextField
-                          :name="`addon_group_${group.id}_max_selection`"
+                          :name="`addon_group_${group.clientKey}_max_selection`"
                           label="Maksimal Pilihan"
                           v-model.number="group.max_selection"
                           type="number"
@@ -2106,7 +2237,7 @@ onMounted(async () => {
 
                 <!-- Accordion Toggle Button -->
                 <button
-                  @click="toggleAddOnGroupExpand(group.id)"
+                  @click="toggleAddOnGroupExpand(group.clientKey)"
                   type="button"
                   class="w-full flex items-center justify-between py-3 px-4 bg-merchant-primary/5 rounded-lg border border-merchant-primary/20 hover:bg-merchant-primary/10 transition"
                 >
@@ -2124,7 +2255,7 @@ onMounted(async () => {
                   <i
                     :class="[
                       'pi text-merchant-primary transition-transform duration-300',
-                      isAddOnGroupExpanded(group.id)
+                      isAddOnGroupExpanded(group.clientKey)
                         ? 'pi-chevron-up'
                         : 'pi-chevron-down',
                     ]"
@@ -2142,7 +2273,7 @@ onMounted(async () => {
                 leave-to-class="max-h-0 opacity-0"
               >
                 <div
-                  v-if="isAddOnGroupExpanded(group.id)"
+                  v-if="isAddOnGroupExpanded(group.clientKey)"
                   class="border-t border-gray-200 overflow-hidden"
                 >
                   <div class="p-4 pt-3 bg-gray-50 space-y-3">
@@ -2170,7 +2301,7 @@ onMounted(async () => {
                     <div class="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
                       <div
                         v-for="(option, oIndex) in group.options"
-                        :key="option.id"
+                        :key="option.clientKey"
                         class="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow"
                       >
                         <div class="flex items-start gap-2.5">
@@ -2183,7 +2314,7 @@ onMounted(async () => {
                           <div class="flex-1 space-y-2.5">
                             <!-- Option Name -->
                             <TextField
-                              :name="`addon_group_${group.id}_option_${option.id}_name`"
+                              :name="`addon_group_${group.clientKey}_option_${option.clientKey}_name`"
                               v-model="option.name"
                               :placeholder="`Contoh: ${
                                 gIndex === 0 ? 'Tidak Pedas' : 'Daging Asap'
@@ -2194,7 +2325,7 @@ onMounted(async () => {
 
                             <!-- Price -->
                             <TextField
-                              :name="`addon_group_${group.id}_option_${option.id}_price`"
+                              :name="`addon_group_${group.clientKey}_option_${option.clientKey}_price`"
                               label="Harga Tambahan"
                               v-model.number="option.price"
                               type="number"

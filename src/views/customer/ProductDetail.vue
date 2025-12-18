@@ -1368,7 +1368,7 @@ async function addToCart() {
       variant_id: matchedCombo ? matchedCombo.product_variant_id : null,
       addons: selectedAddons.value.map((addon) => ({
         group_id: addon.addon_group_id,
-        addon_id: addon.id,
+        addon_id: addon.addon_id,
       })),
     };
 
@@ -1679,6 +1679,29 @@ function resetStateBeforeFetch() {
 const shareProduct = () => {
   showShareModal.value = true;
 };
+function initDefaultRequiredAddons() {
+  const defaults = [];
+
+  addonGroups.value.forEach((group) => {
+    if (group.required && group.maxSelection === 1) {
+      const firstAvailable = group.items.find(
+        (item) => item.available !== false
+      );
+
+      if (firstAvailable) {
+        defaults.push({
+          id: firstAvailable.id,
+          name: firstAvailable.name,
+          price: firstAvailable.price,
+          addon_group_id: group.id,
+        });
+      }
+    }
+  });
+
+  selectedAddons.value = defaults;
+  tempSelectedAddons.value = [...defaults];
+}
 
 async function doFetchProduct(slug) {
   if (!slug) return;
@@ -1881,7 +1904,6 @@ async function doFetchProduct(slug) {
     relatedProducts.value = Array.isArray(mapped.related_products)
       ? mapped.related_products
       : mapped.relatedProducts ?? [];
-
     // defaults selected (mapped may already provide selectedSize/selectedVariant with id/name)
     selectedSize.value =
       mapped.selectedSize ?? (sizes.value.length ? sizes.value[0] : null);
@@ -1905,6 +1927,7 @@ async function doFetchProduct(slug) {
         variants.value.find((v) => v.image)?.image;
       if (imgFromVariant) productImages.value.push(imgFromVariant);
     }
+    initDefaultRequiredAddons();
   } catch (e) {
     if (e?.name === "AbortError") return;
     if (e?.response?.status === 404) {
