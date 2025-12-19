@@ -1,11 +1,11 @@
-<<<<<<< HEAD
 export const getImageUrl = (imageId) => {
   if (!imageId) return "";
   const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
   // gunakan encodeURIComponent untuk safety, meskipun id biasanya angka
   return `${baseURL}/api/images/${encodeURIComponent(imageId)}`;
-=======
-export const getImageUrl = (imageIdOrPath) => {
+}
+
+export const getImageUrlJasa = (imageIdOrPath) => {
   if (!imageIdOrPath) return "";
 
   const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
@@ -26,5 +26,4 @@ export const getImageUrl = (imageIdOrPath) => {
 
   // Otherwise treat as ID and construct the URL under backend host
   return `${backendBase}/images/${encodeURIComponent(imageIdOrPath)}`;
->>>>>>> 6b3d9aa (revisi jasa dan penambahan chatbox)
 };
