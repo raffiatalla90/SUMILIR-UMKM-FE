@@ -1,7 +1,4 @@
 <script setup>
-import starIcon from "@/assets/icons/Bintang.png";
-import lokasiIcon from "@/assets/icons/TitikLokasi.png";
-
 defineProps({
   product: {
     type: Object,
@@ -50,27 +47,17 @@ const formatHarga = (value) => {
       </p>
 
       <!-- price (opsional jika ada) -->
-      <p v-if="product.price" class="text-xs sm:text-sm text-gray-600 mt-1">
-        Rp. {{ formatHarga(product.price) }}
+      <p v-if="product.fixed_price || product.base_price || product.price" class="text-xs sm:text-sm text-gray-600 mt-1">
+        <template v-if="product.fixed_price">
+          Rp. {{ formatHarga(product.fixed_price) }}
+        </template>
+        <template v-else-if="product.base_price">
+          Mulai Rp. {{ formatHarga(product.base_price) }}
+        </template>
+        <template v-else>
+          Rp. {{ formatHarga(product.price) }}
+        </template>
       </p>
-
-      <!-- rating & distance (auto push ke bawah dengan mt-auto) -->
-      <div
-        class="mt-auto pt-2 flex items-center justify-start gap-3 sm:gap-4 text-[11px] sm:text-xs text-gray-600"
-      >
-        <span class="flex items-center gap-1">
-          <img :src="starIcon" alt="rating" class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-          {{ product.rating ?? "4.4" }}
-        </span>
-        <span class="flex items-center gap-1">
-          <img
-            :src="lokasiIcon"
-            alt="lokasi"
-            class="w-3 h-3 sm:w-3.5 sm:h-3.5"
-          />
-          {{ product.distance ?? "2" }} km
-        </span>
-      </div>
     </div>
   </router-link>
 </template>

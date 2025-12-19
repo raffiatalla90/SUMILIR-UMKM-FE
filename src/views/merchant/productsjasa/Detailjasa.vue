@@ -346,13 +346,13 @@ const getSelectionTypeLabel = (group) => {
           <div v-if="(jasa.images && jasa.images.length > 0) || jasa.image">
             <!-- Main Image -->
             <div
-              class="relative aspect-square max-w-2xl mx-auto bg-gray-100 overflow-hidden mb-4 shadow-sm -mt-4 sm:mt-0 sm:rounded-2xl"
+              class="relative aspect-square max-w-2xl mx-auto bg-gray-100 overflow-hidden mb-4 shadow-sm -mt-4 sm:mt-0 sm:rounded-2xl flex items-center justify-center"
             >
               <img
                 v-if="mainImageSrc"
                 :src="mainImageSrc"
                 :alt="jasa.title"
-                class="w-full h-full object-cover"
+                class="max-w-full max-h-full object-contain"
                 @error="(e) => (e.target.style.display = 'none')"
               />
               <!-- Navigation Arrows -->
@@ -384,13 +384,13 @@ const getSelectionTypeLabel = (group) => {
                   'border-gray-200 hover:border-merchant-primary/50 hover:scale-105':
                     currentImageIndex !== index,
                 }"
-                class="relative border rounded-lg overflow-hidden transition aspect-square"
+                class="relative border rounded-lg overflow-hidden transition aspect-square flex items-center justify-center bg-gray-50"
               >
                 <img
                   v-if="image.id || image.path"
                   :src="getImageUrl(image.path || image.id)"
                   :alt="`${jasa.title} ${index + 1}`"
-                  class="w-full h-full object-cover"
+                  class="max-w-full max-h-full object-contain"
                   @error="(e) => (e.target.style.display = 'none')"
                 />
               </button>

@@ -49,7 +49,24 @@ const formatHarga = (value) => {
 };
 
 // Normalisasi URL gambar jasa dari backend -> public/storage/jasa/*.png
-const resolveJasaImage = (img) => {
+const resolveJasaImage = (jasa) => {
+  // Cek relasi images (array) terlebih dahulu
+  if (jasa.images && jasa.images.length > 0) {
+    const coverImage = jasa.images.find((img) => img.is_cover) || jasa.images[0];
+    const path = coverImage.path || coverImage.url || coverImage.image;
+    if (path) {
+      if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/storage/')) {
+        return path;
+      }
+      if (path.startsWith('jasa/')) {
+        return `/storage/${path}`;
+      }
+      return `/storage/jasa/${path}`;
+    }
+  }
+  
+  // Fallback ke field image langsung
+  const img = jasa.image;
   if (!img) return null;
   const s = String(img);
 
@@ -98,7 +115,7 @@ onMounted(async () => {
     // Normalisasi image jasa ke /storage/jasa/*.png
     jasaList.value = (jasaRes.data ?? []).map((item) => ({
       ...item,
-      image: resolveJasaImage(item.image),
+      image: resolveJasaImage(item),
     }));
 
     promoList.value = (promoRes.data ?? []).map((p, i) => ({
