@@ -595,6 +595,19 @@ const formatPrice = (min, max) => {
   return `${formatCompact(min)} - ${formatCompact(max)}`;
 };
 
+// Format operating days
+const dayLabels = {
+  1: 'Sen', 2: 'Sel', 3: 'Rab', 4: 'Kam', 5: 'Jum', 6: 'Sab', 7: 'Min'
+};
+
+const formatOperatingDays = (operatingDays) => {
+  if (!operatingDays) return '-';
+  const days = operatingDays.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
+  if (days.length === 0) return '-';
+  if (days.length === 7) return 'Setiap Hari';
+  return days.map(d => dayLabels[d] || d).join(', ');
+};
+
 // Format single price (IDR)
 const formatPriceId = (num) => {
   const formatter = new Intl.NumberFormat("id-ID", {
@@ -796,12 +809,22 @@ const selectConversation = (conversation) => {
         </button>
       </div>
       
-      <div class="bg-white rounded-lg shadow">
-        <table class="w-full">
+      <div class="bg-white rounded-lg shadow overflow-x-auto">
+        <table class="w-full min-w-[700px]">
           <thead>
             <tr class="border-b">
-              <th class="p-4 text-left w-24">Gambar</th>
-              <th class="p-4 text-left">Nama Jasa</th>
+              <th class="p-4 text-left w-24">
+                <div class="flex items-center gap-2">
+                  <i class="pi pi-image text-gray-500"></i>
+                  Gambar
+                </div>
+              </th>
+              <th class="p-4 text-left">
+                <div class="flex items-center gap-2">
+                  <i class="pi pi-file-edit text-gray-500"></i>
+                  Nama Jasa
+                </div>
+              </th>
               <th class="p-4 text-left">
                 <div class="flex items-center gap-2">
                   <i class="pi pi-tag text-gray-500"></i>
@@ -810,11 +833,22 @@ const selectConversation = (conversation) => {
               </th>
               <th class="p-4 text-left">
                 <div class="flex items-center gap-2">
-                  <i class="pi pi-tag-dollar text-gray-500"></i>
+                  <i class="pi pi-wallet text-gray-500"></i>
                   Harga
                 </div>
               </th>
-              <th class="p-4 text-left">Status</th>
+              <th class="p-4 text-left">
+                <div class="flex items-center gap-2">
+                  <i class="pi pi-calendar text-gray-500"></i>
+                  Hari Layanan
+                </div>
+              </th>
+              <th class="p-4 text-left">
+                <div class="flex items-center gap-2">
+                  <i class="pi pi-circle-fill text-gray-500 text-xs"></i>
+                  Status
+                </div>
+              </th>
               <th class="p-4 text-left">
                 <div class="flex items-center gap-2">
                   <i class="pi pi-cog text-gray-500"></i>
@@ -833,15 +867,15 @@ const selectConversation = (conversation) => {
               ]"
             >
               <td class="p-4">
-                <div v-if="(jasa.images && jasa.images.length > 0) || jasa.image" class="w-16 h-16 rounded-lg overflow-hidden bg-gray-100">
+                <div v-if="(jasa.images && jasa.images.length > 0) || jasa.image" class="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
                   <img
                     :src="getPrimaryImageSrc(jasa)"
                     :alt="jasa.title"
-                    class="w-full h-full object-cover"
+                    class="max-w-full max-h-full object-contain"
                     @error="(e) => e.target.src = 'data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Crect fill=%27%23f3f4f6%27 width=%27100%27 height=%27100%27/%3E%3Ctext x=%2750%27 y=%2750%27 font-size=%2714%27 text-anchor=%27middle%27 dy=%27.3em%27 fill=%27%239ca3af%27%3ENo Image%3C/text%3E%3C/svg%3E'"
                   />
                 </div>
-                <div v-else class="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center">
+                <div v-else class="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-lg bg-gray-100 flex items-center justify-center">
                   <i class="pi pi-image text-gray-400 text-xl"></i>
                 </div>
               </td>
@@ -869,14 +903,17 @@ const selectConversation = (conversation) => {
                 </template>
               </td>
               <td class="p-4">
+                <span class="text-sm text-gray-700">
+                  {{ formatOperatingDays(jasa.operating_days) }}
+                </span>
+              </td>
+              <td class="p-4">
                 <span :class="(jasa.status === 'active' && jasa.is_active) ? 'text-green-600' : 'text-gray-400'">
                   {{ (jasa.status === 'active' && jasa.is_active) ? 'Aktif' : 'Tidak Aktif' }}
                 </span>
               </td>
-              <td class="p-2 sm:p-4">
-                <div
-                  class="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2"
-                >
+              <td class="p-4">
+                <div class="flex flex-wrap items-center gap-2">
                   <button
                     @click="goToEdit(jasa)"
                     class="inline-flex items-center justify-center px-2 py-1 rounded border border-merchant-primary/40 text-merchant-primary text-xs sm:text-sm bg-merchant-primary/5 hover:bg-merchant-primary/10 transition"
@@ -955,41 +992,41 @@ const selectConversation = (conversation) => {
           @click.self="closeChatModal"
         >
           <div
-            class="w-full max-w-full sm:max-w-5xl mx-0 sm:mx-4 bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col h-[90vh] sm:max-h-[90vh]"
+            class="w-full max-w-full sm:max-w-4xl lg:max-w-5xl mx-0 sm:mx-4 bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col h-[70vh] sm:h-[80vh] sm:max-h-[85vh]"
           >
             <!-- Header -->
             <div
-              class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-2xl"
+              class="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 border-b border-gray-200 bg-gray-50 rounded-t-2xl"
             >
               <div>
-                <h2 class="text-sm sm:text-base font-semibold text-gray-900">
+                <h2 class="text-xs sm:text-base font-semibold text-gray-900">
                   Chat Pembeli
                 </h2>
-                <p class="text-[11px] sm:text-xs text-gray-500">
+                <p class="text-[10px] sm:text-xs text-gray-500 hidden sm:block">
                   Balas pertanyaan dan berikan penawaran harga ke pembeli.
                 </p>
               </div>
               <button
                 type="button"
-                class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 text-gray-500"
+                class="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center hover:bg-gray-100 text-gray-500"
                 @click="closeChatModal"
               >
-                <i class="pi pi-times text-sm"></i>
+                <i class="pi pi-times text-xs sm:text-sm"></i>
               </button>
             </div>
 
             <!-- Body -->
-            <div class="p-3 sm:p-4 flex-1 flex flex-col overflow-hidden">
-              <div class="flex flex-col md:flex-row gap-4 flex-1 min-h-[320px] overflow-hidden">
+            <div class="p-2 sm:p-4 flex-1 flex flex-col overflow-hidden">
+              <div class="flex flex-col md:flex-row gap-2 sm:gap-4 flex-1 min-h-0 overflow-hidden">
                 <!-- Daftar percakapan -->
                 <div
-                  class="w-full md:w-1/3 border border-gray-200 rounded-xl bg-white overflow-hidden flex flex-col"
+                  class="w-full h-28 sm:h-auto md:w-1/3 border border-gray-200 rounded-lg sm:rounded-xl bg-white overflow-hidden flex flex-col shrink-0 md:shrink"
                 >
-                  <div class="px-3 py-2 border-b border-gray-200 bg-gray-50">
+                  <div class="px-2 sm:px-3 py-1.5 sm:py-2 border-b border-gray-200 bg-gray-50">
                     <p
-                      class="text-xs font-semibold text-gray-700 flex items-center gap-2"
+                      class="text-[10px] sm:text-xs font-semibold text-gray-700 flex items-center gap-1 sm:gap-2"
                     >
-                      <i class="pi pi-inbox text-gray-500"></i>
+                      <i class="pi pi-inbox text-gray-500 text-[10px] sm:text-xs"></i>
                       Daftar Percakapan
                     </p>
                   </div>
@@ -998,7 +1035,7 @@ const selectConversation = (conversation) => {
                   >
                     <div
                       v-if="!hasConversations"
-                      class="px-3 py-4 text-xs text-gray-500 text-center"
+                      class="px-2 sm:px-3 py-2 sm:py-4 text-[10px] sm:text-xs text-gray-500 text-center"
                     >
                       Belum ada percakapan dari pembeli.
                     </div>
@@ -1009,24 +1046,24 @@ const selectConversation = (conversation) => {
                       type="button"
                       @click="selectConversation(convo)"
                       :class="[
-                        'w-full text-left px-3 py-2 flex flex-col gap-0.5 hover:bg-gray-50 transition',
+                        'w-full text-left px-2 sm:px-3 py-1.5 sm:py-2 flex flex-col gap-0.5 hover:bg-gray-50 transition',
                         selectedConversationId === convo.id
-                          ? 'bg-merchant-primary/5 border-l-4 border-merchant-primary'
+                          ? 'bg-merchant-primary/5 border-l-2 sm:border-l-4 border-merchant-primary'
                           : '',
                       ]"
                     >
                       <p
-                        class="text-xs font-semibold text-gray-900 truncate"
+                        class="text-[10px] sm:text-xs font-semibold text-gray-900 truncate"
                       >
                         {{ convo?.buyer?.name || 'Pembeli' }}
                       </p>
-                      <p class="text-[11px] text-gray-500 truncate">
+                      <p class="text-[9px] sm:text-[11px] text-gray-500 truncate hidden sm:block">
                         Jasa:
                         {{ convo?.jasa?.title || convo?.jasa?.name || '-' }}
                       </p>
                       <p
                         v-if="convo?.last_message"
-                        class="text-[11px] text-gray-400 truncate"
+                        class="text-[9px] sm:text-[11px] text-gray-400 truncate hidden sm:block"
                       >
                         {{ convo.last_message.body || 'Pesan terbaru' }}
                       </p>
@@ -1035,22 +1072,24 @@ const selectConversation = (conversation) => {
                 </div>
 
                 <!-- Chat window -->
-                <div class="w-full md:flex-1">
+                <div class="w-full md:flex-1 flex-1 min-h-0">
                   <div
                     v-if="!selectedConversationId && !hasConversations"
-                    class="text-xs text-gray-500 text-center border border-dashed border-gray-300 rounded-xl bg-gray-50/60 px-4 py-6"
+                    class="h-full text-[10px] sm:text-xs text-gray-500 text-center border border-dashed border-gray-300 rounded-lg sm:rounded-xl bg-gray-50/60 px-2 sm:px-4 py-4 sm:py-6 flex items-center justify-center"
                   >
-                    Belum ada percakapan.
-                    <br />
-                    Saat ada pembeli yang menghubungi Anda, percakapan akan
-                    muncul di sini.
+                    <span>
+                      Belum ada percakapan.
+                      <br class="hidden sm:block" />
+                      <span class="hidden sm:inline">Saat ada pembeli yang menghubungi Anda, percakapan akan muncul di sini.</span>
+                    </span>
                   </div>
                   <div
                     v-else-if="!selectedConversationId && hasConversations"
-                    class="text-xs text-gray-500 text-center border border-dashed border-gray-300 rounded-xl bg-gray-50/60 px-4 py-6"
+                    class="h-full text-[10px] sm:text-xs text-gray-500 text-center border border-dashed border-gray-300 rounded-lg sm:rounded-xl bg-gray-50/60 px-2 sm:px-4 py-4 sm:py-6 flex items-center justify-center"
                   >
-                    Pilih salah satu percakapan di sebelah kiri untuk mulai
-                    membalas pesan.
+                    <span>
+                      Pilih percakapan <span class="hidden sm:inline">di sebelah kiri</span> untuk membalas pesan.
+                    </span>
                   </div>
                   <div v-else class="h-full">
                     <ChatWindow

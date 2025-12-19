@@ -115,7 +115,7 @@ onMounted(async () => {
     // Normalisasi image jasa ke /storage/jasa/*.png
     jasaList.value = (jasaRes.data ?? []).map((item) => ({
       ...item,
-      image: resolveJasaImage(item.image),
+      image: resolveJasaImage(item),
     }));
 
     promoList.value = (promoRes.data ?? []).map((p, i) => ({

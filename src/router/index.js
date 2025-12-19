@@ -85,6 +85,12 @@ const routes = [
         meta: { title: "Detail Jasa | SUMILIR" },
       },
       {
+        path: "toko/:id",
+        name: "MerchantStore",
+        component: () => import("@/views/customer/MerchantStore.vue"),
+        meta: { title: "Toko | SUMILIR" },
+      },
+      {
         path: "pembayaran-jasa",
         name: "Pembayaran Jasa",
         component: () => import("@/views/customer/PembayaranJasa.vue"),
