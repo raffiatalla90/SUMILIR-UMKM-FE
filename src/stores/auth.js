@@ -1,75 +1,28 @@
 // src/stores/auth.js
+// src/stores/auth.js
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
+import api from "@/libs/axios";
 import api from "@/libs/axios";
 import { useToast } from "vue-toastification";
 
 export const useAuthStore = defineStore("auth", () => {
   const toast = useToast();
 
+
   const user = ref(null);
+  const authReady = ref(false);
+  const selectedMerchantId = ref(null);
   const authReady = ref(false);
   const selectedMerchantId = ref(null);
 
   // =========================
   // COMPUTED
   // =========================
+  // =========================
+  // COMPUTED
+  // =========================
   const isAuthenticated = computed(() => !!user.value);
-  const authReady = ref(false);
-
-  // ✅ Active merchant based on selectedMerchantId
-  const activeMerchant = computed(() => {
-    const merchants = user.value?.merchants || [];
-
-    // Prioritas: selected merchant > first approved > first
-    if (selectedMerchantId.value) {
-      const selected = merchants.find((m) => m.id === selectedMerchantId.value);
-      if (selected) return selected;
-    }
-
-    return (
-      merchants.find((m) => m.status === "approved") || merchants[0] || null
-    );
-  });
-
-  // ✅ Get merchant by specific ID
-  const getMerchantById = (id) => {
-    const merchants = user.value?.merchants || [];
-    return merchants.find((m) => m.id === Number(id)) || null;
-  };
-
-  const merchantName = computed(() => {
-    return activeMerchant.value?.name || user.value?.name || "Merchant";
-  });
-
-  const merchantType = computed(() => {
-    const m = activeMerchant.value;
-    if (m?.segmentation?.name) {
-      return m.segmentation.name === "Segmentation 3" ? "UMKM Jasa" : m.segmentation.name;
-    }
-    switch (m?.segmentation_id) {
-      case 3:
-        return "UMKM Jasa";
-      case 2:
-        return "UMKM Produk";
-      case 1:
-        return "UMKM";
-      default:
-        return "UMKM";
-    }
-  });
-
-  const merchantId = computed(() => {
-    return activeMerchant.value?.id || null;
-  });
-
-  const merchantsCount = computed(() => {
-    return user.value?.merchants?.length || 0;
-  });
-
-  const allMerchants = computed(() => {
-    return user.value?.merchants || [];
-  });
 
   const userRoles = computed(
     () =>
@@ -80,27 +33,45 @@ export const useAuthStore = defineStore("auth", () => {
   const isMerchant = computed(() => userRoles.value.includes("umkm-owner"));
   const isCustomer = computed(() => userRoles.value.includes("customer"));
 
-  // ✅ Set active merchant - NO NEW CSRF REQUEST
-  function setActiveMerchant(merchantId) {
-    const merchant = allMerchants.value.find(
-      (m) => m.id === Number(merchantId)
+  const allMerchants = computed(() => user.value?.merchants || []);
+
+  const activeMerchant = computed(() => {
+    if (!allMerchants.value.length) return null;
+
+    if (selectedMerchantId.value) {
+      const found = allMerchants.value.find(
+        (m) => m.id === selectedMerchantId.value
+      );
+      if (found) return found;
+    }
+
+    return (
+      allMerchants.value.find((m) => m.status === "approved") ||
+      allMerchants.value[0]
     );
-    if (merchant) {
-      selectedMerchantId.value = Number(merchantId);
-      localStorage.setItem("selected_merchant_id", String(merchantId));
-    } else {
-    }
+  });
+
+  const merchantId = computed(() => activeMerchant.value?.id || null);
+  const merchantName = computed(
+    () => activeMerchant.value?.name || user.value?.name || "User"
+  );
+
+  // =========================
+  // HELPERS
+  // =========================
+  function persistUser(data) {
+    const minimal = {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      roles: data.roles,
+      merchants: data.merchants || [],
+    };
+
+    user.value = minimal;
+    localStorage.setItem("user", JSON.stringify(minimal));
   }
 
-  // ✅ Load selected merchant from localStorage
-  function loadSelectedMerchant() {
-    const saved = localStorage.getItem("selected_merchant_id");
-    if (saved) {
-      selectedMerchantId.value = Number(saved);
-    }
-  }
-
-  // ✅ Clear user data
   function clearUser() {
     console.log("[Auth] 🗑️ Clearing user data.");
     user.value = null;
@@ -108,64 +79,55 @@ export const useAuthStore = defineStore("auth", () => {
     localStorage.removeItem("user");
     localStorage.removeItem("auth_token");
     localStorage.removeItem("selected_merchant_id");
-    
-    // ✅ Remove token from axios headers
-    delete api.defaults.headers.common["Authorization"];
-    setXsrfTokenHeader(null);
+  }
+
+  function loadSelectedMerchant() {
+    const saved = localStorage.getItem("selected_merchant_id");
+    if (saved) selectedMerchantId.value = Number(saved);
+  }
+
+  function setActiveMerchant(id) {
+    selectedMerchantId.value = Number(id);
+    localStorage.setItem("selected_merchant_id", String(id));
+  }
+  function getMerchantById(id) {
+    return allMerchants.value.find((m) => Number(m.id) === Number(id)) || null;
   }
 
   // =========================
   // ACTIONS
   // =========================
+  // =========================
+  // ACTIONS
+  // =========================
   async function login(credentials) {
     try {
-      // ✅ Use ensureCsrfToken instead of direct call
-      await ensureCsrfToken();
-
-      await sanctumApi.post("/login", credentials);
-
-      syncXsrfFromCookie();
-
-      const { data } = await sanctumApi.get("/me");
-
-      user.value = data;
-
-      // ✅ Store token in localStorage for API requests
-      if (data.token) {
-        localStorage.setItem("auth_token", data.token);
-        // Set token in axios headers for future requests
-        api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
-      }
-
-      // ✅ Prefer the server-provided user (should include merchants+segmentation)
-      user.value = data.user;
-      localStorage.setItem("user", JSON.stringify(user.value));
-
-      // ✅ Immediately refresh with /auth/me to ensure relationships loaded
       try {
-        const me = await sanctumApi.get("/me");
-        user.value = me.data;
-        localStorage.setItem("user", JSON.stringify(user.value));
-      } catch (e) {
-        console.warn("⚠️ Failed to refresh /me after login, using login payload.");
+        await api.get("/sanctum/csrf-cookie");
+      } catch {
+        console.warn("Gagal mendapatkan CSRF cookie");
       }
 
+      // 🔐 Login
+      await api.post("/login", credentials);
+
+      // 👤 Ambil user
+      const { data } = await api.get("/api/me");
+
+      persistUser(data);
       loadSelectedMerchant();
 
-      toast.success("Login berhasil! Selamat datang 👋", { timeout: 2500 });
-      return data.user;
+      toast.success("Login berhasil 👋", { timeout: 2500 });
+      return data;
     } catch (error) {
-      if (error.response?.status === 431) {
-        toast.error("Cookie terlalu besar. Silakan clear cache browser.", {
-          timeout: 4000,
-        });
-      } else if (error.response?.status === 401 || error.response?.status === 422) {
-        toast.error("Email atau password salah.", { timeout: 3000 });
-      } else if (error.response?.status === 403) {
-        const msg =
-          error.response?.data?.message || "Email belum terverifikasi.";
-        toast.warning(msg, { timeout: 3000 });
+      const status = error.response?.status;
+
+      if (status === 401) {
+        toast.error("Email atau password salah");
+      } else if (status === 403) {
+        toast.warning(error.response?.data?.message || "Akses ditolak");
       } else {
+        toast.error("Login gagal");
         toast.error("Login gagal");
       }
 
@@ -175,34 +137,25 @@ export const useAuthStore = defineStore("auth", () => {
 
   async function logout() {
     try {
-      await sanctumApi.post("/api/auth/logout");
-      toast.success("Berhasil logout. Sampai jumpa! 👋", { timeout: 2500 });
-    } catch (error) {
-      toast.warning("Logout gagal, tapi sesi Anda akan dihapus", {
-        timeout: 3000,
-      });
+      await api.post("/logout");
+      toast.success("Berhasil logout 👋", { timeout: 2000 });
+    } catch {
+      toast.warning("Logout gagal, sesi dibersihkan");
     } finally {
       clearUser();
     }
   }
 
-  async function register(userData) {
-    try {
-      // gunakan API instance (prefix /api)
-      const { data } = await api.post("/auth/register", userData);
-      toast.success("Registrasi berhasil! Silakan login.", { timeout: 3000 });
-      return data;
-    } catch (error) {
-      const errorMessage =
-        error.response?.data?.message || "Registrasi gagal. Silakan coba lagi.";
-      toast.error(errorMessage, { timeout: 4000 });
-      throw error;
-    }
+  async function register(payload) {
+    const { data } = await api.post("/api/auth/register", payload);
+    toast.success("Registrasi berhasil, silakan login");
+    return data;
   }
 
   async function initAuth() {
     authReady.value = false;
 
+    // Load dari localStorage dulu (optimistic)
     const saved = localStorage.getItem("user");
     if (saved) {
       try {
@@ -215,38 +168,32 @@ export const useAuthStore = defineStore("auth", () => {
       }
     }
 
+    // Validasi ke server
     try {
-      await ensureCsrfToken();
-      const { data } = await sanctumApi.get("/me");
-
-      user.value = data;
-
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          id: data.id,
-          name: data.name,
-          email: data.email,
-          roles: data.roles.map((r) => (typeof r === "string" ? r : r.name)),
-          merchants: data.merchants || [],
-        })
-      );
+      const { data } = await api.get("/api/me");
+      persistUser(data);
     } catch {
       clearUser();
     } finally {
-      authReady.value = true; // 🔥 PENTING
+      authReady.value = true;
     }
   }
 
   // =========================
   // EXPORT
   // =========================
+  // =========================
+  // EXPORT
+  // =========================
   return {
+    // state
     // state
     user,
     authReady,
-    isAuthenticated,
     authReady,
+    isAuthenticated,
+
+    // roles
     userRoles,
     isAdmin,
     isMerchant,
@@ -254,16 +201,17 @@ export const useAuthStore = defineStore("auth", () => {
 
     // merchant
     allMerchants,
+
+    // merchant
+    allMerchants,
     activeMerchant,
     merchantId,
-    merchantName,
-    merchantType,
     merchantId,
-    merchantsCount,
-    allMerchants,
-    getMerchantById, // ✅ Export
-    // Actions
-    initializeFromStorage, // ✅ Export init function
+    merchantName,
+    setActiveMerchant,
+    getMerchantById,
+
+    // actions
     login,
     logout,
     register,

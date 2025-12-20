@@ -63,7 +63,7 @@ export const useCheckoutStore = defineStore("checkout", {
 
       const addons = Array.isArray(payload.addons) ? payload.addons : [];
       this.selectedAddons = addons.map((a) => ({
-        id: a.id,
+        id: a.addon_id,
         name: a.name,
         price: Number(a.price || 0),
       }));

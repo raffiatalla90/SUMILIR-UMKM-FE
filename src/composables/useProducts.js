@@ -2,19 +2,7 @@
 // composables/useProducts.js
 import { ref } from "vue";
 import api from "@/libs/axios";
-import { getImageUrl } from "@/libs/getImageUrl.js";
-
-function buildImageUrl(img) {
-  if (!img) return "";
-  // Jika backend kirim object image dengan id → gunakan getImageUrl
-  if (typeof img === "object") {
-    // prioritas: id → getImageUrl, fallback ke url/path/image_path jika ada
-    if (img.id) return getImageUrl(img.id);
-    return img.url || img.path || img.image_path || "";
-  }
-  // Jika string (sudah berupa URL)
-  return img;
-}
+import { getVariantImageUrl } from "@/libs/getVariantImageUrl.js";
 
 export function useProducts() {
   const toast = useToast();
@@ -37,8 +25,7 @@ export function useProducts() {
   // Fetch Product Detail (admin scope?) -- pastikan endpoint sesuai
   const fetchProductDetail = async (productSlug) => {
     try {
-      const response = await api.get(`/products/${productSlug}`);
-      // Jika endpoint public, ganti ke: api.get(`/public/products/${productSlug}`)
+      const response = await api.get(`/api/products/${productSlug}`);
       const payload = response.data?.data ?? response.data;
       if (!payload)
         throw new Error("Product data tidak ditemukan pada response");
@@ -129,7 +116,7 @@ export function useProducts() {
     // Buat pendingRequest sebagai promise yang mengembalikan `data` (konsisten)
     pendingRequest = (async () => {
       try {
-        const { data } = await api.get("/products", { params });
+        const { data } = await api.get("/api/products", { params });
         const payload = data.data || data;
 
         products.value = payload.data || payload; // tergantung response shape
@@ -160,7 +147,7 @@ export function useProducts() {
   const deleteProduct = async (productSlug) => {
     loading.value = true;
     try {
-      await api.delete(`/products/${productSlug}`);
+      await api.delete(`/api/products/${productSlug}`);
       products.value = products.value.filter((p) => p.slug !== productSlug);
       pagination.value.total = Math.max(0, pagination.value.total - 1);
     } catch (error) {
@@ -174,7 +161,7 @@ export function useProducts() {
   const updateProductStatus = async (productSlug, status) => {
     loading.value = true;
     try {
-      const { data } = await api.patch(`/products/${productSlug}/status`, {
+      const { data } = await api.patch(`/api/products/${productSlug}/status`, {
         status,
       });
       const index = products.value.findIndex((p) => p.slug === productSlug);
@@ -191,7 +178,9 @@ export function useProducts() {
   const bulkDeleteProducts = async (productSlugs) => {
     loading.value = true;
     try {
-      await api.post("/products/bulk-delete", { product_slugs: productSlugs });
+      await api.post("/api/products/bulk-delete", {
+        product_slugs: productSlugs,
+      });
       products.value = products.value.filter(
         (p) => !productSlugs.includes(p.slug)
       );
@@ -210,7 +199,7 @@ export function useProducts() {
   const bulkUpdateStatus = async (productSlugs, status) => {
     loading.value = true;
     try {
-      await api.post("/products/bulk-update-status", {
+      await api.post("/api/products/bulk-update-status", {
         product_slugs: productSlugs,
         status,
       });
@@ -228,7 +217,7 @@ export function useProducts() {
   const fetchProductsToko = async (limit = 12) => {
     loading.value = true;
     try {
-      const { data } = await api.get("/public/products/toko", {
+      const { data } = await api.get("/api/public/products/toko", {
         params: { limit },
       });
       return data.data || [];
@@ -243,7 +232,7 @@ export function useProducts() {
   const fetchProductsKuliner = async (limit = 12) => {
     loading.value = true;
     try {
-      const { data } = await api.get("/public/products/kuliner", {
+      const { data } = await api.get("/api/public/products/kuliner", {
         params: { limit },
       });
       return data.data || [];
@@ -262,33 +251,36 @@ export function useProducts() {
   const fetchPublicProductDetail = async (slug, { signal } = {}) => {
     if (!slug || typeof slug !== "string") throw new Error("Invalid slug");
 
-    const res = await api.get(`/public/products/${encodeURIComponent(slug)}`, {
-      signal,
-    });
-    const payload = res.data ?? {};
-    const productObj = payload.product ?? null;
-    if (!productObj) {
-      return {
-        product: null,
-        price_range: { min: null, max: null },
-        total_stock: 0,
-        has_variants: false,
-        has_addons: false,
-        combinations: [],
-        option_labels: { option1: null, option2: null },
-        min_purchase: 1,
-        merchant_address: null,
-        related_products: [],
-        productImages: [],
-        sizes: [],
-        variants: [],
-        stockCombinations: [],
-        selectedSize: null,
-        selectedVariant: null,
-        addonGroups: [],
-        selectedAddons: [],
-      };
-    }
+      const res = await api.get(
+        `/api/public/products/${encodeURIComponent(slug)}`,
+        {
+          signal,
+        }
+      );
+      const payload = res.data ?? {};
+      const productObj = payload.product ?? null;
+      if (!productObj) {
+        return {
+          product: null,
+          price_range: { min: null, max: null },
+          total_stock: 0,
+          has_variants: false,
+          has_addons: false,
+          combinations: [],
+          option_labels: { option1: null, option2: null },
+          min_purchase: 1,
+          merchant_address: null,
+          related_products: [],
+          productImages: [],
+          sizes: [],
+          variants: [],
+          stockCombinations: [],
+          selectedSize: null,
+          selectedVariant: null,
+          addonGroups: [],
+          selectedAddons: [],
+        };
+      }
 
     // mapping (sama seperti implementasimu)
     const variantsFromBackend = productObj.variants ?? [];
@@ -301,21 +293,15 @@ export function useProducts() {
         : null,
     };
 
-    const imgs = Array.isArray(productObj.images)
-      ? productObj.images.slice()
-      : [];
-    imgs.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
-    const productImages = imgs.length
-      ? imgs.map((img) =>
-          typeof buildImageUrl === "function" ? buildImageUrl(img) : img
-        )
-      : productObj.cover_image
-      ? [
-          typeof buildImageUrl === "function"
-            ? buildImageUrl(productObj.cover_image)
-            : productObj.cover_image,
-        ]
-      : [];
+      const imgs = Array.isArray(productObj.images)
+        ? productObj.images.slice()
+        : [];
+      imgs.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+      const productImages = imgs.length
+        ? imgs.map((img) => img?.src_url || null).filter(Boolean)
+        : productObj.cover_image?.src_url
+        ? [productObj.cover_image.src_url]
+        : [];
 
     const options = Array.isArray(productObj.options) ? productObj.options : [];
     const opt1 = options[0] ?? null;

@@ -328,9 +328,9 @@
 
               <div
                 v-if="getCurrentStock() === 0 || isArchived"
-                class="absolute inset-0 z-10 flex flex-col items-center justify-center m-auto text-center text-white rounded-full pointer-events-none bg-black/55 backdrop-blur-sm sm:w-40 sm:h-40 w-30 h-30"
+                class="absolute inset-0 z-10 bg-black/55 backdrop-blur-sm flex flex-col items-center justify-center text-white text-center pointer-events-none sm:w-40 sm:h-40 w-30 h-30 m-auto rounded-full"
               >
-                <p class="text-lg font-bold tracking-wide sm:text-2xl">
+                <p class="text-lg sm:text-2xl font-bold tracking-wide">
                   {{ isArchived ? "Diarsipkan" : "Habis" }}
                 </p>
               </div>
@@ -924,13 +924,16 @@
     <!-- Addon Groups -->
     <div class="space-y-2">
       <div v-for="group in addonGroups" :key="group.id" class="">
+    <div class="space-y-2">
+      <div v-for="group in addonGroups" :key="group.id" class="">
         <!-- Group Header -->
         <div class="mb-3">
           <div class="flex items-center justify-between capitalize">
+          <div class="flex items-center justify-between capitalize">
             <h4 class="text-sm font-semibold text-gray-900">
               {{ group.name }}
-              <span v-if="group.required" class="ml-1 text-red-500">*</span>
-              <span v-else class="text-xs font-normal text-muted-foreground"
+              <span v-if="group.required" class="text-red-500 ml-1">*</span>
+              <span v-else class="text-muted-foreground font-normal text-xs"
                 >(Opsional)</span
               >
             </h4>
@@ -955,14 +958,14 @@
             <label
               v-for="addon in group.items"
               :key="addon.id"
-              class="flex items-start justify-between p-3 transition border rounded-lg cursor-pointer"
+              class="flex items-start justify-between p-3 rounded-lg border transition cursor-pointer"
               :class="
                 isAddonSelected(addon)
                   ? 'border-primary bg-primary/5'
                   : 'border-gray-200 hover:border-gray-300'
               "
             >
-              <div class="flex items-start flex-1 gap-3">
+              <div class="flex items-start gap-3 flex-1">
                 <!-- RADIO -->
                 <input
                   type="radio"
@@ -975,11 +978,12 @@
 
                 <!-- INFO -->
                 <div
-                  class="flex items-start justify-between w-full gap-2"
+                  class="flex items-start justify-between gap-2 w-full"
                   :class="{ 'opacity-50 cursor-not-allowed': !addon.available }"
                 >
                   <div class="flex-1 min-w-0">
                     <p
+                      class="text-sm font-medium text-gray-900 capitalize"
                       class="text-sm font-medium text-gray-900 capitalize"
                       :class="{
                         'line-through text-gray-400': !addon.available,
@@ -1001,7 +1005,9 @@
                     </p>
                   </div>
 
+
                   <span
+                    class="text-sm font-semibold text-gray-900 whitespace-nowrap"
                     class="text-sm font-semibold text-gray-900 whitespace-nowrap"
                   >
                     +Rp {{ formatIDR(addon.price) }}
@@ -1014,14 +1020,14 @@
             <label
               v-for="addon in group.items"
               :key="addon.id"
-              class="flex items-start justify-between gap-3 p-3 transition border rounded-lg cursor-pointer"
+              class="flex items-start justify-between gap-3 p-3 rounded-lg border transition cursor-pointer"
               :class="
                 isAddonSelected(addon)
                   ? 'border-primary bg-primary/5'
                   : 'border-gray-200 hover:border-gray-300'
               "
             >
-              <div class="flex items-start flex-1 gap-3">
+              <div class="flex items-start gap-3 flex-1">
                 <!-- CHECKBOX -->
                 <input
                   type="checkbox"
@@ -1033,7 +1039,7 @@
 
                 <!-- INFO -->
                 <div
-                  class="flex items-start justify-between w-full gap-2"
+                  class="flex items-start justify-between gap-2 w-full"
                   :class="{ 'opacity-50 cursor-not-allowed': !addon.available }"
                 >
                   <div class="flex-1 min-w-0">
@@ -1088,20 +1094,28 @@
         <!-- Actions -->
         <div class="flex gap-3">
           <Button
+          <Button
             @click="resetAddons"
             type="button"
+            variant="muted-outline"
+            class="w-full"
             variant="muted-outline"
             class="w-full"
           >
             Reset
           </Button>
           <Button
+          </Button>
+          <Button
             @click="applyAddons"
             type="button"
             variant="primary"
             class="w-full"
+            variant="primary"
+            class="w-full"
           >
             Terapkan
+          </Button>
           </Button>
         </div>
       </div>
@@ -1250,7 +1264,8 @@ import { useProducts } from "@/composables/useProducts.js";
 import { useToast } from "vue-toastification";
 import { useCartStore } from "@/stores/cart";
 import { useAuthStore } from "@/stores/auth";
-
+import { useCart } from "@/composables/useCart";
+const { addToCart: addCart, loading: loadingCart, fetchCartCount } = useCart();
 const authStore = useAuthStore();
 const cartStore = useCartStore();
 const toast = useToast();
@@ -1340,10 +1355,10 @@ function getOptionValueSrcUrl(optionIndex, valueId) {
   return value?.src_url || null;
 }
 
+
 async function addToCart() {
-  // ✅ 0. CEK AUTH DI AWAL
   if (!authStore.isAuthenticated) {
-    toast.info("Silakan login terlebih dahulu untuk menambahkan ke keranjang.");
+    toast.info("Silakan login terlebih dahulu");
     router.push({
       name: "Login",
       query: { redirect: route.fullPath },
@@ -1351,14 +1366,14 @@ async function addToCart() {
     return;
   }
 
-  // 1. Validasi Stok
   if (getCurrentStock() <= 0) {
+    toast.error("Stok habis");
     toast.error("Stok habis");
     return;
   }
 
-  // 2. Validasi Opsi
   if (sizes.value.length > 0 && !selectedSize.value) {
+    toast.warning(`Pilih ${option1Label.value}`);
     toast.warning(`Pilih ${option1Label.value}`);
     return;
   }
@@ -1366,11 +1381,11 @@ async function addToCart() {
 
   if (variants.value.length > 0 && !selectedVariant.value) {
     toast.warning(`Pilih ${option2Label.value}`);
+    toast.warning(`Pilih ${option2Label.value}`);
     return;
   }
 
   try {
-    // 3. Cari kombinasi varian
     const sizeId = selectedSize.value?.id ?? 0;
     const variantId = selectedVariant.value?.id ?? 0;
 
@@ -1380,41 +1395,27 @@ async function addToCart() {
         Number(c.variantId) === Number(variantId)
     );
 
-    if (
-      (sizes.value.length > 0 || variants.value.length > 0) &&
-      !matchedCombo
-    ) {
-      toast.error("Varian produk tidak ditemukan.");
+    if (!matchedCombo && (sizes.value.length || variants.value.length)) {
+      toast.error("Varian tidak valid");
       return;
     }
 
-    // 4. Payload
     const payload = {
       product_id: product.value.id,
       quantity: quantity.value,
-      variant_id: matchedCombo ? matchedCombo.product_variant_id : null,
-      addons: selectedAddons.value.map((addon) => ({
-        group_id: addon.addon_group_id,
-        addon_id: addon.id,
+      variant_id: matchedCombo?.product_variant_id ?? null,
+      addons: selectedAddons.value.map((a) => ({
+        group_id: a.addon_group_id,
+        addon_id: a.addon_id,
       })),
     };
 
-    // 5. API CALL (AMAN karena user sudah login)
-    const response = await api.post("/cart/items", payload);
+    await addCart(payload);
+    await cartStore.fetchCartCount(true); // force refresh
 
-    toast.success("Produk berhasil ditambahkan ke keranjang!");
-
-    if (response.data?.cart_total_items !== undefined) {
-      cartStore.setTotal(response.data.cart_total_items);
-    } else {
-      cartStore.increase(quantity.value);
-    }
-  } catch (error) {
-    const msg =
-      error.response?.data?.message || "Gagal menambahkan ke keranjang.";
-    toast.error(msg);
-  } finally {
-    loadingCart.value = false;
+    toast.success("Produk ditambahkan ke keranjang 🛒");
+  } catch (e) {
+    toast.error(e.response?.data?.message || "Gagal menambahkan ke keranjang");
   }
 }
 
@@ -1458,8 +1459,7 @@ const showScrollHeader = ref(true);
 const lastScrollY = ref(0);
 const relatedProducts = ref([]);
 const cartItemsCount = computed(() => {
-  const token = localStorage.getItem("access_token");
-  return token ? cartStore.totalItems : 0;
+  return cartStore.totalItems || 0;
 });
 
 const shareUrl = computed(() => window.location.href);
@@ -1487,6 +1487,7 @@ async function copyLink() {
 }
 
 function shareVia(platform) {
+function shareVia(platform) {
   const url = encodeURIComponent(shareUrl.value);
   const text = encodeURIComponent(shareText.value);
 
@@ -1494,6 +1495,7 @@ function shareVia(platform) {
 
   switch (platform) {
     case "whatsapp":
+      // Mobile & desktop support
       // Mobile & desktop support
       shareLink = `https://wa.me/?text=${text}%20${url}`;
       break;
@@ -1503,6 +1505,7 @@ function shareVia(platform) {
       break;
 
     case "twitter":
+      // Twitter / X
       // Twitter / X
       shareLink = `https://twitter.com/intent/tweet?text=${text}&url=${url}`;
       break;
@@ -1660,31 +1663,9 @@ function resetStateBeforeFetch() {
   relatedProducts.value = [];
 }
 
-const shareProduct = async () => {
-  const title = product.value?.name || "Produk Menarik";
-  const text = `${title} - Rp ${formatIDR(getCurrentPrice())}`;
-  const url = window.location.href;
-
-  // ✅ Native Share API (Mobile)
-  if (navigator.share) {
-    try {
-      await navigator.share({
-        title,
-        text,
-        url,
-      });
-      return;
-    } catch (err) {
-      // user cancel share → tidak perlu error
-      console.debug("Share dibatalkan", err);
-      return;
-    }
-  }
-
-  // ❌ Fallback → buka modal custom (Desktop / browser lama)
+const shareProduct = () => {
   showShareModal.value = true;
 };
-
 function initDefaultRequiredAddons() {
   const defaults = [];
 
@@ -1692,8 +1673,14 @@ function initDefaultRequiredAddons() {
     if (isSingleRequired(group) && Array.isArray(group.items)) {
       const first = group.items[0];
       if (first?.addon_id) {
+    if (isSingleRequired(group) && Array.isArray(group.items)) {
+      const first = group.items[0];
+      if (first?.addon_id) {
         defaults.push({
           addon_group_id: group.id,
+          addon_id: first.addon_id,
+          name: first.name,
+          price: Number(first.price || 0),
           addon_id: first.addon_id,
           name: first.name,
           price: Number(first.price || 0),
@@ -1731,6 +1718,7 @@ async function doFetchProduct(slug) {
           if (img.image_url) return img.image_url;
           // jika id tersedia — gunakan getImageUrl helper (yang kamu import)
           if (img.src_url) return img.src_url;
+          if (img.src_url) return img.src_url;
           // jika image_path tersedia, coba resolve
           if (img.image_path) {
             return typeof absoluteImagePath === "function"
@@ -1753,6 +1741,7 @@ async function doFetchProduct(slug) {
     if (typeof src === "object") {
       if (src.image_url) return src.image_url;
       if (src.src_url) return src.src_url;
+      if (src.src_url) return src.src_url;
     }
     return null;
   }
@@ -1774,6 +1763,7 @@ async function doFetchProduct(slug) {
 
       const fallbackMapped = {
         product: maybeProduct,
+        productImages: (maybeProduct.images || []).map((img) => img?.src_url),
         productImages: (maybeProduct.images || []).map((img) => img?.src_url),
         sizes: (maybeProduct.options?.[0]?.values || []).map((v) => ({
           id: v.id,
@@ -1894,6 +1884,7 @@ async function doFetchProduct(slug) {
       ? mapped.addonGroups
       : mapped.product?.addon_groups ?? [];
 
+
     relatedProducts.value = Array.isArray(mapped.related_products)
       ? mapped.related_products
       : mapped.relatedProducts ?? [];
@@ -1903,12 +1894,11 @@ async function doFetchProduct(slug) {
     selectedVariant.value =
       mapped.selectedVariant ??
       (variants.value.length ? variants.value[0] : null);
+    selectedAddons.value = [];
+    tempSelectedAddons.value = [];
 
-    selectedAddons.value = Array.isArray(mapped.selectedAddons)
-      ? mapped.selectedAddons
-      : [];
-    tempSelectedAddons.value = [...selectedAddons.value];
-
+    // lalu init addon wajib
+    initDefaultRequiredAddons();
     // fallback: kalau tidak ada productImages tapi variant memiliki display_image gunakan itu
     if (
       (!productImages.value || productImages.value.length === 0) &&
@@ -1932,7 +1922,9 @@ async function doFetchProduct(slug) {
 }
 
 onMounted(async () => {
+onMounted(async () => {
   window.addEventListener("scroll", handleScroll);
+  await fetchCartCount();
   await fetchCartCount();
 });
 watch(
@@ -1941,7 +1933,7 @@ watch(
     if (!ready) return;
 
     if (authStore.isAuthenticated) {
-      cartStore.fetchCartCount();
+      fetchCartCount();
     } else {
       cartStore.reset();
     }
@@ -1983,11 +1975,25 @@ function handleScroll() {
 
 // buyNow: keep your existing behavior, but use safe fields
 function buyNow() {
+  if (!authStore.isAuthenticated) {
+    toast.info("Silakan login terlebih dahulu untuk melanjutkan pembelian.");
+    router.push({ name: "Login", query: { redirect: route.fullPath } });
+    return;
+  }
+
   const qty = Number(quantity.value || 1);
   const unitPrice =
     Number(getCurrentPrice()) || Number(product.value?.price || 0);
 
+
   const sizeId = selectedSize.value?.id ?? null;
+  const sizeName = selectedSize.value?.name ?? "";
+
+  const optionVariantId = selectedVariant.value?.id ?? 0;
+  const variantName = [sizeName, selectedVariant.value?.name]
+    .filter(Boolean)
+    .join(" - ");
+
   const sizeName = selectedSize.value?.name ?? "";
 
   const optionVariantId = selectedVariant.value?.id ?? 0;
@@ -1999,6 +2005,21 @@ function buyNow() {
   const store = product.value?.merchant || product.value?.store || {};
   const merchantAddress = product.value?.merchant_address ?? "";
   const checkout = useCheckoutStore();
+
+  // ✅ HITUNG matchedCombo DULU
+  const matchedCombo = stockCombinations.value.find(
+    (c) =>
+      Number(c.sizeId) === Number(sizeId) &&
+      Number(c.variantId) === Number(optionVariantId)
+  );
+
+  if (!matchedCombo) {
+    toast.error("Varian tidak valid");
+    return;
+  }
+
+  // ✅ BARU PAKAI
+  const productVariantId = matchedCombo.product_variant_id;
 
   checkout.setFromProductDetail({
     slug: product.value?.slug,
@@ -2014,6 +2035,7 @@ function buyNow() {
     qty,
     sizeId,
     sizeName,
+    variantId: productVariantId, // ✅ BENAR
     variantId: productVariantId, // ✅ BENAR
     variantName,
     unitPrice,
@@ -2034,6 +2056,7 @@ function buyNow() {
 function isAddonSelected(addon) {
   return tempSelectedAddons.value.some(
     (a) => Number(a.addon_id) === Number(addon.addon_id)
+    (a) => Number(a.addon_id) === Number(addon.addon_id)
   );
 }
 
@@ -2042,13 +2065,24 @@ function toggleAddon(addon, group) {
   const addonId = addon.addon_id ?? addon.id;
   if (!addonId) return;
 
+  const addonId = addon.addon_id ?? addon.id;
+  if (!addonId) return;
+
   const idx = tempSelectedAddons.value.findIndex(
     (a) => Number(a.addon_id) === Number(addonId)
+    (a) => Number(a.addon_id) === Number(addonId)
   );
+
 
   if (idx >= 0) {
     tempSelectedAddons.value.splice(idx, 1);
   } else {
+    tempSelectedAddons.value.push({
+      addon_group_id: group.id,
+      addon_id: addonId,
+      name: addon.name,
+      price: Number(addon.price || 0),
+    });
     tempSelectedAddons.value.push({
       addon_group_id: group.id,
       addon_id: addonId,
@@ -2065,9 +2099,22 @@ function selectSingleAddon(addon, group) {
     return;
   }
 
+  if (!addon || !addon.addon_id) {
+    console.warn("Invalid addon object", addon);
+    return;
+  }
+
   tempSelectedAddons.value = tempSelectedAddons.value.filter(
     (a) => Number(a.addon_group_id) !== Number(group.id)
+    (a) => Number(a.addon_group_id) !== Number(group.id)
   );
+
+  tempSelectedAddons.value.push({
+    addon_group_id: group.id,
+    addon_id: addon.addon_id,
+    name: addon.name,
+    price: Number(addon.price || 0),
+  });
 
   tempSelectedAddons.value.push({
     addon_group_id: group.id,
@@ -2080,6 +2127,7 @@ function selectSingleAddon(addon, group) {
 // Cek apakah group sudah mencapai batas pilihan (dipakai di template disable checkbox)
 function isGroupMaxed(group, addon) {
   const count = tempSelectedAddons.value.filter((a) =>
+    group.items.some((gi) => Number(gi.addon?.id) === Number(a.addon_id))
     group.items.some((gi) => Number(gi.addon?.id) === Number(a.addon_id))
   ).length;
   const maxSel = Number(group.maxSelection || 1);
@@ -2103,8 +2151,12 @@ function resetAddons() {
   addonGroups.value.forEach((group) => {
     const minSel = Number(group.min_selection ?? (group.required ? 1 : 0));
     const maxSel = Number(group.maxSelection ?? group.max_selection ?? 1);
+    const minSel = Number(group.min_selection ?? (group.required ? 1 : 0));
+    const maxSel = Number(group.maxSelection ?? group.max_selection ?? 1);
 
     if (minSel > 0 && maxSel === 1 && Array.isArray(group.items)) {
+      const first = group.items[0];
+      if (first?.addon_id) {
       const first = group.items[0];
       if (first?.addon_id) {
         tempSelectedAddons.value.push({
@@ -2112,10 +2164,19 @@ function resetAddons() {
           addon_id: first.addon_id,
           name: first.name,
           price: Number(first.price || 0),
+          addon_id: first.addon_id,
+          name: first.name,
+          price: Number(first.price || 0),
         });
       }
     }
   });
+}
+function isSingleRequired(group) {
+  const min = Number(group.min_selection ?? (group.required ? 1 : 0));
+  const max = Number(group.maxSelection ?? group.max_selection ?? 1);
+
+  return min === 1 && max === 1;
 }
 function isSingleRequired(group) {
   const min = Number(group.min_selection ?? (group.required ? 1 : 0));

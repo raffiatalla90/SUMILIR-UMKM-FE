@@ -12,33 +12,42 @@
         <div class="space-y-3">
           <div class="space-y-4">
             <div
-              class="w-20 h-20 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0"
+              v-for="item in checkoutItems"
+              :key="item.id"
+              class="flex flex-col gap-3 bg-white p-4 last:border-none border-b border-gray-200"
             >
-              <img
-                :src="order.image || 'https://via.placeholder.com/80'"
-                class="w-full h-full object-cover"
-              />
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="text-sm font-semibold text-gray-800 mb-1">
-                {{ order.title }}
+              <div class="flex gap-3">
+                <!-- IMAGE -->
+                <div class="w-20 h-20 rounded-lg bg-gray-100 overflow-hidden">
+                  <img :src="item.image" class="w-full h-full object-cover" />
+                </div>
+
+                <!-- INFO -->
+                <div class="flex-1 min-w-0 space-y-1">
+                  <h3 class="text-sm font-semibold text-gray-900">
+                    {{ item.name }}
+                  </h3>
+
+                  <!-- VARIANT -->
+                  <div
+                    v-if="item.variant"
+                    class="text-xs text-muted-foreground capitalize"
+                  >
+                    Varian: {{ item.variant }}
+                  </div>
+
+                  <!-- PRICE + QTY -->
+                  <div class="flex justify-between items-center mt-2">
+                    <span class="text-sm font-bold text-[#FFA30E]">
+                      Rp {{ formatIDR(item.price) }}
+                    </span>
+
+                    <span class="text-xs text-gray-600">
+                      x{{ item.quantity }}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div class="text-xs text-gray-600 space-y-0.5">
-                <div v-if="order.size">Ukuran: {{ order.size }}</div>
-                <div v-if="order.variant">Varian: {{ order.variant }}</div>
-              </div>
-              <div class="flex items-center justify-between mt-2">
-                <span class="text-sm font-semibold text-gray-900">
-                  <!-- ✅ pakai unitPrice dari checkout (hasil getCurrentPrice saat checkout) -->
-                  Rp
-                  {{
-                    formatIDR(Number(checkout.unitPrice || 0) + addonUnitTotal)
-                  }}
-                </span>
-                <span class="text-sm text-gray-600">x{{ order.quantity }}</span>
-              </div>
-            </div>
-          </div>
 
               <!-- Addons jika ada -->
               <div v-if="item.addons?.length" class="space-y-1">

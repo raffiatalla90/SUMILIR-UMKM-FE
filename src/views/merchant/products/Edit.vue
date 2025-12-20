@@ -1078,7 +1078,7 @@ const onSubmit = veeHandleSubmit(
       });
 
       // ✅ API Call
-      await api.post(`/products/${productSlug.value}`, formData, {
+      await api.post(`/api/products/${productSlug.value}`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
