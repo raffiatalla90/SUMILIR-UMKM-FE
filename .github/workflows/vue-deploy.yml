@@ -27,8 +27,7 @@ jobs:
           VITE_APP_URL: ${{ vars.VITE_APP_URL || 'http://localhost:5173' }}
           VITE_PUBLIC_BASE_PATH: ${{ vars.VITE_PUBLIC_BASE_PATH || '/' }}
 
-          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || 'http://localhost:8000/api' }}
-          VITE_BASE_URL: ${{ secrets.VITE_BASE_URL || 'http://localhost:8000' }}
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || 'http://localhost:8000' }}
           VITE_API_PREFIX: ${{ secrets.VITE_API_PREFIX || '/api' }}
           VITE_SANCTUM_ENDPOINT: ${{ secrets.VITE_SANCTUM_ENDPOINT || '/sanctum/csrf-cookie' }}
           VITE_WITH_CREDENTIALS: "true"
