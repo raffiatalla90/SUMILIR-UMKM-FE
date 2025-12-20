@@ -11,7 +11,7 @@ const authStore = useAuthStore();
 const isAuthenticated = computed(() => authStore.isAuthenticated);
 const user = computed(() => authStore.user);
 
-const menus = [
+const baseMenus = [
   {
     key: "home",
     label: "Beranda",
@@ -61,6 +61,16 @@ const menus = [
     </svg>`,
   },
 ];
+
+const menus = computed(() => {
+  return baseMenus.filter((m) => {
+    // ❌ sembunyikan keranjang jika belum login
+    if (m.key === "keranjang" && !isAuthenticated.value) {
+      return false;
+    }
+    return true;
+  });
+});
 
 // Simpan active utk menu statis
 const activeKey = ref(null);

@@ -1,5 +1,6 @@
+// src/stores/cart.js
 import { defineStore } from "pinia";
-import api from "@/libs/axios";
+import { useCart } from "@/composables/useCart";
 
 export const useCartStore = defineStore("cart", {
   state: () => ({
@@ -13,15 +14,12 @@ export const useCartStore = defineStore("cart", {
   },
 
   actions: {
-    /** Ambil jumlah item di cart */
     async fetchCartCount(force = false) {
       if (!localStorage.getItem("user")) {
         this.reset();
         return;
       }
-      if (this.loading) return;
 
-      // cache ringan (hindari spam request)
       if (
         !force &&
         this.lastFetchedAt &&
@@ -31,28 +29,28 @@ export const useCartStore = defineStore("cart", {
       }
 
       this.loading = true;
+
       try {
-        const res = await api.get("/cart/count");
-        this.totalItems = Number(res.data?.count || 0);
+        const { fetchCartCount } = useCart(); // ✅ panggil DI DALAM ACTION
+        const count = await fetchCartCount();
+
+        this.totalItems = count; // ✅ INI YANG SEBELUMNYA HILANG
         this.lastFetchedAt = Date.now();
       } catch (e) {
         if (e.response?.status === 401) {
           this.reset();
         }
-        console.warn("Gagal fetch cart count");
       } finally {
         this.loading = false;
       }
     },
 
-    /** Tambah manual (fallback jika backend tidak balikin count) */
-    increase(count = 1) {
-      this.totalItems += Number(count || 1);
-    },
-
-    /** Set langsung (jika backend balikin total terbaru) */
     setTotal(count) {
       this.totalItems = Number(count || 0);
+    },
+
+    increase(count = 1) {
+      this.totalItems += Number(count || 1);
     },
 
     reset() {

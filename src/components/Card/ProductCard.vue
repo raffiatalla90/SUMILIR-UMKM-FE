@@ -1,8 +1,6 @@
 <script setup>
 import { computed } from "vue";
 import { getImageUrl } from "@/libs/getImageUrl";
-import starIcon from "@/assets/icons/Bintang.png";
-import lokasiIcon from "@/assets/icons/TitikLokasi.png";
 
 const props = defineProps({
   product: {
@@ -51,7 +49,10 @@ const formattedPrice = computed(() => {
 // Get image URL
 const productImageUrl = computed(() => {
   if (props.product.cover_image?.id) {
-    return getImageUrl(props.product.cover_image.id);
+    return (
+      props.product.cover_image.src_url ||
+      getImageUrl(props.product.cover_image.id)
+    );
   }
   return null;
 });
@@ -66,7 +67,7 @@ const productImageUrl = computed(() => {
     shadow-sm
     overflow-hidden
     transition-transform duration-300 ease-out
-    hover:-translate-y-1 hover:shadow-xl
+    hover:-translate-y-1 hover:shadow-md
     cursor-pointer
     min-w-[161px]
     ${customClass} `"
