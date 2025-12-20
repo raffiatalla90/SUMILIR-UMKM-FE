@@ -59,7 +59,7 @@ const loadMoreMerchants = async () => {
   isLoadMore.value = true;
   try {
     // Ambil produk baru dengan limit lebih banyak
-    const newProducts = await api.get("/public/merchants/random", {
+    const newProducts = await api.get("/api/public/merchants/random", {
       params: { limit: 8 },
     });
     productList.value = newProducts;
@@ -75,7 +75,7 @@ onMounted(async () => {
   // ✅ Fetch random merchants
   try {
     isLoadingMerchants.value = true;
-    const merchantRes = await api.get("/public/merchants/random", {
+    const merchantRes = await api.get("/api/public/merchants/random", {
       params: { limit: 8 },
     });
     merchantList.value = merchantRes.data.data || [];
@@ -88,7 +88,7 @@ onMounted(async () => {
   // Fetch promo (ganti dengan API call sebenarnya)
   try {
     isLoadingPromo.value = true;
-    const promoRes = await api.get("/promos");
+    const promoRes = await api.get("/api/promos");
     promoList.value = Array.isArray(promoRes.data) ? promoRes.data : [];
   } catch (e) {
     console.error("Gagal memuat data promo:", e);
