@@ -119,6 +119,14 @@
               >
             </div>
           </div>
+          <div>
+            <button
+              @click="confirmRemoveAllByCart(store.id)"
+              class="text-sm text-danger-foreground active:scale-95 cursor-pointer"
+            >
+              Hapus Semua
+            </button>
+          </div>
         </div>
 
         <!-- Store Items -->
@@ -146,7 +154,7 @@
 
             <!-- Product Image -->
             <div
-              class="w-20 h-20 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0 group-hover:-translate-y-0.5 duration-200 transition-transform"
+              class="w-20 h-20 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0 group-hover:-translate-y-0.5 duration-200 transition-transform relative"
               @click="goToProductPage(item.slug)"
             >
               <img
@@ -154,6 +162,14 @@
                 :alt="item.name"
                 class="w-full h-full object-cover"
               />
+              <div
+                v-if="item.isUnavailable"
+                class="absolute bottom-0 left-0 right-0 z-10 bg-black/70 backdrop-blur-sm text-white text-center pointer-events-none px-1 py-1"
+              >
+                <p class="text-xs font-medium tracking-wide">
+                  {{ item.stock === 0 ? "Habis" : "Diarsipkan" }}
+                </p>
+              </div>
             </div>
 
             <!-- Product Info -->
@@ -170,7 +186,9 @@
                 v-if="item.isUnavailable"
                 class="text-xs text-red-500 font-semibold mb-1"
               >
-                <span v-if="item.stock === 0">Produk habis</span>
+                <span v-if="item.stock === 0"
+                  >Habis, coba lihat varian lain</span
+                >
                 <span v-else>Produk ini sedang tidak tersedia</span>
               </div>
 
@@ -182,7 +200,9 @@
                 <div class="font-medium">
                   Rp {{ formatIDR(item.unitPrice) }}
                 </div>
-                <div v-if="item.variant">{{ item.variant }}</div>
+                <div v-if="getVariantLabel(item)" class="capitalize">
+                  Varian: {{ getVariantLabel(item) }}
+                </div>
                 <div v-if="item.addons.length" class="space-y-0.5">
                   <div
                     v-for="addon in item.addons"
@@ -329,7 +349,7 @@
 
             <!-- Delete Button -->
             <button
-              @click="removeItem(item.id)"
+              @click="confirmRemove(item.id)"
               class="p-1 text-gray-400 hover:text-red-500 transition cursor-pointer"
             >
               <svg
@@ -377,34 +397,6 @@
       </div>
     </main>
 
-    <!-- Confirmation Modal -->
-    <ResponsiveModal
-      :show="showConfirmModal"
-      @close="showConfirmModal = false"
-      title="Konfirmasi Hapus"
-    >
-      <div class="space-y-4">
-        <p class="text-sm text-gray-600">
-          Apakah anda yakin ingin menghapus produk ini dari keranjang?
-        </p>
-      </div>
-
-      <template #footer>
-        <div class="flex gap-3">
-          <Button
-            @click="showConfirmModal = false"
-            variant="muted-outline"
-            customClass="w-full"
-          >
-            Batal
-          </Button>
-          <Button @click="confirmRemove" variant="danger" customClass="w-full">
-            Hapus
-          </Button>
-        </div>
-      </template>
-    </ResponsiveModal>
-
     <!-- Edit Variant Modal -->
     <ResponsiveModal
       :show="showEditModal"
@@ -419,7 +411,7 @@
           :key="opt.option_id"
           class="space-y-2"
         >
-          <label class="text-sm font-semibold text-gray-900 block">
+          <label class="text-sm font-semibold text-gray-900 block capitalize">
             {{ opt.option_name }}
             <span class="text-red-500">*</span>
           </label>
@@ -459,57 +451,87 @@
         </div>
 
         <!-- Addon Selection -->
-        <div v-if="availableAddons.length > 0">
-          <label class="text-sm font-semibold text-gray-900 mb-2 block">
-            Tambahan (opsional)
-          </label>
-          <div class="space-y-2">
-            <label
-              v-for="addon in availableAddons"
-              :key="addon.name"
-              class="flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition"
-              :class="
-                isAddonSelected(addon)
-                  ? 'border-[#FFA30E] bg-orange-50'
-                  : addon.available
-                  ? 'border-gray-200 hover:border-gray-300'
-                  : 'border-gray-200 opacity-50 cursor-not-allowed'
-              "
-            >
-              <input
-                type="checkbox"
-                :value="{
-                  addon_group_id: addon.addon_group_id,
-                  addon_id: addon.addon_id,
-                }"
-                v-model="tempAddons"
-                :disabled="!addon.available"
-                class="w-4 h-4 text-[#FFA30E] border-gray-300 rounded focus:ring-[#FFA30E] disabled:cursor-not-allowed"
-              />
-              <div class="flex-grow flex items-start justify-between gap-2">
-                <div class="">
-                  <p
-                    class="text-sm font-medium text-gray-900 flex-grow"
-                    :class="{
-                      'line-through text-gray-400': !addon.available,
-                    }"
-                  >
-                    {{ addon.name }}
-                  </p>
-                  <p
-                    v-if="!addon.available"
-                    class="text-xs text-red-500 mt-0.5"
-                  >
-                    Tidak tersedia
-                  </p>
-                </div>
-                <span
-                  class="text-sm font-semibold text-gray-900 whitespace-nowrap ml-2"
+        <div v-if="addonGroups && addonGroups.length" class="space-y-2">
+          <!-- ADDON GROUPS -->
+          <div v-for="group in addonGroups" :key="group.id" class="space-y-2">
+            <div class="flex items-center justify-between capitalize">
+              <label
+                class="text-sm font-semibold text-gray-900 block capitalize"
+              >
+                {{ group.name }}
+                <span v-if="group.min_selection === 1" class="text-red-500"
+                  >*</span
                 >
+                <span v-else class="text-xs text-gray-500 font-normal"
+                  >(Opsional)</span
+                >
+              </label>
+              <span
+                v-if="group.max_selection > 1"
+                class="text-xs text-gray-500"
+              >
+                Maks. {{ group.max_selection }} pilihan
+              </span>
+              <span
+                v-else-if="group.max_selection === 1"
+                class="text-xs text-gray-500"
+              >
+                Pilih 1
+              </span>
+            </div>
+
+            <!-- SINGLE (RADIO) -->
+            <div v-if="group.selection_type === 'single'" class="space-y-2">
+              <label
+                v-for="addon in group.options"
+                :key="addon.addon_id"
+                class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer text-sm"
+                :class="
+                  isAddonSelected(addon)
+                    ? 'border-[#FFA30E] bg-orange-50'
+                    : 'border-gray-200'
+                "
+              >
+                <input
+                  type="radio"
+                  :name="`addon-group-${group.id}`"
+                  :checked="isAddonSelected(addon)"
+                  @change="selectSingleAddon(addon, group)"
+                  class="w-4 h-4 text-[#FFA30E]"
+                />
+
+                <span class="flex-1">{{ addon.name }}</span>
+                <span class="font-semibold">
                   +Rp {{ formatIDR(addon.price) }}
                 </span>
-              </div>
-            </label>
+              </label>
+            </div>
+
+            <!-- MULTIPLE (CHECKBOX) -->
+            <div v-else class="space-y-2">
+              <label
+                v-for="addon in group.options"
+                :key="addon.addon_id"
+                class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer text-sm"
+                :class="
+                  isAddonSelected(addon)
+                    ? 'border-[#FFA30E] bg-orange-50'
+                    : 'border-gray-200'
+                "
+              >
+                <input
+                  type="checkbox"
+                  :checked="isAddonSelected(addon)"
+                  @change="toggleAddon(addon, group)"
+                  class="w-4 h-4 text-[#FFA30E]"
+                />
+
+                <span class="flex-1">{{ addon.name }}</span>
+                <span class="font-semibold">
+                  +Rp {{ formatIDR(addon.price) }}
+                </span>
+              </label>
+            </div>
           </div>
         </div>
 
@@ -586,10 +608,24 @@ import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import Button from "@/components/common/Button.vue";
 import MobileHeader from "@/components/customer/MobileHeader.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
-import api from "@/libs/axios";
 import { useToast } from "vue-toastification";
 import { useCheckoutStore } from "@/stores/checkout";
 import debounce from "lodash/debounce";
+import { useCart } from "@/composables/useCart";
+import { useCartStore } from "@/stores/cart";
+
+const cartStore = useCartStore();
+
+const {
+  cartStores,
+  loading,
+  fetchCart,
+  updateItemQuantity,
+  updateItemVariant,
+  removeItem,
+  clearCartByStore,
+} = useCart();
+const addonGroups = ref([]);
 
 const quantityDrafts = ref({}); // simpan nilai ketikan sementara
 const quantitySnapshots = ref({}); // rollback data
@@ -607,11 +643,41 @@ const shouldShowStockOnOption = (optionIndex) => {
 
   return optionIndex === 1;
 };
-const canCheckout = computed(() =>
-  cartStores.value.every((store) =>
-    store.items.every((item) => !item.isOverStock)
-  )
-);
+const getVariantLabel = (item) => {
+  if (!item.selectedVariantId || !item.productDetails?.variants) {
+    return "";
+  }
+
+  const variant = item.productDetails.variants.find(
+    (v) => v.id === item.selectedVariantId
+  );
+
+  if (!variant || !variant.option_values?.length) {
+    return "";
+  }
+
+  // contoh hasil: "Ukuran: Large, Level: Pedas"
+  return variant.option_values.map((ov) => ov.option_value).join(" - ");
+};
+
+const initRequiredAddons = () => {
+  const defaults = [];
+
+  addonGroups.value.forEach((group) => {
+    if (
+      group.selection_type === "single" &&
+      group.min_selection === 1 &&
+      group.options.length
+    ) {
+      defaults.push({
+        addon_group_id: group.id,
+        addon_id: group.options[0].addon_id,
+      });
+    }
+  });
+
+  tempAddons.value = defaults;
+};
 
 const updateStockFlags = (item) => {
   item.isOverStock = item.quantity > item.stock;
@@ -652,9 +718,7 @@ const debounceUpdateQuantity = debounce(async (itemId) => {
   const oldQty = quantitySnapshots.value[itemId];
 
   try {
-    await api.patch(`/cart/items/${itemId}`, {
-      quantity: newQty,
-    });
+    await updateItemQuantity(itemId, { quantity: newQty });
 
     // sukses → hapus snapshot
     delete quantitySnapshots.value[itemId];
@@ -709,87 +773,8 @@ const editingStoreId = ref(null);
 
 const tempAddons = ref([]);
 
-const cartStores = ref([]);
-const loading = ref(false);
-const resolveUnitPrice = (item) => {
-  return item.changes.price_changed
-    ? item.live.unit_price
-    : item.snapshot.unit_price;
-};
-
-const fetchCart = async () => {
-  loading.value = true;
-
-  try {
-    const res = await api.get("/cart");
-
-    cartStores.value = res.data.data.map((cart) => ({
-      id: cart.cart_id,
-      name: cart.merchant.name,
-      phone: cart.merchant.phone,
-      address: cart.merchant.address,
-
-      items: cart.items
-        .map((item) => {
-          // =========================
-          // 🔥 RESOLVE HARGA FINAL
-          // =========================
-          const unitPrice = item.changes?.price_changed
-            ? item.live.unit_price
-            : item.snapshot.unit_price;
-
-          return {
-            // BASIC
-            id: item.cart_item_id,
-            quantity: item.quantity,
-            stock: item.live.max_stock,
-            status: item.product_details.status,
-            slug: item.product_details.slug,
-
-            // DISPLAY
-            name: item.snapshot.name,
-            image:
-              item.snapshot.image ?? item.product_details.cover_image.src_url,
-            variant: item.snapshot.variant_label,
-
-            // PRICE
-            unitPrice,
-            addonTotalPrice: item.snapshot.addon_total_price,
-
-            // ADDONS
-            addons: item.snapshot.addons,
-
-            // FLAGS (UX)
-            hasPriceChanged: item.changes?.price_changed ?? false,
-            hasStockIssue: item.changes?.stock_changed ?? false,
-            isAvailable: item.live.is_available,
-            isOverStock: item.changes?.is_over_stock ?? false,
-            isUnavailable:
-              item.product_details.status !== "published" ||
-              item.live.max_stock === 0,
-
-            // SELECTION (UNTUK EDIT)
-            selectedVariantId: item.selected_configuration.variant_id,
-            selectedAddons: item.selected_configuration.addon_ids,
-
-            // PRODUCT DETAIL (MODAL EDIT)
-            productDetails: item.product_details,
-          };
-        })
-        .sort((a, b) => {
-          return Number(a.isUnavailable) - Number(b.isUnavailable);
-        }),
-    }));
-  } catch (error) {
-    toast.error("Gagal memuat keranjang");
-    cartStores.value = [];
-  } finally {
-    loading.value = false;
-  }
-};
-
-onMounted(() => {
-  fetchCart();
+onMounted(async () => {
+  await fetchCart();
 });
 
 // ✅ Body Scroll Lock for Modals
@@ -944,11 +929,35 @@ const getStoreSelectedCount = (storeId) => {
   return store.items.filter((item) => selectedItems.value.includes(item.id))
     .length;
 };
-const isAddonSelected = (addon) => {
-  return tempAddons.value.some(
+const isAddonSelected = (addon) =>
+  tempAddons.value.some(
     (a) =>
       a.addon_id === addon.addon_id && a.addon_group_id === addon.addon_group_id
   );
+
+const selectSingleAddon = (addon, group) => {
+  tempAddons.value = tempAddons.value.filter(
+    (a) => a.addon_group_id !== group.id
+  );
+
+  tempAddons.value.push({
+    addon_group_id: group.id,
+    addon_id: addon.addon_id,
+  });
+};
+const toggleAddon = (addon, group) => {
+  const idx = tempAddons.value.findIndex(
+    (a) => a.addon_id === addon.addon_id && a.addon_group_id === group.id
+  );
+
+  if (idx >= 0) {
+    tempAddons.value.splice(idx, 1);
+  } else {
+    tempAddons.value.push({
+      addon_group_id: group.id,
+      addon_id: addon.addon_id,
+    });
+  }
 };
 
 // Calculate store subtotal
@@ -965,38 +974,51 @@ const calculateStoreSubtotal = (storeId) => {
     );
 };
 
-const increaseQuantity = (itemId) => {
+const increaseQuantity = async (itemId) => {
   for (const store of cartStores.value) {
     const item = store.items.find((i) => i.id === itemId);
     if (!item || item.quantity >= item.stock) continue;
 
     onQuantityInput(itemId, item.quantity + 1);
+    await cartStore.fetchCartCount(true);
+
     break;
   }
 };
 
-const decreaseQuantity = (itemId) => {
+const decreaseQuantity = async (itemId) => {
   for (const store of cartStores.value) {
     const item = store.items.find((i) => i.id === itemId);
     if (!item || item.quantity <= 1) continue;
 
     onQuantityInput(itemId, item.quantity - 1);
+    await cartStore.fetchCartCount(true);
+
     break;
   }
 };
 
-// Remove Item
-const removeItem = (itemId) => {
-  itemToRemove.value = itemId;
-  showConfirmModal.value = true;
-};
-
-const confirmRemove = async () => {
-  if (!itemToRemove.value) return;
+const confirmRemoveAllByCart = async (cartId) => {
+  if (!cartId) return;
 
   try {
-    await api.delete(`/cart/items/${itemToRemove.value}`);
+    await clearCartByStore(cartId);
 
+    // update UI cart page
+    cartStores.value = cartStores.value.filter((cart) => cart.id !== cartId);
+
+    // 🔥 WAJIB: refresh badge count
+    await cartStore.fetchCartCount(true);
+  } catch {
+    toast.error("Gagal menghapus cart");
+  }
+};
+
+const confirmRemove = async (itemId) => {
+  if (!itemId) return;
+
+  try {
+    await removeItem(itemId);
     for (const store of cartStores.value) {
       const index = store.items.findIndex((i) => i.id === itemToRemove.value);
       if (index > -1) {
@@ -1008,8 +1030,10 @@ const confirmRemove = async () => {
     cartStores.value = cartStores.value.filter(
       (store) => store.items.length > 0
     );
+
+    await cartStore.fetchCartCount(true);
   } catch (error) {
-    alert("Gagal menghapus item");
+    toast.error("Gagal menghapus item");
   } finally {
     showConfirmModal.value = false;
     itemToRemove.value = null;
@@ -1062,9 +1086,23 @@ const hasConfigurationIssue = (item) =>
   hasDeletedVariant(item) || hasDeletedAddon(item);
 
 const editAddonTotal = computed(() => {
-  return availableAddons.value
-    .filter((a) => isAddonSelected(a))
-    .reduce((sum, a) => sum + a.price, 0);
+  let total = 0;
+
+  tempAddons.value.forEach((selected) => {
+    const group = addonGroups.value.find(
+      (g) => g.id === selected.addon_group_id
+    );
+
+    if (!group) return;
+
+    const addon = group.options.find((o) => o.addon_id === selected.addon_id);
+
+    if (addon) {
+      total += Number(addon.price || 0);
+    }
+  });
+
+  return total;
 });
 
 const editTotalPrice = computed(() => {
@@ -1133,20 +1171,30 @@ const editItemVariant = (itemId, storeId) => {
   /* ===============================
    * 4. ADDONS
    * =============================== */
-  availableAddons.value = product.addon_groups.flatMap((group) =>
-    group.options.map((opt) => ({
+  addonGroups.value = product.addon_groups.map((group) => ({
+    id: group.id,
+    name: group.addon_group_name,
+    selection_type: group.selection_type, // single | multiple
+    min_selection: Number(group.min_selection),
+    max_selection: Number(group.max_selection),
+    options: group.options.map((opt) => ({
       addon_group_id: group.id,
       addon_id: opt.addon_id,
       name: opt.addon.addon_name,
       price: Number(opt.addon_price),
-      available: true,
-    }))
-  );
-
-  tempAddons.value = item.selectedAddons.map((a) => ({
-    addon_group_id: a.addon_group_id,
-    addon_id: a.addon_id,
+    })),
   }));
+
+  tempAddons.value = item.selectedAddons?.length
+    ? item.selectedAddons.map((a) => ({
+        addon_group_id: a.addon_group_id,
+        addon_id: a.addon_id,
+      }))
+    : [];
+
+  if (!tempAddons.value.length) {
+    initRequiredAddons();
+  }
 
   showEditModal.value = true;
 };
@@ -1171,17 +1219,17 @@ const saveVariantChanges = async () => {
   );
 
   if (!combo) {
-    alert("Varian tidak ditemukan");
+    toast.error("Varian tidak ditemukan");
     return;
   }
 
   if (combo.stock === 0) {
-    alert("Stok habis");
+    toast.error("Stok habis");
     return;
   }
   saveLoading.value = true;
   try {
-    await api.patch(`/cart/items/${editingItem.value.id}/variant`, {
+    await updateItemVariant(editingItem.value.id, {
       product_variant_id: combo.variantId,
       addons: tempAddons.value,
     });
@@ -1237,7 +1285,7 @@ const checkoutFromCart = (storeId) => {
       unitPrice: item.unitPrice,
       addonTotalPrice: item.addonTotalPrice,
       size: item.size ?? "",
-      variant: item.variant ?? "",
+      variant: getVariantLabel(item),
       addons: item.addons ?? [],
     })),
   });

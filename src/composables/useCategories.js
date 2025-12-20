@@ -34,7 +34,7 @@ export function useCategories() {
   const fetchLevel1Categories = async () => {
     loadingLevel1.value = true;
     try {
-      const response = await api.get("public/categories/level-1");
+      const response = await api.get("/api/public/categories/level-1");
 
       if (response.data.success) {
         // ✅ Normalize all categories
@@ -64,7 +64,7 @@ export function useCategories() {
     loadingLevel2.value = true;
     try {
       const response = await api.get(
-        `public/categories/${parentId}/sub-categories`
+        `/api/public/categories/${parentId}/sub-categories`
       );
 
       if (response.data.success) {
@@ -99,7 +99,7 @@ export function useCategories() {
     }
 
     try {
-      const response = await api.get("public/categories/search", {
+      const response = await api.get("/api/public/categories/search", {
         params: { q: query },
       });
 

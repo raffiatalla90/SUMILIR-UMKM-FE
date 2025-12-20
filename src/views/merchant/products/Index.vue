@@ -347,7 +347,7 @@ const saveBlob = (blob, fallbackName) => {
 const exportExcel = async () => {
   try {
     const params = buildExportParams();
-    const res = await api.get("/products/export/excel", {
+    const res = await api.get("/api/products/export/excel", {
       params,
       responseType: "blob",
     });
@@ -375,7 +375,7 @@ const exportExcel = async () => {
 const exportPDF = async () => {
   try {
     const params = buildExportParams();
-    const res = await api.get("/products/export/pdf", {
+    const res = await api.get("/api/products/export/pdf", {
       params,
       responseType: "blob",
     });

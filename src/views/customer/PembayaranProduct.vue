@@ -29,7 +29,10 @@
                   </h3>
 
                   <!-- VARIANT -->
-                  <div v-if="item.variant" class="text-xs text-gray-600">
+                  <div
+                    v-if="item.variant"
+                    class="text-xs text-muted-foreground capitalize"
+                  >
                     Varian: {{ item.variant }}
                   </div>
 

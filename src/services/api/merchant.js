@@ -19,7 +19,7 @@ import api from "@/libs/axios";
 export async function registerMerchant(payload, config = {}) {
   const defaultTimeout = Number(import.meta.env.VITE_HTTP_TIMEOUT_MS) || 20000; // 20s default
 
-  const { data } = await api.post("/merchant-register", payload, {
+  const { data } = await api.post("/api/merchant-register", payload, {
     timeout: config.timeout ?? defaultTimeout,
     ...config,
   });

@@ -5,6 +5,12 @@ import CommunityView from "@/views/CommunityView.vue";
 import CommunityDetailView from "@/views/CommunityDetailView.vue";
 
 const routes = [
+  {
+    path: "/test-api",
+    name: "ApiTest",
+    component: () => import("@/views/ApiTest.vue"),
+    meta: { title: "API Test | SUMILIR" },
+  },
   // ✅ Halaman Beranda (Public/Customer)
   {
     path: "/",
