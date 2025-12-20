@@ -490,7 +490,10 @@
             </div>
 
             <!-- SINGLE (RADIO) -->
-            <div v-if="group.selection_type === 'single'" class="space-y-2">
+            <div
+              v-if="group.max_selection === 1 && group.min_selection === 1"
+              class="space-y-2"
+            >
               <label
                 v-for="addon in group.options"
                 :key="addon.addon_id"
