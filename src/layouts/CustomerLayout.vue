@@ -1,12 +1,17 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, nextTick, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import Button from "@/components/common/Button.vue";
 import { useRouter } from "vue-router";
+import LogoText from "@/assets/icons/LogoWithText.png";
+import LogoNoText from "@/assets/icons/LogoNoText.png";
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+
+const searchBarRef = ref(null);
+const searchInputRef = ref(null);
 
 const isAuthenticated = computed(() => authStore.isAuthenticated);
 const user = computed(() => authStore.user);
@@ -102,6 +107,46 @@ function onMenuClick(m, e) {
 function goToLogin() {
   router.push({ name: "Login" }).catch(() => router.push("/login"));
 }
+const showSearch = ref(false);
+const searchQuery = ref("");
+
+function toggleSearch() {
+  if (route.path === "/") {
+    // HOME → fokus ke search utama
+    router.push({
+      path: "/",
+      query: { focusSearch: "1" },
+    });
+  } else {
+    // PAGE LAIN → tampilkan searchbar fixed
+    showSearch.value = !showSearch.value;
+
+    nextTick(() => {
+      // optional: auto focus input fixed search
+      // kamu bisa pakai ref khusus jika mau
+    });
+  }
+}
+
+function submitSearch() {
+  if (!searchQuery.value.trim()) return;
+
+  router.push({
+    path: "/search",
+    query: { q: searchQuery.value },
+  });
+
+  showSearch.value = false;
+}
+watch(
+  () => route.path,
+  (path) => {
+    if (path === "/") {
+      showSearch.value = false;
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
@@ -117,7 +162,8 @@ function goToLogin() {
             to="/"
             class="text-[30px] font-bold leading-[100%] tracking-[0] text-black"
           >
-            SUMILIR
+            <img :src="LogoText" alt="SUMILIR" class="h-10 hidden md:block" />
+            <img :src="LogoNoText" alt="SUMILIR" class="h-10 md:hidden" />
           </RouterLink>
 
           <!-- Menu Desktop (tanpa profile, karena sudah di kanan) -->
@@ -157,6 +203,17 @@ function goToLogin() {
 
           <!-- Right side -->
           <div class="ml-auto flex items-center gap-4">
+            <!-- Search Button -->
+            <div class="border-r border-muted-foreground px-4">
+              <button
+                @click="toggleSearch"
+                class="p-2 px-3 rounded-full hover:bg-gray-100 transition"
+                aria-label="Cari"
+              >
+                <i class="pi pi-search"></i>
+              </button>
+            </div>
+
             <template v-if="isAuthenticated">
               <RouterLink
                 to="/profile"
@@ -187,9 +244,9 @@ function goToLogin() {
                     /></svg
                 ></span>
                 <span
-                  class="text-base font-bold leading-[100%] tracking-[0] text-black"
+                  class="text-base font-bold leading-[100%] tracking-[0] text-black md:block hidden"
                 >
-                  {{ user?.name || "Profil" }}
+                  {{ user?.name ? user.name.split(" ")[0] : "Profil" }}
                 </span>
               </RouterLink>
             </template>
@@ -200,6 +257,52 @@ function goToLogin() {
         </div>
       </div>
     </div>
+    <!-- SEARCH BAR (Desktop) -->
+    <transition
+      enter-active-class="transition-all duration-300 ease-out"
+      enter-from-class="opacity-0 -translate-y-2"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition-all duration-200 ease-in"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 -translate-y-2"
+    >
+      <div
+        v-if="showSearch"
+        class="hidden sm:block bg-white border-b border-gray-200 shadow-sm fixed top-[91px] left-0 right-0 z-40"
+      >
+        <div class="max-w-[1440px] mx-auto px-4 py-4">
+          <form @submit.prevent="submitSearch" class="relative">
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Cari produk, jasa, atau UMKM…"
+              class="w-full h-12 rounded-xl border border-gray-300 pl-12 pr-4 text-sm focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-muted-foreground"
+              autofocus
+            />
+
+            <span
+              class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="w-5 h-5"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="m21 21-4.35-4.35m0 0A7.5 7.5 0 1 0 10.5 18a7.5 7.5 0 0 0 6.15-3.35Z"
+                />
+              </svg>
+            </span>
+          </form>
+        </div>
+      </div>
+    </transition>
+
     <!-- Main Content -->
     <main class="flex-1">
       <router-view />

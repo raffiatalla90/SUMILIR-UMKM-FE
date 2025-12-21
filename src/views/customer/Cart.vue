@@ -738,7 +738,7 @@ const debounceUpdateQuantity = debounce(async (itemId) => {
 
     toast.error("Gagal mengubah jumlah");
   }
-}, 600);
+}, 1000);
 const onQuantityBlur = (itemId) => {
   for (const store of cartStores.value) {
     const item = store.items.find((i) => i.id === itemId);

@@ -2,7 +2,14 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon16.png?v=5" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon32.png?v=5" />
+    <link rel="icon" sizes="any" href="/favicon.png?v=5" />
+    <link rel="shortcut icon" href="/favicon.ico?v=5" />
+
+    <!-- SVG (OPSIONAL, FIREFOX SAJA) -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=5" />
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link href="/src/style.css" rel="stylesheet" />
     <meta name="theme-color" content="#ff9800" />
@@ -52,13 +59,24 @@
           display: none;
         }
       }
+
+      #splash-logo {
+        animation: breathe 3s ease-in-out infinite;
+        will-change: transform, opacity;
+        height: 64px;
+      }
     </style>
     <title>SUMILIR</title>
   </head>
   <body>
     <!-- Splash -->
     <div id="splash" aria-hidden="true">
-      <div class="splash-title">SUMILIR</div>
+      <!-- <div class="splash-title">SUMILIR</div> -->
+      <img
+        id="splash-logo"
+        src="/src/assets/icons/White-with-Text.png"
+        alt="SUMILIR"
+      />
     </div>
 
     <div id="app"></div>

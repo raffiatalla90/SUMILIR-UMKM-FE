@@ -5,7 +5,8 @@ import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth.js";
 import Button from "@/components/common/Button.vue";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
-
+import LogoWithText from "@/assets/icons/Merchant-with-Text.png";
+import LogoNoText from "@/assets/icons/Merchant-no-Text.png";
 const authStore = useAuthStore();
 const router = useRouter();
 const route = useRoute();
@@ -191,14 +192,14 @@ defineExpose({
       <!-- Header -->
       <div
         :class="[
-          'flex items-center transition-all duration-300 h-20 shadow-sm',
+          'flex items-center  h-20 shadow-sm',
           isOpen
             ? 'justify-between px-4'
             : 'justify-between px-4 sm:justify-center sm:px-4',
         ]"
       >
         <router-link to="/">
-          <h2
+          <!-- <h2
             :class="[
               'text-lg font-bold text-gray-800 transition-all duration-300',
               isOpen
@@ -207,7 +208,14 @@ defineExpose({
             ]"
           >
             Sumilir Logo
-          </h2>
+          </h2> -->
+          <img
+            v-if="isOpen"
+            :src="LogoWithText"
+            alt="SUMILIR"
+            class=""
+            :class="['', isOpen ? 'opacity-100 h-8' : 'opacity-0 h-0']"
+          />
         </router-link>
 
         <!-- Hamburger Button -->

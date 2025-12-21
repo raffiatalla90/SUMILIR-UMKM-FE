@@ -1,11 +1,9 @@
 <script setup>
-import { ref, onMounted } from "vue";
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch, nextTick } from "vue";
 import { Form } from "vee-validate";
 
 import TextField from "@/components/forms/TextField.vue";
 import CategoryCard from "@/components/Card/CategoryCard.vue";
-import ProductCard from "@/components/Card/ProductCard.vue";
 import ProductCardSkeleton from "@/components/Card/ProductCardSkeleton.vue";
 import PromoCard from "@/components/Card/PromoCard.vue";
 import PromoCardSkeleton from "@/components/Card/PromoCardSkeleton.vue";
@@ -19,7 +17,12 @@ import komunitasIcon from "@/assets/icons/Komunitas.svg";
 
 import Button from "@/components/common/Button.vue";
 import api from "@/libs/axios.js";
+import { useRoute, useRouter } from "vue-router";
 
+const route = useRoute();
+const router = useRouter();
+
+const searchInputRef = ref(null);
 const searchQuery = ref("");
 const isLoadingMerchants = ref(true);
 const isLoadingPromo = ref(true);
@@ -125,10 +128,26 @@ const scrollPromo = (dir = 1) => {
 // Submit search
 const onSearch = () => {
   const q = (searchQuery.value || "").trim();
-  // router.push({ name: "Search", query: q ? { q } : {} });
+  if (!q) return;
+  router.push({ path: "/search", query: { q } });
 };
 
-// LOAD DATA
+const loadMoreMerchants = async () => {
+  isLoadMore.value = true;
+  try {
+    // Ambil produk baru dengan limit lebih banyak
+    const newProducts = await api.get("/api/public/merchants/random", {
+      params: { limit: 8 },
+    });
+    productList.value = newProducts;
+    productLimit.value += 8;
+  } catch (e) {
+    // Optional: tampilkan error
+  } finally {
+    isLoadMore.value = false;
+  }
+};
+
 onMounted(async () => {
   // ✅ Fetch random merchants
   try {
@@ -160,6 +179,20 @@ onMounted(async () => {
     isLoadingEvent.value = false;
   }, 1000);
 });
+watch(
+  () => route.query.focusSearch,
+  async (val) => {
+    if (!val) return;
+
+    await nextTick();
+
+    searchInputRef.value?.scrollIntoView();
+    searchInputRef.value?.focus();
+
+    router.replace({ query: {} });
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
@@ -168,7 +201,9 @@ onMounted(async () => {
     <section id="hero" class="relative pb-2">
       <div class="h-[240px] sm:h-[370px] w-full bg-secondary"></div>
 
-      <div class="flex justify-center -mt-10 px-4 relative z-10">
+      <div
+        class="flex justify-center -mt-10 px-4 relative z-10 max-w-7xl mx-auto"
+      >
         <div class="w-full sm:w-[906px]">
           <div
             class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
@@ -179,11 +214,12 @@ onMounted(async () => {
                 <div class="flex w-full items-center gap-2 sm:gap-3">
                   <TextField
                     name="search"
+                    ref="searchInputRef"
                     :modelValue="searchQuery"
                     @update:modelValue="(v) => (searchQuery = v)"
-                    placeholder="Cari produk, jasa, atau tempat"
+                    placeholder="Cari produk, jasa, atau UMKM…"
                     :hideLabel="true"
-                    variant="muted"
+                    variant="primary"
                     wrapperClass="flex-1 min-w-0"
                   />
                   <Button
