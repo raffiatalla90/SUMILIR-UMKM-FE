@@ -74,8 +74,8 @@ onMounted(async () => {
       logo: data.logo_path
         ? import.meta.env.VITE_STORAGE_URL + data.logo_path
         : 'https://via.placeholder.com/150',
-      coverImage: data.paguyuban?.image_path
-        ? import.meta.env.VITE_STORAGE_URL + data.paguyuban.image_path
+      coverImage: data.cover_path
+        ? import.meta.env.VITE_STORAGE_URL + data.cover_path
         : 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a',
     };
 

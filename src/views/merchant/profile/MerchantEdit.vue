@@ -801,8 +801,8 @@ onMounted(async () => {
       ? import.meta.env.VITE_STORAGE_URL + data.logo_path
       : form.value.logo;
   
-    form.value.coverImage = data.paguyuban?.cover_path
-      ? import.meta.env.VITE_STORAGE_URL + data.paguyuban.cover_path
+    form.value.coverImage = data.cover_path
+      ? import.meta.env.VITE_STORAGE_URL + data.cover_path
       : form.value.coverImage;
   
     const hours = data.operational_hours ?? {};
@@ -937,20 +937,34 @@ const handleSave = async () => {
       const fd = new FormData();
 
       // Basic info
-      fd.append('name', form.value.name);
-      fd.append('phone', form.value.contact);
-      fd.append('description', form.value.description);
+      fd.append('name', form.value.name || '');
+      fd.append('phone', form.value.contact || '');
+      fd.append('description', form.value.description || '');
 
-      // Address
-      fd.append('province_id', form.value.province_id ?? '');
-      fd.append('city_id', form.value.city_id ?? '');
-      fd.append('district_id', form.value.district_id ?? '');
-      fd.append('village_id', form.value.village_id ?? '');
-      fd.append('address_detail', form.value.address_detail ?? '');
+      // Address - only append if value exists (don't send empty strings for integers)
+      if (form.value.province_id) {
+        fd.append('province_id', form.value.province_id);
+      }
+      if (form.value.city_id) {
+        fd.append('city_id', form.value.city_id);
+      }
+      if (form.value.district_id) {
+        fd.append('district_id', form.value.district_id);
+      }
+      if (form.value.village_id) {
+        fd.append('village_id', form.value.village_id);
+      }
+      if (form.value.address) {
+        fd.append('address_detail', form.value.address);
+      }
 
-      // Coordinates
-      fd.append('latitude', latitude.value ?? '');
-      fd.append('longitude', longitude.value ?? '');
+      // Coordinates - only append if value exists
+      if (latitude.value != null && latitude.value !== '') {
+        fd.append('latitude', latitude.value);
+      }
+      if (longitude.value != null && longitude.value !== '') {
+        fd.append('longitude', longitude.value);
+      }
 
       // Operational hours
       fd.append(
@@ -972,8 +986,17 @@ const handleSave = async () => {
       toast.success('Profil UMKM berhasil diperbarui');
       // router.push(`/merchants/${merchantId.value}/profile`);
     } catch (error) {
-      console.error(error);
-      toast.error('Gagal menyimpan perubahan');
+      console.error('Error response:', error.response?.data);
+      console.error('Validation errors:', error.response?.data?.errors);
+      
+      // Show specific validation errors if available
+      const validationErrors = error.response?.data?.errors;
+      if (validationErrors) {
+        const firstError = Object.values(validationErrors)[0];
+        toast.error(Array.isArray(firstError) ? firstError[0] : firstError);
+      } else {
+        toast.error(error.response?.data?.message || 'Gagal menyimpan perubahan');
+      }
     } finally {
       isLoading.value = false;
     }
