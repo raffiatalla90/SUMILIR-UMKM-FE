@@ -43,7 +43,36 @@
 
     <!-- Spacer for Mobile Only -->
     <div class="h-[88px] sm:h-0"></div>
-
+    <div
+      v-if="isLoading"
+      class="fixed inset-0 bg-white/70 backdrop-blur-sm z-50 flex items-center justify-center"
+    >
+      <div class="flex flex-col items-center gap-4">
+        <svg
+          class="animate-spin h-10 w-10 text-merchant-primary"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            class="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            stroke-width="4"
+          />
+          <path
+            class="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8v8H4z"
+          />
+        </svg>
+        <p class="text-sm text-gray-600 font-medium">
+          Memuat data UMKM...
+        </p>
+      </div>
+    </div>
     <!-- Container Responsive -->
     <div class="mx-auto px-0 sm:px-4 lg:px-6 sm:py-6 sm:pt-0">
       <!-- Mobile: Card with Cover & Logo -->
@@ -175,8 +204,16 @@
             <label class="block text-sm font-semibold text-merchant-primary mb-2">
               Lokasi
             </label>
+
             <div class="bg-gray-100 rounded-xl h-48 relative overflow-hidden mb-3">
-              <div class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-200 to-green-400">
+              
+              <LeafletMap
+                    v-if="googleMapsEmbedUrl"
+                    :lat="latitude"
+                    :lng="longitude"
+                    :zoom="15"
+                  />
+              <div v-else class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-200 to-green-400">
                 <div class="text-center">
                   <svg class="w-12 h-12 text-red-600 mx-auto mb-2" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
@@ -300,7 +337,13 @@
                 Lokasi
               </label>
               <div class="bg-gray-100 rounded-xl p-3 h-64 lg:h-80 relative overflow-hidden mb-3">
-                <div class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-200 to-green-400">
+                  <LeafletMap
+                  v-if="googleMapsEmbedUrl"  
+                  :lat="latitude"
+                    :lng="longitude"
+                    :zoom="15"
+                  />
+                <div v-else class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-200 to-green-400">
                   <div class="text-center">
                     <svg class="w-16 h-16 text-red-600 mx-auto mb-2" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
@@ -392,6 +435,126 @@
         </div>
       </div>
     </div>
+
+    <!-- modal location -->
+<div v-if="showLocationModal" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-xl p-4 w-full max-w-xl">
+    <h3 class="font-bold mb-3">Pilih Lokasi</h3>
+    <div class="grid grid-cols-3 gap-2">
+      <SelectField
+        name="form.province_id"
+        label="Provinsi"
+        v-model="form.province_id"
+        :loading="provincesLoading"
+        :options="provinces.map(p => ({ value: p.id, label: p.name }))"
+      />
+
+      <SelectField
+        name="form.city_id"
+        label="Kabupaten/Kota"
+        v-model="form.city_id"
+        :loading="citiesLoading"
+        :disabled="!form.province_id"
+        :options="cities.map(c => ({ value: c.id, label: c.name }))"
+      />
+
+      <SelectField
+        name="form.district_id"
+        label="Kecamatan"
+        v-model="form.district_id"
+        :loading="districtsLoading"
+        :disabled="!form.city_id"
+        :options="districts.map(d => ({ value: d.id, label: d.name }))"
+      />
+
+      <SelectField
+        name="form.village_id"
+        label="Desa"
+        v-model="form.village_id"
+        :loading="villagesLoading"
+        :disabled="!form.district_id"
+        :options="villages.map(v => ({ value: v.id, label: v.name }))"
+      />
+
+            <!-- Koordinat (nested di address.*) -->
+            <TextField
+              name="form.latitude"
+              label="Latitude"
+              v-model="latitude"
+              :readonly="true"
+              placeholder="-6.200000"
+            />
+            <TextField
+              name="form.longitude"
+              label="Longitude"
+              v-model="longitude"
+              :readonly="true"
+              placeholder="106.816666"
+            />
+
+            <!-- Detail alamat (nested di address.detail) -->
+            <TextField
+              name="form.address"
+              v-model="form.address"
+              label="Alamat Lengkap"
+              placeholder="Nama jalan, RT/RW, patokan, dsb (opsional)"
+              class="sm:col-span-2"
+            />
+
+            <div class="sm:col-span-2 mt-5">
+              <MapPicker
+                v-model:lat="tempLat"
+                v-model:lng="tempLng"
+                :zoom="15"
+              />
+            </div>
+
+
+    </div>
+
+    <div class="flex justify-end gap-2 mt-4">
+      <button @click="showLocationModal=false">Batal</button>
+      <button @click="saveLocation" class="bg-merchant-primary text-white px-4 py-2 rounded">
+        Simpan
+      </button>
+    </div>
+  </div>
+</div>
+
+    <!-- modal jam -->
+<div v-if="showHoursModal" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-xl p-4 w-full max-w-sm">
+    <h3 class="font-bold mb-4">Atur Jam Operasional</h3>
+
+    <div class="flex gap-3">
+      <input type="time" v-model="tempOpen" class="border rounded p-2 w-full" />
+      <input type="time" v-model="tempClose" class="border rounded p-2 w-full" />
+    </div>
+
+    <div class="flex justify-end gap-2 mt-4">
+      <button @click="showHoursModal=false">Batal</button>
+      <button @click="saveHours" class="bg-merchant-primary text-white px-4 py-2 rounded">
+        Simpan
+      </button>
+    </div>
+  </div>
+</div>
+
+    <input
+    ref="coverInput"
+    type="file"
+    accept="image/*"
+    class="hidden"
+    @change="onCoverSelected"
+  />
+  
+  <input
+    ref="logoInput"
+    type="file"
+    accept="image/*"
+    class="hidden"
+    @change="onLogoSelected"
+  />
   </div>
 </template>
 
@@ -399,9 +562,25 @@
 import { ref, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
+import { onMounted, watch } from 'vue';
+import merchantProfile from '@/services/api/merchantProfile';
+import {
+  getProvinces,
+  getCities,
+  getDistricts,
+  getVillages,
+} from "@/services/api/location";
+import TextField from "@/components/forms/TextField.vue";
+import SelectField from "@/components/forms/SelectField.vue";
+import ErrorAlert from "@/components/forms/ErrorAlert.vue";
+import MapPicker from "@/components/forms/MapPicker.vue";
+import LeafletMap from '@/components/LeafletMap.vue';
+import { useToast } from "vue-toastification";
+import AppButton from "@/components/common/Button.vue";
 
 const router = useRouter();
 const route = useRoute();
+const toast = useToast();
 
 const merchantId = computed(() => {
   return route.params.merchantId ? Number(route.params.merchantId) : 1;
@@ -424,6 +603,9 @@ const form = ref({
   address: 'Jl. Pasar Rojolele No. 123',
   logo: 'https://via.placeholder.com/150/FF6B6B/FFFFFF?text=SEMBAKO',
   coverImage: 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=800&h=400&fit=crop',
+  city_id: null,
+  district_id: null,
+  province_id: null,
   operationalHours: [
     { name: 'Monday', hours: '[06:00 - 18:00]', isOpen: true },
     { name: 'Tuesday', hours: '[06:00 - 18:00]', isOpen: false },
@@ -435,25 +617,367 @@ const form = ref({
   ]
 });
 
+const isLoading = ref(true);
+const latitude = ref(null);
+const longitude = ref(null);
+const coverInput = ref(null);
+const logoInput = ref(null);
+
+const showHoursModal = ref(false);
+const editingDayIndex = ref(null);
+
+const tempOpen = ref('06:00');
+const tempClose = ref('18:00');
+
+const showLocationModal = ref(false);
+const tempLat = ref(null);
+const tempLng = ref(null);
+
+const provincesLoading = ref(false);
+const citiesLoading = ref(false);
+const districtsLoading = ref(false);
+const villagesLoading = ref(false);
+
+const provinces = ref([]);
+const cities = ref([]);
+const districts = ref([]);
+const villages = ref([]);
+
+watch(
+  () => form.value.province_id,
+  async (pid) => {
+    form.value.city_id = null;
+    form.value.district_id = null;
+    form.value.village_id = null;
+
+    cities.value = [];
+    districts.value = [];
+    villages.value = [];
+
+    if (pid) {
+      await loadCities(pid);
+    }
+  }
+);
+
+watch(
+  () => form.value.city_id,
+  async (cid) => {
+    form.value.district_id = null;
+    form.value.village_id = null;
+
+    districts.value = [];
+    villages.value = [];
+
+    if (cid) {
+      await loadDistricts(cid);
+    }
+  }
+);
+
+watch(
+  () => form.value.district_id,
+  async (did) => {
+    form.value.village_id = null;
+    villages.value = [];
+
+    if (did) {
+      await loadVillages(did);
+    }
+  }
+);
+
+
+// Ambil data wilayah dari service
+async function loadProvinces() {
+  provincesLoading.value = true;
+  try {
+    provinces.value = await getProvinces();
+  } catch (e) {
+    console.error("Gagal memuat provinsi:", e);
+    provinces.value = [];
+  } finally {
+    provincesLoading.value = false;
+  }
+}
+
+async function loadCities(pid) {
+  citiesLoading.value = true;
+  if (!pid) {
+    cities.value = [];
+    citiesLoading.value = false;
+    return;
+  }
+  try {
+    cities.value = await getCities(pid);
+  } catch (e) {
+    console.error("Gagal memuat kota/kabupaten:", e);
+    cities.value = [];
+  } finally {
+    citiesLoading.value = false;
+  }
+}
+
+async function loadDistricts(cid) {
+  districtsLoading.value = true;
+  if (!cid) {
+    districts.value = [];
+    districtsLoading.value = false;
+    return;
+  }
+  try {
+    districts.value = await getDistricts(cid);
+  } catch (e) {
+    console.error("Gagal memuat kecamatan:", e);
+    districts.value = [];
+  } finally {
+    districtsLoading.value = false;
+  }
+}
+
+async function loadVillages(did) {
+  villagesLoading.value = true;
+  if (!did) {
+    villages.value = [];
+    villagesLoading.value = false;
+    return;
+  }
+  try {
+    villages.value = await getVillages(did);
+  } catch (e) {
+    console.error("Gagal memuat kelurahan/desa:", e);
+    villages.value = [];
+  } finally {
+    villagesLoading.value = false;
+  }
+}
+
+const DAYS = [
+  { key: 'monday', label: 'Monday' },
+  { key: 'tuesday', label: 'Tuesday' },
+  { key: 'wednesday', label: 'Wednesday' },
+  { key: 'thursday', label: 'Thursday' },
+  { key: 'friday', label: 'Friday' },
+  { key: 'saturday', label: 'Saturday' },
+  { key: 'sunday', label: 'Sunday' },
+];
+
+onMounted(async () => {
+  isLoading.value = true;
+  await loadProvinces();
+
+  // Kalau edit data lama (prefill)
+
+  try {
+    const res = await merchantProfile.getMerchantProfile(merchantId.value);
+    const data = res.data;
+  
+    latitude.value = data.primary_address?.latitude ?? null;
+    longitude.value = data.primary_address?.longitude ?? null;
+    console.log(latitude.value, longitude.value);
+
+    form.value.name = data.name;
+    form.value.contact = data.phone;
+    form.value.description = data.description;
+    form.value.address = data.primary_address?.detail ?? '';
+    form.value.province_id = data.primary_address?.province_id ?? null;
+    
+    if (form.value.province_id) {
+      await loadCities(form.value.province_id);
+    }
+    
+    form.value.city_id = data.primary_address?.city_id ?? null;
+    if (form.value.city_id) {
+      await loadDistricts(form.value.city_id);
+    }
+    
+    form.value.district_id = data.primary_address?.district_id ?? null;
+    if (form.value.district_id) {
+      await loadVillages(form.value.district_id);
+    }
+    form.value.village_id = data.primary_address?.village_id ?? null;
+    
+    form.value.logo = data.logo_path
+      ? import.meta.env.VITE_STORAGE_URL + data.logo_path
+      : form.value.logo;
+  
+    form.value.coverImage = data.paguyuban?.cover_path
+      ? import.meta.env.VITE_STORAGE_URL + data.paguyuban.cover_path
+      : form.value.coverImage;
+  
+    const hours = data.operational_hours ?? {};
+  
+    form.value.operationalHours = DAYS.map(day => {
+      const item = hours[day.key];
+  
+      if (!item || item.is_open === false) {
+        return {
+          key: day.key,
+          name: day.label,
+          isOpen: false,
+          open: null,
+          close: null,
+          hours: 'Tutup',
+        };
+      }
+  
+      return {
+        key: day.key,
+        name: day.label,
+        isOpen: true,
+        open: item.open,
+        close: item.close,
+        hours: `[${item.open} - ${item.close}]`,
+      };
+    });
+    isLoading.value = false;
+  } catch (error) {
+    isLoading.value = false;
+  } 
+});
+
+const googleMapsEmbedUrl = computed(() => {
+  if (!latitude.value || !longitude.value) return null;
+
+  return `https://www.google.com/maps?q=${latitude.value},${longitude.value}&z=15&output=embed`;
+});
+
+const onCoverSelected = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  form.value.coverFile = file;
+  form.value.coverImage = URL.createObjectURL(file);
+
+  console.log('Cover file:', file);
+};
+
+const onLogoSelected = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  form.value.logoFile = file;
+  form.value.logo = URL.createObjectURL(file);
+
+  console.log('Logo file:', file);
+};
+
 const handleUploadCover = () => {
-  console.log('Upload cover image');
+  coverInput.value.click();
 };
 
 const handleUploadLogo = () => {
-  console.log('Upload logo image');
+  logoInput.value.click();
 };
+
 
 const handleSetLocation = () => {
-  console.log('Set location');
+  tempLat.value = latitude.value;
+  tempLng.value = longitude.value;
+  showLocationModal.value = true;
 };
 
+
 const handleEditHours = (index) => {
+  const day = form.value.operationalHours[index];
+
+  editingDayIndex.value = index;
+  tempOpen.value = day.open || '06:00';
+  tempClose.value = day.close || '18:00';
+
+  showHoursModal.value = true;
   console.log('Edit hours for day:', index);
 };
 
-const handleSave = () => {
+const saveHours = () => {
+  const day = form.value.operationalHours[editingDayIndex.value];
+
+  day.open = tempOpen.value;
+  day.close = tempClose.value;
+  day.hours = `[${tempOpen.value} - ${tempClose.value}]`;
+  day.isOpen = true;
+
+  showHoursModal.value = false;
+};
+
+const saveLocation = () => {
+  latitude.value = tempLat.value;
+  longitude.value = tempLng.value;
+
+  showLocationModal.value = false;
+
+  console.log('Location saved:', latitude.value, longitude.value);
+};
+
+const buildOperationalHoursPayload = () => {
+  const result = {};
+
+  form.value.operationalHours.forEach(day => {
+    result[day.key] = day.isOpen
+      ? {
+          is_open: true,
+          open: day.open,
+          close: day.close,
+        }
+      : {
+          is_open: false,
+        };
+  });
+
+  return result;
+};
+
+
+const handleSave = async () => {
   console.log('Saving changes...', form.value);
-  router.push(`/merchant-center/${merchantId.value}/profile`);
+
+  try {
+      isLoading.value = true;
+
+      const fd = new FormData();
+
+      // Basic info
+      fd.append('name', form.value.name);
+      fd.append('phone', form.value.contact);
+      fd.append('description', form.value.description);
+
+      // Address
+      fd.append('province_id', form.value.province_id ?? '');
+      fd.append('city_id', form.value.city_id ?? '');
+      fd.append('district_id', form.value.district_id ?? '');
+      fd.append('village_id', form.value.village_id ?? '');
+      fd.append('address_detail', form.value.address_detail ?? '');
+
+      // Coordinates
+      fd.append('latitude', latitude.value ?? '');
+      fd.append('longitude', longitude.value ?? '');
+
+      // Operational hours
+      fd.append(
+        'operational_hours',
+        JSON.stringify(buildOperationalHoursPayload())
+      );
+
+      // Images (optional)
+      if (form.value.logoFile) {
+        fd.append('logo', form.value.logoFile);
+      }
+
+      if (form.value.coverFile) {
+        fd.append('cover', form.value.coverFile);
+      }
+
+      await merchantProfile.updateMerchantProfile(merchantId.value, fd);
+
+      toast.success('Profil UMKM berhasil diperbarui');
+      // router.push(`/merchants/${merchantId.value}/profile`);
+    } catch (error) {
+      console.error(error);
+      toast.error('Gagal menyimpan perubahan');
+    } finally {
+      isLoading.value = false;
+    }
+  // router.push(`/merchant-center/${merchantId.value}/profile`);
 };
 </script>
 

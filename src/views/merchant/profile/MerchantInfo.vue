@@ -1,29 +1,36 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
+import LeafletMap from '@/components/LeafletMap.vue';
+import merchantProfile from '@/services/api/merchantProfile';
 
 const router = useRouter();
 const route = useRoute();
 
 // Emit untuk toggle sidebar dari parent layout
 const emit = defineEmits(['toggle-sidebar']);
-
 // Get merchantId from route params
 const merchantId = computed(() => {
   return route.params.merchantId ? Number(route.params.merchantId) : 1;
 });
-
 // Breadcrumb items
 const breadcrumbItems = computed(() => [
   {
     label: "Profil UMKM",
   },
 ]);
+const googleMapsEmbedUrl = computed(() => {
+  if (!latitude.value || !longitude.value) return null;
 
+  return `https://www.google.com/maps?q=${latitude.value},${longitude.value}&z=15&output=embed`;
+});
 // Mock merchant name
-const merchantName = computed(() => "Sembako Sari Alam");
+const merchantName = ref("");
 
+const isLoading = ref(true);
+const latitude = ref(null);
+const longitude = ref(null);
 // Mock data
 const merchantInfo = ref({
   name: 'Sembako Sari Alam',
@@ -33,16 +40,68 @@ const merchantInfo = ref({
   logo: 'https://via.placeholder.com/150/FF6B6B/FFFFFF?text=SEMBAKO',
   coverImage: 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=800&h=400&fit=crop'
 });
-
 const operationalHours = ref([
-  { name: 'Monday', hours: '[06:00 - 18:00]' },
-  { name: 'Tuesday', hours: '[06:00 - 18:00]' },
-  { name: 'Wednesday', hours: '[06:00 - 18:00]' },
-  { name: 'Thursday', hours: '[06:00 - 18:00]' },
-  { name: 'Friday', hours: '[06:00 - 18:00]' },
-  { name: 'Saturday', hours: '[06:00 - 18:00]' },
-  { name: 'Sunday', hours: '[06:00 - 18:00]' }
 ]);
+
+const DAYS = [
+  { key: 'monday', label: 'Monday' },
+  { key: 'tuesday', label: 'Tuesday' },
+  { key: 'wednesday', label: 'Wednesday' },
+  { key: 'thursday', label: 'Thursday' },
+  { key: 'friday', label: 'Friday' },
+  { key: 'saturday', label: 'Saturday' },
+  { key: 'sunday', label: 'Sunday' },
+];
+
+
+onMounted(async () => {
+  isLoading.value = true;
+
+  try {
+    const res = await merchantProfile.getMerchantProfile(merchantId.value);
+    const data = res.data;
+
+    merchantName.value = data.name;
+
+    latitude.value = data.primary_address?.latitude ?? null;
+    longitude.value = data.primary_address?.longitude ?? null;
+
+    merchantInfo.value = {
+      name: data.name,
+      contact: data.phone,
+      description: data.description ?? '-',
+      address: data.primary_address?.detail ?? '-',
+      logo: data.logo_path
+        ? import.meta.env.VITE_STORAGE_URL + data.logo_path
+        : 'https://via.placeholder.com/150',
+      coverImage: data.paguyuban?.image_path
+        ? import.meta.env.VITE_STORAGE_URL + data.paguyuban.image_path
+        : 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a',
+    };
+
+    const hours = data.operational_hours ?? {};
+
+    operationalHours.value = DAYS.map(day => {
+      const item = hours[day.key];
+
+      if (!item || item.is_open === false) {
+        return {
+          name: day.label,
+          hours: 'Tutup',
+        };
+      }
+
+      return {
+        name: day.label,
+        hours: `[${item.open} - ${item.close}]`,
+      };
+    });
+  } catch (error) {
+    console.error('Failed load merchant profile', error);
+  } finally {
+    isLoading.value = false;
+  }
+});
 
 const goToEdit = () => {
   router.push({
@@ -67,7 +126,40 @@ const goToEdit = () => {
           <i class="pi pi-bars text-muted-foreground"></i>
         </button>
 
-        <div>
+
+        <!-- Loading Overlay -->
+        <div
+          v-if="isLoading"
+          class="fixed inset-0 bg-white/70 backdrop-blur-sm z-50 flex items-center justify-center"
+        >
+          <div class="flex flex-col items-center gap-4">
+            <svg
+              class="animate-spin h-10 w-10 text-merchant-primary"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              />
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v8H4z"
+              />
+            </svg>
+            <p class="text-sm text-gray-600 font-medium">
+              Memuat data UMKM...
+            </p>
+          </div>
+        </div>
+
+        <div v-else>
           <!-- Desktop: Show breadcrumb -->
           <div class="hidden sm:block">
             <Breadcrumb
@@ -167,17 +259,42 @@ const goToEdit = () => {
               <label class="block text-sm md:text-base font-medium text-merchant-primary mb-2">
                 Lokasi
               </label>
-              <div class="bg-gray-100 rounded-xl p-3 h-48 md:h-64 lg:h-80 relative overflow-hidden">
-                <!-- Placeholder Map -->
-                <div class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-200 to-green-400">
+              <div class="bg-gray-100 rounded-xl h-48 md:h-64 lg:h-80 relative overflow-hidden">
+                <!-- MAP -->
+                <div
+                  v-if="googleMapsEmbedUrl"
+                  class="absolute inset-0"
+                >
+                  <LeafletMap
+                    :lat="latitude"
+                    :lng="longitude"
+                    :zoom="15"
+                  />
+                  
+                </div>
+
+                <!-- PLACEHOLDER -->
+                <div
+                  v-else
+                  class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-200 to-green-400"
+                >
                   <div class="text-center">
-                    <svg class="w-12 h-12 md:w-16 md:h-16 text-red-600 mx-auto mb-2" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                    <svg
+                      class="w-12 h-12 md:w-16 md:h-16 text-red-600 mx-auto mb-2"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+                      />
                     </svg>
-                    <p class="text-sm md:text-base text-gray-700 font-medium">{{ merchantInfo.address }}</p>
+                    <p class="text-sm md:text-base text-gray-700 font-medium">
+                      {{ merchantInfo.address }}
+                    </p>
                   </div>
                 </div>
               </div>
+
             </div>
           </div>
 
