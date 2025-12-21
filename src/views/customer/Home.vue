@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, watch, nextTick } from "vue";
+import { ref, onMounted, watch, nextTick } from "vue";
 import { Form } from "vee-validate";
 
 import TextField from "@/components/forms/TextField.vue";
@@ -18,11 +18,11 @@ import komunitasIcon from "@/assets/icons/Komunitas.svg";
 import Button from "@/components/common/Button.vue";
 import api from "@/libs/axios.js";
 import { useRoute, useRouter } from "vue-router";
-import { getImageUrl } from "@/libs/getImageUrl"; // pastikan ada
 
 const route = useRoute();
 const router = useRouter();
 
+const searchInputRef = ref(null);
 const searchInputRef = ref(null);
 const searchQuery = ref("");
 const isLoadingMerchants = ref(true);
@@ -81,30 +81,6 @@ const loadMoreMerchants = async () => {
   }
 };
 
-function nextBanner() {
-  activeBanner.value = (activeBanner.value + 1) % eventBannerList.value.length;
-}
-function prevBanner() {
-  activeBanner.value =
-    (activeBanner.value - 1 + eventBannerList.value.length) %
-    eventBannerList.value.length;
-}
-function slideTo(idx) {
-  activeBanner.value = idx;
-}
-
-// Optional: auto slide
-let bannerInterval = null;
-onMounted(() => {
-  bannerInterval = setInterval(() => {
-    if (eventBannerList.value.length > 1) nextBanner();
-  }, 5000);
-});
-onUnmounted(() => {
-  if (bannerInterval) clearInterval(bannerInterval);
-});
-
-// LOAD DATA
 onMounted(async () => {
   // ✅ Fetch random merchants
   try {
@@ -125,8 +101,16 @@ onMounted(async () => {
     const promoRes = await api.get("/api/promos");
     promoList.value = Array.isArray(promoRes.data) ? promoRes.data : [];
   } catch (e) {
-    eventBannerList.value = [];
+    console.error("Gagal memuat data promo:", e);
+  } finally {
+    isLoadingPromo.value = false;
   }
+
+  // Simulasi loading event (ganti dengan API call sebenarnya)
+  setTimeout(() => {
+    eventList.value = Array(5).fill({ id: 1 });
+    isLoadingEvent.value = false;
+  }, 1000);
 });
 watch(
   () => route.query.focusSearch,
@@ -156,88 +140,10 @@ watch(
 
     <!-- Section: Hero + Event Banner Slider -->
     <section id="hero" class="relative pb-2">
-      <div class="relative w-full">
-        <div
-          class="relative h-[240px] sm:h-[370px] overflow-hidden rounded-base"
-        >
-          <!-- Slider Images -->
-          <div
-            v-for="(banner, idx) in eventBannerList"
-            :key="banner.id"
-            class="absolute inset-0 transition-all duration-700 ease-in-out"
-            :class="
-              activeBanner === idx
-                ? 'opacity-100 z-10'
-                : 'opacity-0 z-0 pointer-events-none'
-            "
-          >
-            <img
-              :src="getImageUrl(banner.banner_img_path)"
-              class="object-cover w-full h-full"
-              :alt="banner.event_name"
-            />
-            <!-- Optional: Overlay title -->
-            <div
-              class="absolute bottom-0 left-0 w-full p-4 text-white bg-black/30"
-            >
-              <h2 class="text-lg font-bold sm:text-2xl">
-                {{ banner.event_name }}
-              </h2>
-              <p class="text-sm">{{ banner.event_description }}</p>
-            </div>
-          </div>
-          <!-- Slider Controls -->
-          <button
-            type="button"
-            class="absolute z-20 flex items-center justify-center w-10 h-10 transition -translate-y-1/2 top-1/2 left-2 rounded-base bg-white/30 hover:bg-white/50"
-            @click="prevBanner"
-            aria-label="Previous"
-          >
-            <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24">
-              <path
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="m15 19-7-7 7-7"
-              />
-            </svg>
-          </button>
-          <button
-            type="button"
-            class="absolute z-20 flex items-center justify-center w-10 h-10 transition -translate-y-1/2 top-1/2 right-2 rounded-base bg-white/30 hover:bg-white/50"
-            @click="nextBanner"
-            aria-label="Next"
-          >
-            <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24">
-              <path
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="m9 5 7 7-7 7"
-              />
-            </svg>
-          </button>
-          <!-- Slider Indicators -->
-          <div
-            class="absolute z-30 flex space-x-3 -translate-x-1/2 bottom-4 left-1/2"
-          >
-            <button
-              v-for="(banner, idx) in eventBannerList"
-              :key="banner.id"
-              type="button"
-              class="w-3 h-3 rounded-base"
-              :class="activeBanner === idx ? 'bg-white' : 'bg-white/50'"
-              @click="slideTo(idx)"
-              :aria-current="activeBanner === idx ? 'true' : 'false'"
-              :aria-label="`Slide ${idx + 1}`"
-            ></button>
-          </div>
-        </div>
-      </div>
+      <div class="h-[240px] sm:h-[370px] w-full bg-secondary"></div>
+
       <div
-        class="relative z-10 flex justify-center px-4 mx-auto -mt-10 max-w-7xl"
+        class="flex justify-center -mt-10 px-4 relative z-10 max-w-7xl mx-auto"
       >
         <div class="w-full sm:w-[906px]">
           <div
@@ -250,10 +156,13 @@ watch(
                   <TextField
                     name="search"
                     ref="searchInputRef"
+                    ref="searchInputRef"
                     :modelValue="searchQuery"
                     @update:modelValue="(v) => (searchQuery = v)"
                     placeholder="Cari produk, jasa, atau UMKM…"
+                    placeholder="Cari produk, jasa, atau UMKM…"
                     :hideLabel="true"
+                    variant="primary"
                     variant="primary"
                     wrapperClass="flex-1 min-w-0"
                   />

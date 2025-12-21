@@ -23,6 +23,11 @@ export const useAuthStore = defineStore("auth", () => {
   // COMPUTED
   // =========================
   const isAuthenticated = computed(() => !!user.value);
+  function requireLoginToast() {
+    toast.info("Silakan login terlebih dahulu untuk melanjutkan", {
+      timeout: 2500,
+    });
+  }
 
   const userRoles = computed(
     () =>
@@ -212,6 +217,7 @@ export const useAuthStore = defineStore("auth", () => {
     getMerchantById,
 
     // actions
+    requireLoginToast,
     login,
     logout,
     register,
