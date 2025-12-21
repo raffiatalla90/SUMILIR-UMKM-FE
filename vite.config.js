@@ -19,8 +19,8 @@ export default defineConfig(({ mode }) => {
         registerType: "autoUpdate",
         devOptions: { enabled: mode === "development" },
         manifest: {
-          name: "SUMILIR",
-          short_name: "SUMILIR",
+          name: "Sumilir",
+          short_name: "Sumilir",
           description: "UMKM App",
           theme_color: "#ff9800",
           background_color: "#ffffff",
@@ -29,12 +29,12 @@ export default defineConfig(({ mode }) => {
           scope: "/", // ✅ Root
           icons: [
             {
-              src: "/icon-192.png",
+              src: "/icon192.png",
               sizes: "192x192",
               type: "image/png",
             },
             {
-              src: "/icon-512.png",
+              src: "/icon512.png",
               sizes: "512x512",
               type: "image/png",
             },

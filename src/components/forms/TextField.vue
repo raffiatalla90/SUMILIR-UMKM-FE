@@ -36,7 +36,8 @@ Events:
 */
 import { min } from "lodash";
 import { Field, ErrorMessage } from "vee-validate";
-import { computed } from "vue";
+import { computed, ref } from "vue";
+const inputRef = ref(null);
 const handleNumberInput = (event, field) => {
   let value = event.target.value;
 
@@ -81,6 +82,17 @@ const props = defineProps({
 });
 const emit = defineEmits(["update:modelValue"]);
 
+defineExpose({
+  focus() {
+    inputRef.value?.focus();
+  },
+  blur() {
+    inputRef.value?.blur();
+  },
+  scrollIntoView(options = { behavior: "smooth", block: "center" }) {
+    inputRef.value?.scrollIntoView(options);
+  },
+});
 const focusRingClass = computed(() => {
   if (props.variant === "merchant") {
     return "focus:ring-merchant-primary";
@@ -208,6 +220,7 @@ const inputClasses = (invalid, isTextarea) => {
         <component
           :is="textarea ? 'textarea' : 'input'"
           v-bind="field"
+          ref="inputRef"
           :id="name"
           :type="textarea ? undefined : type"
           :placeholder="placeholder"

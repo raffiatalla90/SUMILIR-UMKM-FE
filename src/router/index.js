@@ -71,8 +71,8 @@ const routes = [
         name: "Keranjang",
         component: () => import("@/views/customer/Cart.vue"),
         meta: {
-          // requiresAuth: true,
-          // roles: ["customer"],
+          requiresAuth: true,
+          roles: ["customer"],
           title: "Keranjang | SUMILIR",
         },
       },
@@ -85,6 +85,12 @@ const routes = [
           // roles: ["customer"],
           title: "Pembayaran | SUMILIR",
         },
+      },
+      {
+        path: "search",
+        name: "Search Page",
+        component: () => import("@/views/customer/SearchPage.vue"),
+        meta: { title: "Search | SUMILIR" },
       },
 
       // Halaman Community
@@ -331,7 +337,12 @@ router.beforeEach(async (to, from, next) => {
 
   // ✅ 1. Jika route butuh auth tapi user belum login
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    return next("/login");
+    authStore.requireLoginToast();
+
+    return next({
+      path: "/login",
+      query: { redirect: to.fullPath }, // optional tapi recommended
+    });
   }
 
   // ✅ 2. Jika user sudah login dan akses halaman guest
