@@ -1,12 +1,8 @@
 <script setup>
-<<<<<<< HEAD
 import { computed } from "vue";
 import { getImageUrl } from "@/libs/getImageUrl";
 
 const props = defineProps({
-=======
-defineProps({
->>>>>>> 0340d24 (REVISI GEDEN)
   product: {
     type: Object,
     required: true,
@@ -103,7 +99,6 @@ const productImageUrl = computed(() => {
     <div
       class="flex flex-col flex-1 px-3 sm:px-4 py-2 sm:py-3 bg-white min-h-[120px]"
     >
-<<<<<<< HEAD
       <!-- Product Name -->
       <h3
         class="text-xs font-semibold text-gray-900 line-clamp-2 mb-1"
@@ -128,27 +123,6 @@ const productImageUrl = computed(() => {
           {{ product.distance ?? "1.5" }} km
         </span>
       </div>
-=======
-      <h3 class="text-sm sm:text-base font-semibold text-gray-900 line-clamp-1">
-        {{ product.title }}
-      </h3>
-      <p class="text-xs sm:text-sm text-gray-600 line-clamp-2 mt-0.5">
-        {{ product.description }}
-      </p>
-
-      <!-- price (opsional jika ada) -->
-      <p v-if="product.fixed_price || product.base_price || product.price" class="text-xs sm:text-sm text-gray-600 mt-1">
-        <template v-if="product.fixed_price">
-          Rp. {{ formatHarga(product.fixed_price) }}
-        </template>
-        <template v-else-if="product.base_price">
-          Mulai Rp. {{ formatHarga(product.base_price) }}
-        </template>
-        <template v-else>
-          Rp. {{ formatHarga(product.price) }}
-        </template>
-      </p>
->>>>>>> 0340d24 (REVISI GEDEN)
     </div>
   </div>
 </template>

@@ -85,13 +85,11 @@ const loadMoreMerchants = async () => {
 onMounted(async () => {
   // ✅ Fetch random merchants
   try {
-<<<<<<< HEAD
     isLoadingMerchants.value = true;
     const merchantRes = await api.get("/api/public/merchants/random", {
       params: { limit: 8 },
     });
     merchantList.value = merchantRes.data.data || [];
-=======
     const [jasaRes, promoRes] = await Promise.all([
       api.get("/public/jasas"),
       api.get("/promos"),
@@ -112,7 +110,6 @@ onMounted(async () => {
       eventList.value = Array(5).fill({ id: 1 });
       isLoadingEvent.value = false;
     }, 1000);
->>>>>>> 28b9a8f (feat: Implement token-based authentication and jasa form)
   } catch (e) {
     console.error("Gagal memuat data merchant:", e);
   } finally {
@@ -242,15 +239,15 @@ watch(
               v-for="(promo, i) in promoList"
               :key="promo.id || i"
               class="snap-start shrink-0"
-            >
+            />
               <PromoCard :promo="promo" />
-            </div>
-          </template>
+                 </template>
         </div>
       </div>
+    
     </section>
 
-<<<<<<< HEAD
+
     <!-- ✅ Section Rekomendasi UMKM -->
     <section id="umkm-recommendation" class="relative pt-6">
       <div class="pl-4 lg:pl-[54px]">
@@ -260,14 +257,6 @@ watch(
             >Rekomendasi UMKM</span
           >
         </div>
-=======
-    <!-- REKOMENDASI -->
-    <section id="umkm-recommendation" class="relative pt-6 sm:pt-24">
-      <div class="pl-4 sm:pl-[54px]">
-        <span class="text-base sm:text-section-title font-semibold">
-          Rekomendasi Produk dan Jasa danasnansansq
-        </span>
->>>>>>> 28b9a8f (feat: Implement token-based authentication and jasa form)
       </div>
 
       <div class="px-4 lg:px-[52px] mt-6 lg:mt-10">
