@@ -299,7 +299,7 @@ onMounted(() => {
           <span class="text-primary">"{{ keyword }}"</span>
         </h1>
         <p class="text-sm text-muted-foreground mt-1">
-          Menampilkan produk dan toko terkait
+          Menampilkan produk dan UMKM terkait
         </p>
       </div>
 
@@ -325,7 +325,7 @@ onMounted(() => {
               : 'border-muted-foreground text-muted-foreground hover:text-muted-foreground/80'
           "
         >
-          Toko
+          UMKM
         </button>
       </div>
 

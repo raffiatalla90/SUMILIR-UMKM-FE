@@ -486,7 +486,7 @@ function normalizeImages(arr) {
 async function fetchPost() {
   loading.value = true;
   try {
-    const res = await api.get(`/community/posts/${route.params.slug}`);
+    const res = await api.get(`/api/community/posts/${route.params.slug}`);
     post.value = res.data?.data || res.data?.post || res.data;
     post.value.images = normalizeImages(
       post.value.images || post.value.post_images || []
@@ -503,9 +503,12 @@ async function fetchComments(reset = true) {
   if (!post.value?.id) return;
   if (reset) page.value = 1;
   try {
-    const res = await api.get(`/community/posts/${post.value.id}/comments`, {
-      params: { page: page.value, per_page: perPage },
-    });
+    const res = await api.get(
+      `/api/community/posts/${post.value.id}/comments`,
+      {
+        params: { page: page.value, per_page: perPage },
+      }
+    );
     const payload = res.data?.comments || [];
     if (reset) comments.value = normalizeComments(payload);
     else comments.value = comments.value.concat(normalizeComments(payload));
