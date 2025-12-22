@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import api from "@/libs/axios";
 import { getVariantImageUrl } from "@/libs/getVariantImageUrl.js";
+import * as ProductService from "@/services/api/product";
 
 export function useProducts() {
   const products = ref([]);
@@ -9,7 +10,7 @@ export function useProducts() {
   const pagination = ref({
     current_page: 1,
     last_page: 1,
-    per_page: 15,
+    per_page: 10,
     total: 0,
   });
 
@@ -20,16 +21,14 @@ export function useProducts() {
   // Fetch Product Detail (admin scope?) -- pastikan endpoint sesuai
   const fetchProductDetail = async (productSlug) => {
     try {
-      const response = await api.get(`/api/products/${productSlug}`);
-      const payload = response.data?.data ?? response.data;
-      if (!payload)
-        throw new Error("Product data tidak ditemukan pada response");
+      const payload = await ProductService.getProductDetail(productSlug);
+      if (!payload) throw new Error("Product data tidak ditemukan");
 
-      // normalisasi kecil
       if (payload.addon_groups) payload.addonGroups = payload.addon_groups;
       if (!Array.isArray(payload.images)) {
         payload.images = payload.images ? [payload.images] : [];
       }
+
       return payload;
     } catch (err) {
       toast.error("Gagal memuat detail produk");
@@ -109,10 +108,11 @@ export function useProducts() {
     // Buat pendingRequest sebagai promise yang mengembalikan `data` (konsisten)
     pendingRequest = (async () => {
       try {
-        const { data } = await api.get("/api/products", { params });
+        const data = await ProductService.getProducts(params);
         const payload = data.data || data;
 
-        products.value = payload.data || payload; // tergantung response shape
+        products.value = payload.data || payload;
+
         if (data.meta) {
           pagination.value = {
             current_page: data.meta.current_page,
@@ -122,7 +122,7 @@ export function useProducts() {
           };
         }
 
-        return data; // kembalikan bentuk yang sama seperti sebelumnya
+        return data;
       } catch (error) {
         toast.error("Gagal memuat produk");
         lastRequestParams = null;
@@ -140,7 +140,7 @@ export function useProducts() {
   const deleteProduct = async (productSlug) => {
     loading.value = true;
     try {
-      await api.delete(`/api/products/${productSlug}`);
+      await ProductService.deleteProduct(productSlug);
       products.value = products.value.filter((p) => p.slug !== productSlug);
       pagination.value.total = Math.max(0, pagination.value.total - 1);
     } catch (error) {
@@ -154,12 +154,9 @@ export function useProducts() {
   const updateProductStatus = async (productSlug, status) => {
     loading.value = true;
     try {
-      const { data } = await api.patch(`/api/products/${productSlug}/status`, {
-        status,
-      });
+      await ProductService.editStatus(productSlug, status);
       const index = products.value.findIndex((p) => p.slug === productSlug);
       if (index !== -1) products.value[index].status = status;
-      return data;
     } catch (error) {
       toast.error("Gagal memperbarui status produk");
       throw error;
@@ -171,9 +168,7 @@ export function useProducts() {
   const bulkDeleteProducts = async (productSlugs) => {
     loading.value = true;
     try {
-      await api.post("/api/products/bulk-delete", {
-        product_slugs: productSlugs,
-      });
+      await ProductService.deleteBulk(productSlugs);
       products.value = products.value.filter(
         (p) => !productSlugs.includes(p.slug)
       );
@@ -192,12 +187,11 @@ export function useProducts() {
   const bulkUpdateStatus = async (productSlugs, status) => {
     loading.value = true;
     try {
-      await api.post("/api/products/bulk-update-status", {
-        product_slugs: productSlugs,
-        status,
-      });
+      await ProductService.editBulkStatus(productSlugs, status);
       products.value.forEach((product) => {
-        if (productSlugs.includes(product.slug)) product.status = status;
+        if (productSlugs.includes(product.slug)) {
+          product.status = status;
+        }
       });
     } catch (error) {
       toast.error("Gagal memperbarui status produk secara massal");
@@ -210,8 +204,9 @@ export function useProducts() {
   const fetchProductsToko = async (limit = 12) => {
     loading.value = true;
     try {
-      const { data } = await api.get("/api/public/products/toko", {
-        params: { limit },
+      const data = await ProductService.getPublicProducts({
+        segments: ["UMKM Toko"],
+        limit,
       });
       return data.data || [];
     } catch (error) {
@@ -225,8 +220,9 @@ export function useProducts() {
   const fetchProductsKuliner = async (limit = 12) => {
     loading.value = true;
     try {
-      const { data } = await api.get("/api/public/products/kuliner", {
-        params: { limit },
+      const data = await ProductService.getPublicProducts({
+        segments: ["UMKM Kuliner"],
+        limit,
       });
       return data.data || [];
     } catch (error) {
@@ -241,18 +237,13 @@ export function useProducts() {
    * Public product detail (UI-friendly mapping)
    * Pastikan import buildImageUrl ada, dan axios support `signal` kalau kamu gunakan
    */
-  const fetchPublicProductDetail = async (slug, { signal } = {}) => {
+  const fetchPublicProductDetail = async (slug) => {
     loading.value = true;
     try {
       if (!slug || typeof slug !== "string") throw new Error("Invalid slug");
 
-      const res = await api.get(
-        `/api/public/products/${encodeURIComponent(slug)}`,
-        {
-          signal,
-        }
-      );
-      const payload = res.data ?? {};
+      const payload = await ProductService.getPublicProductDetail(slug);
+
       const productObj = payload.product ?? null;
       if (!productObj) {
         return {
@@ -531,7 +522,7 @@ export function useProducts() {
     pagination,
     fetchProducts,
     fetchProductDetail,
-    fetchPublicProductDetail, // <-- expose function ini
+    fetchPublicProductDetail,
     updateProductStatus,
     deleteProduct,
     bulkDeleteProducts,

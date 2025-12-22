@@ -131,13 +131,13 @@ async function resend() {
   sending.value = true;
   try {
     if (isAuthenticated.value) {
-      await api.post("/auth/email/verification-notification");
+      await api.post("/api/auth/email/verification-notification");
     } else {
       if (!email.value) {
         toast.error("Email wajib diisi");
         return;
       }
-      await api.post("/auth/resend-verification", { email: email.value });
+      await api.post("/api/auth/resend-verification", { email: email.value });
     }
     toast.success("Tautan verifikasi telah dikirim. Periksa inbox Anda.");
   } catch (e) {

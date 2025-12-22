@@ -17,7 +17,6 @@ function goBack() {
 function submitSearch() {
   if (!searchInput.value.trim()) return;
   keyword.value = searchInput.value.trim();
-  // nanti bisa trigger fetch API di sini
 }
 
 /* ================= BASIC ================= */
@@ -34,7 +33,8 @@ const activeInstantSorts = ref([]);
 const detailFilters = ref({
   minPrice: null,
   maxPrice: null,
-  categories: [], // ✅ MULTI
+  categories: [],
+  segments: [],
 });
 
 const tempDetailFilters = ref({ ...detailFilters.value });
@@ -45,6 +45,12 @@ const availableCategories = [
   { key: "kopi", label: "Kopi" },
   { key: "teh", label: "Teh" },
   { key: "herbal", label: "Herbal" },
+];
+/* ================= AVAILABLE SEGMENTS ================= */
+const availableSegments = [
+  { key: "toko", label: "Toko" },
+  { key: "kuliner", label: "Kuliner" },
+  { key: "jasa", label: "Jasa" },
 ];
 
 /* ================= SORT OPTIONS ================= */
@@ -82,7 +88,7 @@ const products = ref([
     distance: 1.2,
     category: "kopi",
     created_at: "2024-01-10",
-    merchant: { name: "Toko Kopi Sumilir" },
+    merchant: { name: "Toko Kopi Sumilir", segmentation: { name: "Toko" } },
   },
   {
     id: 2,
@@ -92,7 +98,10 @@ const products = ref([
     distance: 2.5,
     category: "kopi",
     created_at: "2023-12-01",
-    merchant: { name: "Warung Kopi Pak Darto" },
+    merchant: {
+      name: "Warung Kopi Pak Darto",
+      segmentation: { name: "Kuliner" },
+    },
   },
   {
     id: 3,
@@ -102,15 +111,26 @@ const products = ref([
     distance: 0.8,
     category: "teh",
     created_at: "2023-11-15",
-    merchant: { name: "UMKM Teh Desa" },
+    merchant: { name: "UMKM Teh Desa", segmentation: { name: "Toko" } },
   },
 ]);
 
 const merchants = ref([
-  { id: 1, name: "Toko Kopi Sumilir", distance: 1.4, created_at: "2024-01-05" },
+  {
+    id: 1,
+    name: "Toko Kopi Sumilir",
+    segmentation: {
+      name: "Toko",
+    },
+    distance: 1.4,
+    created_at: "2024-01-05",
+  },
   {
     id: 2,
     name: "Warung Kopi Pak Darto",
+    segmentation: {
+      name: "Kuliner",
+    },
     distance: 0.9,
     created_at: "2023-10-10",
   },
@@ -135,6 +155,14 @@ function toggleInstantSort(key) {
     activeInstantSorts.value.push(key);
   }
 }
+function toggleSegment(key) {
+  const index = tempDetailFilters.value.segments.indexOf(key);
+  if (index > -1) {
+    tempDetailFilters.value.segments.splice(index, 1);
+  } else {
+    tempDetailFilters.value.segments.push(key);
+  }
+}
 
 /* ================= DETAIL FILTER HANDLER ================= */
 function toggleCategory(key) {
@@ -151,6 +179,7 @@ function applyDetailFilter() {
     minPrice: tempDetailFilters.value.minPrice,
     maxPrice: tempDetailFilters.value.maxPrice,
     categories: [...tempDetailFilters.value.categories],
+    segments: [...tempDetailFilters.value.segments],
   };
   showFilterModal.value = false;
 }
@@ -160,6 +189,7 @@ function resetDetailFilter() {
     minPrice: null,
     maxPrice: null,
     categories: [],
+    segments: [],
   };
 }
 
@@ -183,6 +213,17 @@ function applyFilters(list) {
     filtered = filtered.filter((i) =>
       detailFilters.value.categories.includes(i.category)
     );
+  }
+  if (detailFilters.value.segments.length) {
+    filtered = filtered.filter((item) => {
+      let segmentName = "";
+      if (activeTab.value === "products") {
+        segmentName = item.merchant?.segmentation?.name?.toLowerCase();
+      } else {
+        segmentName = item.segmentation?.name?.toLowerCase();
+      }
+      return detailFilters.value.segments.includes(segmentName);
+    });
   }
 
   if (activeInstantSorts.value.includes("latest")) {
@@ -243,51 +284,20 @@ onMounted(() => {
         <!-- BACK -->
         <button
           @click="goBack"
-          class="p-2 rounded-full hover:bg-gray-100 transition"
+          class="p-2 px-3 rounded-full hover:bg-gray-100 transition"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width="2"
-            stroke="currentColor"
-            class="w-5 h-5"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
+          <i class="pi pi-chevron-left text-sm"></i>
         </button>
 
         <!-- SEARCH INPUT -->
         <form @submit.prevent="submitSearch" class="flex-1">
           <div class="relative">
-            <input
+            <TextField
               v-model="searchInput"
-              type="text"
+              name="search"
               placeholder="Cari produk atau UMKM…"
-              class="w-full h-10 rounded-xl border border-gray-300 pl-10 pr-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
+              variant="primary"
             />
-            <span
-              class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="1.5"
-                stroke="currentColor"
-                class="w-4 h-4"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="m21 21-4.35-4.35m0 0A7.5 7.5 0 1 0 10.5 18a7.5 7.5 0 0 0 6.15-3.35Z"
-                />
-              </svg>
-            </span>
           </div>
         </form>
       </div>
@@ -304,25 +314,25 @@ onMounted(() => {
       </div>
 
       <!-- TAB -->
-      <div class="flex">
+      <div class="flex group">
         <button
           @click="activeTab = 'products'"
-          class="px-3 py-2 text-sm font-medium border-b-2 transition w-full"
+          class="px-3 py-2 text-sm font-medium border-b-2 transition w-full group-hover:text-primary group-hover:border-primary cursor-pointer"
           :class="
             activeTab === 'products'
               ? 'border-primary text-primary'
-              : 'border-muted-foreground text-muted-foreground hover:text-muted-foreground/80'
+              : 'border-muted-foreground text-muted-foreground '
           "
         >
           Produk
         </button>
         <button
           @click="activeTab = 'merchants'"
-          class="px-3 py-2 text-sm font-medium border-b-2 transition w-full"
+          class="px-3 py-2 text-sm font-medium border-b-2 transition w-full group-hover:text-primary group-hover:border-primary cursor-pointer"
           :class="
             activeTab === 'merchants'
               ? 'border-primary text-primary'
-              : 'border-muted-foreground text-muted-foreground hover:text-muted-foreground/80'
+              : 'border-muted-foreground text-muted-foreground '
           "
         >
           UMKM
@@ -339,11 +349,11 @@ onMounted(() => {
               v-for="item in filteredInstantSorts"
               :key="item.key"
               @click="toggleInstantSort(item.key)"
-              class="px-3 py-1.5 text-xs rounded-full border whitespace-nowrap"
+              class="px-3 py-1.5 text-xs rounded-full border whitespace-nowrap cursor-pointer transition duration-200"
               :class="
                 activeInstantSorts.includes(item.key)
                   ? 'bg-primary text-white border-primary'
-                  : 'bg-white text-gray-600 border-gray-300'
+                  : 'bg-white text-gray-600 border-gray-300 hover:border-primary hover:text-primary'
               "
             >
               {{ item.label }}
@@ -460,6 +470,25 @@ onMounted(() => {
               variant="primary"
               class="w-full"
             />
+          </div>
+        </div>
+        <!-- SEGMENTASI MULTI -->
+        <div>
+          <label class="text-sm font-medium">Segmentasi</label>
+          <div class="grid grid-cols-3 gap-2 mt-2">
+            <button
+              v-for="seg in availableSegments"
+              :key="seg.key"
+              @click="toggleSegment(seg.key)"
+              class="px-3 py-2 text-xs rounded-xl border transition"
+              :class="
+                tempDetailFilters.segments.includes(seg.key)
+                  ? 'bg-primary text-white border-primary'
+                  : 'bg-white text-muted-foreground/80 border-gray-300'
+              "
+            >
+              {{ seg.label }}
+            </button>
           </div>
         </div>
 

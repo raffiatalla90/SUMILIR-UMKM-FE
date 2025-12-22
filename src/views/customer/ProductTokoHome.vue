@@ -17,7 +17,6 @@ import komunitasIcon from "@/assets/icons/Komunitas.svg";
 import Button from "@/components/common/Button.vue";
 import api from "@/libs/axios.js";
 import { useProducts } from "@/composables/useProducts";
-import { getImageUrl } from "@/libs/getImageUrl"; // ✅ ADD
 
 const router = useRouter();
 const searchQuery = ref("");
@@ -67,14 +66,6 @@ const goToProductDetail = (product) => {
     name: "Product Detail",
     params: { slug: product.slug },
   });
-};
-
-// ✅ ADD: Helper to get product image URL
-const getProductImageUrl = (product) => {
-  if (product.cover_image?.id) {
-    return getImageUrl(product.cover_image.id);
-  }
-  return null;
 };
 
 const loadMoreProducts = async () => {
