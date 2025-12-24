@@ -18,23 +18,19 @@ const props = defineProps({
 const route = useRoute();
 const router = useRouter();
 
-// ✅ Auto-inject merchantId ke semua paths jika belum ada
 const processedItems = computed(() => {
   return props.items.map((item) => {
     if (!item.path) return item;
 
-    // Skip jika path sudah absolute atau sudah punya merchantId
     if (item.path.startsWith("http") || item.path.includes("/:merchantId")) {
       return item;
     }
 
-    // Jika path mengandung /merchant-center dan ada merchantId
     if (
       item.path.includes("/merchant-center") &&
       props.merchantId &&
       !item.path.includes(`/merchant-center/${props.merchantId}`)
     ) {
-      // Replace /merchant-center dengan /merchant-center/:merchantId
       const newPath = item.path.replace(
         "/merchant-center",
         `/merchant-center/${props.merchantId}`

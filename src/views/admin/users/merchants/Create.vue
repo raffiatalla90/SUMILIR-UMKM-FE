@@ -1,0 +1,558 @@
+<script setup>
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
+import { useRouter } from "vue-router";
+import { Form } from "vee-validate";
+import * as yup from "yup";
+import {
+  getProvinces,
+  getCities,
+  getDistricts,
+  getVillages,
+} from "@/services/api/location";
+import { getSegmentations } from "@/services/api/segmentation";
+import api from "@/libs/axios";
+import TextField from "@/components/forms/TextField.vue";
+import SelectField from "@/components/forms/SelectField.vue";
+import ErrorAlert from "@/components/forms/ErrorAlert.vue";
+import MapPicker from "@/components/forms/MapPicker.vue";
+import { useToast } from "vue-toastification";
+import AppButton from "@/components/common/Button.vue";
+
+const router = useRouter();
+const toast = useToast();
+
+const isLoading = ref(false);
+const errorMessage = ref("");
+const apiUrl = import.meta.env.VITE_API_BASE_URL || "Not set";
+const isDev = import.meta.env.DEV;
+
+const latitude = ref(null);
+const longitude = ref(null);
+
+// Segmentation (Select from API)
+const segmentations = ref([]);
+const segmentationId = ref("");
+
+// User select
+const users = ref([]);
+const selectedUserId = ref("");
+const usersLoading = ref(false);
+const userSearch = ref("");
+
+// Debounce helper
+let userSearchTimeout = null;
+const fetchUsers = async (search = "") => {
+  usersLoading.value = true;
+  try {
+    const res = await api.get("/admin/users", {
+      params: { per_page: 20, search },
+    });
+    users.value = res.data.data || [];
+  } catch (e) {
+    users.value = [];
+    toast.error("Gagal memuat user");
+  } finally {
+    usersLoading.value = false;
+  }
+};
+
+watch(userSearch, (val) => {
+  clearTimeout(userSearchTimeout);
+  userSearchTimeout = setTimeout(() => {
+    fetchUsers(val);
+  }, 400);
+});
+
+onMounted(() => {
+  fetchUsers();
+  loadProvinces();
+  loadSegmentations();
+});
+
+const schema = yup.object({
+  user_id: yup.number().required("User wajib dipilih"),
+  name: yup.string().required("Nama wajib diisi"),
+  phone: yup
+    .string()
+    .matches(/^[0-9+\-()\s]{8,20}$/, "Nomor telepon tidak valid")
+    .required("Nomor telepon wajib diisi"),
+  segmentation_id: yup
+    .number()
+    .typeError("Jenis usaha wajib dipilih")
+    .required("Jenis usaha wajib dipilih"),
+  description: yup.string().nullable(),
+  address: yup.object({
+    province_id: yup
+      .number()
+      .typeError("Provinsi wajib dipilih")
+      .required("Provinsi wajib dipilih"),
+    city_id: yup
+      .number()
+      .typeError("Kabupaten/Kota wajib dipilih")
+      .required("Kabupaten/Kota wajib dipilih"),
+    district_id: yup
+      .number()
+      .typeError("Kecamatan wajib dipilih")
+      .required("Kecamatan wajib dipilih"),
+    village_id: yup
+      .number()
+      .typeError("Desa wajib dipilih")
+      .required("Desa wajib dipilih"),
+    detail: yup.string().nullable(),
+    latitude: yup
+      .number()
+      .typeError("Latitude tidak valid")
+      .min(-90)
+      .max(90)
+      .required("Latitude wajib diisi"),
+    longitude: yup
+      .number()
+      .typeError("Longitude tidak valid")
+      .min(-180)
+      .max(180)
+      .required("Longitude wajib diisi"),
+  }),
+});
+
+// Data wilayah
+const provinces = ref([]);
+const cities = ref([]);
+const districts = ref([]);
+const villages = ref([]);
+
+const provinceId = ref("");
+const cityId = ref("");
+const districtId = ref("");
+const villageId = ref("");
+
+const segmentationsLoading = ref(false);
+const provincesLoading = ref(false);
+const citiesLoading = ref(false);
+const districtsLoading = ref(false);
+const villagesLoading = ref(false);
+
+const loadUsers = async () => {
+  usersLoading.value = true;
+  try {
+    const res = await api.get("/admin/users", { params: { per_page: 1000 } });
+    users.value = res.data.data || [];
+  } catch (e) {
+    users.value = [];
+    toast.error("Gagal memuat user");
+  } finally {
+    usersLoading.value = false;
+  }
+};
+
+async function loadProvinces() {
+  provincesLoading.value = true;
+  try {
+    provinces.value = await getProvinces();
+  } catch (e) {
+    provinces.value = [];
+  } finally {
+    provincesLoading.value = false;
+  }
+}
+
+async function loadCities(pid) {
+  citiesLoading.value = true;
+  if (!pid) {
+    cities.value = [];
+    citiesLoading.value = false;
+    return;
+  }
+  try {
+    cities.value = await getCities(pid);
+  } catch (e) {
+    cities.value = [];
+  } finally {
+    citiesLoading.value = false;
+  }
+}
+
+async function loadDistricts(cid) {
+  districtsLoading.value = true;
+  if (!cid) {
+    districts.value = [];
+    districtsLoading.value = false;
+    return;
+  }
+  try {
+    districts.value = await getDistricts(cid);
+  } catch (e) {
+    districts.value = [];
+  } finally {
+    districtsLoading.value = false;
+  }
+}
+
+async function loadVillages(did) {
+  villagesLoading.value = true;
+  if (!did) {
+    villages.value = [];
+    villagesLoading.value = false;
+    return;
+  }
+  try {
+    villages.value = await getVillages(did);
+  } catch (e) {
+    villages.value = [];
+  } finally {
+    villagesLoading.value = false;
+  }
+}
+
+async function loadSegmentations() {
+  segmentationsLoading.value = true;
+  try {
+    segmentations.value = await getSegmentations();
+  } catch (e) {
+    segmentations.value = [];
+  } finally {
+    segmentationsLoading.value = false;
+  }
+}
+
+watch(provinceId, async (val) => {
+  cityId.value = "";
+  districtId.value = "";
+  villageId.value = "";
+  cities.value = [];
+  districts.value = [];
+  villages.value = [];
+  await loadCities(val);
+});
+watch(cityId, async (val) => {
+  districtId.value = "";
+  villageId.value = "";
+  districts.value = [];
+  villages.value = [];
+  await loadDistricts(val);
+});
+watch(districtId, async (val) => {
+  villageId.value = "";
+  villages.value = [];
+  await loadVillages(val);
+});
+
+// Submit pakai endpoint admin
+const handleRegister = async (values) => {
+  isLoading.value = true;
+  errorMessage.value = "";
+
+  try {
+    const payload = {
+      user_id: selectedUserId.value,
+      name: values.name,
+      phone: values.phone,
+      description: values.description,
+      segmentation_id: Number(values.segmentation_id),
+      address: {
+        province_id: Number(values.address.province_id),
+        city_id: Number(values.address.city_id),
+        district_id: Number(values.address.district_id),
+        village_id: Number(values.address.village_id),
+        detail: values.address.detail || null,
+        latitude: Number(values.address.latitude),
+        longitude: Number(values.address.longitude),
+      },
+    };
+    await api.post("/admin/merchants", payload);
+
+    toast.success("Merchant berhasil dibuat & langsung di-approve.", { timeout: 3000 });
+    router.push({ name: "Admin - Merchants List" });
+  } catch (error) {
+    errorMessage.value = error.response?.data?.message || "Gagal membuat merchant";
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const userDropdownOpen = ref(false);
+const userDropdownRef = ref(null);
+const userSearchInputRef = ref(null);
+
+// Tutup dropdown jika klik di luar
+function handleClickOutside(event) {
+  if (
+    userDropdownOpen.value &&
+    userDropdownRef.value &&
+    !userDropdownRef.value.contains(event.target)
+  ) {
+    userDropdownOpen.value = false;
+  }
+}
+onMounted(() => {
+  document.addEventListener("mousedown", handleClickOutside);
+});
+watch(userDropdownOpen, async (open) => {
+  if (open) {
+    await nextTick();
+    userSearchInputRef.value?.focus();
+  }
+});
+onUnmounted(() => {
+  document.removeEventListener("mousedown", handleClickOutside);
+});
+
+// Untuk menampilkan nama user yang dipilih
+const selectedUser = computed(() =>
+  users.value.find((u) => u.id === selectedUserId.value)
+);
+</script>
+
+<template>
+  <div
+    class="min-h-screen sm:bg-gray-50 bg-merchant-primary flex items-center flex-col sm:justify-center justify-end sm:p-8"
+  >
+    <div
+      class="sm:hidden flex flex-col flex-1/3 justify-end sm:px-0 px-4 py-2 sm:pt-0 pt-8"
+    >
+      <h2
+        class="sm:hidden inline text-2xl sm:text-3xl font-bold text-center sm:text-left mb-2 text-white"
+      >
+        Daftarkan UMKM
+      </h2>
+      <p
+        class="sm:hidden inline text-[10px] sm:text-sm text-center sm:text-left mb-6 text-white"
+      >
+        Isi data diri dan informasi UMKM-mu untuk memulai perjalananmu bersama
+        kami
+      </p>
+    </div>
+    <div
+      class="flex flex-col justify-center sm:flex-0 flex-2/3 p-8 sm:p-12 sm:max-w-xl w-full bg-white sm:rounded-4xl rounded-t-4xl sm:shadow-lg shadow-none"
+    >
+      <!-- Right Side - Form -->
+      <div class="sm:flex flex-col">
+        <div class="flex gap-3 mb-2 items-center">
+          <span
+            class="hidden sm:inline-flex h-10 w-10 items-center justify-center rounded-full bg-merchant-primary/10 text-merchant-primary"
+          >
+            <i class="pi pi-shop"></i>
+          </span>
+          <h2
+            class="hidden sm:inline text-2xl sm:text-xl font-bold text-center sm:text-left text-black"
+          >
+            Daftarkan UMKM
+          </h2>
+        </div>
+
+        <p
+          class="hidden sm:inline text-xs sm:text-sm text-center sm:text-left mb-6 text-gray-600"
+        >
+          Isi data diri dan informasi UMKM-mu untuk memulai perjalananmu bersama
+          kami
+        </p>
+
+        <Form @submit="handleRegister" :validation-schema="schema">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <!-- Pilih User dengan Search -->
+            <div class="sm:col-span-2">
+              <label class="block text-sm font-bold mb-2 text-black">Pilih User</label>
+              <div class="relative" ref="userDropdownRef">
+                <button
+                  type="button"
+                  class="block w-full py-2.5 pl-4 pr-10 text-sm border rounded-xl bg-white text-black border-merchant-primary focus:ring-2 focus:ring-merchant-primary focus:outline-none transition-all"
+                  @click="userDropdownOpen = !userDropdownOpen"
+                  :class="{
+                    'border-danger-foreground focus:ring-danger-foreground': !selectedUserId
+                  }"
+                  style="min-height:44px"
+                >
+                  <span v-if="selectedUser">
+                    {{ selectedUser.name }} ({{ selectedUser.email }})
+                  </span>
+                  <span v-else class="text-gray-400 text-left block w-full truncate">Cari atau pilih user...</span>
+                  <i class="pi pi-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-500"></i>
+                </button>
+                <div
+                  v-if="userDropdownOpen"
+                  class="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg"
+                >
+                  <!-- Search bar di atas dropdown -->
+                  <div class="p-2 border-b border-gray-100">
+                    <input
+                      ref="userSearchInputRef"
+                      v-model="userSearch"
+                      type="text"
+                      class="w-full px-2 py-2 border border-merchant-primary rounded-lg text-sm focus:ring-2 focus:ring-merchant-primary focus:outline-none"
+                      placeholder="Cari nama/email user..."
+                    />
+                  </div>
+                  <div class="max-h-64 overflow-y-auto">
+                    <div
+                      v-if="usersLoading"
+                      class="flex items-center justify-center py-4 text-gray-500"
+                    >
+                      <i class="pi pi-spin pi-spinner mr-2"></i> Memuat...
+                    </div>
+                    <template v-else>
+                      <div
+                        v-for="u in users"
+                        :key="u.id"
+                        @click="
+                          selectedUserId = u.id;
+                          userDropdownOpen = false;
+                        "
+                        class="px-4 py-2 cursor-pointer hover:bg-merchant-primary/10 text-sm"
+                        :class="{ 'bg-merchant-primary/5': selectedUserId === u.id }"
+                      >
+                        <span class="font-medium">{{ u.name }}</span>
+                        <span class="text-xs text-gray-500 ml-2">({{ u.email }})</span>
+                      </div>
+                      <div v-if="users.length === 0" class="px-4 py-2 text-gray-400 text-sm">
+                        Tidak ditemukan user
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+              <div v-if="!selectedUserId" class="text-xs text-danger-foreground mt-1">User wajib dipilih</div>
+            </div>
+
+            <!-- Nama Usaha -->
+            <TextField
+              variant="merchant"
+              name="name"
+              label="Nama Usaha"
+              placeholder="Masukkan nama usaha"
+              class="sm:col-span-2"
+            />
+
+            <!-- Phone Number -->
+            <TextField
+              variant="merchant"
+              name="phone"
+              label="Nomor Telepon"
+              placeholder="Contoh: 081234567890"
+              class="sm:col-span-2"
+            />
+
+            <!-- Jenis Usaha (dari API /segmentations) -->
+            <SelectField
+              variant="merchant"
+              name="segmentation_id"
+              label="Jenis Usaha"
+              placeholder="Pilih Jenis Usaha"
+              v-model="segmentationId"
+              :loading="segmentationsLoading"
+              :disabled="segmentationsLoading"
+              :options="segmentations.map((s) => ({ value: s.id, label: s.name }))"
+              class="sm:col-span-2"
+            />
+
+            <!-- Wilayah (nested di address.*) -->
+            <SelectField
+              variant="merchant"
+              name="address.province_id"
+              label="Provinsi"
+              placeholder="Pilih Provinsi"
+              v-model="provinceId"
+              :loading="provincesLoading"
+              :options="provinces.map((p) => ({ value: p.id, label: p.name }))"
+            />
+
+            <SelectField
+              variant="merchant"
+              name="address.city_id"
+              label="Kabupaten/Kota"
+              placeholder="Pilih Kabupaten/Kota"
+              v-model="cityId"
+              :loading="citiesLoading"
+              :disabled="!provinceId"
+              :options="cities.map((r) => ({ value: r.id, label: r.name }))"
+            />
+
+            <SelectField
+              variant="merchant"
+              name="address.district_id"
+              label="Kecamatan"
+              placeholder="Pilih Kecamatan"
+              v-model="districtId"
+              :loading="districtsLoading"
+              :disabled="!cityId"
+              :options="districts.map((d) => ({ value: d.id, label: d.name }))"
+            />
+
+            <SelectField
+              variant="merchant"
+              name="address.village_id"
+              label="Desa"
+              placeholder="Pilih Desa"
+              v-model="villageId"
+              :loading="villagesLoading"
+              :disabled="!districtId"
+              :options="villages.map((v) => ({ value: v.id, label: v.name }))"
+            />
+
+            <!-- Pemetaan Lokasi -->
+            <div class="sm:col-span-2">
+              <MapPicker
+                variant="merchant"
+                v-model:lat="latitude"
+                v-model:lng="longitude"
+                :zoom="15"
+              />
+            </div>
+
+            <!-- Koordinat (nested di address.*) -->
+            <TextField
+              variant="merchant"
+              name="address.latitude"
+              label="Latitude"
+              v-model="latitude"
+              :readonly="true"
+              placeholder="-6.200000"
+            />
+            <TextField
+              variant="merchant"
+              name="address.longitude"
+              label="Longitude"
+              v-model="longitude"
+              :readonly="true"
+              placeholder="106.816666"
+            />
+
+            <!-- Detail alamat (nested di address.detail) -->
+            <TextField
+              variant="merchant"
+              name="address.detail"
+              label="Alamat Lengkap"
+              placeholder="Nama jalan, RT/RW, patokan, dsb (opsional)"
+              class="sm:col-span-2"
+            />
+
+            <!-- Error -->
+            <ErrorAlert :message="errorMessage" class="sm:col-span-2" />
+
+            <!-- Submit -->
+            <div class="sm:col-span-2">
+              <AppButton
+                variant="merchant"
+                type="submit"
+                :loading="isLoading"
+                size="md"
+                block
+                class="mb-2"
+              >
+                Daftarkan UMKM
+              </AppButton>
+            </div>
+          </div>
+        </Form>
+
+        <!-- Debug Info (Development Only) -->
+        <div
+          v-if="isDev"
+          class="mt-6 p-4 bg-gray-50 rounded-xl text-xs border border-gray-200"
+        >
+          <p class="font-semibold mb-2 text-gray-700">Debug Info:</p>
+          <p class="text-gray-600"><strong>API URL:</strong> {{ apiUrl }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
