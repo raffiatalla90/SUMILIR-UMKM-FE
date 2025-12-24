@@ -177,7 +177,7 @@ const routes = [
       requiresAuth: true,
       roles: ["admin"],
     },
-    beforeEnter: adminGuard, // ✅ Apply guard
+    beforeEnter: adminGuard,
     children: [
       {
         path: "",
@@ -214,18 +214,12 @@ const routes = [
         component: () => import("@/views/admin/events/Edit.vue"),
         meta: { title: "Edit Event | Admin SUMILIR" },
       },
-      // MERCHANTS
+      // PRODUCTS
       {
-        path: "merchants",
-        name: "Admin - Merchants",
-        component: () => import("@/views/admin/merchants/Index.vue"),
-        meta: { title: "Merchants | Admin SUMILIR" },
-      },
-      {
-        path: "merchants/:id",
-        name: "Admin - Merchant Detail",
-        component: () => import("@/views/admin/merchants/Detail.vue"),
-        meta: { title: "Merchant Detail | Admin SUMILIR" },
+        path: "products",
+        name: "Admin - Product",
+        component: () => import("@/views/admin/products/Index.vue"),
+        meta: { title: "Products | Admin SUMILIR" },
       },
       // REPORTS
       {
@@ -246,6 +240,60 @@ const routes = [
         name: "Admin - Vouchers",
         component: () => import("@/views/admin/vouchers/Index.vue"),
         meta: { title: "All Vouchers | Admin SUMILIR" },
+      },
+      // USERS 
+      {
+        path: "users",
+        name: "Admin - Users",
+        component: () => import("@/views/admin/users/Index.vue"),
+        meta: { title: "User Management | Admin SUMILIR" },
+        children: [
+          {
+            path: "",
+            redirect: { name: "Admin - Customers List" }, 
+          },
+
+          // Customer Route
+
+          {
+            path: "customer",
+            name: "Admin - Customers List",
+            component: () => import("@/views/admin/users/customers/Index.vue"),
+            meta: { title: "Customer List | Admin SUMILIR" },
+          },
+          {
+            path: 'customers/create',
+            name: 'Admin - Customer Create',
+            component: () => import('@/views/admin/users/customers/Create.vue'),
+          },
+          {
+            path: "customers/:id",
+            name: "Admin - Customer Detail",
+            component: () => import("@/views/admin/users/customers/Detail.vue"),
+            meta: { title: "Customer Detail | Admin SUMILIR" },
+          },
+
+          // Merchant Route
+
+          {
+            path: "merchants",
+            name: "Admin - Merchants List",
+            component: () => import("@/views/admin/users/merchants/Index.vue"), 
+            meta: { title: "Merchant List | Admin SUMILIR" },
+          },
+          {
+            path: "merchants/:id",
+            name: "Admin - Merchant Detail",
+            component: () => import("@/views/admin/users/merchants/Detail.vue"),
+            meta: { title: "Merchant Detail | Admin SUMILIR" },
+          },
+          {
+            path: "merchants/create",
+            name: "Admin - Merchant Create",
+            component: () => import("@/views/admin/users/merchants/Create.vue"),
+            meta: { title: "Tambah Merchant | Admin SUMILIR" },
+          },
+        ],
       },
     ],
   },

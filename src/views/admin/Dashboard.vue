@@ -22,7 +22,7 @@ const loadStatistics = async () => {
   loading.value = true;
   try {
     const response = await api.get("/admin/dashboard/statistics", {
-      params: { period: "last_30_days" }, // Default untuk initial load
+      params: { period: "last_30_days" }, 
     });
 
     if (!response || !response.data) {
@@ -83,7 +83,7 @@ onMounted(async () => {
     <!-- Loading State -->
     <div v-if="loading" class="flex items-center justify-center h-screen">
       <div class="text-center">
-        <i class="pi pi-spin pi-spinner text-4xl text-primary mb-4"></i>
+        <i class="pi pi-spin pi-spinner text-4xl text-merchant-primary mb-4"></i>
         <p class="text-gray-600">Memuat dashboard...</p>
       </div>
     </div>
@@ -92,7 +92,7 @@ onMounted(async () => {
     <div v-else-if="stats">
       <!-- Header -->
       <div class="mb-4 sm:mb-6">
-        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Admin Dashboard Summary</h1>
+        <h1 class="text-2xl sm:text-3xl font-bold text-merchant-primary">Admin Dashboard Summary</h1>
       </div>
 
       <!-- Section 1: Overview Cards -->

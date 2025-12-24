@@ -14,12 +14,11 @@ export function useMerchants() {
 
   const toast = useToast();
 
-  // Fetch merchants (public or admin)
-  const fetchMerchants = async (params = {}, isAdmin = true) => {
+  // Fetch merchants (admin view)
+  const fetchMerchants = async (params = {}) => {
     loading.value = true;
     try {
-      const endpoint = isAdmin ? "/admin/merchants" : "/public/merchants";
-      const response = await api.get(endpoint, { params });
+      const response = await api.get("/admin/merchants", { params });
 
       if (response.data.data) {
         merchants.value = response.data.data;
@@ -29,9 +28,9 @@ export function useMerchants() {
           per_page: response.data.per_page,
           total: response.data.total,
         };
-      } else {
-        merchants.value = Array.isArray(response.data) ? response.data : [];
       }
+
+      return merchants.value;
     } catch (error) {
       console.error("[useMerchants] Fetch failed:", error);
       toast.error("Gagal memuat data merchant");
@@ -46,7 +45,7 @@ export function useMerchants() {
     loading.value = true;
     try {
       const response = await api.get(`/admin/merchants/${id}`);
-      return response.data.data || response.data;
+      return response.data.data;
     } catch (error) {
       console.error("[useMerchants] Detail fetch failed:", error);
       toast.error("Gagal memuat detail merchant");
@@ -56,7 +55,7 @@ export function useMerchants() {
     }
   };
 
-  // Approve merchant (Admin)
+  // Approve merchant
   const approveMerchant = async (id) => {
     loading.value = true;
     try {
@@ -64,16 +63,14 @@ export function useMerchants() {
       toast.success("Merchant berhasil di-approve!");
     } catch (error) {
       console.error("[useMerchants] Approve failed:", error);
-      const message =
-        error.response?.data?.message || "Gagal approve merchant";
-      toast.error(message);
+      toast.error(error.response?.data?.message || "Gagal approve merchant");
       throw error;
     } finally {
       loading.value = false;
     }
   };
 
-  // Reject merchant (Admin)
+  // Reject merchant
   const rejectMerchant = async (id, reason) => {
     loading.value = true;
     try {
@@ -83,9 +80,7 @@ export function useMerchants() {
       toast.success("Merchant berhasil ditolak!");
     } catch (error) {
       console.error("[useMerchants] Reject failed:", error);
-      const message =
-        error.response?.data?.message || "Gagal reject merchant";
-      toast.error(message);
+      toast.error(error.response?.data?.message || "Gagal reject merchant");
       throw error;
     } finally {
       loading.value = false;

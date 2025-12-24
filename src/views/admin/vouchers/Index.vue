@@ -4,11 +4,12 @@ import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
 import Button from "@/components/common/Button.vue";
-import MerchantTable from "@/components/common/MerchantTable.vue";
+import AdminTable from "@/components/common/AdminTable.vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import MobilePagination from "@/components/common/MobilePagination.vue";
 import { useVouchers } from "@/composables/useVouchers";
+import AdminTable from "../../../components/common/AdminTable.vue";
 
 const router = useRouter();
 const toast = useToast();
@@ -185,9 +186,9 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- ✅ Desktop Table - No external empty state -->
+      <!-- Desktop Table -->
       <div class="hidden sm:block">
-        <MerchantTable
+        <AdminTable
           :items="vouchers"
           :columns="tableColumns"
           :loading="loading"
@@ -305,10 +306,10 @@ onMounted(() => {
               </Button>
             </div>
           </template>
-        </MerchantTable>
+        </AdminTable>
       </div>
 
-      <!-- ✅ Mobile Cards - Handle empty separately -->
+      <!-- Mobile Cards -->
       <div class="sm:hidden">
         <div v-if="loading" class="flex justify-center py-12">
           <i class="pi pi-spin pi-spinner text-4xl text-admin-primary"></i>
@@ -389,7 +390,7 @@ onMounted(() => {
           <strong class="font-mono">{{ selectedVoucher?.voucher_code }}</strong>?
         </p>
         <p class="text-xs text-red-600">
-          ⚠️ Voucher yang sudah digunakan tidak dapat dihapus
+          Voucher yang sudah digunakan tidak dapat dihapus
         </p>
         <div class="flex gap-3 justify-end mt-6">
           <Button

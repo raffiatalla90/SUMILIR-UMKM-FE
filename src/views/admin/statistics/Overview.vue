@@ -130,7 +130,7 @@ watch(
     <div class="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
         <select
             v-model="selectedPeriod"
-            class="px-3 py-2 sm:px-4 border border-gray-300 bg-white rounded-lg text-xs sm:text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:text-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent transition w-full sm:w-auto"
+            class="px-3 py-2 sm:px-4 border border-gray-300 bg-white rounded-lg text-xs sm:text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:text-gray-800 focus:ring-2 focus:ring-merchant-primary focus:border-transparent transition w-full sm:w-auto"
         >
         <option value="last_30_days">30 Hari Terakhir</option>
         <option value="all_time">Semua Waktu</option>
@@ -158,16 +158,16 @@ watch(
         v-for="card in overviewCards"
         :key="card.id"
         @click="handleCardClick(card.route)"
-        class="rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-3 sm:p-5 md:p-6 hover:shadow-lg hover:border-primary/20 cursor-pointer transition-all duration-300 group"
+        class="rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-3 sm:p-5 md:p-6 hover:shadow-lg hover:border-merchant-primary/20 cursor-pointer transition-all duration-300 group"
       >
         <div
-          class="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 group-hover:bg-primary/10 rounded-lg sm:rounded-xl mb-3 sm:mb-0 transition-colors"
+          class="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 group-hover:bg-merchant-primary/10 rounded-lg sm:rounded-xl mb-3 sm:mb-0 transition-colors"
         >
           <i
             :class="[
               'pi',
               card.icon,
-              'text-xl sm:text-2xl text-gray-800 group-hover:text-primary transition-colors',
+              'text-xl sm:text-2xl text-gray-800 group-hover:text-merchant-primary transition-colors',
             ]"
           ></i>
         </div>

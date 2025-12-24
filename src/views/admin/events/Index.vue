@@ -4,12 +4,13 @@ import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
 import Button from "@/components/common/Button.vue";
-import MerchantTable from "@/components/common/MerchantTable.vue";
+import AdminTable from "@/components/common/AdminTable.vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import MobilePagination from "@/components/common/MobilePagination.vue";
 import { useEvents } from "@/composables/useEvents";
 import { getImageUrl } from "@/libs/getImageUrl";
+import AdminTable from "../../../components/common/AdminTable.vue";
 
 const router = useRouter();
 const toast = useToast();
@@ -91,7 +92,7 @@ const tableColumns = [
   { key: "actions", label: "Aksi", sortable: false },
 ];
 
-// Computed pagination info for MerchantTable
+// Computed pagination info for AdminTable
 const paginationInfo = computed(() => ({
   start: (pagination.value.current_page - 1) * pagination.value.per_page + 1,
   end: Math.min(
@@ -173,9 +174,9 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- ✅ Desktop Table - MerchantTable handles empty state -->
+      <!-- ✅ Desktop Table - AdminTable handles empty state -->
       <div class="hidden sm:block">
-        <MerchantTable
+        <AdminTable
           :items="events"
           :columns="tableColumns"
           :loading="loading"
@@ -236,7 +237,7 @@ onMounted(() => {
               </Button>
             </div>
           </template>
-        </MerchantTable>
+        </AdminTable>
       </div>
 
       <!-- ✅ Mobile Cards - Handle empty state manually -->
@@ -268,7 +269,7 @@ onMounted(() => {
               <img
                 v-if="event.banner_img_path"
                 :src="getImageUrl(event.banner_img_path)"
-                class="w-20 h-20 object-cover rounded-lg flex-shrink-0"
+                class="w-20 h-20 object-cover rounded-lg shrink-0"
               />
               <div class="flex-1 min-w-0">
                 <h3 class="font-semibold text-gray-900 line-clamp-2 mb-1">

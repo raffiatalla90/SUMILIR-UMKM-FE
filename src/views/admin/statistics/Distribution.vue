@@ -265,7 +265,7 @@ onUnmounted(async () => {
       <!-- See Details Button -->
       <a
         href="#"
-        class="inline-flex items-center gap-1.5 text-xs sm:text-sm whitespace-nowrap font-medium  hover:text-primary transition"
+        class="inline-flex items-center gap-1.5 text-xs sm:text-sm whitespace-nowrap font-medium  hover:text-merchant-primary transition"
       >
         Lihat detail
         <i class="pi pi-arrow-right text-xs"></i>
@@ -279,8 +279,8 @@ onUnmounted(async () => {
         :key="option.value"
         @click="donutChartMode = option.value"
         :class="[
-          donutChartMode === option.value ? 'shadow-sm text-primary bg-primary/10' : 'text-gray-500',
-          'px-3 py-1.5 font-medium rounded-md text-xs sm:text-sm whitespace-nowrap hover:text-primary hover:shadow-sm transition-all',
+          donutChartMode === option.value ? 'shadow-sm text-merchant-primary bg-merchant-primary/10' : 'text-gray-500',
+          'px-3 py-1.5 font-medium rounded-md text-xs sm:text-sm whitespace-nowrap hover:text-merchant-primary hover:shadow-sm transition-all',
         ]"
       >
         {{ option.label }}
@@ -288,6 +288,6 @@ onUnmounted(async () => {
     </div>
 
     <!-- Chart -->
-    <div ref="donutChartEl" class="h-[320px] sm:h-[380px]"></div>
+    <div ref="donutChartEl" class="h-80 sm:h-[380px]"></div>
   </div>
 </template>

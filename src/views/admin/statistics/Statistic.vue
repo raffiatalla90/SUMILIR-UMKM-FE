@@ -296,7 +296,7 @@ onUnmounted(async () => {
       <!-- See Details Button -->
       <a
         href="#"
-        class="inline-flex items-center gap-1.5 text-xs sm:text-sm whitespace-nowrap font-medium  hover:text-primary/80 transition"
+        class="inline-flex items-center gap-1.5 text-xs sm:text-sm whitespace-nowrap font-medium  hover:text-merchant-primary/80 transition"
       >
         Lihat detail
         <i class="pi pi-arrow-right text-xs"></i>
@@ -313,9 +313,9 @@ onUnmounted(async () => {
           @click="selectedPeriod = option.value"
           :class="[
             selectedPeriod === option.value
-              ? 'shadow-sm text-primary bg-primary/10'
+              ? 'shadow-sm text-merchant-primary bg-merchant-primary/10'
               : 'text-gray-500',
-            'px-2 py-1.5 sm:px-3 sm:py-2 font-medium rounded-md text-xs sm:text-sm hover:text-primary hover:shadow-sm transition-all',
+            'px-2 py-1.5 sm:px-3 sm:py-2 font-medium rounded-md text-xs sm:text-sm hover:text-merchant-primary hover:shadow-sm transition-all',
           ]"
         >
           {{ option.label }}
@@ -325,7 +325,7 @@ onUnmounted(async () => {
       <!-- Year Select -->
       <select
         v-model="selectedYear"
-        class="px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-300 bg-white rounded-lg text-xs sm:text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:text-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent transition"
+        class="px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-300 bg-white rounded-lg text-xs sm:text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:text-gray-800 focus:ring-5 focus:ring-merchant-primary focus:border-transparent transition"
       >
         <option v-for="year in availableYears" :key="year" :value="year">
           {{ year }}
@@ -336,7 +336,7 @@ onUnmounted(async () => {
       <select
         v-if="selectedPeriod === 'quarterly'"
         v-model="selectedQuarter"
-        class="px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-300 bg-white rounded-lg text-xs sm:text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:text-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent transition"
+        class="px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-300 bg-white rounded-lg text-xs sm:text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:text-gray-800 focus:ring-2 focus:ring-merchant-primary focus:border-transparent transition"
       >
         <option :value="1">Kuartal 1</option>
         <option :value="2">Kuartal 2</option>
@@ -348,7 +348,7 @@ onUnmounted(async () => {
       <select
         v-if="selectedPeriod === 'monthly'"
         v-model="selectedMonth"
-        class="px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-300 bg-white rounded-lg text-xs sm:text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:text-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent transition"
+        class="px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-300 bg-white rounded-lg text-xs sm:text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:text-gray-800 focus:ring-2 focus:ring-merchant-primary focus:border-transparent transition"
       >
         <option v-for="month in availableMonths" :key="month.value" :value="month.value">
           {{ month.label }}
@@ -360,7 +360,7 @@ onUnmounted(async () => {
     <div class="relative">
       <div ref="ordersChartEl" class="w-full h-[300px] sm:h-[350px]"></div>
       <div v-if="loading" class="absolute inset-0 flex items-center justify-center bg-white/60 z-10">
-        <i class="pi pi-spin pi-spinner text-2xl text-primary"></i>
+        <i class="pi pi-spin pi-spinner text-2xl text-merchant-merchant-primary"></i>
       </div>
     </div>
   </div>

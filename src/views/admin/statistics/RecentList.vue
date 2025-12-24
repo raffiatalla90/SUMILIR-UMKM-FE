@@ -217,7 +217,7 @@ const needsAttention = (status) => {
                   <!-- Dot indicator untuk status pending/in_review -->
                   <span
                     v-if="needsAttention(report.status)"
-                    class="flex-shrink-0 w-2 h-2 rounded-full bg-primary animate-pulse"
+                    class="shrink-0 w-2 h-2 rounded-full bg-primary animate-pulse"
                   ></span>
                   <div>
                     <p class="font-medium text-gray-800 text-sm">

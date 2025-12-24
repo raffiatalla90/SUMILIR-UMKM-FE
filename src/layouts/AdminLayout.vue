@@ -24,11 +24,6 @@ const menuItems = computed(() => [
     route: "/admin/users",
   },
   {
-    label: "Merchants",
-    icon: "pi-building",
-    route: "/admin/merchants",
-  },
-  {
     label: "Products",
     icon: "pi-box",
     route: "/admin/products",
@@ -184,7 +179,7 @@ defineExpose({
                   ? 'px-4 py-3 gap-3'
                   : 'px-4 py-3 gap-3 sm:px-3 sm:justify-center sm:gap-0',
                 isActive(item.route)
-                  ? 'bg-primary/10 text-primary'
+                  ? 'bg-merchant-primary/10 text-merchant-primary'
                   : 'text-gray-700 hover:bg-gray-50',
               ]"
               :title="!isOpen ? item.label : ''"
@@ -194,7 +189,7 @@ defineExpose({
                   'pi text-lg shrink-0',
                   item.icon,
                   isActive(item.route)
-                    ? 'text-primary'
+                    ? 'text-merchant-primary'
                     : 'text-gray-600',
                 ]"
               ></i>

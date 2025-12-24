@@ -3,10 +3,7 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
-import Button from "@/components/common/Button.vue";
-import MerchantTable from "@/components/common/MerchantTable.vue";
-import StatusLabel from "@/components/common/StatusLabel.vue";
-import MobilePagination from "@/components/common/MobilePagination.vue";
+import AdminTable from "@/components/common/AdminTable.vue";
 import { useReports } from "@/composables/useReports";
 
 const router = useRouter();
@@ -117,9 +114,9 @@ onMounted(() => {
 
     <!-- Content -->
     <div class="px-4 sm:px-6 py-6">
-      <!-- ✅ Desktop Table -->
+      <!-- Desktop Table -->
       <div class="hidden sm:block">
-        <MerchantTable
+        <AdminTable
           :items="reports"
           :columns="tableColumns"
           :loading="loading"
@@ -132,10 +129,10 @@ onMounted(() => {
           @page-change="goToPage"
         >
           <!-- Custom cells -->
-        </MerchantTable>
+        </AdminTable>
       </div>
 
-      <!-- ✅ Mobile Cards -->
+      <!-- Mobile Cards -->
       <div class="sm:hidden">
         <div v-if="loading" class="flex justify-center py-12">
           <i class="pi pi-spin pi-spinner text-4xl text-admin-primary"></i>
