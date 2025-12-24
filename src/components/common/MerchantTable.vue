@@ -1,6 +1,8 @@
 <script setup>
-import { computed } from "vue";
-
+// filepath: /var/www/html/KMI-SIMSLIFE-FE/src/components/common/MerchantTable.vue
+import { computed, useSlots } from "vue";
+import Button from "@/components/common/Button.vue";
+const slots = useSlots();
 const props = defineProps({
   // Data
   items: {
@@ -62,7 +64,9 @@ const props = defineProps({
     default: true,
   },
 });
-
+const hasSlot = (name) => {
+  return !!slots[name];
+};
 const emit = defineEmits([
   "update:selectedItems",
   "update:selectAll",
@@ -202,66 +206,111 @@ const getNestedValue = (obj, path) => {
               />
             </td>
 
-            <!-- Data Cells -->
-            <td
-              v-for="column in columns"
-              :key="column.key"
-              class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+              <!-- Dynamic Columns with Slots -->
+              <td
+                v-for="column in columns"
+                :key="column.key"
+                class="px-6 py-4"
+                :class="column.cellClass"
+              >
+                <div class="flex items-center">
+                  <slot
+                    v-if="hasSlot(`cell-${column.key}`)"
+                    :name="`cell-${column.key}`"
+                    :item="item"
+                    :value="getNestedValue(item, column.key)"
+                  />
+
+                  <span v-else class="text-sm">
+                    {{ getNestedValue(item, column.key) || "-" }}
+                  </span>
+                </div>
+              </td>
+
+              <!-- Actions -->
+              <td v-if="actions.length > 0" class="px-6 py-4" @click.stop>
+                <div class="flex items-center justify-end gap-2">
+                  <button
+                    v-for="(action, index) in actions"
+                    :key="index"
+                    @click="action.handler(item)"
+                    class="p-2 rounded-lg transition"
+                    :class="
+                      action.class ||
+                      'hover:bg-muted-background text-muted-foreground'
+                    "
+                    :title="action.label"
+                  >
+                    <i :class="['pi', action.icon, 'text-sm']"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div v-if="!loading" class="border-t border-muted-background px-6 py-4">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <!-- Pagination Info -->
+        <div class="text-sm text-muted-foreground">
+          Menampilkan
+          <span class="font-semibold text-black">
+            {{ paginationInfo.per_page }}
+          </span>
+          items/halaman
+        </div>
+
+        <!-- Pagination Controls -->
+        <div class="flex items-center gap-2">
+          <!-- Previous Button -->
+          <Button
+            @click="prevPage"
+            :disabled="currentPage === 1"
+            variant="merchant"
+            size="sm"
+          >
+            <i class="pi pi-chevron-left text-xs"></i>
+            <span>Prev</span>
+          </Button>
+
+          <!-- Page Numbers -->
+          <template v-for="(page, index) in visiblePages" :key="index">
+            <!-- Ellipsis -->
+            <span
+              v-if="page === '...'"
+              class="px-3 py-2 text-muted-foreground text-sm"
             >
-              <!-- Use slot if provided, otherwise show value -->
-              <slot :name="`cell-${column.key}`" :item="item" :row="item">
-                {{ getNestedValue(item, column.key) }}
-              </slot>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+              ...
+            </span>
 
-      <!-- Pagination -->
-      <div v-if="showPagination" class="px-6 py-4 border-t bg-gray-50">
-        <div class="flex items-center justify-between">
-          <!-- Info -->
-          <div class="text-sm text-gray-700">
-            Showing <span class="font-medium">{{ paginationInfo.start }}</span> to
-            <span class="font-medium">{{ paginationInfo.end }}</span> of
-            <span class="font-medium">{{ paginationInfo.total }}</span> results
-          </div>
-
-          <!-- Buttons -->
-          <div class="flex items-center gap-2">
-            <button
-              @click="prevPage"
-              :disabled="currentPage === 1"
-              class="px-3 py-2 border rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition"
-            >
-              Previous
-            </button>
-
-            <!-- Page Numbers -->
+            <!-- Page Button -->
             <button
               v-for="page in visiblePages"
               :key="page"
               @click="goToPage(page)"
-              :disabled="page === '...'"
-              :class="[
-                'px-3 py-2 border rounded-lg text-sm font-medium transition',
-                page === currentPage
-                  ? 'bg-admin-primary text-white border-admin-primary'
-                  : 'hover:bg-gray-100',
-                page === '...' ? 'cursor-default' : ''
-              ]"
+              class="px-3 py-1.5 rounded-lg border transition min-w-[40px] text-sm"
+              :class="
+                currentPage === page
+                  ? 'bg-merchant-primary text-white border-merchant-primary font-semibold'
+                  : 'border-muted-background hover:bg-muted-background text-muted-foreground'
+              "
             >
               {{ page }}
             </button>
 
-            <button
-              @click="nextPage"
-              :disabled="currentPage === totalPages"
-              class="px-3 py-2 border rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition"
-            >
-              Next
-            </button>
-          </div>
+          <!-- Next Button -->
+          <Button
+            @click="nextPage"
+            :disabled="currentPage === totalPages"
+            variant="merchant"
+            size="sm"
+          >
+            <span>Next</span>
+            <i class="pi pi-chevron-right text-xs"></i>
+          </Button>
         </div>
       </div>
     </div>

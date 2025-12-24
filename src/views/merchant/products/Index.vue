@@ -19,13 +19,24 @@ import MobilePagination from "@/components/common/MobilePagination.vue";
 import BulkActionBar from "@/components/common/BulkActionBar.vue";
 import { useProducts } from "@/composables/useProducts";
 import { useCategories } from "@/composables/useCategories";
-import { getImageUrl } from "@/libs/getImageUrl.js";
 import api from "@/libs/axios";
 
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 const authStore = useAuthStore();
+let perPageDebounceTimer = null;
+
+const debouncedLoadProductsByPerPage = () => {
+  if (perPageDebounceTimer) {
+    clearTimeout(perPageDebounceTimer);
+  }
+
+  perPageDebounceTimer = setTimeout(() => {
+    currentPage.value = 1; // reset page
+    loadProducts();
+  }, 400); // ⏱️ 400ms (ideal untuk UX)
+};
 
 // ✅ Get merchantId from route
 const currentMerchantId = computed(() => {
@@ -132,7 +143,15 @@ const activeFilters = ref({
 });
 
 const currentPage = ref(1);
-const perPage = ref(10);
+const perPageOptions = [
+  { label: "1", value: 1 },
+  { label: "10", value: 10 },
+  { label: "25", value: 25 },
+  { label: "50", value: 50 },
+  { label: "100", value: 100 },
+];
+
+const perPage = ref(10); // default
 
 // ✅ NEW: Build sort_by parameter untuk API
 const buildSortByParam = (filters) => {
@@ -153,15 +172,8 @@ const loadProducts = async () => {
 
   // ✅ ADD: Prevent duplicate calls
   if (loading.value) {
-    console.warn("[loadProducts] Already loading, skipping...");
     return;
   }
-
-  console.log("[loadProducts] Starting...", {
-    merchantId: currentMerchantId.value,
-    page: currentPage.value,
-    filters: activeFilters.value,
-  });
 
   logCookies("BEFORE fetchProducts"); // ✅ Log before
 
@@ -274,13 +286,9 @@ const cancelSelection = () => {
 };
 
 const applyFilters = () => {
-  console.log("[Filter] Applying filters:", tempFilters.value);
-
   activeFilters.value = { ...tempFilters.value };
   currentPage.value = 1;
   closeFilterModal();
-
-  console.log("[Filter] Active filters:", activeFilters.value);
 
   loadProducts();
 };
@@ -339,7 +347,7 @@ const saveBlob = (blob, fallbackName) => {
 const exportExcel = async () => {
   try {
     const params = buildExportParams();
-    const res = await api.get("/products/export/excel", {
+    const res = await api.get("/api/products/export/excel", {
       params,
       responseType: "blob",
     });
@@ -367,7 +375,7 @@ const exportExcel = async () => {
 const exportPDF = async () => {
   try {
     const params = buildExportParams();
-    const res = await api.get("/products/export/pdf", {
+    const res = await api.get("/api/products/export/pdf", {
       params,
       responseType: "blob",
     });
@@ -643,18 +651,12 @@ const logCookies = (context) => {
       if (name) acc[name] = value?.substring(0, 20) + "...";
       return acc;
     }, {});
-
-    console.group(`🍪 Cookies - ${context}`);
-    console.log("Count:", cookies.length);
-    console.table(cookieObj);
-    console.groupEnd();
   }
 };
 
 // ✅ Watch currentMerchantId changes (when switching merchant)
 watch(currentMerchantId, (newId, oldId) => {
   if (newId && newId !== oldId) {
-    console.log("✅ Merchant changed, reloading products for:", newId);
     logCookies("merchantId changed"); // ✅ ADD: Log cookies on merchant change
 
     // Reset filters and pagination
@@ -687,9 +689,19 @@ watch(currentPage, () => {
 //   // This might cause infinite loops
 //   loadProducts();
 // });
+onMounted(() => {});
+
+watch(perPage, (val, oldVal) => {
+  if (val === oldVal) return;
+
+  localStorage.setItem("products_per_page", val);
+  debouncedLoadProductsByPerPage();
+});
 
 // ✅ Initial load
 onMounted(async () => {
+  const savedPerPage = localStorage.getItem("products_per_page");
+  if (savedPerPage) perPage.value = Number(savedPerPage);
   logCookies("onMounted");
 
   // ✅ Guard di FE juga: cegah akses jika merchant belum approved
@@ -750,12 +762,11 @@ const activeFilterCount = computed(() => {
 });
 
 // ✅ PAGINATION INFO (dikembalikan agar komponen table & mobile pagination bekerja)
-const totalItems = computed(() => pagination.value?.meta?.total ?? 0);
-const totalPages = computed(() => pagination.value?.meta?.last_page ?? 1);
+const totalPages = computed(() => pagination.value?.last_page ?? 1);
 const paginationInfo = computed(() => ({
-  current_page: pagination.value?.meta?.current_page ?? currentPage.value,
-  total: pagination.value?.meta?.total ?? 0,
-  per_page: pagination.value?.meta?.per_page ?? perPage.value,
+  current_page: pagination.value?.current_page ?? currentPage.value,
+  total: pagination.value?.total ?? 0,
+  per_page: pagination.value?.per_page ?? perPage.value,
 }));
 
 // Table Configuration
@@ -908,6 +919,15 @@ const tableActions = [
             {{ activeFilterCount }}
           </span>
         </Button>
+
+        <SelectField
+          name="per_page"
+          variant="merchant"
+          size="sm"
+          v-model="perPage"
+          :options="perPageOptions"
+          class="hidden sm:block"
+        />
       </div>
 
       <!-- ✅ ADD: Active Filters Display (Debug) -->
@@ -1108,21 +1128,32 @@ const tableActions = [
             Pilih Semua
           </span>
         </label>
-        <Button
-          @click="openFilterModal"
-          variant="muted-outline"
-          size="sm"
-          custom-class="!flex sm:!hidden items-center gap-2 whitespace-nowrap relative"
-        >
-          <i class="pi pi-filter"></i>
-          <span>Filter</span>
-          <span
-            v-if="activeFilterCount > 0"
-            class="absolute -top-2 -right-2 bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-semibold"
+
+        <div class="flex items-center gap-1 h-10">
+          <Button
+            @click="openFilterModal"
+            variant="muted-outline"
+            size="md"
+            custom-class="!flex sm:!hidden items-center gap-2 whitespace-nowrap relative h-full items-stretch h-full"
           >
-            {{ activeFilterCount }}
-          </span>
-        </Button>
+            <i class="pi pi-filter"></i>
+            <span>Filter</span>
+            <span
+              v-if="activeFilterCount > 0"
+              class="absolute -top-2 -right-2 bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-semibold"
+            >
+              {{ activeFilterCount }}
+            </span>
+          </Button>
+          <SelectField
+            name="per_page"
+            variant="merchant"
+            size="sm"
+            v-model="perPage"
+            :options="perPageOptions"
+            class="sm:hidden w-fit"
+          />
+        </div>
       </div>
     </div>
 
@@ -1196,8 +1227,8 @@ const tableActions = [
               >
                 <!-- ✅ FIXED: Gunakan helper getImageUrl -->
                 <img
-                  v-if="item.cover_image?.id"
-                  :src="getImageUrl(item.cover_image.id)"
+                  v-if="item.cover_image?.src_url"
+                  :src="item.cover_image.src_url"
                   :alt="item.name"
                   class="w-full h-full object-cover"
                   @error="(e) => (e.target.style.display = 'none')"
@@ -1888,8 +1919,8 @@ const tableActions = [
           >
             <!-- ✅ FIXED: Gunakan helper getImageUrl -->
             <img
-              v-if="selectedProductForDelete.cover_image?.id"
-              :src="getImageUrl(selectedProductForDelete.cover_image.id)"
+              v-if="selectedProductForDelete.cover_image?.src_url"
+              :src="selectedProductForDelete.cover_image.src_url"
               :alt="selectedProductForDelete.name"
               class="w-full h-full object-cover"
               @error="(e) => (e.target.style.display = 'none')"
@@ -1986,8 +2017,8 @@ const tableActions = [
             >
               <!-- ✅ FIXED: Gunakan helper getImageUrl -->
               <img
-                v-if="product.cover_image?.id"
-                :src="getImageUrl(product.cover_image.id)"
+                v-if="product.cover_image?.src_url"
+                :src="product.cover_image.src_url"
                 :alt="product.name"
                 class="w-full h-full object-cover"
                 @error="(e) => (e.target.style.display = 'none')"
@@ -2076,8 +2107,8 @@ const tableActions = [
           >
             <!-- ✅ FIXED: Gunakan helper getImageUrl -->
             <img
-              v-if="selectedProductForStatusChange.cover_image?.id"
-              :src="getImageUrl(selectedProductForStatusChange.cover_image.id)"
+              v-if="selectedProductForStatusChange.cover_image?.src_url"
+              :src="selectedProductForStatusChange.cover_image.src_url"
               :alt="selectedProductForStatusChange.name"
               class="w-full h-full object-cover"
               @error="(e) => (e.target.style.display = 'none')"
@@ -2218,8 +2249,8 @@ const tableActions = [
             >
               <!-- ✅ FIXED: Gunakan helper getImageUrl -->
               <img
-                v-if="product.cover_image?.id"
-                :src="getImageUrl(product.cover_image.id)"
+                v-if="product.cover_image?.src_url"
+                :src="product.cover_image.src_url"
                 :alt="product.name"
                 class="w-full h-full object-cover"
                 @error="(e) => (e.target.style.display = 'none')"

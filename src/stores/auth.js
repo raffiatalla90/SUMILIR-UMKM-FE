@@ -1,180 +1,125 @@
-// stores/auth.js
+// src/stores/auth.js
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import api, {
-  sanctumApi,
-  setXsrfTokenHeader,
-  syncXsrfFromCookie,
-  readCookie,
-  ensureCsrfToken, // ✅ Import
-} from "@/libs/axios";
+import api from "@/libs/axios";
 import { useToast } from "vue-toastification";
-
-/**
- * getCookie helper tetap tersedia di store jika diperlukan.
- * Namun kita memakai readCookie yang diexport dari libs/axios untuk konsistensi.
- */
-function getCookie(name) {
-  return readCookie(name);
-}
 
 export const useAuthStore = defineStore("auth", () => {
   const toast = useToast();
+
   const user = ref(null);
-  const selectedMerchantId = ref(null); // ✅ Add this
+  const authReady = ref(false);
+  const selectedMerchantId = ref(null);
 
+  // =========================
+  // COMPUTED
+  // =========================
   const isAuthenticated = computed(() => !!user.value);
+  function requireLoginToast() {
+    toast.info("Silakan login terlebih dahulu untuk melanjutkan", {
+      timeout: 2500,
+    });
+  }
 
-  // ✅ Active merchant based on selectedMerchantId
-  const activeMerchant = computed(() => {
-    const merchants = user.value?.merchants || [];
-
-    // Prioritas: selected merchant > first approved > first
-    if (selectedMerchantId.value) {
-      const selected = merchants.find((m) => m.id === selectedMerchantId.value);
-      if (selected) return selected;
-    }
-
-    return (
-      merchants.find((m) => m.status === "approved") || merchants[0] || null
-    );
-  });
-
-  // ✅ Get merchant by specific ID
-  const getMerchantById = (id) => {
-    const merchants = user.value?.merchants || [];
-    return merchants.find((m) => m.id === Number(id)) || null;
-  };
-
-  const merchantName = computed(() => {
-    return activeMerchant.value?.name || user.value?.name || "Merchant";
-  });
-
-  const merchantType = computed(() => {
-    return activeMerchant.value?.segmentation?.name || "UMKM";
-  });
-
-  const merchantId = computed(() => {
-    return activeMerchant.value?.id || null;
-  });
-
-  const merchantsCount = computed(() => {
-    return user.value?.merchants?.length || 0;
-  });
-
-  const allMerchants = computed(() => {
-    return user.value?.merchants || [];
-  });
-
-  const userRoles = computed(() => {
-    if (!user.value?.roles) return [];
-    return user.value.roles
-      .map((r) => (typeof r === "string" ? r : r.name))
-      .filter(Boolean);
-  });
+  const userRoles = computed(
+    () =>
+      user.value?.roles?.map((r) => (typeof r === "string" ? r : r.name)) || []
+  );
 
   const isAdmin = computed(() => userRoles.value.includes("admin"));
   const isMerchant = computed(() => userRoles.value.includes("umkm-owner"));
   const isCustomer = computed(() => userRoles.value.includes("customer"));
 
-  // ✅ Set active merchant - NO NEW CSRF REQUEST
-  function setActiveMerchant(merchantId) {
-    const merchant = allMerchants.value.find(
-      (m) => m.id === Number(merchantId)
-    );
-    if (merchant) {
-      selectedMerchantId.value = Number(merchantId);
-      localStorage.setItem("selected_merchant_id", String(merchantId));
-      console.log(
-        "✅ Active merchant set to:",
-        merchant.name,
-        "(ID:",
-        merchantId,
-        ")"
+  const allMerchants = computed(() => user.value?.merchants || []);
+
+  const activeMerchant = computed(() => {
+    if (!allMerchants.value.length) return null;
+
+    if (selectedMerchantId.value) {
+      const found = allMerchants.value.find(
+        (m) => m.id === selectedMerchantId.value
       );
-    } else {
-      console.warn("⚠️ Merchant not found:", merchantId);
+      if (found) return found;
     }
+
+    return (
+      allMerchants.value.find((m) => m.status === "approved") ||
+      allMerchants.value[0]
+    );
+  });
+
+  const merchantId = computed(() => activeMerchant.value?.id || null);
+  const merchantName = computed(
+    () => activeMerchant.value?.name || user.value?.name || "User"
+  );
+
+  // =========================
+  // HELPERS
+  // =========================
+  function persistUser(data) {
+    const minimal = {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      roles: data.roles,
+      merchants: data.merchants || [],
+    };
+
+    user.value = minimal;
+    localStorage.setItem("user", JSON.stringify(minimal));
   }
 
-  // ✅ Load selected merchant from localStorage
-  function loadSelectedMerchant() {
-    const saved = localStorage.getItem("selected_merchant_id");
-    if (saved) {
-      selectedMerchantId.value = Number(saved);
-    }
-  }
-
-  // ✅ Clear user data
   function clearUser() {
     user.value = null;
     selectedMerchantId.value = null;
     localStorage.removeItem("user");
     localStorage.removeItem("selected_merchant_id");
-    setXsrfTokenHeader(null);
-    console.log("✅ User data cleared");
   }
 
+  function loadSelectedMerchant() {
+    const saved = localStorage.getItem("selected_merchant_id");
+    if (saved) selectedMerchantId.value = Number(saved);
+  }
+
+  function setActiveMerchant(id) {
+    selectedMerchantId.value = Number(id);
+    localStorage.setItem("selected_merchant_id", String(id));
+  }
+  function getMerchantById(id) {
+    return allMerchants.value.find((m) => Number(m.id) === Number(id)) || null;
+  }
+
+  // =========================
+  // ACTIONS
+  // =========================
   async function login(credentials) {
     try {
-      console.log("🔍 Logging in with credentials:", credentials);
+      try {
+        await api.get("/sanctum/csrf-cookie");
+      } catch {
+        console.warn("Gagal mendapatkan CSRF cookie");
+      }
 
-      // ✅ Use ensureCsrfToken instead of direct call
-      await ensureCsrfToken();
-      console.log("✅ CSRF cookie obtained");
+      // 🔐 Login
+      await api.post("/login", credentials);
 
-      await sanctumApi.post("/login", credentials);
-      console.log("✅ Login successful");
+      // 👤 Ambil user
+      const { data } = await api.get("/api/me");
 
-      syncXsrfFromCookie();
-
-      const { data } = await sanctumApi.get("/me");
-      console.log("✅ User data fetched:", data);
-
-      user.value = data;
-
-      // ✅ Only store essential user data in localStorage (not full response)
-      const essentialUserData = {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        roles: data.roles.map((r) => (typeof r === "string" ? r : r.name)),
-        merchants:
-          data.merchants?.map((m) => ({
-            id: m.id,
-            name: m.name,
-            status: m.status,
-            segmentation: m.segmentation
-              ? {
-                  id: m.segmentation.id,
-                  name: m.segmentation.name,
-                }
-              : null,
-          })) || [],
-      };
-
-      localStorage.setItem("user", JSON.stringify(essentialUserData));
+      persistUser(data);
       loadSelectedMerchant();
 
-      toast.success("Login berhasil! Selamat datang 👋", { timeout: 2500 });
+      toast.success("Login berhasil 👋", { timeout: 2500 });
       return data;
     } catch (error) {
-      console.error("❌ Login error:", error);
+      const status = error.response?.status;
 
-      if (error.response?.status === 431) {
-        toast.error("Cookie terlalu besar. Silakan clear cache browser.", {
-          timeout: 4000,
-        });
-      } else if (error.response?.status === 401) {
-        toast.error("Email atau password salah.", { timeout: 3000 });
-      } else if (error.response?.status === 403) {
-        const msg =
-          error.response?.data?.message || "Email belum terverifikasi.";
-        toast.warning(msg, { timeout: 3000 });
+      if (status === 401) {
+        toast.error("Email atau password salah");
+      } else if (status === 403) {
+        toast.warning(error.response?.data?.message || "Akses ditolak");
       } else {
-        const msg =
-          error.response?.data?.message || "Login gagal. Periksa koneksi Anda.";
-        toast.error(msg, { timeout: 3000 });
+        toast.error("Login gagal");
       }
 
       throw error;
@@ -183,107 +128,75 @@ export const useAuthStore = defineStore("auth", () => {
 
   async function logout() {
     try {
-      await sanctumApi.post("/logout");
-      toast.success("Berhasil logout. Sampai jumpa! 👋", { timeout: 2500 });
-    } catch (error) {
-      console.error("Logout error:", error);
-      toast.warning("Logout gagal, tapi sesi Anda akan dihapus", {
-        timeout: 3000,
-      });
+      await api.post("/logout");
+      toast.success("Berhasil logout 👋", { timeout: 2000 });
+    } catch {
+      toast.warning("Logout gagal, sesi dibersihkan");
     } finally {
       clearUser();
     }
   }
 
-  async function register(userData) {
-    try {
-      console.log("🔍 Registering user:", userData);
-      // gunakan API instance (prefix /api)
-      const { data } = await api.post("/auth/register", userData);
-      console.log("✅ Registration successful:", data);
-      toast.success("Registrasi berhasil! Silakan login.", { timeout: 3000 });
-      return data;
-    } catch (error) {
-      console.error("❌ Register failed:", error);
-      const errorMessage =
-        error.response?.data?.message || "Registrasi gagal. Silakan coba lagi.";
-      toast.error(errorMessage, { timeout: 4000 });
-      throw error;
-    }
+  async function register(payload) {
+    const { data } = await api.post("/api/auth/register", payload);
+    toast.success("Registrasi berhasil, silakan login");
+    return data;
   }
 
   async function initAuth() {
-    console.log("🔍 Initializing auth...");
+    authReady.value = false;
+
+    // Load dari localStorage dulu (optimistic)
     const saved = localStorage.getItem("user");
     if (saved) {
       try {
         user.value = JSON.parse(saved);
         loadSelectedMerchant();
-        console.log("✅ User loaded from localStorage:", user.value);
-      } catch (e) {
-        console.error("❌ Failed to parse saved user:", e);
-        localStorage.removeItem("user");
+      } catch {
+        clearUser();
       }
     }
 
+    // Validasi ke server
     try {
-      // ✅ Use ensureCsrfToken
-      await ensureCsrfToken();
-
-      const { data } = await sanctumApi.get("/me");
-      user.value = data;
-
-      // ✅ Store only essential data
-      const essentialUserData = {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        roles: data.roles.map((r) => (typeof r === "string" ? r : r.name)),
-        merchants:
-          data.merchants?.map((m) => ({
-            id: m.id,
-            name: m.name,
-            status: m.status,
-            segmentation: m.segmentation
-              ? {
-                  id: m.segmentation.id,
-                  name: m.segmentation.name,
-                }
-              : null,
-          })) || [],
-      };
-
-      localStorage.setItem("user", JSON.stringify(essentialUserData));
-      loadSelectedMerchant();
-      console.log("✅ Session verified:", user.value);
-    } catch (e) {
-      console.warn("⚠️ Session not valid, clearing user");
+      const { data } = await api.get("/api/me");
+      persistUser(data);
+    } catch {
       clearUser();
+    } finally {
+      authReady.value = true;
     }
   }
 
+  // =========================
+  // EXPORT
+  // =========================
   return {
+    // state
     user,
+    authReady,
     isAuthenticated,
+
+    // roles
     userRoles,
     isAdmin,
     isMerchant,
     isCustomer,
-    // ✅ Merchant computed
-    activeMerchant,
-    merchantName,
-    merchantType,
-    merchantId,
-    merchantsCount,
+
+    // merchant
     allMerchants,
-    getMerchantById, // ✅ Export
-    // Actions
+    activeMerchant,
+    merchantId,
+    merchantName,
+    setActiveMerchant,
+    getMerchantById,
+
+    // actions
+    requireLoginToast,
     login,
     logout,
     register,
     initAuth,
     clearUser,
-    setActiveMerchant,
-    loadSelectedMerchant,
   };
 });

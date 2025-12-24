@@ -34,24 +34,17 @@ export function useCategories() {
   const fetchLevel1Categories = async () => {
     loadingLevel1.value = true;
     try {
-      const response = await api.get("public/categories/level-1");
+      const response = await api.get("/api/public/categories/level-1");
 
       if (response.data.success) {
         // ✅ Normalize all categories
         categoriesLevel1.value = (response.data.data || [])
           .map(normalizeCategory)
           .filter(Boolean); // Remove null values
-
-        console.log(
-          "[Categories] Level 1 loaded:",
-          categoriesLevel1.value.length
-        );
-        console.log("[Categories] Sample:", categoriesLevel1.value[0]);
       } else {
         throw new Error(response.data.message || "Failed to fetch categories");
       }
     } catch (error) {
-      console.error("[Categories] Error fetching level 1:", error);
       toast.error("Gagal memuat kategori");
       categoriesLevel1.value = [];
     } finally {
@@ -71,7 +64,7 @@ export function useCategories() {
     loadingLevel2.value = true;
     try {
       const response = await api.get(
-        `public/categories/${parentId}/sub-categories`
+        `/api/public/categories/${parentId}/sub-categories`
       );
 
       if (response.data.success) {
@@ -79,19 +72,12 @@ export function useCategories() {
         categoriesLevel2.value = (response.data.data || [])
           .map(normalizeCategory)
           .filter(Boolean);
-
-        console.log(
-          "[Categories] Sub-categories loaded:",
-          categoriesLevel2.value.length
-        );
       } else {
         throw new Error(
           response.data.message || "Failed to fetch sub-categories"
         );
       }
     } catch (error) {
-      console.error("[Categories] Error fetching sub-categories:", error);
-
       if (error.response?.status === 404) {
         toast.warning("Kategori tidak memiliki sub-kategori");
       } else {
@@ -113,7 +99,7 @@ export function useCategories() {
     }
 
     try {
-      const response = await api.get("public/categories/search", {
+      const response = await api.get("/api/public/categories/search", {
         params: { q: query },
       });
 
@@ -125,7 +111,7 @@ export function useCategories() {
       }
       return [];
     } catch (error) {
-      console.error("[Categories] Search error:", error);
+      toast.error("Gagal mencari kategori");
       return [];
     }
   };

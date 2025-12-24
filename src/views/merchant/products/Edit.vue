@@ -16,16 +16,25 @@ import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import { useCategories } from "@/composables/useCategories";
 import { useProducts } from "@/composables/useProducts"; // already present — ensure fetchProductDetail used
 import { getImageUrl } from "@/libs/getImageUrl.js"; // ADD THIS
+import { getVariantImageUrl } from "@/libs/getVariantImageUrl.js"; // ✅ ADD THIS
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
+const MAX_IMAGES = 6;
+const MAX_IMAGE_SIZE_MB = 5;
+const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
+const MAX_COMBINATIONS = 50;
 
 const productSlug = computed(() => route.params.slug); // ✅ gunakan slug
+const currentMerchantId = ref(null);
 
-// ✅ Get merchantId from route
-const currentMerchantId = computed(() => {
-  return route.params.merchantId ? Number(route.params.merchantId) : null;
-});
+watch(
+  () => route.params?.merchantId,
+  (val) => {
+    currentMerchantId.value = val ? Number(val) : null;
+  },
+  { immediate: true }
+);
 
 // ✅ Breadcrumb items
 const breadcrumbItems = computed(() => [
@@ -88,7 +97,7 @@ useBodyScrollLock(showCombinationsModal);
 // Add-on Groups
 const addOnGroups = ref([]);
 const maxAddOnGroups = 10;
-const maxAddOnOptions = 20;
+const maxAddOnOptions = 10;
 
 // Accordion States
 const expandedVariants = ref(new Set());
@@ -133,6 +142,7 @@ const schema = yup.object({
     .number()
     .integer("Stok harus bilangan bulat")
     .min(0, "Stok tidak boleh negatif")
+    .max(9999, "Stok maksimal 9999")
     .when([], {
       is: () => !useVariants.value,
       then: (schema) => schema.required("Stok wajib diisi"),
@@ -210,7 +220,6 @@ watch(description, (newDesc) => {
 });
 
 watch(selectedCategory, async (newCat) => {
-  console.log("[Categories] Selected category:", newCat);
   setFieldValue("category_id", newCat);
 
   if (newCat) {
@@ -230,12 +239,6 @@ let regenerateTimeout = null;
 watch(
   () => [useVariants.value, variants.value],
   () => {
-    // Skip during initial data load
-    if (isInitialLoad.value) {
-      console.log("[Watcher] Skipping during initial load");
-      return;
-    }
-
     // Clear previous timeout
     if (regenerateTimeout) {
       clearTimeout(regenerateTimeout);
@@ -244,7 +247,6 @@ watch(
     // ✅ Debounce: Wait 300ms before regenerating
     regenerateTimeout = setTimeout(() => {
       if (useVariants.value && variants.value.length > 0) {
-        console.log("[Watcher] Triggering smart regeneration");
         generateCombinations();
       } else {
         selectedCombinations.value.clear();
@@ -256,48 +258,18 @@ watch(
 
 // ✅ IMPROVED: Helper function dengan EXPLICIT sorting
 const createCombinationKey = (attributes) => {
-  if (!attributes || attributes.length === 0) return "";
+  if (!Array.isArray(attributes) || attributes.length === 0) return "";
 
-  // Sort by name (case-insensitive)
-  const sorted = [...attributes].sort((a, b) => {
-    const nameA = (a.name || "").toLowerCase().trim();
-    const nameB = (b.name || "").toLowerCase().trim();
-    return nameA.localeCompare(nameB);
-  });
-
-  // Create key with normalized values
-  const key = sorted
-    .map((attr) => {
-      const name = (attr.name || "").toLowerCase().trim();
-      const value = (attr.value || "").toLowerCase().trim();
-      return `${name}:${value}`;
-    })
+  return attributes
+    .filter((a) => a.option_value_id)
+    .map((a) => Number(a.option_value_id))
+    .sort((a, b) => a - b)
     .join("|");
-
-  return key;
 };
 
-// ✅ ADD: Debug helper
-const debugCombination = (combo, source) => {
-  const key = createCombinationKey(combo.attributes);
-  console.log(`[${source}] Combo:`, {
-    combination: combo.combination,
-    key: key,
-    attributes: combo.attributes,
-    price: combo.price,
-    stock: combo.stock,
-  });
-  return key;
-};
-
+let existingCombosMap = new Map();
 // ✅ CRITICAL FIX: Generate combinations dengan proper attribute structure
 const generateCombinations = () => {
-  console.log("\n[Generate] ============ START GENERATION ============");
-  console.log(
-    "[Generate] Current variants:",
-    JSON.parse(JSON.stringify(variants.value))
-  );
-
   const validVariants = variants.value
     .filter((v) => v.name.trim() && v.options.some((opt) => opt.name.trim()))
     .map((v) => ({
@@ -312,72 +284,67 @@ const generateCombinations = () => {
     }));
 
   if (validVariants.length === 0) {
-    console.log("[Generate] No valid variants, clearing combinations");
     selectedCombinations.value.clear();
     return;
   }
 
-  console.log("[Generate] Valid variants:", validVariants);
-
-  // ✅ CRITICAL: Store existing with debug logging
-  const existingCombosMap = new Map();
-
-  console.log("\n[Generate] ============ EXISTING COMBINATIONS ============");
-  combinations.value.forEach((combo, idx) => {
-    const key = debugCombination(combo, `Existing[${idx}]`);
-    existingCombosMap.set(key, {
-      sku: combo.sku,
-      price: combo.price,
-      stock: combo.stock,
-    });
-  });
-
-  console.log("\n[Generate] Existing map size:", existingCombosMap.size);
-  console.log(
-    "[Generate] Existing map keys:",
-    Array.from(existingCombosMap.keys())
-  );
-
   const newCombinations = [];
 
   const generateRecursive = (variantIndex, current) => {
+    // ==========================
+    // BASE CASE (WAJIB RETURN)
+    // ==========================
     if (variantIndex === validVariants.length) {
-      // ✅ CRITICAL: Ensure attributes are in SAME ORDER as when stored
-      const normalizedAttributes = current.attributes.map((attr) => ({
-        name: attr.name.trim(),
-        value: attr.value.trim(),
-      }));
+      const normalizedAttributes = current.attributes;
 
-      const attributeKey = createCombinationKey(normalizedAttributes);
-      const existingData = existingCombosMap.get(attributeKey);
+      const attributeKey = normalizedAttributes.every((a) => a.option_value_id)
+        ? createCombinationKey(normalizedAttributes)
+        : null;
 
-      if (existingData) {
-        console.log(
-          `[Generate] ✅ MATCH FOUND: "${current.combination}"`,
-          `\n  Key: ${attributeKey}`,
-          `\n  Data:`,
-          existingData
-        );
-      } else {
-        console.log(
-          `[Generate] 🆕 NEW: "${current.combination}"`,
-          `\n  Key: ${attributeKey}`,
-          `\n  Attributes:`,
-          normalizedAttributes
-        );
+      const existingData = attributeKey
+        ? existingCombosMap.get(attributeKey)
+        : null;
+
+      let variantId = null;
+
+      if (attributeKey && existingCombosMap.has(attributeKey)) {
+        const existing = existingCombosMap.get(attributeKey);
+
+        const currentOptionIds = normalizedAttributes
+          .map((a) => a.option_value_id)
+          .filter(Boolean)
+          .sort((a, b) => a - b);
+
+        const isSameStructure =
+          JSON.stringify(currentOptionIds) ===
+          JSON.stringify(existing.optionValueIds);
+
+        if (isSameStructure) {
+          variantId = existing.id;
+        }
       }
 
       newCombinations.push({
+        id: variantId,
         combination: current.combination,
         sku: existingData?.sku || "",
         price: existingData?.price || 0,
         stock: existingData?.stock || 0,
         attributes: normalizedAttributes,
       });
-      return;
+
+      return; // 🔥🔥🔥 INI KUNCI UTAMANYA
     }
 
+    // ==========================
+    // RECURSIVE STEP
+    // ==========================
     const variant = validVariants[variantIndex];
+
+    if (!variant || !Array.isArray(variant.options)) {
+      return; // safety guard
+    }
+
     variant.options.forEach((option) => {
       generateRecursive(variantIndex + 1, {
         combination: current.combination
@@ -388,6 +355,7 @@ const generateCombinations = () => {
           {
             name: variant.name,
             value: option.name,
+            option_value_id: option.id || null,
           },
         ],
       });
@@ -403,25 +371,12 @@ const generateCombinations = () => {
     combinations.value = newCombinations;
   }
 
-  console.log("\n[Generate] ============ NEW COMBINATIONS ============");
-  combinations.value.forEach((combo, idx) => {
-    debugCombination(combo, `New[${idx}]`);
-  });
-
-  console.log("\n[Generate] ============ SUMMARY ============");
-  console.log(`Total: ${newCombinations.length} combinations`);
-  console.log(
-    `Preserved: ${
-      Array.from(existingCombosMap.keys()).filter((key) =>
-        combinations.value.some(
-          (c) => createCombinationKey(c.attributes) === key && c.price > 0
-        )
-      ).length
-    }`
-  );
-  console.log("[Generate] ============ END GENERATION ============\n");
-
   selectedCombinations.value.clear();
+  combinations.value.forEach((combo) => {
+    if (combo.id && combo.attributes.some((a) => !a.option_value_id)) {
+      combo.id = null; // 🔥 PAKSA CREATE BARU
+    }
+  });
 };
 const absoluteImagePath = (img) => {
   // img bisa berupa string (path) atau object { id, image_path }
@@ -465,11 +420,8 @@ const fetchProductData = async () => {
   isInitialLoad.value = true;
 
   try {
-    console.log("[Edit] Fetching product (via composable):", productSlug.value);
     const payload = await fetchProductDetail(productSlug.value); // ✅ pakai slug
     const productData = payload;
-
-    console.log("[Edit] Product loaded (composable):", productData);
 
     // Fetch sub categories jika ada main category
     if (productData.categories && productData.categories.length > 0) {
@@ -501,7 +453,6 @@ const fetchProductData = async () => {
     // Populate rest of the form + variants/addons using helper yang sudah ada
     populateFormFromProduct(productData);
   } catch (error) {
-    console.error("[Edit] Error fetching product via composable:", error);
     // biarkan toast dan redirect seperti sebelumnya; gunakan existing toast/router yang ada
     toast.error(error.response?.data?.message || "Gagal memuat data produk");
     router.push("/merchant-center/products");
@@ -512,7 +463,6 @@ const fetchProductData = async () => {
     await nextTick();
     setTimeout(() => {
       isInitialLoad.value = false;
-      console.log("[Edit] ✅ Initial load complete, watchers now active");
     }, 300);
   }
 };
@@ -524,30 +474,64 @@ const triggerFileInput = () => {
 
 const handleImageUpload = (event) => {
   const files = Array.from(event.target.files);
-  files.forEach((file) => {
-    if (file.type.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        productImages.value.push({
-          id: Date.now() + Math.random(),
-          file,
-          preview: e.target.result,
-          is_cover: productImages.value.length === 0,
-          existing: false,
-        });
-        if (productImages.value.length === 1) coverImageIndex.value = 0;
-      };
-      reader.readAsDataURL(file);
+  const remainingSlots = MAX_IMAGES - productImages.value.length;
+
+  if (remainingSlots <= 0) {
+    toast.warning("Maksimal 6 foto produk");
+    event.target.value = "";
+    return;
+  }
+
+  // Ambil hanya sesuai slot yang tersedia
+  const allowedFiles = files.slice(0, remainingSlots);
+
+  if (files.length > remainingSlots) {
+    toast.warning(
+      `Hanya ${remainingSlots} foto yang dapat ditambahkan (maksimal 6)`
+    );
+  }
+
+  allowedFiles.forEach((file) => {
+    // ✅ Validasi type
+    if (!file.type.startsWith("image/")) {
+      toast.error(`File ${file.name} bukan gambar`);
+      return;
     }
+
+    // ✅ Validasi size
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+      toast.error(
+        `Gambar "${file.name}" terlalu besar. Maksimal ${MAX_IMAGE_SIZE_MB} MB`
+      );
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      productImages.value.push({
+        id: Date.now() + Math.random(),
+        file,
+        preview: e.target.result,
+        existing: false,
+      });
+
+      // Pastikan cover selalu valid
+      if (productImages.value.length === 1) {
+        coverImageIndex.value = 0;
+      }
+    };
+    reader.readAsDataURL(file);
   });
+
+  // Reset input supaya bisa upload file yang sama lagi
   event.target.value = "";
 };
 
 const removeImage = (index) => {
   productImages.value.splice(index, 1);
-  if (coverImageIndex.value >= productImages.value.length) {
-    coverImageIndex.value = Math.max(0, productImages.value.length - 1);
-  }
+
+  // ✅ PASTIKAN COVER SELALU INDEX 0
+  coverImageIndex.value = productImages.value.length > 0 ? 0 : null;
 };
 
 const onDragStart = (event, index) => {
@@ -567,22 +551,12 @@ const onDrop = (event, index) => {
     return;
 
   const draggedItem = productImages.value[draggedImageIndex.value];
+
   productImages.value.splice(draggedImageIndex.value, 1);
   productImages.value.splice(index, 0, draggedItem);
 
-  if (draggedImageIndex.value === coverImageIndex.value) {
-    coverImageIndex.value = index;
-  } else if (
-    draggedImageIndex.value < coverImageIndex.value &&
-    index >= coverImageIndex.value
-  ) {
-    coverImageIndex.value--;
-  } else if (
-    draggedImageIndex.value > coverImageIndex.value &&
-    index <= coverImageIndex.value
-  ) {
-    coverImageIndex.value++;
-  }
+  // ✅ COVER SELALU GAMBAR PERTAMA
+  coverImageIndex.value = 0;
 
   draggedImageIndex.value = null;
 };
@@ -593,38 +567,66 @@ const onDragEnd = () => {
 
 // ✅ SAMA SEPERTI CREATE: Variant Methods
 const addVariant = () => {
-  if (canAddVariant.value) {
-    const variantId = Date.now() + Math.random();
-    variants.value.push({
-      id: variantId,
-      name: "",
-      options: [{ id: Date.now(), name: "", images: [] }],
-    });
-    variantNames.value[variantId] = "";
-    variantUsesImages.value[variantId] = 0; // ✅ Default 0
-    expandedVariants.value.add(variantId);
+  if (!canAddVariant.value) return;
+
+  // jika sudah ada 1 varian dengan 50 opsi → varian ke-2 = 1 opsi max
+  if (
+    variants.value.length === 1 &&
+    variants.value[0].options.filter((o) => o.name.trim()).length >=
+      MAX_COMBINATIONS
+  ) {
+    toast.warning(
+      `Tidak bisa menambah varian. Kombinasi maksimal ${MAX_COMBINATIONS}`
+    );
+    return;
   }
+
+  const variantId = Date.now() + Math.random();
+  variants.value.push({
+    id: null,
+    clientKey: variantId,
+    name: "",
+    options: [{ id: null, name: "", images: [] }],
+  });
+
+  variantNames.value[variantId] = "";
+  variantUsesImages.value[variantId] = 0;
+  expandedVariants.value.add(variantId);
 };
 
 const removeVariant = (index) => {
-  const variantId = variants.value[index].id;
-  delete variantNames.value[variantId];
-  delete variantUsesImages.value[variantId];
+  const clientKey = variants.value[index].clientKey;
+
+  delete variantNames.value[clientKey];
+  delete variantUsesImages.value[clientKey];
+  expandedVariants.value.delete(clientKey);
+
   variants.value.splice(index, 1);
 };
 
 const addOption = (variantIndex) => {
   const variant = variants.value[variantIndex];
-  const opts = Array.isArray(variant.options) ? variant.options : [];
 
-  opts.push({
-    id: null, // ✅ penting: null supaya BE tidak mencoba update record yang tidak ada
-    clientKey: Date.now() + Math.random(), // hanya untuk key v-for
+  // hitung kombinasi jika opsi ditambah 1
+  const projectedCombinations = variants.value.reduce((total, v, idx) => {
+    let count = v.options.filter((o) => o.name.trim()).length;
+
+    if (idx === variantIndex) count += 1;
+
+    return total === 0 ? count : total * count;
+  }, 0);
+
+  if (projectedCombinations > MAX_COMBINATIONS) {
+    toast.error(`Kombinasi maksimal ${MAX_COMBINATIONS}`);
+    return;
+  }
+
+  variant.options.push({
+    id: null,
+    clientKey: Date.now() + Math.random(),
     name: "",
     images: [],
   });
-
-  variants.value[variantIndex].options = opts; // reaktif
 };
 
 const removeOption = (variantIndex, optionIndex) => {
@@ -632,16 +634,18 @@ const removeOption = (variantIndex, optionIndex) => {
 };
 
 // ✅ SAMA SEPERTI CREATE: Toggle antara 0 dan 1
-const toggleVariantImages = (variantId) => {
-  variantUsesImages.value[variantId] = variantUsesImages.value[variantId]
+const toggleVariantImages = (clientKey) => {
+  variantUsesImages.value[clientKey] = variantUsesImages.value[clientKey]
     ? 0
     : 1;
 
-  if (variantUsesImages.value[variantId] === 0) {
-    const variant = variants.value.find((v) => v.id === variantId);
-    if (variant) {
-      variant.options.forEach((opt) => (opt.images = []));
-    }
+  const variant = variants.value.find((v) => v.clientKey === clientKey);
+  if (variant) {
+    variant.uses_images = variantUsesImages.value[clientKey]; // ✅ SYNC
+  }
+
+  if (variantUsesImages.value[clientKey] === 0 && variant) {
+    variant.options.forEach((opt) => (opt.images = []));
   }
 };
 
@@ -775,35 +779,47 @@ const applyBulkEdit = () => {
 
 // ✅ SAMA SEPERTI CREATE: Add-on Group Methods
 const addAddOnGroup = () => {
-  if (canAddAddOnGroup.value) {
-    const groupId = Date.now() + Math.random();
-    addOnGroups.value.push({
-      id: groupId,
-      name: "",
-      is_required: false,
-      min_selection: 0,
-      max_selection: 1,
-      options: [
-        {
-          id: Date.now(),
-          name: "",
-          price: 0,
-        },
-      ],
-    });
-    expandedAddOnGroups.value.add(groupId);
-  }
+  if (!canAddAddOnGroup.value) return;
+
+  const groupClientKey = Date.now(); // ✅ DEFINISIKAN DULU
+
+  addOnGroups.value.push({
+    id: null, // DB ID (kosong = baru)
+    clientKey: groupClientKey, // UI key
+    name: "",
+    is_required: false,
+    min_selection: 0,
+    max_selection: 1,
+    options: [
+      {
+        id: null, // DB ID
+        clientKey: Date.now(), // UI key
+        name: "",
+        price: 0,
+      },
+    ],
+  });
+
+  // ✅ pakai clientKey, BUKAN groupId
+  expandedAddOnGroups.value.add(groupClientKey);
 };
 
 const removeAddOnGroup = (index) => {
+  const key = addOnGroups.value[index].clientKey;
+  expandedAddOnGroups.value.delete(key);
   addOnGroups.value.splice(index, 1);
 };
 
 const addAddOnOption = (groupIndex) => {
   const group = addOnGroups.value[groupIndex];
+  if (group.options.length >= maxAddOnOptions) {
+    toast.warning(`Maksimal ${maxAddOnOptions} opsi add-on`);
+    return;
+  }
   if (group.options.length < maxAddOnOptions) {
     group.options.push({
-      id: Date.now() + Math.random(),
+      id: null, // ⬅️ DB ID (kosong = option baru)
+      clientKey: Date.now(), // ⬅️ KHUSUS UI
       name: "",
       price: 0,
     });
@@ -832,8 +848,26 @@ const isAddOnGroupExpanded = (groupId) => {
 // ✅ SAMA SEPERTI CREATE: Submit Handler
 const onSubmit = veeHandleSubmit(
   async (values) => {
-    console.log("[Submit] Form values:", values);
+    combinations.value.forEach((combo) => {
+      const hasNewOption = combo.attributes.some((a) => !a.option_value_id);
 
+      if (hasNewOption) {
+        combo.id = null; // 🔥 FORCE CREATE
+      }
+    });
+
+    if (useVariants.value && totalCombinations.value > MAX_COMBINATIONS) {
+      toast.error(`Kombinasi varian maksimal ${MAX_COMBINATIONS}`);
+      return;
+    }
+    const hasTooManyAddonOptions = addOnGroups.value.some(
+      (group) => group.options.length > maxAddOnOptions
+    );
+
+    if (hasTooManyAddonOptions) {
+      toast.error(`Setiap grup add-on maksimal ${maxAddOnOptions} opsi`);
+      return;
+    }
     // === 1) Validasi dengan Yup langsung (deterministik, gak tergantung field registration) ===
     try {
       // validasi semua field di values berdasarkan schema
@@ -868,7 +902,20 @@ const onSubmit = veeHandleSubmit(
         toast.error("Minimal tambahkan 1 varian");
         return;
       }
+      const hasVariantWithAtLeastTwoOptions = variants.value.some((variant) => {
+        const validOptionsCount = variant.options.filter(
+          (opt) => opt.name && opt.name.trim()
+        ).length;
 
+        return validOptionsCount >= 2;
+      });
+
+      if (!hasVariantWithAtLeastTwoOptions) {
+        toast.error(
+          "Jika menggunakan variasi, minimal salah satu varian harus memiliki 2 pilihan atau lebih"
+        );
+        return;
+      }
       const hasEmptyVariantName = variants.value.some((v) => !v.name.trim());
       if (hasEmptyVariantName) {
         toast.error("Semua nama varian harus diisi");
@@ -922,6 +969,19 @@ const onSubmit = veeHandleSubmit(
       }
     }
 
+    const oversizedImage = productImages.value.find(
+      (img) => img.file && img.file.size > MAX_IMAGE_SIZE_BYTES
+    );
+
+    if (oversizedImage) {
+      toast.error(`Ukuran gambar maksimal ${MAX_IMAGE_SIZE_MB} MB`);
+      return;
+    }
+
+    if (productImages.value.length > MAX_IMAGES) {
+      toast.error("Maksimal upload 6 foto produk");
+      return;
+    }
     loading.value = true;
 
     try {
@@ -970,7 +1030,7 @@ const onSubmit = veeHandleSubmit(
           formData.append(`variants[${vIndex}][name]`, variant.name);
           formData.append(
             `variants[${vIndex}][uses_images]`,
-            variantUsesImages.value[variant.id] || 0
+            variantUsesImages.value[variant.clientKey] || 0
           );
 
           variant.options.forEach((opt, oIndex) => {
@@ -987,13 +1047,13 @@ const onSubmit = veeHandleSubmit(
               );
 
               if (
-                variantUsesImages.value[variant.id] === 1 &&
+                variantUsesImages.value[variant.clientKey] === 1 &&
                 opt.images.length > 0
               ) {
                 opt.images.forEach((img, iIndex) => {
                   if (img.existing) {
                     formData.append(
-                      `variants[${vIndex}][options][${oIndex}][existing_images][${iIndex}]`,
+                      `variants[${vIndex}][options][${oIndex}][existing_images][${iIndex}][id]`,
                       img.id
                     );
                   } else {
@@ -1013,11 +1073,21 @@ const onSubmit = veeHandleSubmit(
             `combinations[${cIndex}][combination]`,
             combo.combination
           );
+          if (combo.id && combo.attributes.every((a) => a.option_value_id)) {
+            formData.append(`combinations[${cIndex}][id]`, combo.id);
+          }
           formData.append(`combinations[${cIndex}][sku]`, combo.sku || "");
           formData.append(`combinations[${cIndex}][price]`, combo.price);
           formData.append(`combinations[${cIndex}][stock]`, combo.stock);
 
+          // 🔑 attributes pakai option_value_id
           combo.attributes.forEach((attr, aIndex) => {
+            if (attr.option_value_id) {
+              formData.append(
+                `combinations[${cIndex}][attributes][${aIndex}][option_value_id]`,
+                attr.option_value_id
+              );
+            }
             formData.append(
               `combinations[${cIndex}][attributes][${aIndex}][name]`,
               attr.name
@@ -1029,6 +1099,7 @@ const onSubmit = veeHandleSubmit(
           });
         });
       } else {
+        formData.append("sku", values.sku || "");
         formData.append("price", values.price);
         formData.append("stock", values.stock);
       }
@@ -1036,7 +1107,7 @@ const onSubmit = veeHandleSubmit(
       // ✅ Add-on groups (SAMA SEPERTI CREATE)
       addOnGroups.value.forEach((group, gIndex) => {
         if (group.name.trim()) {
-          if (group.id) {
+          if (Number.isInteger(group.id)) {
             formData.append(`add_on_groups[${gIndex}][id]`, group.id);
           }
           formData.append(`add_on_groups[${gIndex}][name]`, group.name.trim());
@@ -1051,7 +1122,7 @@ const onSubmit = veeHandleSubmit(
 
           group.options.forEach((opt, oIndex) => {
             if (opt.name.trim()) {
-              if (opt.id) {
+              if (Number.isInteger(opt.id)) {
                 formData.append(
                   `add_on_groups[${gIndex}][options][${oIndex}][id]`,
                   opt.id
@@ -1069,21 +1140,14 @@ const onSubmit = veeHandleSubmit(
           });
         }
       });
-
-      // Debug FormData (development only)
-      if (import.meta.env.DEV) {
-        console.log("[FormData Entries]:");
-        for (let [key, value] of formData.entries()) {
-          if (value instanceof File) {
-            console.log(`  ${key}: <File: ${value.name}>`);
-          } else {
-            console.log(`  ${key}:`, value);
-          }
+      combinations.value.forEach((combo) => {
+        if (combo.id && combo.attributes.some((a) => !a.option_value_id)) {
+          combo.id = null;
         }
-      }
+      });
 
       // ✅ API Call
-      await api.post(`/products/${productSlug.value}`, formData, {
+      await api.post(`/api/products/${productSlug.value}`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
@@ -1093,17 +1157,26 @@ const onSubmit = veeHandleSubmit(
       // Redirect setelah update
       router.push(`/merchant-center/${currentMerchantId.value}/products`);
     } catch (error) {
-      console.error("[Edit] Error updating product:", error);
-
-      // ✅ Log detailed error
-      if (error.response?.data) {
-        console.error("[Edit] Response data:", error.response.data);
-      }
-
       if (error.response?.status === 422) {
-        const errors = error.response.data.errors || {};
-        const firstError = Object.values(errors)[0];
-        toast.error(firstError?.[0] || "Validasi gagal");
+        const data = error.response.data;
+
+        // 1️⃣ Prioritaskan message dari backend
+        if (data?.message) {
+          toast.error(data.message);
+          return;
+        }
+
+        // 2️⃣ Fallback: Laravel validation errors
+        if (data?.errors && typeof data.errors === "object") {
+          const firstError = Object.values(data.errors)[0];
+          if (Array.isArray(firstError) && firstError.length > 0) {
+            toast.error(firstError[0]);
+            return;
+          }
+        }
+
+        // 3️⃣ Fallback terakhir
+        toast.error("Validasi gagal");
       } else {
         // ✅ Show detailed error message
         const errorMsg =
@@ -1112,19 +1185,12 @@ const onSubmit = veeHandleSubmit(
           "Gagal memperbarui produk";
 
         toast.error(errorMsg);
-
-        // ✅ Log trace in console (development only)
-        if (import.meta.env.DEV && error.response?.data?.trace) {
-          console.error("[Edit] Stack trace:", error.response.data.trace);
-        }
       }
     } finally {
       loading.value = false;
     }
   },
   (errorsFromVee) => {
-    console.log("[Validation] Errors (handler):", errorsFromVee);
-
     // Helper: ambil pesan string pertama dari berbagai shape error
     function getFirstErrorMessage(errObj) {
       if (!errObj) return null;
@@ -1187,144 +1253,142 @@ const goBack = () => {
   router.back();
 };
 
-const populateFormFromProduct = (productData) => {
-  console.log("[Edit] Populating form from product data:", productData);
-
-  // Basic info
+const populateFormFromProduct = async (productData) => {
+  // 1️⃣ Basic info
   name.value = productData.name || "";
   description.value = productData.description || "";
 
   setFieldValue("name", productData.name || "");
   setFieldValue("description", productData.description || "");
-  setFieldValue("category_id", productData.categories?.[0]?.id || null);
   setFieldValue("min_purchase", productData.min_purchase ?? 1);
 
-  // Categories
-  if (productData.categories && productData.categories.length > 0) {
-    selectedCategory.value = productData.categories[0].id;
-    selectedSubCategories.value = productData.categories
-      .slice(1)
-      .map((cat) => cat.id);
+  // ==============================
+  // 2️⃣ KATEGORI UTAMA & SUB KATEGORI
+  // ==============================
+  if (Array.isArray(productData.categories) && productData.categories.length) {
+    const mainCategory = productData.categories[0];
+    const subCategories = productData.categories.slice(1);
+
+    // set kategori utama
+    selectedCategory.value = mainCategory.id;
+    setFieldValue("category_id", mainCategory.id);
+
+    // fetch sub categories dulu (penting!)
+    await fetchSubCategories(mainCategory.id);
+
+    // set sub kategori (id saja)
+    selectedSubCategories.value = subCategories.map((c) => c.id);
   } else {
     selectedCategory.value = null;
     selectedSubCategories.value = [];
   }
 
-  // Images — gunakan getImageUrl mirip Detail.vue agar src menjadi /api/images/{id}
-  productImages.value = (productData.images || []).map((img) => ({
-    id: img.id,
-    preview: img.id ? getImageUrl(img.id) : img.image_path || "",
-    is_cover: !!img.is_cover,
-    existing: true,
-  }));
+  // ==============================
+  // 3️⃣ VARIANTS (lanjutkan seperti sekarang)
+  // ==============================
+  existingCombosMap = new Map();
 
-  // set cover index
-  coverImageIndex.value = productImages.value.findIndex((img) => img.is_cover);
-  if (coverImageIndex.value === -1 && productImages.value.length > 0) {
-    coverImageIndex.value = 0;
-  }
+  productData.variants?.forEach((variant) => {
+    const attrs = variant.option_values.map((ov) => ({
+      option_value_id: ov.id,
+    }));
 
-  // Variants / Options
-  if (productData.options && productData.options.length > 0) {
+    const key = createCombinationKey(attrs);
+
+    existingCombosMap.set(key, {
+      id: variant.id, // 🔑 SIMPAN ID VARIANT
+      sku: variant.sku || "",
+      price: Number(variant.price || 0),
+      stock: Number(variant.stock || 0),
+      optionValueIds: attrs.map((a) => a.option_value_id).sort(),
+    });
+  });
+
+  if (productData.options?.length) {
     useVariants.value = true;
 
-    // options: productData.options[].values[].image_path available
-    variants.value = productData.options.map((option) => ({
-      id: option.id,
-      name: option.option_name,
-      options: (option.values || []).map((val) => ({
-        id: val.id,
-        name: val.option_value,
-        images: val.image_path
-          ? [
-              {
-                id: val.id,
-                preview: val.image_path,
-                existing: true,
-              },
-            ]
-          : [],
-      })),
-    }));
+    variants.value = productData.options.map((optionGroup) => {
+      const clientKey = optionGroup.id; // 🔑 PENTING
 
-    productData.options.forEach((option) => {
-      variantNames.value[option.id] = option.option_name;
-      variantUsesImages.value[option.id] = option.uses_image ? 1 : 0;
-      expandedVariants.value.add(option.id);
+      variantNames.value[clientKey] = optionGroup.option_name || "";
+      variantUsesImages.value[clientKey] = optionGroup.uses_image ? 1 : 0;
+      expandedVariants.value.add(clientKey);
+
+      return {
+        id: optionGroup.id, // ID DB
+        clientKey: optionGroup.id, // 🔑 ID UI
+        name: optionGroup.option_name || "",
+        uses_images: optionGroup.uses_image ? 1 : 0, // ✅ TAMBAH INI
+        options: optionGroup.values.map((val) => ({
+          id: val.id,
+          clientKey: val.id ?? `${Date.now()}-${Math.random()}`,
+          name: val.option_value,
+          images:
+            val.image_url || val.image_path
+              ? [
+                  {
+                    id: val.id,
+                    preview: val.image_url || absoluteImagePath(val.image_path),
+                    existing: true,
+                  },
+                ]
+              : [],
+        })),
+      };
     });
 
-    // Variants (combinations) jika ada
-    if (productData.variants && productData.variants.length > 0) {
-      combinations.value = productData.variants.map((variant) => {
-        const optionValues = variant.option_values || [];
-        const attributes = optionValues.map((ov) => ({
-          name: (ov.option_name || "").trim(),
-          value: (ov.option_value || "").trim(),
-        }));
+    productData.options.forEach((opt) => {
+      variantUsesImages.value[opt.id] = opt.uses_image ? 1 : 0;
+      expandedVariants.value.add(opt.id);
+    });
 
-        const combinationName = optionValues
-          .map((ov) => ov.option_value)
-          .join(" - ");
-
-        return {
-          combination: combinationName,
-          sku: variant.sku || "",
-          price: parseFloat(variant.price) || 0,
-          stock: parseInt(variant.stock) || 0,
-          attributes,
-        };
-      });
-    }
+    generateCombinations();
   } else {
-    // Non-variant product
+    // ===== MODE TANPA VARIAN =====
     useVariants.value = false;
-    if (productData.variants && productData.variants[0]) {
-      const variant = productData.variants[0];
-      setFieldValue("sku", variant.sku || ""); // ✅ Set SKU
-      setFieldValue("price", parseFloat(variant.price) || 0);
-      setFieldValue("stock", parseInt(variant.stock) || 0);
-    } else {
-      setFieldValue("sku", "");
-      setFieldValue("price", 0);
-      setFieldValue("stock", 0);
+
+    const singleVariant = productData.variants?.[0];
+
+    if (singleVariant) {
+      // 🔥 INI YANG KAMU LUPA
+      setFieldValue("price", Number(singleVariant.price || 0));
+      setFieldValue("stock", Number(singleVariant.stock || 0));
+      setFieldValue("sku", singleVariant.sku || "");
+
+      formSku.value = singleVariant.sku || "";
     }
   }
 
-  // Add-on groups (normalize both possible key names)
-  const addonGroups = productData.addon_groups ?? productData.addonGroups ?? [];
-  if (addonGroups && addonGroups.length > 0) {
-    addOnGroups.value = addonGroups.map((group) => ({
+  // ==============================
+  // 4️⃣ ADD-ON GROUPS (kalau mau sekalian)
+  // ==============================
+  if (Array.isArray(productData.addon_groups)) {
+    addOnGroups.value = productData.addon_groups.map((group) => ({
       id: group.id,
-      name: group.addon_group_name || group.name || "",
-      is_required: (group.min_selection ?? 0) > 0,
-      min_selection: group.min_selection ?? 0,
-      max_selection: group.max_selection ?? 1,
-      options: (group.options || []).map((opt) => ({
+      clientKey: group.id, // UI key
+      name: group.addon_group_name,
+      min_selection: group.min_selection,
+      max_selection: group.max_selection,
+      options: group.options.map((opt) => ({
         id: opt.id,
-        name: opt.addon?.addon_name || opt.addon_name || "",
-        price: parseFloat(opt.addon_price ?? 0),
+        clientKey: opt.id, // UI key
+        name: opt.addon.addon_name,
+        price: Number(opt.addon_price),
       })),
     }));
 
-    addonGroups.forEach((group) => expandedAddOnGroups.value.add(group.id));
-  } else {
-    addOnGroups.value = [];
+    addOnGroups.value.forEach((g) => expandedAddOnGroups.value.add(g.id));
   }
 };
+watch(useVariants, (val) => {
+  if (val) {
+    // pindah ke variant → bersihkan single price
+    setFieldValue("price", 0);
+    setFieldValue("stock", 0);
+    setFieldValue("sku", "");
+  }
+});
 
-// ✅ ADD: Debug watcher untuk monitoring form values
-watch(
-  () => values,
-  (newValues) => {
-    console.log("[Form Values Changed]:", {
-      name: newValues.name,
-      price: newValues.price,
-      stock: newValues.stock,
-      min_purchase: newValues.min_purchase,
-    });
-  },
-  { deep: true }
-);
 watch(
   () => values.sku,
   (newVal) => {
@@ -1335,7 +1399,6 @@ watch(formSku, (newVal) => {
   setFieldValue("sku", newVal);
 });
 onMounted(async () => {
-  console.log("[Edit Product] Component mounted");
   await fetchLevel1Categories();
   await fetchProductData();
 });
@@ -1401,12 +1464,7 @@ onMounted(async () => {
 
     <!-- ✅ Content (Only show when data loaded) -->
     <div v-else class="mx-auto px-0 sm:px-4 lg:px-6 sm:py-6 sm:pt-0">
-      <Form
-        ref="formRef"
-        :validation-schema="schema"
-        :initial-values="initialValues"
-        @submit="onSubmit"
-      >
+      <Form ref="formRef" :validation-schema="schema" @submit="onSubmit">
         <!-- Foto Produk -->
         <div
           class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
@@ -1492,7 +1550,9 @@ onMounted(async () => {
           <p class="text-xs text-muted-foreground">
             <i class="pi pi-info-circle"></i>
             Drag gambar untuk mengubah urutan. Foto pertama menjadi cover. Maks
-            6 foto.
+            6 foto dengan masing-masing ukuran maksimal
+            {{ MAX_IMAGE_SIZE_MB }} MB. Gunakan gambar dengan rasio 1:1 untuk
+            hasil terbaik.
           </p>
         </div>
 
@@ -1674,7 +1734,7 @@ onMounted(async () => {
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div
               v-for="(variant, vIndex) in variants"
-              :key="variant.id"
+              :key="variant.clientKey"
               class="border-2 border-gray-200 rounded-xl overflow-hidden bg-white hover:border-merchant-primary/50 transition"
             >
               <!-- Variant Header -->
@@ -1713,10 +1773,10 @@ onMounted(async () => {
                 <!-- PERBAIKAN: TextField dengan name unique per variant -->
                 <div>
                   <TextField
-                    :name="`variant_name_${variant.id}`"
+                    :name="`variant_name_${variant.clientKey}`"
                     type="text"
-                    v-model="variantNames[variant.id]"
-                    @input="variant.name = variantNames[variant.id]"
+                    v-model="variantNames[variant.clientKey]"
+                    @input="variant.name = variantNames[variant.clientKey]"
                     :label="`Nama Varian`"
                     :placeholder="`Contoh: ${
                       vIndex === 0 ? 'Warna' : 'Ukuran'
@@ -1727,7 +1787,7 @@ onMounted(async () => {
 
                 <div v-if="vIndex === 0">
                   <label
-                    @click="toggleVariantImages(variant.id)"
+                    @click="toggleVariantImages(variant.clientKey)"
                     class="flex items-center justify-between cursor-pointer py-3 px-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition"
                   >
                     <div class="flex items-center gap-2">
@@ -1739,7 +1799,7 @@ onMounted(async () => {
                     <div
                       :class="[
                         'relative w-11 h-6 rounded-full transition flex-shrink-0',
-                        variantUsesImages[variant.id]
+                        variantUsesImages[variant.clientKey]
                           ? 'bg-merchant-primary'
                           : 'bg-gray-300',
                       ]"
@@ -1747,7 +1807,7 @@ onMounted(async () => {
                       <span
                         :class="[
                           'absolute top-1 w-4 h-4 bg-white rounded-full transition-transform shadow-sm',
-                          variantUsesImages[variant.id]
+                          variantUsesImages[variant.clientKey]
                             ? 'translate-x-6'
                             : 'translate-x-1',
                         ]"
@@ -1758,7 +1818,7 @@ onMounted(async () => {
 
                 <!-- Accordion Toggle -->
                 <button
-                  @click="toggleVariantExpand(variant.id)"
+                  @click="toggleVariantExpand(variant.clientKey)"
                   type="button"
                   class="w-full flex items-center justify-between py-3 px-4 bg-merchant-primary/5 rounded-lg border border-merchant-primary/20 hover:bg-merchant-primary/10 transition"
                 >
@@ -1777,7 +1837,7 @@ onMounted(async () => {
                   <i
                     :class="[
                       'pi text-merchant-primary transition-transform duration-300',
-                      isVariantExpanded(variant.id)
+                      isVariantExpanded(variant.clientKey)
                         ? 'pi-chevron-up'
                         : 'pi-chevron-down',
                     ]"
@@ -1795,7 +1855,7 @@ onMounted(async () => {
                 leave-to-class="max-h-0 opacity-0"
               >
                 <div
-                  v-if="isVariantExpanded(variant.id)"
+                  v-if="isVariantExpanded(variant.clientKey)"
                   class="border-t border-gray-200 overflow-hidden"
                 >
                   <div class="p-4 pt-3 bg-gray-50 space-y-3">
@@ -1820,7 +1880,7 @@ onMounted(async () => {
                     <div class="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
                       <div
                         v-for="(option, oIndex) in variant.options"
-                        :key="option.id"
+                        :key="option.clientKey || option.id"
                         class="bg-white border border-gray-200 rounded-lg p-3 space-y-2.5 hover:shadow-md transition-shadow"
                       >
                         <div class="flex items-start gap-2.5">
@@ -1841,7 +1901,8 @@ onMounted(async () => {
 
                             <div
                               v-if="
-                                vIndex === 0 && variantUsesImages[variant.id]
+                                vIndex === 0 &&
+                                variantUsesImages[variant.clientKey]
                               "
                             >
                               <label
@@ -1851,14 +1912,24 @@ onMounted(async () => {
                               </label>
 
                               <div
-                                v-if="option.images.length > 0"
+                                v-if="
+                                  option.images.length > 0 ||
+                                  option.image_path ||
+                                  option.image_url
+                                "
                                 class="relative w-20 h-20 rounded-lg overflow-hidden border-2 border-gray-200 group"
                               >
                                 <img
-                                  :src="option.images[0].preview"
+                                  :src="
+                                    option.images?.[0]?.preview ||
+                                    (option.id
+                                      ? getVariantImageUrl(option.id)
+                                      : '')
+                                  "
                                   class="w-full h-full object-cover"
                                 />
                                 <button
+                                  v-if="option.images.length > 0"
                                   @click="removeOptionImage(vIndex, oIndex, 0)"
                                   type="button"
                                   class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center"
@@ -1990,6 +2061,8 @@ onMounted(async () => {
               label="Stok"
               type="number"
               placeholder="0"
+              min="0"
+              max="9999"
               v-model="formStock"
               required
             />
@@ -2034,7 +2107,7 @@ onMounted(async () => {
           >
             <div
               v-for="(group, gIndex) in addOnGroups"
-              :key="group.id"
+              :key="group.clientKey"
               class="border-2 border-gray-200 rounded-xl overflow-hidden bg-white hover:border-merchant-primary/50 transition"
             >
               <!-- Group Header -->
@@ -2075,7 +2148,7 @@ onMounted(async () => {
 
                 <!-- Group Name -->
                 <TextField
-                  :name="`addon_group_name_${group.id}`"
+                  :name="`addon_group_name_${group.clientKey}`"
                   v-model="group.name"
                   label="Nama Grup Add-on"
                   placeholder="Contoh: Tingkat Kepedasan, Topping"
@@ -2096,7 +2169,7 @@ onMounted(async () => {
                       <!-- Min Selection -->
                       <div>
                         <TextField
-                          :name="`addon_group_${group.id}_min_selection`"
+                          :name="`addon_group_${group.clientKey}_min_selection`"
                           label="Minimal Pilihan"
                           v-model.number="group.min_selection"
                           type="number"
@@ -2114,7 +2187,7 @@ onMounted(async () => {
                       <!-- Max Selection -->
                       <div>
                         <TextField
-                          :name="`addon_group_${group.id}_max_selection`"
+                          :name="`addon_group_${group.clientKey}_max_selection`"
                           label="Maksimal Pilihan"
                           v-model.number="group.max_selection"
                           type="number"
@@ -2188,7 +2261,7 @@ onMounted(async () => {
 
                 <!-- Accordion Toggle Button -->
                 <button
-                  @click="toggleAddOnGroupExpand(group.id)"
+                  @click="toggleAddOnGroupExpand(group.clientKey)"
                   type="button"
                   class="w-full flex items-center justify-between py-3 px-4 bg-merchant-primary/5 rounded-lg border border-merchant-primary/20 hover:bg-merchant-primary/10 transition"
                 >
@@ -2206,7 +2279,7 @@ onMounted(async () => {
                   <i
                     :class="[
                       'pi text-merchant-primary transition-transform duration-300',
-                      isAddOnGroupExpanded(group.id)
+                      isAddOnGroupExpanded(group.clientKey)
                         ? 'pi-chevron-up'
                         : 'pi-chevron-down',
                     ]"
@@ -2224,7 +2297,7 @@ onMounted(async () => {
                 leave-to-class="max-h-0 opacity-0"
               >
                 <div
-                  v-if="isAddOnGroupExpanded(group.id)"
+                  v-if="isAddOnGroupExpanded(group.clientKey)"
                   class="border-t border-gray-200 overflow-hidden"
                 >
                   <div class="p-4 pt-3 bg-gray-50 space-y-3">
@@ -2252,7 +2325,7 @@ onMounted(async () => {
                     <div class="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
                       <div
                         v-for="(option, oIndex) in group.options"
-                        :key="option.id"
+                        :key="option.clientKey"
                         class="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow"
                       >
                         <div class="flex items-start gap-2.5">
@@ -2265,7 +2338,7 @@ onMounted(async () => {
                           <div class="flex-1 space-y-2.5">
                             <!-- Option Name -->
                             <TextField
-                              :name="`addon_group_${group.id}_option_${option.id}_name`"
+                              :name="`addon_group_${group.clientKey}_option_${option.clientKey}_name`"
                               v-model="option.name"
                               :placeholder="`Contoh: ${
                                 gIndex === 0 ? 'Tidak Pedas' : 'Daging Asap'
@@ -2276,7 +2349,7 @@ onMounted(async () => {
 
                             <!-- Price -->
                             <TextField
-                              :name="`addon_group_${group.id}_option_${option.id}_price`"
+                              :name="`addon_group_${group.clientKey}_option_${option.clientKey}_price`"
                               label="Harga Tambahan"
                               v-model.number="option.price"
                               type="number"
@@ -2384,7 +2457,7 @@ onMounted(async () => {
           ? `${selectedCombinations.size} kombinasi dipilih`
           : null
       "
-      show-footer="true"
+      :show-footer="true"
       @close="closeCombinationsModal"
     >
       <!-- Bulk Edit Section -->
@@ -2433,6 +2506,7 @@ onMounted(async () => {
               v-model.number="bulkStock"
               type="number"
               min="0"
+              max="9999"
               placeholder="0"
               suffix="pcs"
               :labelBold="false"
@@ -2515,6 +2589,7 @@ onMounted(async () => {
                 v-model.number="combo.stock"
                 type="number"
                 min="0"
+                max="9999"
                 placeholder="0"
                 suffix="pcs"
                 :labelBold="false"

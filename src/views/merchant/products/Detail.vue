@@ -1,7 +1,7 @@
 <script setup>
 // filepath: /var/www/html/KMI-SIMSLIFE-FE/src/views/merchant/products/Detail.vue
 
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, nextTick, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue"; // ✅ ADD
@@ -9,18 +9,50 @@ import Button from "@/components/common/Button.vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
-import { getImageUrl } from "@/libs/getImageUrl.js";
 import { useProducts } from "@/composables/useProducts";
 
 const { fetchProductDetail } = useProducts();
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
-
+const showFullDescription = ref(false);
+const descriptionRef = ref(null);
+const isClamped = ref(false);
 // ✅ Get merchantId from route
 const currentMerchantId = computed(() => {
   return route.params.merchantId ? Number(route.params.merchantId) : null;
 });
+// ===== Swipe state (mobile) =====
+const touchStartX = ref(0);
+const touchEndX = ref(0);
+const swipeThreshold = 50; // px
+const handleTouchStart = (e) => {
+  if (!e.touches || e.touches.length === 0) return;
+  touchStartX.value = e.touches[0].clientX;
+};
+
+const handleTouchMove = (e) => {
+  if (!e.touches || e.touches.length === 0) return;
+  touchEndX.value = e.touches[0].clientX;
+};
+
+const handleTouchEnd = () => {
+  const deltaX = touchEndX.value - touchStartX.value;
+
+  if (Math.abs(deltaX) < swipeThreshold) return;
+
+  if (deltaX > 0) {
+    // swipe kanan → image sebelumnya
+    prevImage();
+  } else {
+    // swipe kiri → image berikutnya
+    nextImage();
+  }
+
+  // reset
+  touchStartX.value = 0;
+  touchEndX.value = 0;
+};
 
 // ✅ Breadcrumb items
 const breadcrumbItems = computed(() => [
@@ -42,24 +74,29 @@ const showAddOnsModal = ref(false);
 // Lock body scroll when modal is open
 useBodyScrollLock(showVariantsModal);
 useBodyScrollLock(showAddOnsModal);
+const MAX_DESCRIPTION_HEIGHT = 96; // kira-kira 4 baris (4 x line-height 24px)
 
-// Breadcrumb
-const breadcrumbs = [
-  { label: "Produk", path: "/merchant-center/products" },
-  { label: "Detail Produk", path: null },
-];
+const checkClamp = async () => {
+  await nextTick();
+  const el = descriptionRef.value;
+  if (!el) return;
 
-// ✅ Computed Properties
-const coverImage = computed(() => {
-  if (!product.value?.images) return null;
-  return (
-    product.value.images.find((img) => img.is_cover) || product.value.images[0]
-  );
+  isClamped.value = el.scrollHeight > MAX_DESCRIPTION_HEIGHT + 2;
+};
+const DESCRIPTION_LIMIT = 300;
+
+const isLongDescription = computed(() => {
+  return (product.value?.description?.length || 0) > DESCRIPTION_LIMIT;
 });
 
-const currentImage = computed(() => {
-  if (!product.value?.images) return null;
-  return product.value.images[currentImageIndex.value];
+const displayedDescription = computed(() => {
+  if (!product.value?.description) return "";
+
+  if (showFullDescription.value) {
+    return product.value.description;
+  }
+
+  return product.value.description.slice(0, DESCRIPTION_LIMIT) + "...";
 });
 
 const mainCategory = computed(() => {
@@ -177,11 +214,21 @@ const transformedOptions = computed(() => {
     id: option.id,
     option_name: option.option_name,
     uses_image: option.uses_image,
-    values: (option.values || []).map((value) => ({
-      id: value.id,
-      value: value.option_value,
-      image: value.image_path,
-    })),
+    values: (option.values || []).map((value) => {
+      // Prioritas:
+      // 1) value.src_url dari API (langsung pakai jika ada)
+      // 2) fallback value.image_url (absolute dari backend)
+      // 3) fallback getVariantImageUrl(value.id) — uses product_option_value.id
+      const imageSrc = value.src_url || null;
+
+      return {
+        id: value.id,
+        value: value.option_value,
+        image: imageSrc,
+        image_path: value.image_path ?? null,
+        image_url: value.image_url ?? null,
+      };
+    }),
   }));
 });
 
@@ -273,7 +320,6 @@ const loadDetail = async () => {
   product.value = null;
   try {
     const slug = route.params.slug; // ✅ gunakan slug
-    console.log("[Detail] Loading product", slug);
 
     const data = await fetchProductDetail(slug); // ✅ composable akan pakai slug
     product.value = data;
@@ -282,10 +328,9 @@ const loadDetail = async () => {
     if (product.value?.images && product.value.images.length > 0) {
       currentImageIndex.value = 0;
     }
-
-    console.log("[Detail] Product loaded", product.value);
+    await checkClamp();
   } catch (err) {
-    console.error("[Detail] Error loading product", err);
+    toast.error("Gagal memuat detail produk");
     const status = err?.response?.status;
     if (status === 404) {
       toast.error("Produk tidak ditemukan");
@@ -300,10 +345,22 @@ const loadDetail = async () => {
     loading.value = false;
   }
 };
+watch(showFullDescription, async (val) => {
+  // hanya cek saat kembali ke mode ringkas
+  if (!val) {
+    await checkClamp();
+  }
+});
 
 // ✅ Mount
 onMounted(() => {
   loadDetail();
+  nextTick(() => {
+    const el = descriptionRef.value;
+    if (el) {
+      isClamped.value = el.scrollHeight > el.clientHeight;
+    }
+  });
 });
 </script>
 
@@ -388,10 +445,13 @@ onMounted(() => {
             <!-- Main Image -->
             <div
               class="relative aspect-square max-w-2xl mx-auto bg-gray-100 overflow-hidden mb-4 shadow-sm -mt-4 sm:mt-0 sm:rounded-2xl"
+              @touchstart="handleTouchStart"
+              @touchmove="handleTouchMove"
+              @touchend="handleTouchEnd"
             >
               <img
-                v-if="product.images[currentImageIndex]?.id"
-                :src="getImageUrl(product.images[currentImageIndex].id)"
+                v-if="product.images[currentImageIndex]?.src_url"
+                :src="product.images[currentImageIndex].src_url"
                 :alt="product.name"
                 class="w-full h-full object-cover"
                 @error="(e) => (e.target.style.display = 'none')"
@@ -400,21 +460,21 @@ onMounted(() => {
               <button
                 v-if="product.images.length > 1"
                 @click="prevImage"
-                class="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white text-gray-800 rounded-full flex items-center justify-center transition shadow-lg backdrop-blur-sm active:scale-95"
+                class="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white text-gray-800 rounded-full items-center justify-center transition shadow-lg backdrop-blur-sm active:scale-95 hidden sm:flex"
               >
                 <i class="pi pi-chevron-left text-sm font-bold"></i>
               </button>
               <button
                 v-if="product.images.length > 1"
                 @click="nextImage"
-                class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white text-gray-800 rounded-full flex items-center justify-center transition shadow-lg backdrop-blur-sm active:scale-95"
+                class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white text-gray-800 rounded-full items-center justify-center transition shadow-lg backdrop-blur-sm active:scale-95 hidden sm:flex"
               >
                 <i class="pi pi-chevron-right text-sm font-bold"></i>
               </button>
             </div>
 
             <!-- Thumbnails -->
-            <div class="grid grid-cols-4 sm:grid-cols-6 gap-2">
+            <div class="grid grid-cols-4 sm:grid-cols-6 gap-2 px-4">
               <button
                 v-for="(image, index) in product.images"
                 :key="image.id"
@@ -428,8 +488,8 @@ onMounted(() => {
                 class="relative border rounded-lg overflow-hidden transition aspect-square"
               >
                 <img
-                  v-if="image.id"
-                  :src="getImageUrl(image.id)"
+                  v-if="image.src_url"
+                  :src="image.src_url"
                   :alt="`${product.name} ${index + 1}`"
                   class="w-full h-full object-cover"
                   @error="(e) => (e.target.style.display = 'none')"
@@ -469,11 +529,21 @@ onMounted(() => {
               <i class="pi pi-align-left text-gray-400"></i>
               Deskripsi Produk
             </h3>
+
             <p
               class="text-sm text-gray-700 leading-relaxed whitespace-pre-line"
             >
-              {{ product.description }}
+              {{ displayedDescription }}
             </p>
+
+            <button
+              v-if="isLongDescription"
+              @click="showFullDescription = !showFullDescription"
+              class="mt-2 text-merchant-primary text-sm font-semibold hover:underline cursor-pointer"
+              type="button"
+            >
+              {{ showFullDescription ? "Sembunyikan" : "Lihat Selengkapnya" }}
+            </button>
           </div>
 
           <!-- Status & Category Card -->
@@ -661,12 +731,8 @@ onMounted(() => {
                     class="w-full aspect-square rounded-lg overflow-hidden bg-gray-100 group-hover:ring-2 group-hover:ring-merchant-primary/30 transition"
                   >
                     <img
-                      v-if="
-                        optionValue.id &&
-                        option.uses_image &&
-                        optionValue.image_path === undefined
-                      "
-                      :src="getImageUrl(optionValue.id)"
+                      v-if="optionValue.image"
+                      :src="optionValue.image"
                       :alt="optionValue.value"
                       class="w-full h-full object-cover"
                       @error="(e) => (e.target.style.display = 'none')"

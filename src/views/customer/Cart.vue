@@ -1,11 +1,49 @@
 <template>
-  <div class="min-h-screen bg-gray-50 pb-32">
+  <div class="min-h-screen bg-gray-100 pb-32">
     <!-- Mobile Header -->
     <MobileHeader title="Keranjang" @back="goBack" />
 
+    <!-- Skeleton Loading -->
+    <div v-if="loading" class="max-w-7xl mx-auto px-4 py-4 space-y-4">
+      <div
+        v-for="n in 2"
+        :key="n"
+        class="bg-white rounded-xl border border-gray-200 overflow-hidden animate-pulse"
+      >
+        <div
+          class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2"
+        >
+          <div class="w-6 h-6 rounded-full bg-gray-200"></div>
+          <div class="h-4 w-32 bg-gray-200 rounded"></div>
+        </div>
+        <div class="divide-y divide-gray-100">
+          <div v-for="m in 2" :key="m" class="px-4 py-3 flex items-start gap-3">
+            <div class="w-4 h-4 rounded bg-gray-200 mt-1"></div>
+            <div class="w-20 h-20 rounded-lg bg-gray-200"></div>
+            <div class="flex-1 min-w-0 space-y-2">
+              <div class="h-4 w-40 bg-gray-200 rounded"></div>
+              <div class="h-3 w-24 bg-gray-200 rounded"></div>
+              <div class="h-3 w-16 bg-gray-200 rounded"></div>
+              <div class="flex gap-2">
+                <div class="h-7 w-7 rounded-full bg-gray-200"></div>
+                <div class="h-7 w-8 bg-gray-200 rounded"></div>
+                <div class="h-7 w-7 rounded-full bg-gray-200"></div>
+              </div>
+            </div>
+            <div class="w-5 h-5 rounded bg-gray-200"></div>
+          </div>
+        </div>
+        <div
+          class="px-4 py-3 bg-gray-50 border-t border-gray-200 flex justify-between"
+        >
+          <div class="h-4 w-24 bg-gray-200 rounded"></div>
+          <div class="h-4 w-20 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    </div>
     <!-- Empty State -->
     <div
-      v-if="cartStores.length === 0"
+      v-else-if="cartStores.length === 0"
       class="flex flex-col items-center justify-center py-20 px-4 max-w-7xl mx-auto"
     >
       <div class="w-32 h-32 mb-6 text-gray-300">
@@ -74,8 +112,20 @@
                   />
                 </svg>
               </div>
-              <span class="font-semibold text-gray-900">{{ store.name }}</span>
+              <span
+                class="font-semibold text-gray-900 cursor-pointer hover:text-primary duration-200 transition-colors"
+                @click="goToStorePage(store.id)"
+                >{{ store.name }}</span
+              >
             </div>
+          </div>
+          <div>
+            <button
+              @click="confirmRemoveAllByCart(store.id)"
+              class="text-sm text-danger-foreground active:scale-95 cursor-pointer"
+            >
+              Hapus Semua
+            </button>
           </div>
         </div>
 
@@ -84,7 +134,8 @@
           <div
             v-for="item in store.items"
             :key="item.id"
-            class="px-4 py-3 flex items-start gap-3"
+            class="px-4 py-3 flex items-start gap-3 group cursor-pointer"
+            :class="item.isUnavailable ? 'opacity-60 ' : ''"
           >
             <!-- Checkbox -->
             <input
@@ -92,38 +143,88 @@
               :checked="isItemSelected(item.id)"
               @change="toggleItemSelection(item.id, store.id)"
               class="mt-1 w-4 h-4 text-[#FFA30E] border-gray-300 rounded focus:ring-[#FFA30E]"
+              :class="{
+                'cursor-not-allowed':
+                  item.isUnavailable ||
+                  item.isOverStock ||
+                  hasConfigurationIssue(item),
+              }"
+              :disabled="item.isUnavailable || item.isOverStock"
             />
 
             <!-- Product Image -->
             <div
-              class="w-20 h-20 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0"
+              class="w-20 h-20 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0 group-hover:-translate-y-0.5 duration-200 transition-transform relative"
+              @click="goToProductPage(item.slug)"
             >
               <img
-                :src="item.image || 'https://via.placeholder.com/80'"
+                :src="item.image"
                 :alt="item.name"
                 class="w-full h-full object-cover"
               />
+              <div
+                v-if="item.isUnavailable"
+                class="absolute bottom-0 left-0 right-0 z-10 bg-black/70 backdrop-blur-sm text-white text-center pointer-events-none px-1 py-1"
+              >
+                <p class="text-xs font-medium tracking-wide">
+                  {{ item.stock === 0 ? "Habis" : "Diarsipkan" }}
+                </p>
+              </div>
             </div>
 
             <!-- Product Info -->
             <div class="flex-1 min-w-0">
-              <h3 class="text-sm font-semibold text-gray-900 mb-1">
+              <h3
+                class="text-sm font-semibold text-gray-900 mb-1 group-hover:text-primary duration-200 transition-colors"
+                @click="goToProductPage(item.slug)"
+              >
                 {{ item.name }}
               </h3>
 
+              <!-- Info Unavailable -->
+              <div
+                v-if="item.isUnavailable"
+                class="text-xs text-red-500 font-semibold mb-1"
+              >
+                <span v-if="item.stock === 0"
+                  >Habis, coba lihat varian lain</span
+                >
+                <span v-else>Produk ini sedang tidak tersedia</span>
+              </div>
+
               <!-- Variants -->
-              <div class="text-xs text-gray-600 space-y-0.5 mb-2">
-                <div v-if="item.size">Ukuran: {{ item.size }}</div>
-                <div v-if="item.variant">Varian: {{ item.variant }}</div>
-                <div v-if="item.addons && item.addons.length > 0">
-                  Tambahan: {{ item.addons.join(", ") }}
+              <div
+                class="text-xs text-gray-600 space-y-0.5 mb-2"
+                @click="goToProductPage(item.slug)"
+              >
+                <div class="font-medium">
+                  Rp {{ formatIDR(item.unitPrice) }}
+                </div>
+                <div v-if="getVariantLabel(item)" class="capitalize">
+                  Varian: {{ getVariantLabel(item) }}
+                </div>
+                <div v-if="item.addons.length" class="space-y-0.5">
+                  <div
+                    v-for="addon in item.addons"
+                    :key="addon.label"
+                    class="text-xs text-gray-600 flex justify-between"
+                  >
+                    <span>+ {{ addon.label }}</span>
+                    <span class="font-medium text-gray-700">
+                      Rp {{ formatIDR(addon.price) }}
+                    </span>
+                  </div>
                 </div>
               </div>
 
               <!-- Edit Variant/Addon Button -->
               <button
                 @click="editItemVariant(item.id, store.id)"
-                class="text-xs text-[#FFA30E] hover:text-[#e5920d] font-semibold mb-2 flex items-center gap-1"
+                class="cursor-pointer text-xs text-[#FFA30E] hover:text-[#e5920d] font-semibold mb-2 flex items-center gap-1"
+                :class="[
+                  item.isUnavailable && 'opacity-60 pointer-events-none',
+                  hasConfigurationIssue(item) && 'hidden',
+                ]"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -142,9 +243,14 @@
               </button>
 
               <!-- Price & Quantity -->
-              <div class="flex items-center justify-between">
+              <div
+                class="flex flex-wrap gap-y-2 gap-x-6 items-center justify-between"
+                :class="
+                  item.isUnavailable ? 'opacity-60 pointer-events-none' : ''
+                "
+              >
                 <div class="text-sm font-bold text-[#FFA30E]">
-                  Rp {{ formatIDR(item.unitPrice) }}
+                  Rp {{ formatIDR(item.unitPrice + item.addonTotalPrice) }}
                 </div>
 
                 <!-- Quantity Controls -->
@@ -168,11 +274,15 @@
                     </svg>
                   </button>
 
-                  <span
-                    class="text-sm font-semibold text-gray-900 w-8 text-center"
-                  >
-                    {{ item.quantity }}
-                  </span>
+                  <input
+                    type="number"
+                    class="text-center border border-gray-300 rounded-md text-sm font-semibold py-1 sm:px-2"
+                    :min="1"
+                    :max="item.stock"
+                    :value="item.quantity"
+                    @input="onQuantityInput(item.id, $event.target.value)"
+                    @blur="onQuantityBlur(item.id)"
+                  />
 
                   <button
                     @click="increaseQuantity(item.id)"
@@ -192,17 +302,55 @@
                   </button>
                 </div>
               </div>
-
+              <p
+                v-if="item.isOverStock && item.stock > 0"
+                class="text-red-500 text-xs text-right pt-1"
+              >
+                Stok berubah. Maksimal {{ item.stock }}.
+              </p>
               <!-- Stock Warning -->
-              <div v-if="item.stock < 10" class="mt-1 text-xs text-amber-600">
+              <div
+                v-if="item.stock < 10 && item.stock > 0"
+                class="mt-1 text-xs text-amber-600"
+              >
                 Stok tersisa {{ item.stock }}
+              </div>
+              <!-- ⚠️ CONFIGURATION ISSUE -->
+              <div
+                v-if="hasConfigurationIssue(item)"
+                class="mt-1 p-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-2"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  class="w-4 h-4 mt-0.5 text-red-500"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M8.485 2.495a1.5 1.5 0 012.53 0l6.514 10.857A1.5 1.5 0 0116.514 16H3.486a1.5 1.5 0 01-1.515-2.648L8.485 2.495zM10 12a.75.75 0 00-.75.75v.5a.75.75 0 001.5 0v-.5A.75.75 0 0010 12zm0-6a.75.75 0 00-.75.75v3a.75.75 0 001.5 0v-3A.75.75 0 0010 6z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+
+                <div class="flex-1">
+                  <p class="">Mohon tambahkan ulang ke keranjang</p>
+
+                  <p v-if="hasDeletedVariant(item)" class="font-semibold">
+                    Varian yang Anda pilih sudah tidak tersedia.
+                  </p>
+
+                  <p v-if="hasDeletedAddon(item)" class="font-semibold">
+                    Add-on yang Anda pilih sudah tidak tersedia.
+                  </p>
+                </div>
               </div>
             </div>
 
             <!-- Delete Button -->
             <button
-              @click="removeItem(item.id)"
-              class="p-1 text-gray-400 hover:text-red-500 transition"
+              @click="confirmRemove(item.id)"
+              class="p-1 text-gray-400 hover:text-red-500 transition cursor-pointer"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -233,8 +381,13 @@
 
           <!-- Checkout Button per Store -->
           <Button
-            @click="checkoutStore(store.id)"
-            :disabled="getStoreSelectedCount(store.id) === 0"
+            type="button"
+            @click="checkoutFromCart(store.id)"
+            :disabled="
+              getStoreSelectedCount(store.id) === 0 ||
+              hasOverStockSelected(store.id) ||
+              store.items.some(hasConfigurationIssue)
+            "
             variant="primary"
             customClass="w-full"
           >
@@ -243,34 +396,6 @@
         </div>
       </div>
     </main>
-
-    <!-- Confirmation Modal -->
-    <ResponsiveModal
-      :show="showConfirmModal"
-      @close="showConfirmModal = false"
-      title="Konfirmasi Hapus"
-    >
-      <div class="space-y-4">
-        <p class="text-sm text-gray-600">
-          Item yang dihapus tidak dapat dikembalikan.
-        </p>
-      </div>
-
-      <template #footer>
-        <div class="flex gap-3">
-          <Button
-            @click="showConfirmModal = false"
-            variant="muted-outline"
-            customClass="w-full"
-          >
-            Batal
-          </Button>
-          <Button @click="confirmRemove" variant="danger" customClass="w-full">
-            Hapus
-          </Button>
-        </div>
-      </template>
-    </ResponsiveModal>
 
     <!-- Edit Variant Modal -->
     <ResponsiveModal
@@ -281,189 +406,135 @@
     >
       <div v-if="editingItem" class="space-y-4">
         <!-- Size Selection -->
-        <div v-if="availableSizes.length > 0">
-          <label class="text-sm font-semibold text-gray-900 mb-2 block">
-            Ukuran <span class="text-red-500">*</span>
-          </label>
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="size in availableSizes"
-              :key="size"
-              @click="tempSize = size"
-              :disabled="!isSizeAvailable(size)"
-              class="px-4 py-2 rounded-lg border text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
-              :class="
-                tempSize === size
-                  ? 'border-[#FFA30E] bg-orange-50 text-[#FFA30E]'
-                  : 'border-gray-300 text-gray-700 hover:border-gray-400'
-              "
-            >
-              <div class="flex flex-col items-center">
-                <span>{{ size }}</span>
-                <span
-                  class="text-xs mt-0.5"
-                  :class="
-                    getEditSizeStock(size) === 0
-                      ? 'text-red-500'
-                      : getEditSizeStock(size) <= 10
-                      ? 'text-amber-600'
-                      : 'text-gray-500'
-                  "
-                >
-                  {{
-                    getEditSizeStock(size) === 0
-                      ? "Habis"
-                      : `Stok: ${getEditSizeStock(size)}`
-                  }}
-                </span>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        <!-- Variant Selection -->
-        <div v-if="availableVariants.length > 0">
-          <label class="text-sm font-semibold text-gray-900 mb-2 block">
-            Varian <span class="text-red-500">*</span>
-          </label>
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="variant in availableVariants"
-              :key="variant"
-              @click="tempVariant = variant"
-              :disabled="!isVariantAvailable(variant)"
-              class="px-4 py-2 rounded-lg border text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
-              :class="
-                tempVariant === variant
-                  ? 'border-[#FFA30E] bg-orange-50 text-[#FFA30E]'
-                  : 'border-gray-300 text-gray-700 hover:border-gray-400'
-              "
-            >
-              <div class="flex flex-col items-center">
-                <span :class="{ 'line-through': !isVariantAvailable(variant) }">
-                  {{ variant }}
-                </span>
-                <span
-                  v-if="tempSize"
-                  class="text-xs mt-0.5"
-                  :class="
-                    getEditVariantStock(variant) === 0
-                      ? 'text-red-500'
-                      : getEditVariantStock(variant) <= 10
-                      ? 'text-amber-600'
-                      : 'text-gray-500'
-                  "
-                >
-                  {{
-                    getEditVariantStock(variant) === 0
-                      ? "Habis"
-                      : `Stok: ${getEditVariantStock(variant)}`
-                  }}
-                </span>
-              </div>
-            </button>
-          </div>
-          <p v-if="!tempSize" class="text-xs text-gray-500 mt-2">
-            Pilih ukuran terlebih dahulu untuk melihat stok varian
-          </p>
-        </div>
-
-        <!-- Current Stock Info -->
         <div
-          v-if="tempSize && tempVariant"
-          class="p-3 rounded-lg"
-          :class="
-            getEditCurrentStock() === 0
-              ? 'bg-red-50'
-              : getEditCurrentStock() <= 10
-              ? 'bg-amber-50'
-              : 'bg-green-50'
-          "
+          v-for="(opt, optIndex) in editOptions"
+          :key="opt.option_id"
+          class="space-y-2"
         >
-          <div class="flex items-center gap-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              class="w-5 h-5"
+          <label class="text-sm font-semibold text-gray-900 block capitalize">
+            {{ opt.option_name }}
+            <span class="text-red-500">*</span>
+          </label>
+
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="val in opt.values"
+              :key="val.value"
+              @click="tempSelections[opt.option_name] = val.value"
+              :disabled="!val.available"
+              class="px-3 py-2 rounded-lg border text-sm transition flex items-center gap-2"
               :class="
-                getEditCurrentStock() === 0
-                  ? 'text-red-600'
-                  : getEditCurrentStock() <= 10
-                  ? 'text-amber-600'
-                  : 'text-green-600'
+                tempSelections[opt.option_name] === val.value
+                  ? 'border-[#FFA30E] bg-orange-50 text-[#FFA30E]'
+                  : 'border-gray-300 text-gray-700 hover:border-gray-400'
               "
             >
-              <path
-                fill-rule="evenodd"
-                d="M6 5v1H4.667a1.75 1.75 0 00-1.743 1.598l-.826 9.5A1.75 1.75 0 003.84 19h12.32a1.75 1.75 0 001.743-1.902l-.826-9.5A1.75 1.75 0 0015.333 6H14V5a4 4 0 00-8 0zm4-2.5A2.5 2.5 0 007.5 5v1h5V5A2.5 2.5 0 0010 2.5zM7.5 10a2.5 2.5 0 005 0V8.75a.75.75 0 011.5 0V10a4 4 0 01-8 0V8.75a.75.75 0 011.5 0V10z"
-                clip-rule="evenodd"
+              <!-- IMAGE OPTION -->
+              <img
+                v-if="opt.uses_image && val.image_url"
+                :src="val.image_url"
+                class="w-8 h-8 rounded object-cover"
               />
-            </svg>
-            <div class="flex-1">
-              <p
-                class="text-sm font-semibold"
-                :class="
-                  getEditCurrentStock() === 0
-                    ? 'text-red-700'
-                    : getEditCurrentStock() <= 10
-                    ? 'text-amber-700'
-                    : 'text-green-700'
-                "
-              >
-                {{
-                  getEditCurrentStock() === 0
-                    ? "Stok Habis"
-                    : `Stok tersedia: ${getEditCurrentStock()} item`
-                }}
-              </p>
-              <p
-                v-if="
-                  getEditCurrentStock() > 0 &&
-                  editingItem.quantity > getEditCurrentStock()
-                "
-                class="text-xs text-amber-600 mt-0.5"
-              >
-                Quantity akan disesuaikan dari
-                {{ editingItem.quantity }} menjadi
-                {{ getEditCurrentStock() }}
-              </p>
-            </div>
+
+              <div class="flex flex-col items-start">
+                <span>{{ val.value }}</span>
+
+                <span
+                  v-if="shouldShowStockOnOption(optIndex)"
+                  class="text-[10px] text-gray-500"
+                >
+                  Stok {{ getVariantStockByOption(opt.option_name, val.value) }}
+                </span>
+              </div>
+            </button>
           </div>
         </div>
 
         <!-- Addon Selection -->
-        <div v-if="availableAddons.length > 0">
-          <label class="text-sm font-semibold text-gray-900 mb-2 block">
-            Tambahan (opsional)
-          </label>
-          <div class="space-y-2">
-            <label
-              v-for="addon in availableAddons"
-              :key="addon.name"
-              class="flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition"
-              :class="
-                tempAddons.includes(addon.name)
-                  ? 'border-[#FFA30E] bg-orange-50'
-                  : addon.available
-                  ? 'border-gray-200 hover:border-gray-300'
-                  : 'border-gray-200 opacity-50 cursor-not-allowed'
-              "
-            >
-              <input
-                type="checkbox"
-                :value="addon.name"
-                v-model="tempAddons"
-                :disabled="!addon.available"
-                class="w-4 h-4 text-[#FFA30E] border-gray-300 rounded focus:ring-[#FFA30E] disabled:cursor-not-allowed"
-              />
-              <span class="text-sm text-gray-900 flex-1">
-                {{ addon.name }}
-                <span v-if="!addon.available" class="text-xs text-red-500 ml-1">
-                  (Tidak tersedia)
-                </span>
+        <div v-if="addonGroups && addonGroups.length" class="space-y-2">
+          <!-- ADDON GROUPS -->
+          <div v-for="group in addonGroups" :key="group.id" class="space-y-2">
+            <div class="flex items-center justify-between capitalize">
+              <label
+                class="text-sm font-semibold text-gray-900 block capitalize"
+              >
+                {{ group.name }}
+                <span v-if="group.min_selection === 1" class="text-red-500"
+                  >*</span
+                >
+                <span v-else class="text-xs text-gray-500 font-normal"
+                  >(Opsional)</span
+                >
+              </label>
+              <span
+                v-if="group.max_selection > 1"
+                class="text-xs text-gray-500"
+              >
+                Maks. {{ group.max_selection }} pilihan
               </span>
-            </label>
+              <span
+                v-else-if="group.max_selection === 1"
+                class="text-xs text-gray-500"
+              >
+                Pilih 1
+              </span>
+            </div>
+
+            <!-- SINGLE (RADIO) -->
+            <div
+              v-if="group.max_selection === 1 && group.min_selection === 1"
+              class="space-y-2"
+            >
+              <label
+                v-for="addon in group.options"
+                :key="addon.addon_id"
+                class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer text-sm"
+                :class="
+                  isAddonSelected(addon)
+                    ? 'border-[#FFA30E] bg-orange-50'
+                    : 'border-gray-200'
+                "
+              >
+                <input
+                  type="radio"
+                  :name="`addon-group-${group.id}`"
+                  :checked="isAddonSelected(addon)"
+                  @change="selectSingleAddon(addon, group)"
+                  class="w-4 h-4 text-[#FFA30E]"
+                />
+
+                <span class="flex-1">{{ addon.name }}</span>
+                <span class="font-semibold">
+                  +Rp {{ formatIDR(addon.price) }}
+                </span>
+              </label>
+            </div>
+
+            <!-- MULTIPLE (CHECKBOX) -->
+            <div v-else class="space-y-2">
+              <label
+                v-for="addon in group.options"
+                :key="addon.addon_id"
+                class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer text-sm"
+                :class="
+                  isAddonSelected(addon)
+                    ? 'border-[#FFA30E] bg-orange-50'
+                    : 'border-gray-200'
+                "
+              >
+                <input
+                  type="checkbox"
+                  :checked="isAddonSelected(addon)"
+                  @change="toggleAddon(addon, group)"
+                  class="w-4 h-4 text-[#FFA30E]"
+                />
+
+                <span class="flex-1">{{ addon.name }}</span>
+                <span class="font-semibold">
+                  +Rp {{ formatIDR(addon.price) }}
+                </span>
+              </label>
+            </div>
           </div>
         </div>
 
@@ -486,6 +557,28 @@
           </p>
         </div>
       </div>
+      <div class="p-3 rounded-lg space-y-1">
+        <div class="flex justify-between text-sm">
+          <span>Harga Varian</span>
+          <span class="font-semibold">
+            Rp {{ formatIDR(editVariantPrice) }}
+          </span>
+        </div>
+
+        <div class="flex justify-between text-sm" v-if="editAddonTotal > 0">
+          <span>Addon</span>
+          <span class="font-semibold">
+            Rp {{ formatIDR(editAddonTotal) }}
+          </span>
+        </div>
+
+        <div
+          class="border-t pt-2 flex justify-between text-base font-bold text-[#FFA30E]"
+        >
+          <span>Total</span>
+          <span>Rp {{ formatIDR(editTotalPrice) }}</span>
+        </div>
+      </div>
 
       <template #footer>
         <div class="flex gap-3">
@@ -500,9 +593,10 @@
             @click="saveVariantChanges"
             variant="primary"
             customClass="flex-1"
-            :disabled="!tempSize || !tempVariant || getEditCurrentStock() === 0"
+            :disabled="getEditCurrentStock() === 0"
+            :loading="saveLoading"
           >
-            Simpan Perubahan
+            {{ saveLoading ? "Menyimpan..." : "Simpan Perubahan" }}
           </Button>
         </div>
       </template>
@@ -511,15 +605,166 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import Button from "@/components/common/Button.vue";
 import MobileHeader from "@/components/customer/MobileHeader.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
+import { useToast } from "vue-toastification";
+import { useCheckoutStore } from "@/stores/checkout";
+import debounce from "lodash/debounce";
+import { useCart } from "@/composables/useCart";
+import { useCartStore } from "@/stores/cart";
 
+const cartStore = useCartStore();
+
+const {
+  cartStores,
+  loading,
+  fetchCart,
+  updateItemQuantity,
+  updateItemVariant,
+  removeItem,
+  clearCartByStore,
+} = useCart();
+const addonGroups = ref([]);
+
+const quantityDrafts = ref({}); // simpan nilai ketikan sementara
+const quantitySnapshots = ref({}); // rollback data
+const getVariantStockByOption = (optionName, optionValue) => {
+  return editStockCombinations.value
+    .filter((c) => c.options[optionName] === optionValue)
+    .reduce((max, c) => Math.max(max, c.stock), 0);
+};
+const shouldShowStockOnOption = (optionIndex) => {
+  const totalOptions = editOptions.value.length;
+
+  if (totalOptions === 1) {
+    return optionIndex === 0;
+  }
+
+  return optionIndex === 1;
+};
+const getVariantLabel = (item) => {
+  if (!item.selectedVariantId || !item.productDetails?.variants) {
+    return "";
+  }
+
+  const variant = item.productDetails.variants.find(
+    (v) => v.id === item.selectedVariantId
+  );
+
+  if (!variant || !variant.option_values?.length) {
+    return "";
+  }
+
+  // contoh hasil: "Ukuran: Large, Level: Pedas"
+  return variant.option_values.map((ov) => ov.option_value).join(" - ");
+};
+
+const initRequiredAddons = () => {
+  const defaults = [];
+
+  addonGroups.value.forEach((group) => {
+    if (
+      group.selection_type === "single" &&
+      group.min_selection === 1 &&
+      group.options.length
+    ) {
+      defaults.push({
+        addon_group_id: group.id,
+        addon_id: group.options[0].addon_id,
+      });
+    }
+  });
+
+  tempAddons.value = defaults;
+};
+
+const updateStockFlags = (item) => {
+  item.isOverStock = item.quantity > item.stock;
+};
+
+const onQuantityInput = (itemId, value) => {
+  const qty = Number(value);
+
+  for (const store of cartStores.value) {
+    const item = store.items.find((i) => i.id === itemId);
+    if (!item) continue;
+
+    if (!quantitySnapshots.value[itemId]) {
+      quantitySnapshots.value[itemId] = item.quantity;
+    }
+
+    if (isNaN(qty)) return;
+
+    if (qty < 1) {
+      item.quantity = 1;
+    } else if (qty > item.stock) {
+      item.quantity = item.stock;
+    } else {
+      item.quantity = qty;
+    }
+
+    // 🔥 UPDATE FLAG DI SINI
+    updateStockFlags(item);
+
+    quantityDrafts.value[itemId] = item.quantity;
+    debounceUpdateQuantity(itemId);
+    break;
+  }
+};
+
+const debounceUpdateQuantity = debounce(async (itemId) => {
+  const newQty = quantityDrafts.value[itemId];
+  const oldQty = quantitySnapshots.value[itemId];
+
+  try {
+    await updateItemQuantity(itemId, { quantity: newQty });
+
+    // sukses → hapus snapshot
+    delete quantitySnapshots.value[itemId];
+    delete quantityDrafts.value[itemId];
+  } catch (error) {
+    // rollback
+    for (const store of cartStores.value) {
+      const item = store.items.find((i) => i.id === itemId);
+      if (item) {
+        item.quantity = oldQty;
+        break;
+      }
+    }
+
+    toast.error("Gagal mengubah jumlah");
+  }
+}, 1000);
+const onQuantityBlur = (itemId) => {
+  for (const store of cartStores.value) {
+    const item = store.items.find((i) => i.id === itemId);
+    if (!item) continue;
+
+    // jika kosong / invalid
+    if (!item.quantity || item.quantity < 1) {
+      item.quantity = 1;
+    }
+
+    if (item.quantity > item.stock) {
+      item.quantity = item.stock;
+    }
+
+    updateStockFlags(item);
+
+    quantityDrafts.value[itemId] = item.quantity;
+    debounceUpdateQuantity(itemId);
+
+    break;
+  }
+};
+
+const toast = useToast();
 const router = useRouter();
-
+const checkoutStore = useCheckoutStore();
 // Confirmation Modal
 const showConfirmModal = ref(false);
 const itemToRemove = ref(null);
@@ -528,9 +773,12 @@ const itemToRemove = ref(null);
 const showEditModal = ref(false);
 const editingItem = ref(null);
 const editingStoreId = ref(null);
-const tempSize = ref(null);
-const tempVariant = ref(null);
+
 const tempAddons = ref([]);
+
+onMounted(async () => {
+  await fetchCart();
+});
 
 // ✅ Body Scroll Lock for Modals
 const isAnyModalOpen = computed(
@@ -539,71 +787,12 @@ const isAnyModalOpen = computed(
 useBodyScrollLock(isAnyModalOpen);
 
 // Available options with stock info (simulasi - nanti dari API)
-const availableSizes = ref([]);
-const availableVariants = ref([]);
-const availableAddons = ref([]);
 
+const editOptions = ref([]);
+const availableAddons = ref([]);
+const tempSelections = ref({});
 // Stock combinations for editing item
 const editStockCombinations = ref([]);
-
-// Cart Data (nanti akan dari Pinia Store)
-const cartStores = ref([
-  {
-    id: 1,
-    name: "Sumber Rejeki",
-    phone: "6285764134767",
-    address: "Jl. Cendrawasih No 5 Rt 1 Rw 1, Banyumanik, Semarang",
-    items: [
-      {
-        id: "cart-1",
-        productId: 1,
-        slug: "yakult-original",
-        name: "Yakult Original",
-        image: "https://picsum.photos/seed/yakult/300/300",
-        size: "250 Ml",
-        variant: "Original",
-        addons: ["Tidak Pedas"],
-        unitPrice: 15000,
-        quantity: 2,
-        stock: 50,
-      },
-      {
-        id: "cart-2",
-        productId: 2,
-        slug: "yakult-strawberry",
-        name: "Yakult Strawberry",
-        image: "https://picsum.photos/seed/yakult2/300/300",
-        size: "750 Ml",
-        variant: "Strawberry",
-        addons: ["Sedang", "Topping Meses"],
-        unitPrice: 22000,
-        quantity: 1,
-        stock: 15,
-      },
-    ],
-  },
-  {
-    id: 2,
-    name: "Warung Bahagia",
-    phone: "6281234567890",
-    address: "Jl. Pemuda No 123, Simpang Lima, Semarang",
-    items: [
-      {
-        id: "cart-3",
-        productId: 3,
-        slug: "nasi-goreng",
-        name: "Nasi Goreng Spesial",
-        image: "https://picsum.photos/seed/nasgor/300/300",
-        size: null,
-        variant: "Pedas",
-        addons: ["Extra Telur", "Kerupuk"],
-        unitPrice: 18000,
-        quantity: 3,
-        stock: 100,
-      },
-    ],
-  },
-]);
 
 // Selected Items
 const selectedItems = ref([]);
@@ -615,6 +804,20 @@ const isItemSelected = (itemId) => {
 
 // Toggle item selection (with store validation)
 const toggleItemSelection = (itemId, storeId) => {
+  const store = cartStores.value.find((s) => s.id === storeId);
+  if (!store) return;
+
+  const item = store.items.find((i) => i.id === itemId);
+  if (!item) return;
+
+  // ❌ BLOCK jika over stock
+  if (item.isOverStock) {
+    toast.warning(
+      "Jumlah melebihi stok. Silakan sesuaikan jumlah terlebih dahulu."
+    );
+    return;
+  }
+
   const index = selectedItems.value.indexOf(itemId);
 
   if (index > -1) {
@@ -623,7 +826,7 @@ const toggleItemSelection = (itemId, storeId) => {
     const selectedStoreId = getSelectedStoreId();
 
     if (selectedStoreId && selectedStoreId !== storeId) {
-      alert(
+      toast.warning(
         `Tidak dapat memilih item dari toko berbeda.\nSilakan checkout toko "${getStoreName(
           selectedStoreId
         )}" terlebih dahulu atau batalkan pilihan.`
@@ -660,9 +863,13 @@ const isStoreSelected = (storeId) => {
   const store = cartStores.value.find((s) => s.id === storeId);
   if (!store) return false;
 
+  const selectableItems = store.items.filter(
+    (item) => !item.isUnavailable && !item.isOverStock
+  );
+
   return (
-    store.items.length > 0 &&
-    store.items.every((item) => selectedItems.value.includes(item.id))
+    selectableItems.length > 0 &&
+    selectableItems.every((item) => selectedItems.value.includes(item.id))
   );
 };
 
@@ -671,19 +878,29 @@ const toggleStoreSelection = (storeId) => {
   const store = cartStores.value.find((s) => s.id === storeId);
   if (!store) return;
 
-  const allSelected = isStoreSelected(storeId);
+  const selectableItems = store.items.filter(
+    (item) => !item.isUnavailable && !item.isOverStock
+  );
+
+  if (selectableItems.length === 0) {
+    toast.warning("Ada produk yang melebihi stok. Silakan perbaiki jumlah.");
+    return;
+  }
+
+  const allSelected = selectableItems.every((item) =>
+    selectedItems.value.includes(item.id)
+  );
+
   const selectedStoreId = getSelectedStoreId();
 
   if (allSelected) {
-    store.items.forEach((item) => {
-      const index = selectedItems.value.indexOf(item.id);
-      if (index > -1) {
-        selectedItems.value.splice(index, 1);
-      }
+    selectableItems.forEach((item) => {
+      const idx = selectedItems.value.indexOf(item.id);
+      if (idx > -1) selectedItems.value.splice(idx, 1);
     });
   } else {
     if (selectedStoreId && selectedStoreId !== storeId) {
-      alert(
+      toast.warning(
         `Tidak dapat memilih item dari toko berbeda.\nSilakan checkout toko "${getStoreName(
           selectedStoreId
         )}" terlebih dahulu atau batalkan pilihan.`
@@ -691,12 +908,20 @@ const toggleStoreSelection = (storeId) => {
       return;
     }
 
-    store.items.forEach((item) => {
+    selectableItems.forEach((item) => {
       if (!selectedItems.value.includes(item.id)) {
         selectedItems.value.push(item.id);
       }
     });
   }
+};
+const hasOverStockSelected = (storeId) => {
+  const store = cartStores.value.find((s) => s.id === storeId);
+  if (!store) return false;
+
+  return store.items.some(
+    (item) => selectedItems.value.includes(item.id) && item.isOverStock
+  );
 };
 
 // Get selected item count for a store
@@ -707,6 +932,36 @@ const getStoreSelectedCount = (storeId) => {
   return store.items.filter((item) => selectedItems.value.includes(item.id))
     .length;
 };
+const isAddonSelected = (addon) =>
+  tempAddons.value.some(
+    (a) =>
+      a.addon_id === addon.addon_id && a.addon_group_id === addon.addon_group_id
+  );
+
+const selectSingleAddon = (addon, group) => {
+  tempAddons.value = tempAddons.value.filter(
+    (a) => a.addon_group_id !== group.id
+  );
+
+  tempAddons.value.push({
+    addon_group_id: group.id,
+    addon_id: addon.addon_id,
+  });
+};
+const toggleAddon = (addon, group) => {
+  const idx = tempAddons.value.findIndex(
+    (a) => a.addon_id === addon.addon_id && a.addon_group_id === group.id
+  );
+
+  if (idx >= 0) {
+    tempAddons.value.splice(idx, 1);
+  } else {
+    tempAddons.value.push({
+      addon_group_id: group.id,
+      addon_id: addon.addon_id,
+    });
+  }
+};
 
 // Calculate store subtotal
 const calculateStoreSubtotal = (storeId) => {
@@ -715,46 +970,62 @@ const calculateStoreSubtotal = (storeId) => {
 
   return store.items
     .filter((item) => selectedItems.value.includes(item.id))
-    .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+    .reduce(
+      (sum, item) =>
+        sum + (item.unitPrice + item.addonTotalPrice) * item.quantity,
+      0
+    );
 };
 
-// Quantity Controls
-const increaseQuantity = (itemId) => {
+const increaseQuantity = async (itemId) => {
   for (const store of cartStores.value) {
     const item = store.items.find((i) => i.id === itemId);
-    if (item && item.quantity < item.stock) {
-      item.quantity++;
-      break;
-    }
+    if (!item || item.quantity >= item.stock) continue;
+
+    onQuantityInput(itemId, item.quantity + 1);
+    await cartStore.fetchCartCount(true);
+
+    break;
   }
 };
 
-const decreaseQuantity = (itemId) => {
+const decreaseQuantity = async (itemId) => {
   for (const store of cartStores.value) {
     const item = store.items.find((i) => i.id === itemId);
-    if (item && item.quantity > 1) {
-      item.quantity--;
-      break;
-    }
+    if (!item || item.quantity <= 1) continue;
+
+    onQuantityInput(itemId, item.quantity - 1);
+    await cartStore.fetchCartCount(true);
+
+    break;
   }
 };
 
-// Remove Item
-const removeItem = (itemId) => {
-  itemToRemove.value = itemId;
-  showConfirmModal.value = true;
+const confirmRemoveAllByCart = async (cartId) => {
+  if (!cartId) return;
+
+  try {
+    await clearCartByStore(cartId);
+
+    // update UI cart page
+    cartStores.value = cartStores.value.filter((cart) => cart.id !== cartId);
+
+    // 🔥 WAJIB: refresh badge count
+    await cartStore.fetchCartCount(true);
+  } catch {
+    toast.error("Gagal menghapus cart");
+  }
 };
 
-const confirmRemove = () => {
-  if (itemToRemove.value) {
+const confirmRemove = async (itemId) => {
+  if (!itemId) return;
+
+  try {
+    await removeItem(itemId);
     for (const store of cartStores.value) {
       const index = store.items.findIndex((i) => i.id === itemToRemove.value);
       if (index > -1) {
         store.items.splice(index, 1);
-        const selectedIndex = selectedItems.value.indexOf(itemToRemove.value);
-        if (selectedIndex > -1) {
-          selectedItems.value.splice(selectedIndex, 1);
-        }
         break;
       }
     }
@@ -762,123 +1033,173 @@ const confirmRemove = () => {
     cartStores.value = cartStores.value.filter(
       (store) => store.items.length > 0
     );
-  }
 
-  showConfirmModal.value = false;
-  itemToRemove.value = null;
+    await cartStore.fetchCartCount(true);
+  } catch (error) {
+    toast.error("Gagal menghapus item");
+  } finally {
+    showConfirmModal.value = false;
+    itemToRemove.value = null;
+  }
 };
 
 // Get current stock for selected size + variant combination
 const getEditCurrentStock = () => {
-  if (!tempSize.value || !tempVariant.value) return 0;
-
-  const combination = editStockCombinations.value.find(
-    (combo) =>
-      combo.size === tempSize.value && combo.variant === tempVariant.value
+  const combo = editStockCombinations.value.find((c) =>
+    Object.entries(tempSelections.value).every(
+      ([optName, optValue]) => c.options[optName] === optValue
+    )
   );
 
-  return combination ? combination.stock : 0;
+  return combo ? combo.stock : 0;
 };
 
 // Get stock for specific size (total across all variants)
-const getEditSizeStock = (sizeName) => {
-  const combinations = editStockCombinations.value.filter(
-    (combo) => combo.size === sizeName
-  );
-  return combinations.reduce((total, combo) => total + combo.stock, 0);
-};
 
 // Get stock for specific variant with current size
-const getEditVariantStock = (variantName) => {
-  if (!tempSize.value) return 0;
 
-  const combination = editStockCombinations.value.find(
-    (combo) => combo.size === tempSize.value && combo.variant === variantName
+const editVariantPrice = computed(() => {
+  const combo = editStockCombinations.value.find((c) =>
+    Object.entries(tempSelections.value).every(
+      ([optName, optValue]) => c.options[optName] === optValue
+    )
   );
 
-  return combination ? combination.stock : 0;
+  return combo ? combo.price : 0;
+});
+const hasDeletedVariant = (item) => {
+  if (!item.selectedVariantId) return false;
+
+  return !item.productDetails.variants.some(
+    (v) => v.id === item.selectedVariantId
+  );
 };
 
-// Check if size has any stock
-const isSizeAvailable = (sizeName) => {
-  return getEditSizeStock(sizeName) > 0;
+const hasDeletedAddon = (item) => {
+  if (!item.selectedAddons?.length) return false;
+
+  const validAddonIds = item.productDetails.addon_groups.flatMap((g) =>
+    g.options.map((o) => o.addon_id)
+  );
+
+  return item.selectedAddons.some((a) => !validAddonIds.includes(a.addon_id));
 };
 
-// Check if variant is available for current size
-const isVariantAvailable = (variantName) => {
-  return getEditVariantStock(variantName) > 0;
-};
+const hasConfigurationIssue = (item) =>
+  hasDeletedVariant(item) || hasDeletedAddon(item);
 
-// Get max quantity available for current selection
-const getMaxQuantityAvailable = () => {
-  return getEditCurrentStock();
-};
+const editAddonTotal = computed(() => {
+  let total = 0;
 
-// Edit Item Variant
-const editItemVariant = async (itemId, storeId) => {
-  for (const store of cartStores.value) {
-    const item = store.items.find((i) => i.id === itemId);
-    if (item) {
-      editingItem.value = item;
-      editingStoreId.value = storeId;
+  tempAddons.value.forEach((selected) => {
+    const group = addonGroups.value.find(
+      (g) => g.id === selected.addon_group_id
+    );
 
-      // Set temporary values
-      tempSize.value = item.size;
-      tempVariant.value = item.variant;
-      tempAddons.value = [...(item.addons || [])];
+    if (!group) return;
 
-      // Load available options with stock from API
-      try {
-        // Simulasi data dengan stock combinations
-        availableSizes.value = ["250 Ml", "500 Ml", "750 Ml", "1 L"];
-        availableVariants.value = [
-          "Original",
-          "Strawberry",
-          "Coklat",
-          "Vanilla",
-        ];
-        availableAddons.value = [
-          { name: "Tidak Pedas", available: true },
-          { name: "Sedang", available: true },
-          { name: "Pedas", available: true },
-          { name: "Extra Pedas", available: true },
-          { name: "Topping Meses", available: true },
-          { name: "Keju Parut", available: false },
-          { name: "Extra Susu", available: true },
-        ];
+    const addon = group.options.find((o) => o.addon_id === selected.addon_id);
 
-        // Stock combinations (size + variant)
-        editStockCombinations.value = [
-          { size: "250 Ml", variant: "Original", stock: 150 },
-          { size: "250 Ml", variant: "Strawberry", stock: 8 },
-          { size: "250 Ml", variant: "Coklat", stock: 25 },
-          { size: "250 Ml", variant: "Vanilla", stock: 0 },
-
-          { size: "500 Ml", variant: "Original", stock: 80 },
-          { size: "500 Ml", variant: "Strawberry", stock: 0 },
-          { size: "500 Ml", variant: "Coklat", stock: 15 },
-          { size: "500 Ml", variant: "Vanilla", stock: 5 },
-
-          { size: "750 Ml", variant: "Original", stock: 50 },
-          { size: "750 Ml", variant: "Strawberry", stock: 15 },
-          { size: "750 Ml", variant: "Coklat", stock: 0 },
-          { size: "750 Ml", variant: "Vanilla", stock: 5 },
-
-          { size: "1 L", variant: "Original", stock: 0 },
-          { size: "1 L", variant: "Strawberry", stock: 12 },
-          { size: "1 L", variant: "Coklat", stock: 0 },
-          { size: "1 L", variant: "Vanilla", stock: 8 },
-        ];
-
-        showEditModal.value = true;
-      } catch (error) {
-        console.error("Failed to load variant options:", error);
-        alert("Gagal memuat opsi varian");
-      }
-
-      break;
+    if (addon) {
+      total += Number(addon.price || 0);
     }
+  });
+
+  return total;
+});
+
+const editTotalPrice = computed(() => {
+  return editVariantPrice.value + editAddonTotal.value;
+});
+// Edit Item Variant
+const editItemVariant = (itemId, storeId) => {
+  const store = cartStores.value.find((s) => s.id === storeId);
+  if (!store) return;
+
+  const item = store.items.find((i) => i.id === itemId);
+  if (!item) return;
+
+  editingItem.value = item;
+  editingStoreId.value = storeId;
+
+  const product = item.productDetails;
+
+  /* ===============================
+   * 1. OPTIONS (Size / Variant)
+   * =============================== */
+  editOptions.value = product.options.map((opt) => ({
+    option_id: opt.id,
+    option_name: opt.option_name,
+    uses_image: opt.uses_image,
+    values: opt.values.map((v) => ({
+      value: v.option_value,
+      image_url: v.src_url,
+      available: true, // nanti bisa dikunci via stok
+    })),
+  }));
+
+  /* ===============================
+   * 2. STOCK COMBINATIONS
+   * =============================== */
+  editStockCombinations.value = product.variants.map((v) => {
+    const options = {};
+
+    v.option_values.forEach((ov) => {
+      options[ov.option_name] = ov.option_value;
+    });
+
+    return {
+      options,
+      stock: v.stock,
+      price: Number(v.price),
+      variantId: v.id,
+    };
+  });
+
+  /* ===============================
+   * 3. SET CURRENT SELECTION
+   * =============================== */
+  tempSelections.value = {};
+
+  const currentVariant = product.variants.find(
+    (v) => v.id === item.selectedVariantId
+  );
+
+  if (currentVariant) {
+    currentVariant.option_values.forEach((ov) => {
+      tempSelections.value[ov.option_name] = ov.option_value;
+    });
   }
+
+  /* ===============================
+   * 4. ADDONS
+   * =============================== */
+  addonGroups.value = product.addon_groups.map((group) => ({
+    id: group.id,
+    name: group.addon_group_name,
+    selection_type: group.selection_type, // single | multiple
+    min_selection: Number(group.min_selection),
+    max_selection: Number(group.max_selection),
+    options: group.options.map((opt) => ({
+      addon_group_id: group.id,
+      addon_id: opt.addon_id,
+      name: opt.addon.addon_name,
+      price: Number(opt.addon_price),
+    })),
+  }));
+
+  tempAddons.value = item.selectedAddons?.length
+    ? item.selectedAddons.map((a) => ({
+        addon_group_id: a.addon_group_id,
+        addon_id: a.addon_id,
+      }))
+    : [];
+
+  if (!tempAddons.value.length) {
+    initRequiredAddons();
+  }
+
+  showEditModal.value = true;
 };
 
 // Close Edit Modal
@@ -886,80 +1207,43 @@ const closeEditModal = () => {
   showEditModal.value = false;
   editingItem.value = null;
   editingStoreId.value = null;
-  tempSize.value = null;
-  tempVariant.value = null;
   tempAddons.value = [];
-  availableSizes.value = [];
-  availableVariants.value = [];
+  tempSelections.value = {};
   availableAddons.value = [];
   editStockCombinations.value = [];
 };
-
+const saveLoading = ref(false);
 // Save Variant Changes with stock validation
-const saveVariantChanges = () => {
-  if (!editingItem.value) return;
+const saveVariantChanges = async () => {
+  const combo = editStockCombinations.value.find((c) =>
+    Object.entries(tempSelections.value).every(
+      ([optName, optValue]) => c.options[optName] === optValue
+    )
+  );
 
-  // Validate selection
-  if (!tempSize.value) {
-    alert("Silakan pilih ukuran");
-    return;
-  }
-  if (!tempVariant.value) {
-    alert("Silakan pilih varian");
-    return;
-  }
-
-  // Check stock availability
-  const availableStock = getEditCurrentStock();
-  if (availableStock === 0) {
-    alert(
-      `Maaf, kombinasi ${tempSize.value} - ${tempVariant.value} sedang habis`
-    );
+  if (!combo) {
+    toast.error("Varian tidak ditemukan");
     return;
   }
 
-  // Validate quantity doesn't exceed new stock
-  if (editingItem.value.quantity > availableStock) {
-    if (
-      confirm(
-        `Stok hanya tersedia ${availableStock} item.\nApakah Anda ingin mengubah quantity menjadi ${availableStock}?`
-      )
-    ) {
-      editingItem.value.quantity = availableStock;
-    } else {
-      return;
-    }
+  if (combo.stock === 0) {
+    toast.error("Stok habis");
+    return;
   }
+  saveLoading.value = true;
+  try {
+    await updateItemVariant(editingItem.value.id, {
+      product_variant_id: combo.variantId,
+      addons: tempAddons.value,
+    });
 
-  // Update the item
-  editingItem.value.size = tempSize.value;
-  editingItem.value.variant = tempVariant.value;
-  editingItem.value.addons = tempAddons.value.filter((addon) => {
-    const addonData = availableAddons.value.find((a) => a.name === addon);
-    return addonData && addonData.available;
-  });
-  editingItem.value.stock = availableStock;
-
-  // Recalculate price
-  const basePriceAdjustment =
-    tempSize.value === "1 L"
-      ? 10000
-      : tempSize.value === "750 Ml"
-      ? 5000
-      : tempSize.value === "500 Ml"
-      ? 2000
-      : 0;
-  const variantAdjustment = tempVariant.value !== "Original" ? 2000 : 0;
-  const addonAdjustment = editingItem.value.addons.length * 1000;
-
-  editingItem.value.unitPrice =
-    15000 + basePriceAdjustment + variantAdjustment + addonAdjustment;
-
-  // Show success message
-  alert("Varian produk berhasil diubah!");
-
-  // Close modal
-  closeEditModal();
+    await fetchCart();
+    closeEditModal();
+  } catch (e) {
+    toast.error("Gagal update varian");
+  } finally {
+    saveLoading.value = false;
+  }
 };
 
 // Format IDR
@@ -973,11 +1257,10 @@ const goBack = () => {
 };
 
 const goToHome = () => {
-  router.push({ name: "Home" });
+  router.push({ name: "Beranda" });
 };
 
-// Checkout per Store
-const checkoutStore = (storeId) => {
+const checkoutFromCart = (storeId) => {
   const store = cartStores.value.find((s) => s.id === storeId);
   if (!store) return;
 
@@ -986,70 +1269,41 @@ const checkoutStore = (storeId) => {
   );
 
   if (selectedStoreItems.length === 0) {
-    alert("Pilih minimal 1 item untuk checkout");
+    toast.error("Pilih minimal 1 item untuk checkout");
     return;
   }
 
-  // Calculate total price
-  const totalPrice = selectedStoreItems.reduce(
-    (sum, item) => sum + item.unitPrice * item.quantity,
-    0
-  );
-
-  // Calculate total quantity
-  const totalQuantity = selectedStoreItems.reduce(
-    (sum, item) => sum + item.quantity,
-    0
-  );
-
-  // Prepare order data
-  const orderTitle =
-    selectedStoreItems.length === 1
-      ? selectedStoreItems[0].name
-      : `${selectedStoreItems.length} Produk dari ${store.name}`;
-
-  const sizes = selectedStoreItems
-    .map((item) => item.size)
-    .filter(Boolean)
-    .join(", ");
-  const variants = selectedStoreItems
-    .map((item) => item.variant)
-    .filter(Boolean)
-    .join(", ");
-  const allAddons = selectedStoreItems
-    .flatMap((item) => item.addons || [])
-    .filter(Boolean);
-
-  // Navigate to PembayaranProduk
-  router.push({
-    name: "Pembayaran Produk",
-    query: {
-      type: "cart",
-      storeId: store.id,
-      storeName: store.name,
-      storePhone: store.phone,
-      storeAddress: store.address,
-      title: orderTitle,
-      image: selectedStoreItems[0]?.image || "",
-      price: totalPrice,
-      quantity: totalQuantity,
-      size: sizes || undefined,
-      variant: variants || undefined,
-      addons: allAddons.length > 0 ? JSON.stringify(allAddons) : undefined,
-      items: JSON.stringify(
-        selectedStoreItems.map((item) => ({
-          id: item.id,
-          name: item.name,
-          image: item.image,
-          size: item.size,
-          variant: item.variant,
-          addons: item.addons,
-          unitPrice: item.unitPrice,
-          quantity: item.quantity,
-        }))
-      ),
+  checkoutStore.setFromCart({
+    store: {
+      id: store.id,
+      name: store.name,
+      address: store.address,
+      phone: store.phone,
     },
+    items: selectedStoreItems.map((item) => ({
+      id: item.id,
+      name: item.name,
+      image: item.image,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      addonTotalPrice: item.addonTotalPrice,
+      size: item.size ?? "",
+      variant: getVariantLabel(item),
+      addons: item.addons ?? [],
+    })),
   });
+
+  router.push("/product-payment");
+
+  return true;
+};
+
+const goToStorePage = (storeId) => {
+  router.push({ name: "TokoDetail", params: { id: storeId } });
+};
+
+const goToProductPage = (slug) => {
+  router.push({ name: "Product Detail", params: { slug } });
 };
 </script>
 

@@ -69,7 +69,7 @@ const formatPrice = (min, max) => {
       >
         <img
           v-if="product.cover_image?.id"
-          :src="getImageUrl(product.cover_image.id)"
+          :src="product.cover_image.src_url"
           :alt="product.name"
           class="w-full h-full object-cover"
           @error="(e) => (e.target.style.display = 'none')"
@@ -117,7 +117,7 @@ const formatPrice = (min, max) => {
           class="font-medium text-right truncate ml-2"
           :title="product.categories?.[0]?.category_name"
         >
-          {{ product.categories?.[0]?.category_name || "-" }}
+          {{ product.categories?.[0]?.name || "-" }}
         </span>
       </div>
 

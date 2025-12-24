@@ -22,7 +22,13 @@ const adminGuard = (to, from, next) => {
 };
 
 const routes = [
-  // Halaman Beranda (Public/Customer)
+  {
+    path: "/test-api",
+    name: "ApiTest",
+    component: () => import("@/views/ApiTest.vue"),
+    meta: { title: "API Test | SUMILIR" },
+  },
+  // ✅ Halaman Beranda (Public/Customer)
   {
     path: "/",
     component: () => import("@/layouts/CustomerLayout.vue"),
@@ -84,8 +90,8 @@ const routes = [
         name: "Keranjang",
         component: () => import("@/views/customer/Cart.vue"),
         meta: {
-          // requiresAuth: true,
-          // roles: ["customer"],
+          requiresAuth: true,
+          roles: ["customer"],
           title: "Keranjang | SUMILIR",
         },
       },
@@ -98,6 +104,12 @@ const routes = [
           // roles: ["customer"],
           title: "Pembayaran | SUMILIR",
         },
+      },
+      {
+        path: "search",
+        name: "Search Page",
+        component: () => import("@/views/customer/SearchPage.vue"),
+        meta: { title: "Search | SUMILIR" },
       },
 
       // Halaman Community
@@ -181,6 +193,7 @@ const routes = [
     children: [
       {
         path: "",
+        name: "Admin",
         redirect: { name: "Admin Dashboard" },
       },
       {
@@ -301,7 +314,6 @@ const routes = [
   // Halaman merchant
   {
     path: "/merchant-center/:merchantId",
-    name: "Merchant",
     component: () => import("@/layouts/MerchantLayout.vue"),
     meta: {
       requiresAuth: true,
@@ -401,18 +413,37 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+
+  scrollBehavior(to, from, savedPosition) {
+    // ⬅️ untuk back/forward browser
+    if (savedPosition) {
+      return savedPosition;
+    }
+
+    // ⬅️ default: selalu ke atas
+    return {
+      top: 0,
+      left: 0,
+      behavior: "smooth", // opsional
+    };
+  },
 });
 
 // Track navigation to prevent excessive calls
 let lastNavigationPath = null;
+let authInitialized = false;
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
   document.title = to.meta.title || "SUMILIR";
 
+  if (!authInitialized) {
+    authInitialized = true;
+    await authStore.initAuth();
+  }
+
   // Skip if navigating to same path
   if (to.path === lastNavigationPath) {
-    console.log("[Router] Same path navigation detected, skipping...");
     next();
     return;
   }
@@ -420,7 +451,7 @@ router.beforeEach((to, from, next) => {
   lastNavigationPath = to.path;
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    console.warn("Not authenticated, redirecting to /login");
+    console.warn("⚠️ Not authenticated, redirecting to /login");
     return next("/login");
   }
 
@@ -431,7 +462,12 @@ router.beforeEach((to, from, next) => {
       .map((r) => r.toLowerCase());
 
     if (userRoles.includes("admin") || userRoles.includes("umkm-owner")) {
-      return next("/merchant-center");
+      const merchant = authStore.activeMerchant;
+
+      if (merchant) {
+        return next(`/merchant-center/${merchant.id}`);
+      }
+      return next("/");
     } else if (userRoles.includes("customer")) {
       return next("/");
     } else {
@@ -451,7 +487,7 @@ router.beforeEach((to, from, next) => {
     );
 
     if (!hasRequiredRole) {
-      console.warn("Role not allowed, redirecting to /");
+      console.warn("⚠️ Role not allowed, redirecting to /");
       return next("/");
     }
   }

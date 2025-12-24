@@ -34,8 +34,30 @@ Props:
 Events:
 - update:modelValue => emit saat nilai berubah (opsional jika ingin two-way binding)
 */
+import { min } from "lodash";
 import { Field, ErrorMessage } from "vee-validate";
-import { computed } from "vue";
+import { computed, ref } from "vue";
+const inputRef = ref(null);
+const handleNumberInput = (event, field) => {
+  let value = event.target.value;
+
+  if (props.type === "number") {
+    let num = Number(value);
+
+    if (props.max !== null && num > Number(props.max)) {
+      num = Number(props.max);
+    }
+
+    if (props.min !== null && num < Number(props.min)) {
+      num = Number(props.min);
+    }
+
+    field.onChange(num); // ✅ INI PENTING
+    return;
+  }
+
+  field.onChange(value);
+};
 
 const props = defineProps({
   name: { type: String, required: true },
@@ -55,9 +77,22 @@ const props = defineProps({
   hideLabel: { type: Boolean, default: false },
   customClass: { type: String, default: "" },
   wrapperClass: { type: String, default: "" }, // NEW: class untuk wrapper utama
+  min: { type: [String, Number], default: 0 }, // NEW: nilai minimum untuk input number
+  max: { type: [String, Number], default: null }, // NEW: nilai maksimum untuk input number
 });
 const emit = defineEmits(["update:modelValue"]);
 
+defineExpose({
+  focus() {
+    inputRef.value?.focus();
+  },
+  blur() {
+    inputRef.value?.blur();
+  },
+  scrollIntoView(options = { behavior: "smooth", block: "center" }) {
+    inputRef.value?.scrollIntoView(options);
+  },
+});
 const focusRingClass = computed(() => {
   if (props.variant === "merchant") {
     return "focus:ring-merchant-primary";
@@ -185,12 +220,17 @@ const inputClasses = (invalid, isTextarea) => {
         <component
           :is="textarea ? 'textarea' : 'input'"
           v-bind="field"
+          ref="inputRef"
           :id="name"
           :type="textarea ? undefined : type"
           :placeholder="placeholder"
+          :min="!textarea ? min : undefined"
+          :max="!textarea ? max : undefined"
           :rows="textarea ? rows : undefined"
           :readonly="readonly"
           :class="inputClasses(meta.touched && errors.length, textarea)"
+          :value="field.value"
+          @input="(e) => handleNumberInput(e, field)"
         />
 
         <!-- Suffix -->
