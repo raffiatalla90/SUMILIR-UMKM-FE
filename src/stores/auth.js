@@ -95,13 +95,13 @@ export const useAuthStore = defineStore("auth", () => {
   async function login(credentials) {
     try {
       try {
-        await api.get("http://localhost:8000/sanctum/csrf-cookie");
+        await api.get("/sanctum/csrf-cookie");
       } catch {
         console.warn("Gagal mendapatkan CSRF cookie");
       }
 
       // 🔐 Login
-      await api.post("http://localhost:8000/login", credentials);
+      await api.post("/login", credentials);
 
       // 👤 Ambil user
       const { data } = await api.get("/me");
@@ -128,7 +128,7 @@ export const useAuthStore = defineStore("auth", () => {
 
   async function logout() {
     try {
-      await api.post("http://localhost:8000/logout");
+      await api.post("/logout");
       toast.success("Berhasil logout 👋", { timeout: 2000 });
     } catch {
       toast.warning("Logout gagal, sesi dibersihkan");
@@ -138,7 +138,7 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   async function register(payload) {
-    const { data } = await api.post("http://localhost:8000/auth/register", payload);
+    const { data } = await api.post("/auth/register", payload);
     toast.success("Registrasi berhasil, silakan login");
     return data;
   }
