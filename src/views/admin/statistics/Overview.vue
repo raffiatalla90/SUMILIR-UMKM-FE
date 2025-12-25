@@ -76,7 +76,7 @@ const overviewCards = computed(() => [
 const loadOverviewStats = async () => {
   loading.value = true;
   try {
-    const response = await api.get("/admin/dashboard/statistics", {
+    const response = await api.get("/api/admin/dashboard/statistics", {
       params: { period: selectedPeriod.value },
     });
 

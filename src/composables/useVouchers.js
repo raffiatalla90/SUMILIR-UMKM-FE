@@ -19,7 +19,7 @@ export function useVouchers() {
   const fetchVouchers = async (params = {}) => {
     loading.value = true;
     try {
-      const response = await api.get('/admin/vouchers', { params });
+      const response = await api.get('/api/admin/vouchers', { params });
       
       const data = response.data;
       
@@ -55,7 +55,7 @@ export function useVouchers() {
   const fetchVoucherDetail = async (id) => {
     loading.value = true;
     try {
-      const response = await api.get(`/admin/vouchers/${id}`);
+      const response = await api.get(`/api/admin/vouchers/${id}`);
       const voucher = response.data.data || response.data;
       console.log('[useVouchers] Voucher detail:', voucher);
       return voucher;
@@ -75,7 +75,7 @@ export function useVouchers() {
   const deleteVoucher = async (id) => {
     loading.value = true;
     try {
-      await api.delete(`/admin/vouchers/${id}`);
+      await api.delete(`/api/admin/vouchers/${id}`);
       toast.success('Voucher berhasil dihapus');
       console.log('[useVouchers] Deleted voucher:', id);
     } catch (error) {

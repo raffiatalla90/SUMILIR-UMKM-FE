@@ -18,7 +18,7 @@ export function useMerchants() {
   const fetchMerchants = async (params = {}) => {
     loading.value = true;
     try {
-      const response = await api.get("/admin/merchants", { params });
+      const response = await api.get("/api/admin/merchants", { params });
 
       if (response.data.data) {
         merchants.value = response.data.data;
@@ -44,7 +44,7 @@ export function useMerchants() {
   const fetchMerchantDetail = async (id) => {
     loading.value = true;
     try {
-      const response = await api.get(`/admin/merchants/${id}`);
+      const response = await api.get(`/api/admin/merchants/${id}`);
       return response.data.data;
     } catch (error) {
       console.error("[useMerchants] Detail fetch failed:", error);
@@ -59,7 +59,7 @@ export function useMerchants() {
   const approveMerchant = async (id) => {
     loading.value = true;
     try {
-      await api.patch(`/admin/merchants/${id}/approve`);
+      await api.patch(`/api/admin/merchants/${id}/approve`);
       toast.success("Merchant berhasil di-approve!");
     } catch (error) {
       console.error("[useMerchants] Approve failed:", error);
@@ -74,7 +74,7 @@ export function useMerchants() {
   const rejectMerchant = async (id, reason) => {
     loading.value = true;
     try {
-      await api.patch(`/admin/merchants/${id}/reject`, {
+      await api.patch(`/api/admin/merchants/${id}/reject`, {
         rejection_reason: reason,
       });
       toast.success("Merchant berhasil ditolak!");

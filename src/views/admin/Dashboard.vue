@@ -21,7 +21,7 @@ const chartData = ref(null);
 const loadStatistics = async () => {
   loading.value = true;
   try {
-    const response = await api.get("/admin/dashboard/statistics", {
+    const response = await api.get("/api/admin/dashboard/statistics", {
       params: { period: "last_30_days" }, 
     });
 
@@ -48,7 +48,7 @@ const loadStatistics = async () => {
 const loadOrdersRevenue = async (params) => {
   chartLoading.value = true;
   try {
-    const response = await api.get("/admin/dashboard/orders-revenue", { params });
+    const response = await api.get("/api/admin/dashboard/orders-revenue", { params });
 
     if (!response || !response.data) {
       throw new Error("Empty orders/revenue response");

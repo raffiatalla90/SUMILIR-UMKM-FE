@@ -30,7 +30,7 @@ function getSegmentationColor(segmentationName) {
 
 const loadMerchant = async () => {
   try {
-    const res = await api.get(`/admin/merchants/${route.params.id}`);
+    const res = await api.get(`/api/admin/merchants/${route.params.id}`);
     merchant.value = res.data.data;
   } catch (e) {
     toast.error("Gagal memuat detail merchant");
@@ -39,7 +39,7 @@ const loadMerchant = async () => {
 
 const loadStatistics = async () => {
   try {
-    const res = await api.get(`/admin/merchants/${route.params.id}/statistics`);
+    const res = await api.get(`/api/admin/merchants/${route.params.id}/statistics`);
     await renderOrdersChart(res.data.orders);
     renderProductChart(res.data.product_orders);
   } catch (e) {

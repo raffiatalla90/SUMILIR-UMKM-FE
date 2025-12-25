@@ -193,7 +193,6 @@ const routes = [
     children: [
       {
         path: "",
-        name: "Admin",
         redirect: { name: "Admin Dashboard" },
       },
       {

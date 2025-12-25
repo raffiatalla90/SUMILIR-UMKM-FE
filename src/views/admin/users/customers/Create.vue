@@ -42,7 +42,7 @@ const handleSubmit = async () => {
   loading.value = true;
   errors.value = {};
   try {
-    const response = await api.post("/admin/users", {
+    const response = await api.post("/api/admin/users", {
       name: name.value,
       email: email.value,
       phone: phone.value,

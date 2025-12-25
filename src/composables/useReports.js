@@ -18,7 +18,7 @@ export function useReports() {
   const fetchReports = async (params = {}) => {
     loading.value = true;
     try {
-      const response = await api.get("/admin/reports", { params });
+      const response = await api.get("/api/admin/reports", { params });
 
       if (response.data.data) {
         reports.value = response.data.data;
@@ -41,7 +41,7 @@ export function useReports() {
   const fetchReportDetail = async (id) => {
     loading.value = true;
     try {
-      const response = await api.get(`/admin/reports/${id}`);
+      const response = await api.get(`/api/admin/reports/${id}`);
       return response.data;
     } catch (error) {
       console.error("[useReports] Detail fetch failed:", error);
@@ -56,7 +56,7 @@ export function useReports() {
   const reviewReport = async (id, data) => {
     loading.value = true;
     try {
-      await api.patch(`/admin/reports/${id}/review`, data);
+      await api.patch(`/api/admin/reports/${id}/review`, data);
       toast.success("Laporan berhasil direview!");
     } catch (error) {
       console.error("[useReports] Review failed:", error);

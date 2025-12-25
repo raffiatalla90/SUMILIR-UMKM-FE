@@ -17,7 +17,7 @@ export function useUsers() {
   const fetchUsers = async (params = {}) => {
     loading.value = true;
     try {
-      const response = await api.get("/admin/users", { params });
+      const response = await api.get("/api/admin/users", { params });
 
       users.value = response.data.data || [];
       pagination.value = {
@@ -39,7 +39,7 @@ export function useUsers() {
   const fetchUserDetail = async (userId) => {
     loading.value = true;
     try {
-      const response = await api.get(`/admin/users/${userId}`);
+      const response = await api.get(`/api/admin/users/${userId}`);
       return response.data.data;
     } catch (error) {
       console.error("[useUsers] Fetch detail failed:", error);
@@ -54,7 +54,7 @@ export function useUsers() {
   const approveMerchant = async (merchantId) => {
     loading.value = true;
     try {
-      await api.patch(`/admin/merchants/${merchantId}/approve`);
+      await api.patch(`/api/admin/merchants/${merchantId}/approve`);
       toast.success("Merchant berhasil di-approve");
     } catch (error) {
       console.error("[useUsers] Approve failed:", error);
@@ -69,7 +69,7 @@ export function useUsers() {
   const rejectMerchant = async (merchantId, reason) => {
     loading.value = true;
     try {
-      await api.patch(`/admin/users/merchants/${merchantId}/reject`, {
+      await api.patch(`/api/admin/users/merchants/${merchantId}/reject`, {
         rejection_reason: reason,
       });
       toast.success("Merchant berhasil ditolak");
@@ -88,7 +88,7 @@ export function useUsers() {
   const warnUser = async (userId, reason) => {
     loading.value = true;
     try {
-      await api.post(`/admin/users/${userId}/warn`, { reason });
+      await api.post(`/api/admin/users/${userId}/warn`, { reason });
       toast.success("Warning sent successfully");
     } catch (error) {
       console.error("[useUsers] Warn failed:", error);
@@ -103,7 +103,7 @@ export function useUsers() {
   const suspendUser = async (userId, reason) => {
     loading.value = true;
     try {
-      await api.post(`/admin/users/${userId}/suspend`, { reason });
+      await api.post(`/api/admin/users/${userId}/suspend`, { reason });
       toast.success("User suspended successfully");
     } catch (error) {
       console.error("[useUsers] Suspend failed:", error);
@@ -118,7 +118,7 @@ export function useUsers() {
   const unsuspendUser = async (userId) => {
     loading.value = true;
     try {
-      await api.post(`/admin/users/${userId}/unsuspend`);
+      await api.post(`/api/admin/users/${userId}/unsuspend`);
       toast.success("User unsuspended successfully");
     } catch (error) {
       console.error("[useUsers] Unsuspend failed:", error);
@@ -133,7 +133,7 @@ export function useUsers() {
   const changeStatus = async (userId, status, reason = null) => {
     loading.value = true;
     try {
-      await api.patch(`/admin/users/${userId}/status`, { status, reason });
+      await api.patch(`/api/admin/users/${userId}/status`, { status, reason });
       toast.success("User status changed successfully");
     } catch (error) {
       console.error("[useUsers] Change status failed:", error);
@@ -148,7 +148,7 @@ export function useUsers() {
   const notifyUser = async (userId, type, message) => {
     loading.value = true;
     try {
-      await api.post(`/admin/users/${userId}/notify`, { type, message });
+      await api.post(`/api/admin/users/${userId}/notify`, { type, message });
       toast.success("Notification sent successfully");
     } catch (error) {
       console.error("[useUsers] Notify failed:", error);
@@ -163,7 +163,7 @@ export function useUsers() {
   const bulkUpdateStatus = async (userIds, status, reason = null) => {
     loading.value = true;
     try {
-      await api.post("/admin/users/bulk-status", {
+      await api.post("/api/admin/users/bulk-status", {
         user_ids: userIds,
         status,
         reason,
