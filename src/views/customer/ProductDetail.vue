@@ -1555,9 +1555,31 @@ function resetStateBeforeFetch() {
   relatedProducts.value = [];
 }
 
-const shareProduct = () => {
+const shareProduct = async () => {
+  const title = product.value?.name || "Produk Menarik";
+  const text = `${title} - Rp ${formatIDR(getCurrentPrice())}`;
+  const url = window.location.href;
+
+  // ✅ Native Share API (Mobile)
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title,
+        text,
+        url,
+      });
+      return;
+    } catch (err) {
+      // user cancel share → tidak perlu error
+      console.debug("Share dibatalkan", err);
+      return;
+    }
+  }
+
+  // ❌ Fallback → buka modal custom (Desktop / browser lama)
   showShareModal.value = true;
 };
+
 function initDefaultRequiredAddons() {
   const defaults = [];
 
