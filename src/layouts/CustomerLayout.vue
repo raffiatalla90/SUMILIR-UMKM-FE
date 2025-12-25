@@ -81,6 +81,7 @@ const menus = computed(() => {
 const activeKey = ref(null);
 
 function isMenuActive(m) {
+  if (!m || typeof m !== "object") return false; // <-- Guard clause
   // Profile menu aktif jika route dimulai dengan /profile atau /login (saat belum auth)
   if (m.key === "profile") {
     return (
@@ -92,6 +93,7 @@ function isMenuActive(m) {
   if (m.key === "komunitas") {
     return route.path.startsWith("/community");
   }
+  if (!m.to) return false; // <-- Guard for missing 'to'
   if (m.to !== "#") return route.path === m.to;
   return activeKey.value === m.key;
 }

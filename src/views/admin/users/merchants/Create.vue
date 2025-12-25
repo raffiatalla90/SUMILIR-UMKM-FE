@@ -44,7 +44,7 @@ let userSearchTimeout = null;
 const fetchUsers = async (search = "") => {
   usersLoading.value = true;
   try {
-    const res = await api.get("/admin/users", {
+    const res = await api.get("/api/admin/users", {
       params: { per_page: 20, search },
     });
     users.value = res.data.data || [];
@@ -134,7 +134,7 @@ const villagesLoading = ref(false);
 const loadUsers = async () => {
   usersLoading.value = true;
   try {
-    const res = await api.get("/admin/users", { params: { per_page: 1000 } });
+    const res = await api.get("/api/admin/users", { params: { per_page: 1000 } });
     users.value = res.data.data || [];
   } catch (e) {
     users.value = [];
@@ -258,7 +258,7 @@ const handleRegister = async (values) => {
         longitude: Number(values.address.longitude),
       },
     };
-    await api.post("/admin/merchants", payload);
+    await api.post("/api/admin/merchants", payload);
 
     toast.success("Merchant berhasil dibuat & langsung di-approve.", { timeout: 3000 });
     router.push({ name: "Admin - Merchants List" });

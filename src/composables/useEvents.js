@@ -17,7 +17,7 @@ export function useEvents() {
   const fetchEvents = async (params = {}, isAdmin = false) => {
     loading.value = true;
     try {
-      const endpoint = isAdmin ? "/admin/events" : "/events";
+      const endpoint = isAdmin ? "/api/admin/events" : "/events";
 
       const response = await api.get(endpoint, { params });
 
@@ -66,7 +66,7 @@ export function useEvents() {
   const createEvent = async (formData) => {
     loading.value = true;
     try {
-      const response = await api.post("/admin/events", formData, {
+      const response = await api.post("/api/admin/events", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       toast.success("Event berhasil dibuat!");
@@ -84,7 +84,7 @@ export function useEvents() {
   const updateEvent = async (id, formData) => {
     loading.value = true;
     try {
-      const response = await api.post(`/admin/events/${id}`, formData, {
+      const response = await api.post(`/api/admin/events/${id}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       toast.success("Event berhasil diupdate!");
@@ -101,7 +101,7 @@ export function useEvents() {
   const deleteEvent = async (id) => {
     loading.value = true;
     try {
-      await api.delete(`/admin/events/${id}`);
+      await api.delete(`/api/admin/events/${id}`);
       toast.success("Event berhasil dihapus!");
     } catch (error) {
       console.error("[useEvents] Delete failed:", error);
@@ -116,7 +116,7 @@ export function useEvents() {
   const inviteMerchants = async (eventId, merchantIds) => {
     loading.value = true;
     try {
-      await api.post(`/admin/events/${eventId}/invite-merchants`, {
+      await api.post(`/api/admin/events/${eventId}/invite-merchants`, {
         merchant_ids: merchantIds,
       });
       toast.success("Merchant berhasil diundang!");

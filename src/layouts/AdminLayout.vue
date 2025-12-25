@@ -24,11 +24,6 @@ const menuItems = computed(() => [
     route: "/admin/users",
   },
   {
-    label: "Products",
-    icon: "pi-box",
-    route: "/admin/products",
-  },
-  {
     label: "Events",
     icon: "pi-calendar",
     route: "/admin/events",
@@ -74,6 +69,7 @@ const navigateTo = (routePath) => {
 };
 
 const isActive = (routePath) => {
+  if (!route || !route.path) return false; 
   if (route.path === routePath) {
     return true;
   }

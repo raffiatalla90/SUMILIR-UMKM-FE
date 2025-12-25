@@ -355,7 +355,7 @@ const loadUser = async () => {
  */
 const fetchLoginTrend = async () => {
   try {
-    const res = await api.get(`/admin/users/${route.params.id}/login-trend`, {
+    const res = await api.get(`/api/admin/users/${route.params.id}/login-trend`, {
       params: { days: 30 },
     });
     const raw = res?.data?.data?.series || [];
