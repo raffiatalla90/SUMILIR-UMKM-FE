@@ -20,7 +20,9 @@ const descriptionRef = ref(null);
 const isClamped = ref(false);
 // ✅ Get merchantId from route
 const currentMerchantId = computed(() => {
-  return route.params.merchantId ? Number(route.params.merchantId) : null;
+  return route.params && route.params.merchantId
+    ? Number(route.params.merchantId)
+    : null;
 });
 // ===== Swipe state (mobile) =====
 const touchStartX = ref(0);

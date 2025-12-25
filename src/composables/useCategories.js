@@ -7,6 +7,7 @@ export function useCategories() {
 
   const categoriesLevel1 = ref([]);
   const categoriesLevel2 = ref([]);
+  const categoriesLevel2Map = ref({});
   const loadingLevel1 = ref(true);
   const loadingLevel2 = ref(false);
 
@@ -90,6 +91,26 @@ export function useCategories() {
     }
   };
 
+  const fetchMultiSubCategories = async (parentId) => {
+    if (!parentId || categoriesLevel2Map.value[parentId]) return;
+
+    loadingLevel2.value = true;
+    try {
+      const response = await api.get(
+        `/api/public/categories/${parentId}/sub-categories`
+      );
+
+      if (response.data.success) {
+        categoriesLevel2Map.value[parentId] = (response.data.data || [])
+          .map(normalizeCategory)
+          .filter(Boolean);
+      }
+    } catch (error) {
+      toast.error("Gagal memuat sub-kategori");
+    } finally {
+      loadingLevel2.value = false;
+    }
+  };
   /**
    * Search categories
    */
@@ -120,12 +141,14 @@ export function useCategories() {
     // State
     categoriesLevel1,
     categoriesLevel2,
+    categoriesLevel2Map,
     loadingLevel1,
     loadingLevel2,
 
     // Methods
     fetchLevel1Categories,
     fetchSubCategories,
+    fetchMultiSubCategories,
     searchCategories,
   };
 }

@@ -2,7 +2,7 @@
 // =======================
 // 1. IMPORTS
 // =======================
-import { ref, computed, onMounted, watch, watchEffect } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "@/stores/auth";
@@ -19,7 +19,6 @@ import MobilePagination from "@/components/common/MobilePagination.vue";
 import BulkActionBar from "@/components/common/BulkActionBar.vue";
 import { useProducts } from "@/composables/useProducts";
 import { useCategories } from "@/composables/useCategories";
-import api from "@/libs/axios";
 
 const router = useRouter();
 const route = useRoute();
@@ -40,7 +39,9 @@ const debouncedLoadProductsByPerPage = () => {
 
 // ✅ Get merchantId from route
 const currentMerchantId = computed(() => {
-  return route.params.merchantId ? Number(route.params.merchantId) : null;
+  return route.params && route.params.merchantId
+    ? Number(route.params.merchantId)
+    : null;
 });
 
 // ✅ Breadcrumb items
@@ -59,13 +60,17 @@ const currentMerchantName = computed(() => {
 // ✅ Use products composable
 const {
   products,
+  loadingExport,
   loading,
+  loadingFetchProducts,
   pagination,
   fetchProducts,
   deleteProduct,
   updateProductStatus,
   bulkDeleteProducts,
   bulkUpdateStatus,
+  exportExcel,
+  exportPDF,
 } = useProducts();
 
 // ✅ NEW: Use categories composable
@@ -170,13 +175,6 @@ const loadProducts = async () => {
     return;
   }
 
-  // ✅ ADD: Prevent duplicate calls
-  if (loading.value) {
-    return;
-  }
-
-  logCookies("BEFORE fetchProducts"); // ✅ Log before
-
   try {
     const sortBy = buildSortByParam(activeFilters.value);
 
@@ -193,11 +191,8 @@ const loadProducts = async () => {
       perPage: perPage.value,
       page: currentPage.value,
     });
-
-    logCookies("AFTER fetchProducts"); // ✅ Log after
   } catch (error) {
-    logCookies("ERROR in fetchProducts"); // ✅ Log on error
-    toast.error(error.response?.data?.message || "Gagal memuat produk");
+    // toast error sudah ditangani di composable
   }
 };
 
@@ -240,12 +235,14 @@ const bulkDelete = () => {
 const confirmBulkDelete = async () => {
   try {
     await bulkDeleteProducts(selectedProducts.value);
+
     toast.success(`${selectedProductsCount.value} produk berhasil dihapus`);
+
     selectedProducts.value = [];
     selectAll.value = false;
     closeBulkDeleteModal();
-  } catch (error) {
-    toast.error(error.response?.data?.message || "Gagal menghapus produk");
+  } catch (e) {
+    // toast error sudah ditangani di composable
   }
 };
 
@@ -308,7 +305,6 @@ const resetFilters = () => {
   activeFilters.value = { ...defaultFilters };
   currentPage.value = 1;
   closeFilterModal();
-  toast.success("Filter berhasil direset");
   loadProducts();
 };
 
@@ -331,72 +327,16 @@ const buildExportParams = () => {
   return params;
 };
 
-// Helper: unduh Blob ke file
-const saveBlob = (blob, fallbackName) => {
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = fallbackName;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  window.URL.revokeObjectURL(url);
-};
-
 // Export Excel (via BE)
-const exportExcel = async () => {
-  try {
-    const params = buildExportParams();
-    const res = await api.get("/api/products/export/excel", {
-      params,
-      responseType: "blob",
-    });
-
-    // Ambil nama file dari header jika ada
-    const disposition = res.headers["content-disposition"] || "";
-    const match = disposition.match(/filename="?([^"]+)"?/);
-    const filename =
-      match?.[1] ||
-      `products-${new Date()
-        .toISOString()
-        .slice(0, 19)
-        .replace(/[:T]/g, "")}.xlsx`;
-
-    saveBlob(res.data, filename);
-    toast.success("Export Excel berhasil diunduh");
-  } catch (err) {
-    toast.error(err.response?.data?.message || "Gagal export Excel");
-  } finally {
-    closeExportModal();
-  }
+const confirmExportExcel = async () => {
+  await exportExcel(buildExportParams());
+  closeExportModal();
 };
 
 // Export PDF (via BE)
-const exportPDF = async () => {
-  try {
-    const params = buildExportParams();
-    const res = await api.get("/api/products/export/pdf", {
-      params,
-      responseType: "blob",
-    });
-
-    // Ambil nama file dari header jika ada
-    const disposition = res.headers["content-disposition"] || "";
-    const match = disposition.match(/filename="?([^"]+)"?/);
-    const filename =
-      match?.[1] ||
-      `products-${new Date()
-        .toISOString()
-        .slice(0, 19)
-        .replace(/[:T]/g, "")}.pdf`;
-
-    saveBlob(res.data, filename);
-    toast.success("Export PDF berhasil diunduh");
-  } catch (err) {
-    toast.error(err.response?.data?.message || "Gagal export PDF");
-  } finally {
-    closeExportModal();
-  }
+const confirmExportPDF = async () => {
+  await exportPDF(buildExportParams());
+  closeExportModal();
 };
 
 // ✅ UPDATED: goToCreate with merchantId
@@ -439,13 +379,8 @@ const deleteProductAction = (product) => {
 const confirmDeleteProduct = async () => {
   if (!selectedProductForDelete.value) return;
 
-  try {
-    await deleteProduct(selectedProductForDelete.value.slug); // ✅ slug
-    toast.success("Produk berhasil dihapus");
-    closeDeleteModal();
-  } catch (error) {
-    toast.error(error.response?.data?.message || "Gagal menghapus produk");
-  }
+  await deleteProduct(selectedProductForDelete.value.slug); // ✅ slug
+  closeDeleteModal();
 };
 
 const hasSelectedProducts = computed(() => {
@@ -593,7 +528,7 @@ const confirmSingleStatusChange = async () => {
     toast.success(`Status produk berhasil diubah menjadi ${statusLabel}`);
     closeStatusChangeModal();
   } catch (error) {
-    toast.error(error.response?.data?.message || "Gagal mengubah status");
+    // error toast sudah di composable
   }
 };
 
@@ -618,17 +553,17 @@ const confirmBulkStatusChange = async () => {
 
   try {
     await bulkUpdateStatus(selectedProducts.value, newBulkStatus.value);
+
     const statusLabel = getStatusLabel(newBulkStatus.value);
     toast.success(
       `${selectedProductsCount.value} produk berhasil diubah menjadi ${statusLabel}`
     );
+
     selectedProducts.value = [];
     selectAll.value = false;
     closeBulkStatusChangeModal();
-  } catch (error) {
-    toast.error(
-      error.response?.data?.message || "Gagal mengubah status produk"
-    );
+  } catch (e) {
+    // error toast sudah di composable
   }
 };
 
@@ -680,16 +615,8 @@ watch(currentMerchantId, (newId, oldId) => {
 
 // ✅ Watch currentPage untuk auto-load
 watch(currentPage, () => {
-  logCookies("currentPage changed"); // ✅ ADD: Log cookies on page change
   loadProducts();
 });
-
-// ✅ REMOVE: Problematic watchEffect if exists
-// watchEffect(() => {
-//   // This might cause infinite loops
-//   loadProducts();
-// });
-onMounted(() => {});
 
 watch(perPage, (val, oldVal) => {
   if (val === oldVal) return;
@@ -702,7 +629,6 @@ watch(perPage, (val, oldVal) => {
 onMounted(async () => {
   const savedPerPage = localStorage.getItem("products_per_page");
   if (savedPerPage) perPage.value = Number(savedPerPage);
-  logCookies("onMounted");
 
   // ✅ Guard di FE juga: cegah akses jika merchant belum approved
   const merchant =
@@ -773,11 +699,11 @@ const paginationInfo = computed(() => ({
 const tableColumns = [
   { key: "name", label: "Produk", sortable: true },
   { key: "sku", label: "SKU", sortable: true, cellClass: "font-mono" },
-  // ✅ FIXED: Use sanitized key for slot name (dots are invalid in v-slot)
   { key: "category", label: "Kategori", sortable: false },
   { key: "total_stock", label: "Stok", sortable: true },
   { key: "price", label: "Harga", sortable: true },
   { key: "status", label: "Status", sortable: true },
+  { key: "actions", label: "Aksi", sortable: false },
 ];
 
 const tableActions = [
@@ -785,25 +711,25 @@ const tableActions = [
     icon: "pi-eye",
     label: "Lihat Detail",
     handler: (product) => goToDetail(product),
-    class: " hover:bg-muted-foreground/20 text-muted-foreground",
+    variant: "muted-outline",
   },
   {
     icon: "pi-pencil",
     label: "Edit Produk",
     handler: (product) => goToEdit(product),
-    class: " text-merchant-primary hover:bg-merchant-primary/20",
+    variant: "merchant-outline",
   },
   {
     icon: "pi-cog",
     label: "Ubah Status",
     handler: (product) => toggleProductVisibility(product),
-    class: "hover:bg-muted-foreground/20 text-warning-foreground",
+    variant: "primary-outline",
   },
   {
     icon: "pi-trash",
     label: "Hapus Produk",
     handler: (product) => deleteProductAction(product),
-    class: "hover:bg-danger-background text-danger-foreground",
+    variant: "danger-outline",
   },
 ];
 </script>
@@ -1159,7 +1085,7 @@ const tableActions = [
 
     <!-- ✅ FIXED: Loading State -->
     <div
-      v-if="loading"
+      v-if="loadingFetchProducts"
       class="flex justify-center items-center py-20 bg-white rounded-lg mx-4 sm:mx-6"
     >
       <div
@@ -1169,7 +1095,7 @@ const tableActions = [
 
     <!-- ✅ FIXED: Empty State -->
     <div
-      v-else-if="products.length === 0 && !loading"
+      v-else-if="products.length === 0 && !loadingFetchProducts"
       class="flex flex-col items-center justify-center py-20 bg-white rounded-lg text-center mx-4 sm:mx-6"
     >
       <i class="pi pi-inbox text-5xl text-muted-foreground mb-4"></i>
@@ -1200,11 +1126,10 @@ const tableActions = [
       <div class="hidden sm:block mb-4">
         <MerchantTable
           :items="products"
-          :loading="loading"
+          :loading="loadingFetchProducts"
           :columns="tableColumns"
           :selected-items="selectedProducts"
           :select-all="selectAll"
-          :actions="tableActions"
           :current-page="currentPage"
           :total-pages="totalPages"
           :pagination-info="paginationInfo"
@@ -1326,12 +1251,31 @@ const tableActions = [
               Tidak ada kategori
             </span>
           </template>
+
+          <template #cell-actions="{ item }">
+            <div class="flex gap-1">
+              <Button
+                v-for="action in tableActions"
+                :key="action.label"
+                :title="action.label"
+                size="sm"
+                class="!w-8 border-none"
+                :variant="action.variant || 'muted'"
+                @click.stop="action.handler(item)"
+              >
+                <i :class="['pi', action.icon, 'text-sm']"></i>
+              </Button>
+            </div>
+          </template>
         </MerchantTable>
       </div>
     </div>
 
     <!-- ✅ FIXED: Mobile Pagination (Bottom) -->
-    <div v-if="!loading && products.length > 0" class="sm:hidden px-4 pb-4">
+    <div
+      v-if="!loadingFetchProducts && products.length > 0"
+      class="sm:hidden px-4 pb-4"
+    >
       <MobilePagination
         :current-page="currentPage"
         :total-pages="totalPages"
@@ -1682,8 +1626,14 @@ const tableActions = [
       <!-- Content -->
       <div class="space-y-3">
         <button
-          @click="exportPDF"
+          @click="confirmExportPDF"
+          :disabled="loadingExport"
           class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary transition text-left group"
+          :class="
+            loadingExport
+              ? 'opacity-50 cursor-not-allowed'
+              : 'hover:bg-muted-background hover:border-merchant-primary'
+          "
         >
           <div
             class="w-12 h-12 bg-danger-background rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform"
@@ -1701,8 +1651,14 @@ const tableActions = [
         </button>
 
         <button
-          @click="exportExcel"
+          @click="confirmExportExcel"
+          :disabled="loadingExport"
           class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary transition text-left group"
+          :class="
+            loadingExport
+              ? 'opacity-50 cursor-not-allowed'
+              : 'hover:bg-muted-background hover:border-merchant-primary'
+          "
         >
           <div
             class="w-12 h-12 bg-success-background rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform"

@@ -29,169 +29,46 @@
 
     <!-- Sticky Header saat Scroll (Mobile only) -->
     <div
-      class="sm:hidden fixed top-0 left-0 right-0 z-40 transition-all duration-300"
+      class="bg-white/95 backdrop-blur-md shadow-md border-b border-gray-200 fixed top-0 left-0 right-0 z-40 transition-transform duration-300 ease-out"
       :class="showScrollHeader ? 'translate-y-0' : '-translate-y-full'"
     >
-      <div
-        class="bg-white/95 backdrop-blur-md shadow-md border-b border-gray-200"
-      >
-        <div class="px-4 py-3 flex items-center gap-3">
-          <button
-            @click="goBack"
-            class="p-1.5 hover:bg-gray-100 rounded-full transition active:scale-95"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="2.5"
-              stroke="currentColor"
-              class="w-5 h-5 text-gray-800"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M15.75 19.5 8.25 12l7.5-7.5"
-              />
-            </svg>
-          </button>
-
-          <div class="flex-1 min-w-0">
-            <h1 class="text-sm font-semibold text-gray-900 truncate">
-              {{ product?.name || "Nama Produk" }}
-            </h1>
-            <p class="text-xs text-gray-600">
-              Rp {{ formatIDR(calculateTotalPrice()) }}
-            </p>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <button
-              @click="shareProduct"
-              class="p-1.5 hover:bg-gray-100 rounded-full transition active:scale-95"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="2"
-                stroke="currentColor"
-                class="w-5 h-5 text-gray-800"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z"
-                />
-              </svg>
-            </button>
-
-            <button
-              @click="goToCart"
-              class="relative p-1.5 hover:bg-gray-100 rounded-full transition active:scale-95"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="2"
-                stroke="currentColor"
-                class="w-5 h-5 text-gray-800"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"
-                />
-              </svg>
-              <span
-                v-if="authStore.isAuthenticated && cartItemsCount > 0"
-                class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center"
-              >
-                {{ cartItemsCount > 9 ? "9+" : cartItemsCount }}
-              </span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Floating Action Buttons (Mobile only) -->
-    <div
-      class="sm:hidden fixed left-0 right-0 z-50 px-4 flex items-center justify-between pointer-events-none transition-all duration-300"
-      :class="showScrollHeader ? 'top-20' : 'top-4'"
-    >
-      <!-- Back Button (Left) - Hidden saat scroll header muncul -->
-      <button
-        v-show="!showScrollHeader"
-        @click="goBack"
-        class="w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center hover:bg-white transition-all active:scale-95 pointer-events-auto"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke-width="2.5"
-          stroke="currentColor"
-          class="w-5 h-5 text-gray-800"
+      <div class="px-3 py-3 flex items-center gap-2">
+        <!-- Back -->
+        <button
+          @click="goBack"
+          class="p-2 px-3 hover:bg-gray-100 rounded-full transition active:scale-95"
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M15.75 19.5 8.25 12l7.5-7.5"
-          />
-        </svg>
-      </button>
+          <i class="pi pi-chevron-left text-sm"></i>
+        </button>
 
-      <!-- Right Actions (Share & Cart) - Hidden saat scroll header muncul -->
-      <div
-        v-show="!showScrollHeader"
-        class="flex items-center gap-2 pointer-events-auto"
-      >
+        <!-- 🔍 SEARCH BAR -->
+        <form @submit.prevent="submitSearch" class="flex-1">
+          <div class="relative">
+            <Textfield
+              v-model="searchInput"
+              name="search"
+              placeholder="Cari produk atau UMKM…"
+              variant="primary"
+            />
+          </div>
+        </form>
         <!-- Share Button -->
         <button
           @click="shareProduct"
-          class="w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center hover:bg-white transition-all active:scale-95"
+          class="w-10 h-10 backdrop-blur-sm hover:bg-gray-100 rounded-full transition-all active:scale-95"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width="2"
-            stroke="currentColor"
-            class="w-5 h-5 text-gray-800"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z"
-            />
-          </svg>
+          <i class="pi pi-share-alt text-lg"></i>
         </button>
-
-        <!-- Cart Button with Badge -->
+        <!-- Cart -->
         <button
           @click="goToCart"
-          class="relative w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center hover:bg-white transition-all active:scale-95"
+          class="relative w-10 h-10 hover:bg-gray-100 rounded-full transition active:scale-95"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width="2"
-            stroke="currentColor"
-            class="w-5 h-5 text-gray-800"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"
-            />
-          </svg>
-          <!-- Cart Badge -->
+          <i class="pi pi-shopping-cart text-lg"></i>
+
           <span
             v-if="cartItemsCount > 0"
-            class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center"
+            class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center"
           >
             {{ cartItemsCount > 9 ? "9+" : cartItemsCount }}
           </span>
@@ -1300,6 +1177,7 @@ import { getVariantImageUrl } from "@/libs/getVariantImageUrl.js";
 import Button from "@/components/common/Button.vue";
 import { useCheckoutStore } from "@/stores/checkout";
 import ProductCard from "@/components/Card/ProductCard.vue";
+import Textfield from "@/components/forms/TextField.vue";
 import { useProducts } from "@/composables/useProducts.js";
 import { useToast } from "vue-toastification";
 import { useCartStore } from "@/stores/cart";
@@ -1310,6 +1188,18 @@ const authStore = useAuthStore();
 const cartStore = useCartStore();
 const toast = useToast();
 const showFullDescription = ref(false);
+const searchInput = ref("");
+
+function submitSearch() {
+  if (!searchInput.value.trim()) return;
+
+  router.push({
+    path: "/search", // pastikan route ini ada
+    query: {
+      q: searchInput.value.trim(),
+    },
+  });
+}
 
 const touchStartX = ref(0);
 const touchEndX = ref(0);
@@ -1665,9 +1555,31 @@ function resetStateBeforeFetch() {
   relatedProducts.value = [];
 }
 
-const shareProduct = () => {
+const shareProduct = async () => {
+  const title = product.value?.name || "Produk Menarik";
+  const text = `${title} - Rp ${formatIDR(getCurrentPrice())}`;
+  const url = window.location.href;
+
+  // ✅ Native Share API (Mobile)
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title,
+        text,
+        url,
+      });
+      return;
+    } catch (err) {
+      // user cancel share → tidak perlu error
+      console.debug("Share dibatalkan", err);
+      return;
+    }
+  }
+
+  // ❌ Fallback → buka modal custom (Desktop / browser lama)
   showShareModal.value = true;
 };
+
 function initDefaultRequiredAddons() {
   const defaults = [];
 
@@ -1930,6 +1842,14 @@ watch(
   },
   { immediate: true }
 );
+watch(showScrollHeader, (val) => {
+  if (val) {
+    setTimeout(() => {
+      document.querySelector("input[type='text']")?.focus();
+    }, 100);
+  }
+});
+
 onBeforeUnmount(() => {
   if (abortController) {
     try {
@@ -1943,9 +1863,24 @@ onUnmounted(() => window.removeEventListener("scroll", handleScroll));
 const currentImageIndex = ref(0);
 // simple scroll handler (as in your original)
 function handleScroll() {
-  const y = window.scrollY || document.documentElement.scrollTop || 0;
-  showScrollHeader.value = y > 80;
-  lastScrollY.value = y;
+  const currentY = window.scrollY || document.documentElement.scrollTop || 0;
+
+  const delta = currentY - lastScrollY.value;
+
+  // threshold agar tidak flicker
+  const THRESHOLD = 10;
+
+  if (Math.abs(delta) < THRESHOLD) return;
+
+  if (delta > 0 && currentY > 80) {
+    // 🔽 scroll ke bawah → sembunyikan navbar
+    showScrollHeader.value = false;
+  } else {
+    // 🔼 scroll ke atas → tampilkan navbar
+    showScrollHeader.value = true;
+  }
+
+  lastScrollY.value = currentY;
 }
 
 // buyNow: keep your existing behavior, but use safe fields

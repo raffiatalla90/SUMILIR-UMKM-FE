@@ -115,7 +115,7 @@ async function handleSubmit(values) {
 
   isLoading.value = true;
   try {
-    await api.post("/auth/reset-password", {
+    await api.post("/api/auth/reset-password", {
       token: token.value,
       email: emailFromQuery, // dikirim tersembunyi
       password: values.password,

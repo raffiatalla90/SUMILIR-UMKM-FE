@@ -31,10 +31,10 @@ const props = defineProps({
   },
 
   // Actions
-  actions: {
-    type: Array,
-    default: () => [],
-  },
+  // actions: {
+  //   type: Array,
+  //   default: () => [],
+  // },
 
   // Pagination
   currentPage: {
@@ -153,11 +153,16 @@ const getNestedValue = (obj, path) => {
   <div class="bg-white rounded-lg shadow overflow-hidden">
     <!-- Loading State -->
     <div v-if="loading" class="flex justify-center items-center py-20">
-      <div class="w-12 h-12 border-4 border-gray-300 border-t-admin-primary rounded-full animate-spin"></div>
+      <div
+        class="w-12 h-12 border-4 border-gray-300 border-t-admin-primary rounded-full animate-spin"
+      ></div>
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="!items || items.length === 0" class="flex flex-col items-center justify-center py-20">
+    <div
+      v-else-if="!items || items.length === 0"
+      class="flex flex-col items-center justify-center py-20"
+    >
       <i class="pi pi-inbox text-6xl text-gray-300 mb-4"></i>
       <p class="text-gray-500 text-lg font-medium">{{ emptyMessage }}</p>
     </div>
@@ -165,7 +170,7 @@ const getNestedValue = (obj, path) => {
     <!-- Table Content (only show when items exist) -->
     <div v-else class="overflow-x-auto">
       <table class="w-full">
-        <thead class="bg-gray-50 border-b">
+        <thead class="bg-gray-50">
           <tr>
             <!-- Checkbox Column -->
             <th v-if="showCheckbox" class="px-6 py-3 text-left">
@@ -197,7 +202,11 @@ const getNestedValue = (obj, path) => {
             class="hover:bg-gray-50 cursor-pointer transition"
           >
             <!-- Checkbox Cell -->
-            <td v-if="showCheckbox" class="px-6 py-4 whitespace-nowrap" @click.stop>
+            <td
+              v-if="showCheckbox"
+              class="px-6 py-4 whitespace-nowrap"
+              @click.stop
+            >
               <input
                 type="checkbox"
                 :checked="isItemSelected(item.slug)"
@@ -228,7 +237,7 @@ const getNestedValue = (obj, path) => {
             </td>
 
             <!-- Actions -->
-            <td v-if="actions.length > 0" class="px-6 py-4" @click.stop>
+            <!-- <td v-if="actions.length > 0" class="px-6 py-4" @click.stop>
               <div class="flex items-center justify-end gap-2">
                 <button
                   v-for="(action, index) in actions"
@@ -244,7 +253,7 @@ const getNestedValue = (obj, path) => {
                   <i :class="['pi', action.icon, 'text-sm']"></i>
                 </button>
               </div>
-            </td>
+            </td> -->
           </tr>
         </tbody>
       </table>

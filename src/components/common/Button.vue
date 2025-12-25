@@ -123,5 +123,11 @@ const variantClasses = {
 
   "muted-outline":
     "border border-muted-foreground text-muted-foreground hover:bg-gray-100 disabled:opacity-60 focus:ring-gray-400 duration-200 active:scale-95",
+
+  warning:
+    "bg-warning-foreground text-white hover:bg-yellow-600 disabled:bg-gray-400 shadow-sm hover:shadow-lg duration-200 active:scale-95 focus:ring-yellow-500",
+
+  "warning-outline":
+    "border border-warning-background text-warning-background disabled:opacity-60 focus:ring-yellow-500 duration-200 active:scale-95",
 };
 </script>
