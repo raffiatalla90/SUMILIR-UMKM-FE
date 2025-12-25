@@ -50,7 +50,7 @@ const goToProductDetail = (product) => {
 };
 
 /* ================= BASIC ================= */
-const keyword = ref("kopi");
+const keyword = ref("");
 const activeTab = ref("products");
 
 /* ================= MODAL ================= */
@@ -61,7 +61,7 @@ const activeInstantSorts = ref([]);
 
 /* ================= DETAIL FILTER ================= */
 const detailFilters = ref({
-  minPrice: 0,
+  minPrice: null,
   maxPrice: null,
   categories: [],
   subCategories: [],
@@ -312,6 +312,18 @@ watch(activeTab, (tab) => {
     fetchMerchants(true);
   }
 });
+watch(
+  () => tempDetailFilters.value.maxPrice,
+  (newMax) => {
+    if (
+      newMax !== null &&
+      newMax !== "" &&
+      tempDetailFilters.value.minPrice === null
+    ) {
+      tempDetailFilters.value.minPrice = 0;
+    }
+  }
+);
 
 watch(
   () => route.query.q,
@@ -733,6 +745,7 @@ onMounted(() => {
                 v-model="tempDetailFilters.minPrice"
                 placeholder="Min"
                 prefix="Rp"
+                class="w-full"
               />
               -
               <TextField
@@ -740,6 +753,7 @@ onMounted(() => {
                 v-model="tempDetailFilters.maxPrice"
                 placeholder="Max"
                 prefix="Rp"
+                class="w-full"
               />
             </div>
           </div>
