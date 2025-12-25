@@ -515,7 +515,7 @@ const pagedMerchants = computed(() =>
 );
 
 watch(
-  () => route.query.q,
+  () => (route && route.query ? route.query.q : ""),
   (newQ, oldQ) => {
     if (newQ !== oldQ) {
       keyword.value = newQ || "";

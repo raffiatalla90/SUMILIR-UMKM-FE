@@ -17,7 +17,9 @@ const showLogoutModal = ref(false);
 
 // ✅ Get merchantId dari route params
 const currentMerchantId = computed(() => {
-  if (!route || !route.params) return authStore.merchantId;
+  if (!route || !route.params || typeof route.params !== "object") {
+    return authStore.merchantId;
+  }
   return route.params.merchantId
     ? Number(route.params.merchantId)
     : authStore.merchantId;
@@ -51,10 +53,9 @@ const showMerchantSelector = computed(() => merchantsCount.value > 1);
 
 // ✅ Watch route changes untuk update active merchant
 watch(
-  () => route.params,
+  () => (route && route.params ? route.params : {}),
   (params) => {
     if (!params?.merchantId) return;
-
     authStore.setActiveMerchant(Number(params.merchantId));
   },
   { immediate: true }
@@ -165,10 +166,10 @@ defineExpose({
       <!-- Header -->
       <div
         :class="[
-          'flex items-center  h-20 shadow-sm',
+          'flex items-center  h-23 ',
           isOpen
             ? 'justify-between px-4'
-            : 'justify-between px-4 sm:justify-center sm:px-4',
+            : 'justify-between px-4 sm:justify-center ',
         ]"
       >
         <router-link to="/">

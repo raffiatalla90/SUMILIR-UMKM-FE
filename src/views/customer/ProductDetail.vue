@@ -1885,12 +1885,6 @@ function handleScroll() {
 
 // buyNow: keep your existing behavior, but use safe fields
 function buyNow() {
-  if (!authStore.isAuthenticated) {
-    toast.info("Silakan login terlebih dahulu untuk melanjutkan pembelian.");
-    router.push({ name: "Login", query: { redirect: route.fullPath } });
-    return;
-  }
-
   const qty = Number(quantity.value || 1);
   const unitPrice =
     Number(getCurrentPrice()) || Number(product.value?.price || 0);

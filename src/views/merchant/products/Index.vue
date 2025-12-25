@@ -1086,7 +1086,7 @@ const tableActions = [
     <!-- ✅ FIXED: Loading State -->
     <div
       v-if="loadingFetchProducts"
-      class="flex justify-center items-center py-20 bg-white rounded-lg mx-4 sm:mx-6"
+      class="flex justify-center items-center min-h-[70dvh] w-full rounded-lg mx-0"
     >
       <div
         class="w-10 h-10 border-4 border-muted-foreground border-t-merchant-primary rounded-full animate-spin"

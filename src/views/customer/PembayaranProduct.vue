@@ -3,7 +3,39 @@
     <!-- Mobile Header -->
     <MobileHeader title="Checkout Pesanan" variant="primary" />
 
-    <main class="px-4 space-y-4 mt-4">
+    <main class="px-4 space-y-4 pt-4">
+      <!-- DATA PEMESAN (HANYA JIKA BELUM LOGIN) -->
+      <section
+        v-if="isGuest"
+        class="bg-white rounded-xl border border-gray-200 p-4"
+      >
+        <h2 class="font-semibold text-gray-800 mb-3">Data Pemesan</h2>
+
+        <Form :validation-schema="schema">
+          <div class="space-y-3">
+            <TextField
+              name="nama"
+              label="Nama Lengkap"
+              placeholder="Masukkan nama lengkap"
+              v-model="form.nama"
+              required
+            />
+
+            <TextField
+              name="tel"
+              label="Nomor Telepon"
+              placeholder="08xxxxxxxxxx"
+              v-model="form.tel"
+              required
+            />
+          </div>
+        </Form>
+
+        <p class="text-xs text-gray-500 mt-2">
+          Digunakan untuk keperluan konfirmasi pesanan
+        </p>
+      </section>
+
       <!-- Detail Pesanan -->
       <section class="bg-white rounded-xl border border-gray-200 p-4">
         <h2 class="font-semibold text-gray-800 mb-3">Detail Pesanan</h2>
@@ -103,15 +135,22 @@
       <section class="bg-white rounded-xl border border-gray-200 p-4">
         <h2 class="font-semibold text-gray-800 mb-3">Metode Pengiriman</h2>
         <div class="flex items-center gap-4 text-sm">
-          <label class="flex items-center gap-2 cursor-pointer">
+          <label
+            class="flex items-center gap-2"
+            :class="
+              isGuest ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+            "
+          >
             <input
               type="radio"
               value="delivery"
               v-model="form.metodePengiriman"
+              :disabled="isGuest"
               class="w-4 h-4 text-[#FFA30E] focus:ring-[#FFA30E]"
             />
             <span>Diantar</span>
           </label>
+
           <label class="flex items-center gap-2 cursor-pointer">
             <input
               type="radio"
@@ -475,6 +514,24 @@ import MobileHeader from "@/components/customer/MobileHeader.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import { useCheckoutStore } from "@/stores/checkout";
 import { useAuthStore } from "@/stores/auth";
+import * as yup from "yup";
+import { Form } from "vee-validate";
+
+const schema = yup.object({
+  nama: yup.string().required("Nama wajib diisi"),
+  tel: yup
+    .string()
+    .max(13, "No. Telepon maksimal 13 digit")
+    .matches(
+      /^08[0-9]{8,11}$/,
+      "Format nomor telepon tidak valid, harus diawali dengan 08, lebih dari 10 digit"
+    )
+    .min(10, "No. Telepon minimal 10 digit"),
+
+  metodePengiriman: yup.string().required(),
+  catatanProduk: yup.string(),
+  catatanAlamat: yup.string(),
+});
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -505,7 +562,7 @@ const checkoutItems = computed(() => {
     },
   ];
 });
-
+const isGuest = computed(() => !auth.isAuthenticated);
 // Order view model (dari store)
 const order = computed(() => {
   if (checkout.from === "cart") {
@@ -587,7 +644,7 @@ onMounted(async () => {
 const form = ref({
   nama: "",
   tel: "",
-  metodePengiriman: "delivery",
+  metodePengiriman: "pickup",
   catatanProduk: "",
   catatanAlamat: "",
 });
@@ -597,6 +654,17 @@ watch(
   (v) => {
     amounts.value.ongkir = v === "pickup" ? 0 : 10000;
     if (v === "delivery") pay.value.method = "QRIS";
+  },
+  { immediate: true }
+);
+watch(
+  () => isGuest.value,
+  (guest) => {
+    if (guest) {
+      form.value.metodePengiriman = "pickup"; // 🔒 paksa pickup
+      pay.value.method = "QRIS"; // aman (atau COD kalau mau)
+      amounts.value.ongkir = 0;
+    }
   },
   { immediate: true }
 );
@@ -674,9 +742,17 @@ const addresses = ref([
 if (!selectedAddress.value)
   selectedAddress.value =
     addresses.value.find((a) => a.isDefault) || addresses.value[0] || null;
-const isFormValid = computed(
-  () => !(form.value.metodePengiriman === "delivery" && !selectedAddress.value)
-);
+const isFormValid = computed(() => {
+  if (isGuest.value) {
+    if (!form.value.nama || !form.value.tel) return false;
+  }
+
+  if (form.value.metodePengiriman === "delivery" && !selectedAddress.value) {
+    return false;
+  }
+
+  return true;
+});
 
 // WhatsApp text: gunakan lineSubtotal untuk ringkasan harga
 const openWhatsapp = () => {
