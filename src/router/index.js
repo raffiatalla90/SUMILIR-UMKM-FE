@@ -106,7 +106,7 @@ const routes = [
         },
       },
       {
-        path: "search",
+        path: "search/:keyword?",
         name: "Search Page",
         component: () => import("@/views/customer/SearchPage.vue"),
         meta: { title: "Search | SUMILIR" },
@@ -253,7 +253,7 @@ const routes = [
         component: () => import("@/views/admin/vouchers/Index.vue"),
         meta: { title: "All Vouchers | Admin SUMILIR" },
       },
-      // USERS 
+      // USERS
       {
         path: "users",
         name: "Admin - Users",
@@ -262,7 +262,7 @@ const routes = [
         children: [
           {
             path: "",
-            redirect: { name: "Admin - Customers List" }, 
+            redirect: { name: "Admin - Customers List" },
           },
 
           // Customer Route
@@ -274,9 +274,9 @@ const routes = [
             meta: { title: "Customer List | Admin SUMILIR" },
           },
           {
-            path: 'customers/create',
-            name: 'Admin - Customer Create',
-            component: () => import('@/views/admin/users/customers/Create.vue'),
+            path: "customers/create",
+            name: "Admin - Customer Create",
+            component: () => import("@/views/admin/users/customers/Create.vue"),
           },
           {
             path: "customers/:id",
@@ -290,7 +290,7 @@ const routes = [
           {
             path: "merchants",
             name: "Admin - Merchants List",
-            component: () => import("@/views/admin/users/merchants/Index.vue"), 
+            component: () => import("@/views/admin/users/merchants/Index.vue"),
             meta: { title: "Merchant List | Admin SUMILIR" },
           },
           {
@@ -516,9 +516,7 @@ router.beforeEach(async (to, from, next) => {
 
     // Jika status bukan approved, blok akses
     if (merchant.status !== "approved") {
-      console.warn(
-        "Merchant belum approved, redirect ke /merchant-register"
-      );
+      console.warn("Merchant belum approved, redirect ke /merchant-register");
       return next("/merchant-register");
     }
   }
