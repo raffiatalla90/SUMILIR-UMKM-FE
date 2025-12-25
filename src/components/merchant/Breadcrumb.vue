@@ -1,5 +1,4 @@
 <script setup>
-// filepath: /var/www/html/KMI-SIMSLIFE-FE/src/components/common/Breadcrumb.vue
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
@@ -21,6 +20,11 @@ const router = useRouter();
 const processedItems = computed(() => {
   return props.items.map((item) => {
     if (!item.path) return item;
+
+    // Pastikan path adalah string sebelum pakai startsWith/includes
+    if (typeof item.path !== "string") {
+      return item;
+    }
 
     if (item.path.startsWith("http") || item.path.includes("/:merchantId")) {
       return item;

@@ -206,25 +206,28 @@ const routes = [
         path: "events",
         name: "Admin - Events",
         component: () => import("@/views/admin/events/Index.vue"),
-        meta: { title: "Events | Admin SUMILIR" },
-      },
-      {
-        path: "events/create",
-        name: "Admin - Create Event",
-        component: () => import("@/views/admin/events/Create.vue"),
-        meta: { title: "Create Event | Admin SUMILIR" },
-      },
-      {
-        path: "events/:id",
-        name: "Admin - Event Detail",
-        component: () => import("@/views/admin/events/Detail.vue"),
-        meta: { title: "Event Detail | Admin SUMILIR" },
-      },
-      {
-        path: "events/:id/edit",
-        name: "Admin - Edit Event",
-        component: () => import("@/views/admin/events/Edit.vue"),
-        meta: { title: "Edit Event | Admin SUMILIR" },
+        children: [
+          {
+            path: "",
+            name: "Admin - Events List",
+            component: () => import("@/views/admin/events/List.vue"),
+          },
+          {
+            path: "create",
+            name: "Admin - Create Event",
+            component: () => import("@/views/admin/events/Create.vue"),
+          },
+          {
+            path: ":id",
+            name: "Admin - Event Detail",
+            component: () => import("@/views/admin/events/Detail.vue"),
+          },
+          {
+            path: ":id/edit",
+            name: "Admin - Edit Event",
+            component: () => import("@/views/admin/events/Edit.vue"),
+          },
+        ],
       },
       // PRODUCTS
       {
