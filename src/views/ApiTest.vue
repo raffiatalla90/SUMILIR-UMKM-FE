@@ -6,16 +6,16 @@ const data = ref(null);
 
 onMounted(async () => {
   try {
-    const response = await api.get("/api/public/products", {
-      params: {
-        segments: ["UMKM Toko"],
-      },
-    });
+    // const response = await api.get("/api/public/products", {
+    //   params: {
+    //     segments: ["UMKM Toko"],
+    //   },
+    // });
     // const response = await getPublicProducts({
     //   segment: ["UMKM Kuliner"],
     //   limit: 12,
     // });
-    // const response = await api.get("/api/public/products/terang-bulan-premium");
+    const response = await api.get("/api/products/asdgfd");
     data.value = response.data;
     console.log("API Response:", response.data);
   } catch (error) {

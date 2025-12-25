@@ -2,7 +2,7 @@
 // =======================
 // 1. IMPORTS
 // =======================
-import { ref, computed, onMounted, watch, watchEffect } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "@/stores/auth";
@@ -19,7 +19,6 @@ import MobilePagination from "@/components/common/MobilePagination.vue";
 import BulkActionBar from "@/components/common/BulkActionBar.vue";
 import { useProducts } from "@/composables/useProducts";
 import { useCategories } from "@/composables/useCategories";
-import api from "@/libs/axios";
 
 const router = useRouter();
 const route = useRoute();
@@ -59,6 +58,7 @@ const currentMerchantName = computed(() => {
 // ✅ Use products composable
 const {
   products,
+  loadingExport,
   loading,
   pagination,
   fetchProducts,
@@ -66,6 +66,8 @@ const {
   updateProductStatus,
   bulkDeleteProducts,
   bulkUpdateStatus,
+  exportExcel,
+  exportPDF,
 } = useProducts();
 
 // ✅ NEW: Use categories composable
@@ -175,8 +177,6 @@ const loadProducts = async () => {
     return;
   }
 
-  logCookies("BEFORE fetchProducts"); // ✅ Log before
-
   try {
     const sortBy = buildSortByParam(activeFilters.value);
 
@@ -193,11 +193,8 @@ const loadProducts = async () => {
       perPage: perPage.value,
       page: currentPage.value,
     });
-
-    logCookies("AFTER fetchProducts"); // ✅ Log after
   } catch (error) {
-    logCookies("ERROR in fetchProducts"); // ✅ Log on error
-    toast.error(error.response?.data?.message || "Gagal memuat produk");
+    // toast error sudah ditangani di composable
   }
 };
 
@@ -240,12 +237,14 @@ const bulkDelete = () => {
 const confirmBulkDelete = async () => {
   try {
     await bulkDeleteProducts(selectedProducts.value);
+
     toast.success(`${selectedProductsCount.value} produk berhasil dihapus`);
+
     selectedProducts.value = [];
     selectAll.value = false;
     closeBulkDeleteModal();
-  } catch (error) {
-    toast.error(error.response?.data?.message || "Gagal menghapus produk");
+  } catch (e) {
+    // toast error sudah ditangani di composable
   }
 };
 
@@ -331,72 +330,16 @@ const buildExportParams = () => {
   return params;
 };
 
-// Helper: unduh Blob ke file
-const saveBlob = (blob, fallbackName) => {
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = fallbackName;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  window.URL.revokeObjectURL(url);
-};
-
 // Export Excel (via BE)
-const exportExcel = async () => {
-  try {
-    const params = buildExportParams();
-    const res = await api.get("/api/products/export/excel", {
-      params,
-      responseType: "blob",
-    });
-
-    // Ambil nama file dari header jika ada
-    const disposition = res.headers["content-disposition"] || "";
-    const match = disposition.match(/filename="?([^"]+)"?/);
-    const filename =
-      match?.[1] ||
-      `products-${new Date()
-        .toISOString()
-        .slice(0, 19)
-        .replace(/[:T]/g, "")}.xlsx`;
-
-    saveBlob(res.data, filename);
-    toast.success("Export Excel berhasil diunduh");
-  } catch (err) {
-    toast.error(err.response?.data?.message || "Gagal export Excel");
-  } finally {
-    closeExportModal();
-  }
+const confirmExportExcel = async () => {
+  await exportExcel(buildExportParams());
+  closeExportModal();
 };
 
 // Export PDF (via BE)
-const exportPDF = async () => {
-  try {
-    const params = buildExportParams();
-    const res = await api.get("/api/products/export/pdf", {
-      params,
-      responseType: "blob",
-    });
-
-    // Ambil nama file dari header jika ada
-    const disposition = res.headers["content-disposition"] || "";
-    const match = disposition.match(/filename="?([^"]+)"?/);
-    const filename =
-      match?.[1] ||
-      `products-${new Date()
-        .toISOString()
-        .slice(0, 19)
-        .replace(/[:T]/g, "")}.pdf`;
-
-    saveBlob(res.data, filename);
-    toast.success("Export PDF berhasil diunduh");
-  } catch (err) {
-    toast.error(err.response?.data?.message || "Gagal export PDF");
-  } finally {
-    closeExportModal();
-  }
+const confirmExportPDF = async () => {
+  await exportPDF(buildExportParams());
+  closeExportModal();
 };
 
 // ✅ UPDATED: goToCreate with merchantId
@@ -439,13 +382,8 @@ const deleteProductAction = (product) => {
 const confirmDeleteProduct = async () => {
   if (!selectedProductForDelete.value) return;
 
-  try {
-    await deleteProduct(selectedProductForDelete.value.slug); // ✅ slug
-    toast.success("Produk berhasil dihapus");
-    closeDeleteModal();
-  } catch (error) {
-    toast.error(error.response?.data?.message || "Gagal menghapus produk");
-  }
+  await deleteProduct(selectedProductForDelete.value.slug); // ✅ slug
+  closeDeleteModal();
 };
 
 const hasSelectedProducts = computed(() => {
@@ -593,7 +531,7 @@ const confirmSingleStatusChange = async () => {
     toast.success(`Status produk berhasil diubah menjadi ${statusLabel}`);
     closeStatusChangeModal();
   } catch (error) {
-    toast.error(error.response?.data?.message || "Gagal mengubah status");
+    // error toast sudah di composable
   }
 };
 
@@ -618,17 +556,17 @@ const confirmBulkStatusChange = async () => {
 
   try {
     await bulkUpdateStatus(selectedProducts.value, newBulkStatus.value);
+
     const statusLabel = getStatusLabel(newBulkStatus.value);
     toast.success(
       `${selectedProductsCount.value} produk berhasil diubah menjadi ${statusLabel}`
     );
+
     selectedProducts.value = [];
     selectAll.value = false;
     closeBulkStatusChangeModal();
-  } catch (error) {
-    toast.error(
-      error.response?.data?.message || "Gagal mengubah status produk"
-    );
+  } catch (e) {
+    // error toast sudah di composable
   }
 };
 
@@ -1682,8 +1620,14 @@ const tableActions = [
       <!-- Content -->
       <div class="space-y-3">
         <button
-          @click="exportPDF"
+          @click="confirmExportPDF"
+          :disabled="loadingExport"
           class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary transition text-left group"
+          :class="
+            loadingExport
+              ? 'opacity-50 cursor-not-allowed'
+              : 'hover:bg-muted-background hover:border-merchant-primary'
+          "
         >
           <div
             class="w-12 h-12 bg-danger-background rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform"
@@ -1701,8 +1645,14 @@ const tableActions = [
         </button>
 
         <button
-          @click="exportExcel"
+          @click="confirmExportExcel"
+          :disabled="loadingExport"
           class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary transition text-left group"
+          :class="
+            loadingExport
+              ? 'opacity-50 cursor-not-allowed'
+              : 'hover:bg-muted-background hover:border-merchant-primary'
+          "
         >
           <div
             class="w-12 h-12 bg-success-background rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform"

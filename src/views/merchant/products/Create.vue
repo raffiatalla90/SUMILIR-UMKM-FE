@@ -14,15 +14,111 @@ import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import api from "@/libs/axios";
 import { useCategories } from "@/composables/useCategories";
-
+import { useProductImages } from "@/composables/product/forms/useProductImages";
+import { useProductVariants } from "@/composables/product/forms/useProductVariants";
+import { useProductCombinations } from "@/composables/product/forms/useProductCombinations";
+import { useProductAddons } from "@/composables/product/forms/useProductAddons";
+const toast = useToast();
 const router = useRouter();
 const route = useRoute();
-const toast = useToast();
 const authStore = useAuthStore(); // ✅ ADD: Get auth store
 const MAX_IMAGES = 6;
 const MAX_IMAGE_SIZE_MB = 5;
 const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
-const MAX_COMBINATIONS = 50;
+
+const name = ref("");
+const description = ref("");
+
+// Categories
+const selectedCategory = ref(null);
+const selectedSubCategories = ref([]);
+
+// Variants
+const maxVariants = 2;
+const maxOptions = 50;
+
+// Add-on Groups
+const maxAddOnGroups = 10;
+const maxAddOnOptions = 10;
+
+// ✅ ADD: Deklarasi reactive values untuk form binding
+const formPrice = ref(0);
+const formStock = ref(0);
+const formMinPurchase = ref(1);
+const formSku = ref("");
+
+const {
+  productImages,
+  coverImageIndex,
+  fileInput,
+  triggerFileInput,
+  handleImageUpload,
+  removeImage,
+  onDragStart,
+  onDrop,
+  onDragEnd,
+  onDragOver,
+} = useProductImages({
+  maxImages: MAX_IMAGES,
+  maxSizeBytes: MAX_IMAGE_SIZE_BYTES,
+  toast,
+});
+
+const {
+  useVariants,
+  variants,
+  variantNames,
+  variantUsesImages,
+  canAddVariant,
+  addVariant,
+  removeVariant,
+  addOption,
+  removeOption,
+  toggleVariantImages,
+  toggleVariantExpand,
+  isVariantExpanded,
+  canAddVariantOption,
+  handleOptionImageUpload,
+  removeOptionImage,
+} = useProductVariants({
+  maxVariants,
+  maxOptions,
+  toast,
+});
+
+const {
+  combinations,
+  selectedCombinations,
+  showCombinationsModal,
+  bulkPrice,
+  bulkStock,
+  totalCombinations,
+  toggleCombinationSelection,
+  applyBulkEdit,
+  openCombinationsModal,
+  closeCombinationsModal,
+  toggleAllCombinations,
+} = useProductCombinations({
+  variants,
+  useVariants,
+  maxOptions,
+  toast,
+});
+
+const {
+  addOnGroups,
+  expandedAddOnGroups,
+  addAddOnGroup,
+  removeAddOnGroup,
+  addAddOnOption,
+  removeAddOnOption,
+  toggleAddOnGroupExpand,
+  isAddOnGroupExpanded,
+} = useProductAddons({
+  toast,
+  maxGroups: maxAddOnGroups,
+  maxOptions: maxAddOnOptions,
+});
 
 // ✅ FIXED: Get merchantId from route params
 const currentMerchantId = computed(() => {
@@ -63,53 +159,12 @@ const {
 // STATE MANAGEMENT
 // ============================================================
 const loading = ref(false);
-const useVariants = ref(false);
-const variantUsesImages = ref({});
 
 // ✅ REMOVED: Hardcoded merchantId
 // const merchantId = ref(1); // ❌ DELETE THIS
 
-const name = ref("");
-const description = ref("");
-
-// Images
-const productImages = ref([]);
-const fileInput = ref(null);
-const coverImageIndex = ref(0);
-const draggedImageIndex = ref(null);
-
-// Categories
-const selectedCategory = ref(null);
-const selectedSubCategories = ref([]);
-
-// Variants
-const variants = ref([]);
-const variantNames = ref({});
-const maxVariants = 2;
-const maxOptions = 50;
-
 // Combinations
-const combinations = ref([]);
-const showCombinationsModal = ref(false);
-const bulkPrice = ref(0);
-const bulkStock = ref(0);
-const selectedCombinations = ref(new Set());
 useBodyScrollLock(showCombinationsModal);
-
-// Add-on Groups
-const addOnGroups = ref([]);
-const maxAddOnGroups = 10;
-const maxAddOnOptions = 10;
-
-// Accordion States
-const expandedVariants = ref(new Set());
-const expandedAddOnGroups = ref(new Set());
-
-// ✅ ADD: Deklarasi reactive values untuk form binding
-const formPrice = ref(0);
-const formStock = ref(0);
-const formMinPurchase = ref(1);
-const formSku = ref("");
 
 // ============================================================
 // VALIDATION SCHEMA
@@ -214,18 +269,6 @@ watch(selectedCategory, async (newCat) => {
 });
 
 watch(
-  () => [useVariants.value, variants.value],
-  () => {
-    if (useVariants.value && variants.value.length > 0) {
-      generateCombinations();
-    } else {
-      combinations.value = [];
-      selectedCombinations.value.clear();
-    }
-  },
-  { deep: true }
-);
-watch(
   () => values.sku,
   (newVal) => {
     formSku.value = newVal || "";
@@ -275,21 +318,9 @@ watch(formMinPurchase, (newVal) => {
 const canAddSubCategory = computed(
   () => selectedSubCategories.value.length < 4
 );
-const canAddVariant = computed(() => variants.value.length < maxVariants);
 const canAddAddOnGroup = computed(
   () => addOnGroups.value.length < maxAddOnGroups
 );
-
-const totalCombinations = computed(() => {
-  if (!useVariants.value || variants.value.length === 0) return 0;
-
-  return variants.value.reduce((total, variant) => {
-    const optionsCount = variant.options.filter((opt) =>
-      opt.name.trim()
-    ).length;
-    return total === 0 ? optionsCount : total * optionsCount;
-  }, 0);
-});
 
 const combinationsExceedLimit = computed(
   () => totalCombinations.value > maxOptions
@@ -301,450 +332,6 @@ const allCombinationsSelected = computed(() => {
     selectedCombinations.value.size === combinations.value.length
   );
 });
-
-// ============================================================
-// IMAGE METHODS
-// ============================================================
-const triggerFileInput = () => {
-  fileInput.value?.click();
-};
-
-const handleImageUpload = (event) => {
-  const files = Array.from(event.target.files);
-  const remainingSlots = MAX_IMAGES - productImages.value.length;
-
-  if (remainingSlots <= 0) {
-    toast.warning("Maksimal 6 foto produk");
-    event.target.value = "";
-    return;
-  }
-
-  const allowedFiles = files.slice(0, remainingSlots);
-
-  if (files.length > remainingSlots) {
-    toast.warning(
-      `Hanya ${remainingSlots} foto yang dapat ditambahkan (maksimal 6)`
-    );
-  }
-
-  allowedFiles.forEach((file) => {
-    // ✅ Validasi type
-    if (!file.type.startsWith("image/")) {
-      toast.error(`File ${file.name} bukan gambar`);
-      return;
-    }
-
-    // ✅ Validasi size
-    if (file.size > MAX_IMAGE_SIZE_BYTES) {
-      toast.error(
-        `Gambar "${file.name}" terlalu besar. Maksimal ${MAX_IMAGE_SIZE_MB} MB`
-      );
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      productImages.value.push({
-        id: Date.now() + Math.random(),
-        file,
-        preview: e.target.result,
-      });
-
-      // Pastikan cover valid
-      if (productImages.value.length === 1) {
-        coverImageIndex.value = 0;
-      }
-    };
-    reader.readAsDataURL(file);
-  });
-
-  // Reset input supaya bisa upload ulang file yang sama
-  event.target.value = "";
-};
-
-const removeImage = (index) => {
-  productImages.value.splice(index, 1);
-
-  // ✅ PASTIKAN COVER SELALU INDEX 0
-  coverImageIndex.value = productImages.value.length > 0 ? 0 : null;
-};
-
-const onDragStart = (event, index) => {
-  draggedImageIndex.value = index;
-  event.dataTransfer.effectAllowed = "move";
-  event.dataTransfer.setData("text/html", event.target);
-};
-
-const onDragOver = (event) => {
-  event.preventDefault();
-  event.dataTransfer.dropEffect = "move";
-};
-
-const onDrop = (event, index) => {
-  event.preventDefault();
-  if (draggedImageIndex.value === null || draggedImageIndex.value === index)
-    return;
-
-  const draggedItem = productImages.value[draggedImageIndex.value];
-
-  productImages.value.splice(draggedImageIndex.value, 1);
-  productImages.value.splice(index, 0, draggedItem);
-
-  // ✅ COVER SELALU GAMBAR PERTAMA
-  coverImageIndex.value = 0;
-
-  draggedImageIndex.value = null;
-};
-
-const onDragEnd = () => {
-  draggedImageIndex.value = null;
-};
-
-// ============================================================
-// VARIANT METHODS
-// ============================================================
-const canAddVariantOption = (variantIndex) => {
-  const tempVariants = JSON.parse(JSON.stringify(variants.value));
-  tempVariants[variantIndex].options.push({ name: "__temp__" });
-
-  const total = tempVariants.reduce((t, v) => {
-    const count = v.options.filter((o) => o.name?.trim()).length;
-    return t === 0 ? count : t * count;
-  }, 0);
-
-  return total <= maxOptions;
-};
-
-const addVariant = () => {
-  if (canAddVariant.value) {
-    const variantId = Date.now() + Math.random();
-    variants.value.push({
-      id: variantId,
-      name: "",
-      options: [{ id: Date.now(), name: "", images: [] }],
-    });
-    variantNames.value[variantId] = "";
-    // ✅ FIXED: Set ke 0 (false) by default
-    variantUsesImages.value[variantId] = 0;
-    expandedVariants.value.add(variantId);
-  }
-};
-
-const removeVariant = (index) => {
-  const variantId = variants.value[index].id;
-  delete variantNames.value[variantId];
-  delete variantUsesImages.value[variantId];
-  variants.value.splice(index, 1);
-};
-
-const addOption = (variantIndex) => {
-  const variant = variants.value[variantIndex];
-
-  // hitung kombinasi jika opsi ditambah 1
-  const projectedCombinations = variants.value.reduce((total, v, idx) => {
-    let count = v.options.filter((o) => o.name.trim()).length;
-
-    if (idx === variantIndex) count += 1;
-
-    return total === 0 ? count : total * count;
-  }, 0);
-
-  if (projectedCombinations > MAX_COMBINATIONS) {
-    toast.error(`Kombinasi maksimal ${MAX_COMBINATIONS}`);
-    return;
-  }
-  variants.value[variantIndex].options.push({
-    id: Date.now() + Math.random(),
-    name: "",
-    images: [],
-  });
-};
-
-const removeOption = (variantIndex, optionIndex) => {
-  variants.value[variantIndex].options.splice(optionIndex, 1);
-};
-
-// ✅ FIXED: Toggle antara 0 dan 1
-const toggleVariantImages = (variantId) => {
-  // Toggle: 0 -> 1, 1 -> 0
-  variantUsesImages.value[variantId] = variantUsesImages.value[variantId]
-    ? 0
-    : 1;
-
-  // Jika disabled (0), hapus semua images dari options
-  if (variantUsesImages.value[variantId] === 0) {
-    const variant = variants.value.find((v) => v.id === variantId);
-    if (variant) {
-      variant.options.forEach((opt) => (opt.images = []));
-    }
-  }
-};
-
-const handleOptionImageUpload = (variantIndex, optionIndex, event) => {
-  const files = Array.from(event.target.files);
-  const option = variants.value[variantIndex].options[optionIndex];
-
-  if (option.images.length >= 1) {
-    toast.warning("Maksimal 1 foto per opsi");
-    event.target.value = "";
-    return;
-  }
-
-  const file = files[0];
-  if (file && file.type.startsWith("image/")) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      option.images = [
-        {
-          id: Date.now(),
-          file,
-          preview: e.target.result,
-        },
-      ];
-    };
-    reader.readAsDataURL(file);
-  }
-  event.target.value = "";
-};
-
-const removeOptionImage = (variantIndex, optionIndex, imageIndex) => {
-  variants.value[variantIndex].options[optionIndex].images.splice(
-    imageIndex,
-    1
-  );
-};
-
-const toggleVariantExpand = (variantId) => {
-  if (expandedVariants.value.has(variantId)) {
-    expandedVariants.value.delete(variantId);
-  } else {
-    expandedVariants.value.add(variantId);
-  }
-};
-
-const isVariantExpanded = (variantId) => {
-  return expandedVariants.value.has(variantId);
-};
-
-// ============================================================
-// COMBINATION METHODS
-// ============================================================
-const generateCombinations = () => {
-  const validVariants = variants.value
-    .filter((v) => v.name.trim() && v.options.some((opt) => opt.name.trim()))
-    .map((v) => ({
-      name: v.name.trim(),
-      options: v.options
-        .filter((opt) => opt.name.trim())
-        .map((opt) => ({
-          id: opt.id,
-          name: opt.name.trim(),
-          images: opt.images,
-        })),
-    }));
-
-  if (validVariants.length === 0) {
-    combinations.value = [];
-    selectedCombinations.value.clear();
-    return;
-  }
-
-  const newCombinations = [];
-  const generateRecursive = (variantIndex, current) => {
-    if (variantIndex === validVariants.length) {
-      const existingCombo = combinations.value.find(
-        (c) => c.combination === current.combination
-      );
-
-      newCombinations.push({
-        combination: current.combination,
-        sku: existingCombo?.sku || "",
-        price: existingCombo?.price || 0,
-        stock: existingCombo?.stock || 0,
-        attributes: [...current.attributes],
-      });
-      return;
-    }
-
-    const variant = validVariants[variantIndex];
-    variant.options.forEach((option) => {
-      generateRecursive(variantIndex + 1, {
-        combination: current.combination
-          ? `${current.combination} - ${option.name}`
-          : option.name,
-        attributes: [
-          ...current.attributes,
-          { name: variant.name, value: option.name },
-        ],
-      });
-    });
-  };
-
-  generateRecursive(0, { combination: "", attributes: [] });
-
-  if (newCombinations.length > maxOptions) {
-    toast.error(`Maksimal ${maxOptions} kombinasi`);
-    return;
-  } else {
-    combinations.value = newCombinations;
-  }
-
-  selectedCombinations.value.clear();
-};
-
-const openCombinationsModal = () => {
-  if (totalCombinations.value === 0) {
-    toast.warning(
-      "Belum ada kombinasi. Tambahkan varian dan opsi terlebih dahulu."
-    );
-    return;
-  }
-  showCombinationsModal.value = true;
-};
-
-const closeCombinationsModal = () => {
-  showCombinationsModal.value = false;
-  bulkPrice.value = 0;
-  bulkStock.value = 0;
-  selectedCombinations.value.clear();
-};
-
-const toggleCombinationSelection = (index) => {
-  if (selectedCombinations.value.has(index)) {
-    selectedCombinations.value.delete(index);
-  } else {
-    selectedCombinations.value.add(index);
-  }
-};
-
-const toggleAllCombinations = () => {
-  if (allCombinationsSelected.value) {
-    selectedCombinations.value.clear();
-  } else {
-    combinations.value.forEach((_, index) => {
-      selectedCombinations.value.add(index);
-    });
-  }
-};
-
-const applyBulkEdit = () => {
-  if (selectedCombinations.value.size === 0) {
-    toast.warning("Pilih minimal 1 kombinasi");
-    return;
-  }
-
-  let updated = false;
-  let hasError = false;
-
-  if (bulkPrice.value !== null && bulkPrice.value !== "") {
-    if (bulkPrice.value < 0) {
-      toast.error("Harga tidak boleh kurang dari 0");
-      hasError = true;
-    } else {
-      selectedCombinations.value.forEach((index) => {
-        combinations.value[index].price = bulkPrice.value;
-      });
-      updated = true;
-    }
-  }
-
-  if (!hasError && bulkStock.value !== null && bulkStock.value !== "") {
-    if (bulkStock.value < 0) {
-      toast.error("Stok tidak boleh kurang dari 0");
-      hasError = true;
-    } else if (bulkStock.value > 9999) {
-      toast.error("Stok tidak boleh lebih dari 9999");
-      hasError = true;
-    } else {
-      selectedCombinations.value.forEach((index) => {
-        combinations.value[index].stock = bulkStock.value;
-      });
-      updated = true;
-    }
-  }
-
-  if (hasError) {
-    return;
-  }
-
-  if (updated) {
-    toast.success(
-      `Perubahan diterapkan ke ${selectedCombinations.value.size} kombinasi`
-    );
-    bulkPrice.value = 0;
-    bulkStock.value = 0;
-  } else {
-    toast.warning("Masukkan minimal harga atau stok");
-  }
-};
-
-// ============================================================
-// ADDON GROUP METHODS
-// ============================================================
-
-const addAddOnGroup = () => {
-  if (addOnGroups.value.length >= maxAddOnGroups) {
-    toast.warning("Maksimal 10 grup add-on");
-    return;
-  }
-  if (canAddAddOnGroup.value) {
-    const groupId = Date.now() + Math.random();
-    addOnGroups.value.push({
-      id: groupId,
-      name: "",
-      is_required: false,
-      min_selection: 0,
-      max_selection: 1,
-      options: [
-        {
-          id: Date.now(),
-          name: "",
-          price: 0,
-        },
-      ],
-    });
-    expandedAddOnGroups.value.add(groupId);
-  }
-};
-
-const removeAddOnGroup = (index) => {
-  addOnGroups.value.splice(index, 1);
-};
-
-const addAddOnOption = (groupIndex) => {
-  const group = addOnGroups.value[groupIndex];
-
-  if (group.options.length >= maxAddOnOptions) {
-    toast.warning("Maksimal 10 opsi per grup");
-    return;
-  }
-  if (group.options.length < maxAddOnOptions) {
-    group.options.push({
-      id: Date.now() + Math.random(),
-      name: "",
-      price: 0,
-    });
-  }
-};
-
-const removeAddOnOption = (groupIndex, optionIndex) => {
-  const group = addOnGroups.value[groupIndex];
-  if (group.options.length > 1) {
-    group.options.splice(optionIndex, 1);
-  }
-};
-
-const toggleAddOnGroupExpand = (groupId) => {
-  if (expandedAddOnGroups.value.has(groupId)) {
-    expandedAddOnGroups.value.delete(groupId);
-  } else {
-    expandedAddOnGroups.value.add(groupId);
-  }
-};
-
-const isAddOnGroupExpanded = (groupId) => {
-  return expandedAddOnGroups.value.has(groupId);
-};
 
 // ============================================================
 // SUBMIT HANDLER
@@ -1105,13 +692,6 @@ const onSubmit = veeHandleSubmit(
     toast.error(String(firstMsg));
   }
 );
-
-// ============================================================
-// UTILITY METHODS
-// ============================================================
-const goBack = () => {
-  router.back();
-};
 </script>
 
 <!-- Template unchanged, just ensure mobile header back button uses dynamic route -->
@@ -2356,7 +1936,7 @@ const goBack = () => {
 }
 
 /* Smooth accordion animation */
-.transition-all {
+/* .transition-all {
   transition-property: max-height, opacity;
-}
+} */
 </style>

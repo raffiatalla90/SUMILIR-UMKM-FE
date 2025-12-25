@@ -1,12 +1,15 @@
 // composables/useProducts.js
 import { ref } from "vue";
-import api from "@/libs/axios";
 import { getVariantImageUrl } from "@/libs/getVariantImageUrl.js";
 import * as ProductService from "@/services/api/product";
+import { useToast } from "vue-toastification";
+import { saveBlob } from "@/libs/saveBlob.js";
 
 export function useProducts() {
+  const toast = useToast();
   const products = ref([]);
   const loading = ref(false);
+  const loadingExport = ref(false);
   const pagination = ref({
     current_page: 1,
     last_page: 1,
@@ -18,27 +21,7 @@ export function useProducts() {
   let lastRequestParams = null;
   let pendingRequest = null;
 
-  // Fetch Product Detail (admin scope?) -- pastikan endpoint sesuai
-  const fetchProductDetail = async (productSlug) => {
-    try {
-      const payload = await ProductService.getProductDetail(productSlug);
-      if (!payload) throw new Error("Product data tidak ditemukan");
-
-      if (payload.addon_groups) payload.addonGroups = payload.addon_groups;
-      if (!Array.isArray(payload.images)) {
-        payload.images = payload.images ? [payload.images] : [];
-      }
-
-      return payload;
-    } catch (err) {
-      toast.error("Gagal memuat detail produk");
-      throw err;
-    }
-  };
-
-  /**
-   * Fetch products dari backend
-   */
+  // Admin UMKM
   const fetchProducts = async ({
     merchantId,
     searchQuery = "",
@@ -136,13 +119,78 @@ export function useProducts() {
     return pendingRequest;
   };
 
-  // Delete, update, bulk ops (tetap seperti yang kamu tulis)
+  const fetchProductDetail = async (productSlug) => {
+    try {
+      const payload = await ProductService.getProductDetail(productSlug);
+      if (!payload) throw new Error("Product data tidak ditemukan");
+
+      if (payload.addon_groups) payload.addonGroups = payload.addon_groups;
+      if (!Array.isArray(payload.images)) {
+        payload.images = payload.images ? [payload.images] : [];
+      }
+
+      return payload;
+    } catch (err) {
+      toast.error("Gagal memuat detail produk");
+      throw err;
+    }
+  };
+
+  const exportPDF = async (params = {}) => {
+    if (loadingExport.value) return;
+    loadingExport.value = true;
+    try {
+      const res = await ProductService.exportPDF(params);
+
+      const disposition = res.headers["content-disposition"] || "";
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const filename =
+        match?.[1] ||
+        `products-${new Date()
+          .toISOString()
+          .slice(0, 19)
+          .replace(/[:T]/g, "")}.pdf`;
+
+      saveBlob(res.data, filename);
+      toast.success("Export PDF berhasil diunduh");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Gagal export PDF");
+    }
+    loadingExport.value = false;
+  };
+
+  const exportExcel = async (params = {}) => {
+    if (loadingExport.value) return;
+    loadingExport.value = true;
+    try {
+      const res = await ProductService.exportExcel(params);
+
+      // Ambil nama file dari header jika ada
+      const disposition = res.headers["content-disposition"] || "";
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const filename =
+        match?.[1] ||
+        `products-${new Date()
+          .toISOString()
+          .slice(0, 19)
+          .replace(/[:T]/g, "")}.xlsx`;
+
+      saveBlob(res.data, filename);
+      toast.success("Export Excel berhasil diunduh");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Gagal export Excel");
+    } finally {
+      loadingExport.value = false;
+    }
+  };
+
   const deleteProduct = async (productSlug) => {
     loading.value = true;
     try {
       await ProductService.deleteProduct(productSlug);
       products.value = products.value.filter((p) => p.slug !== productSlug);
       pagination.value.total = Math.max(0, pagination.value.total - 1);
+      toast.success("Produk berhasil dihapus");
     } catch (error) {
       toast.error("Gagal menghapus produk");
       throw error;
@@ -201,7 +249,9 @@ export function useProducts() {
     }
   };
 
-  const fetchProductsToko = async (limit = 12) => {
+  // PUBLIC PRODUCTS (UMKM Toko & Kuliner)
+
+  const fetchProductsToko = async (limit = 15) => {
     loading.value = true;
     try {
       const data = await ProductService.getPublicProducts({
@@ -217,7 +267,7 @@ export function useProducts() {
     }
   };
 
-  const fetchProductsKuliner = async (limit = 12) => {
+  const fetchProductsKuliner = async (limit = 15) => {
     loading.value = true;
     try {
       const data = await ProductService.getPublicProducts({
@@ -233,10 +283,6 @@ export function useProducts() {
     }
   };
 
-  /**
-   * Public product detail (UI-friendly mapping)
-   * Pastikan import buildImageUrl ada, dan axios support `signal` kalau kamu gunakan
-   */
   const fetchPublicProductDetail = async (slug) => {
     loading.value = true;
     try {
@@ -515,9 +561,9 @@ export function useProducts() {
     }
   };
 
-  // SINGLE RETURN STATEMENT AT THE END (tambahkan fetchPublicProductDetail)
   return {
     products,
+    loadingExport,
     loading,
     pagination,
     fetchProducts,
@@ -529,5 +575,7 @@ export function useProducts() {
     bulkUpdateStatus,
     fetchProductsToko,
     fetchProductsKuliner,
+    exportPDF,
+    exportExcel,
   };
 }

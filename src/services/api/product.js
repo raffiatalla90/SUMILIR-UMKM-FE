@@ -60,31 +60,31 @@ export async function deleteProduct(slug) {
   return data;
 }
 
-export async function deleteBulk(slugs = []) {
-  const { data } = await api.post(`/api/products/bulk-delete`, { slugs });
+export async function deleteBulk(productSlugs = []) {
+  const { data } = await api.post(`/api/products/bulk-delete`, {
+    product_slugs: productSlugs,
+  });
   return data;
 }
 
-export async function editBulkStatus(slugs = [], status) {
+export async function editBulkStatus(productSlugs = [], status) {
   const { data } = await api.post(`/api/products/bulk-update-status`, {
-    slugs,
+    product_slugs: productSlugs,
     status,
   });
   return data;
 }
 
 export async function exportPDF(params = {}) {
-  const { data } = await api.get(`/api/products/export/pdf`, {
+  return api.get(`/api/products/export/pdf`, {
     params,
     responseType: "blob",
   });
-  return data;
 }
 
 export async function exportExcel(params = {}) {
-  const { data } = await api.get(`/api/products/export/excel`, {
+  return api.get(`/api/products/export/excel`, {
     params,
     responseType: "blob",
   });
-  return data;
 }
