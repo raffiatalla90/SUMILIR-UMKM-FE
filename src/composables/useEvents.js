@@ -52,7 +52,7 @@ export function useEvents() {
   const fetchEventDetail = async (id) => {
     loading.value = true;
     try {
-      const response = await api.get(`/events/${id}`);
+      const response = await api.get(`/api/admin/events/${id}`);
       return response.data.data || response.data;
     } catch (error) {
       toast.error("Gagal memuat detail event");

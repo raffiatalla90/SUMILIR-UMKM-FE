@@ -93,7 +93,7 @@ const activeFilterCount = computed(() => {
   return count;
 });
 
-// ✅ Pastikan loadMerchants pakai search/filter/page/per_page
+// Load merchants with filters
 const loadMerchants = async () => {
   try {
     await fetchMerchants({
@@ -155,11 +155,7 @@ const goToDetail = (merchant) => {
   router.push({ name: "Admin - Merchant Detail", params: { id: merchant.id } });
 };
 
-const goToCreate = () => {
-  toast.info("Tambah merchant sedang dalam pengembangan");
-};
-
-// Pagination methods (identik products)
+// Pagination methods
 const goToPage = (page) => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page;
@@ -173,25 +169,12 @@ const prevPage = () => {
   if (currentPage.value > 1) goToPage(currentPage.value - 1);
 };
 
-function getSegmentationColor(segmentationName) {
-  switch ((segmentationName || "").toLowerCase()) {
-    case "umkm toko":
-      return { bg: "rgba(5, 136, 149, 0.1)", text: "#058895" }; 
-    case "umkm kuliner":
-      return { bg: "rgba(25, 74, 122, 0.1)", text: "#194a7a" }; 
-    case "umkm jasa":
-      return { bg: "rgba(255,94,94,0.1)", text: "#ff5e5e" }; 
-    default:
-      return { bg: "#f3f4f6", text: "#6b7280" };
-  }
-}
-
 watch(currentPage, () => loadMerchants());
 onMounted(() => loadMerchants());
 
 defineExpose({
   openExportModal,
-  goToCreate,
+  goToCreate: () => toast.info("Tambah merchant sedang dalam pengembangan"),
 });
 </script>
 
@@ -290,15 +273,11 @@ defineExpose({
         </template>
 
         <template #cell-segmentation="{ item }">
-          <span
-            class="px-2 py-1 text-xs rounded-full font-semibold"
-            :style="{
-              backgroundColor: getSegmentationColor(item.segmentation?.name).bg,
-              color: getSegmentationColor(item.segmentation?.name).text
-            }"
-          >
-            {{ item.segmentation?.name || "-" }}
-          </span>
+          <StatusLabel
+            :status="item.segmentation?.code || item.segmentation?.name?.toLowerCase().replace(/\s/g, '_')"
+            variant="segmentation"
+            size="sm"
+          />
         </template>
 
         <template #cell-products_count="{ item }">
@@ -306,7 +285,11 @@ defineExpose({
         </template>
 
         <template #cell-status="{ item }">
-          <StatusLabel :status="item.status" size="sm" />
+          <StatusLabel
+            :status="item.status"
+            variant="merchant"
+            size="sm"
+          />
         </template>
 
         <template #cell-actions="{ item }">
@@ -351,19 +334,16 @@ defineExpose({
               <p class="text-xs text-gray-500 truncate">{{ m.user?.email || "-" }}</p>
             </div>
 
-            <StatusLabel :status="m.status" size="sm" />
+            <StatusLabel :status="m.status" variant="merchant" size="sm" />
           </div>
 
           <div class="flex items-center justify-between text-xs border-t pt-2">
-            <span
-              class="px-2 py-1 rounded-full font-semibold"
-              :style="{
-                backgroundColor: getSegmentationColor(m.segmentation?.name).bg,
-                color: getSegmentationColor(m.segmentation?.name).text
-              }"
-            >
-              {{ m.segmentation?.name || "-" }}
-            </span>
+            <StatusLabel
+              :status="m.segmentation?.code || m.segmentation?.name?.toLowerCase().replace(/\s/g, '_')"
+              :label="m.segmentation?.name"
+              variant="segmentation"
+              size="sm"
+            />
             <span class="text-gray-600">
               <i class="pi pi-box mr-1"></i>
               {{ m.products_count || 0 }} Produk

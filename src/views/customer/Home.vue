@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch, nextTick } from "vue";
+import { ref, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { Form } from "vee-validate";
 import TextField from "@/components/forms/TextField.vue";
 import CategoryCard from "@/components/Card/CategoryCard.vue";
@@ -16,6 +16,7 @@ import komunitasIcon from "@/assets/icons/Komunitas.svg";
 import Button from "@/components/common/Button.vue";
 import api from "@/libs/axios.js";
 import { useRoute, useRouter } from "vue-router";
+import { getImageUrl } from "@/libs/getImageUrl"; // pastikan ada
 
 const route = useRoute();
 const router = useRouter();
@@ -52,7 +53,9 @@ const categories = ref([
 const merchantList = ref([]);
 const promoList = ref([]);
 const eventList = ref([]);
+const eventBannerList = ref([]);
 const isLoadMore = ref(false); // Untuk loading state tombol
+const activeBanner = ref(0); // Untuk menyimpan index banner yang aktif
 
 const onSearch = () => {
   const q = (searchQuery.value || "").trim();
@@ -75,6 +78,28 @@ const loadMoreMerchants = async () => {
     isLoadMore.value = false;
   }
 };
+
+function nextBanner() {
+  activeBanner.value = (activeBanner.value + 1) % eventBannerList.value.length;
+}
+function prevBanner() {
+  activeBanner.value =
+    (activeBanner.value - 1 + eventBannerList.value.length) % eventBannerList.value.length;
+}
+function slideTo(idx) {
+  activeBanner.value = idx;
+}
+
+// Optional: auto slide
+let bannerInterval = null;
+onMounted(() => {
+  bannerInterval = setInterval(() => {
+    if (eventBannerList.value.length > 1) nextBanner();
+  }, 5000);
+});
+onUnmounted(() => {
+  if (bannerInterval) clearInterval(bannerInterval);
+});
 
 onMounted(async () => {
   // ✅ Fetch random merchants
@@ -106,6 +131,16 @@ onMounted(async () => {
     eventList.value = Array(5).fill({ id: 1 });
     isLoadingEvent.value = false;
   }, 1000);
+
+  try {
+    const res = await api.get("/api/public/events", {
+      params: { status: "published" },
+    });
+    // Ambil hanya event yang punya banner
+    eventBannerList.value = (res.data.data || []).filter((e) => e.banner_img_path);
+  } catch (e) {
+    eventBannerList.value = [];
+  }
 });
 watch(
   () => route.query.focusSearch,
@@ -125,10 +160,57 @@ watch(
 
 <template>
   <div class="app-container relative">
-    <!-- Section: Hero + Menu Box -->
+    <!-- Section: Hero + Event Banner Slider -->
     <section id="hero" class="relative pb-2">
-      <div class="h-[240px] sm:h-[370px] w-full bg-secondary"></div>
-
+      <div class="relative w-full">
+        <div class="relative h-[240px] sm:h-[370px] overflow-hidden rounded-base">
+          <!-- Slider Images -->
+          <div v-for="(banner, idx) in eventBannerList" :key="banner.id"
+            class="absolute inset-0 transition-all duration-700 ease-in-out"
+            :class="activeBanner === idx ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'">
+            <img
+              :src="getImageUrl(banner.banner_img_path)"
+              class="w-full h-full object-cover"
+              :alt="banner.event_name"
+            />
+            <!-- Optional: Overlay title -->
+            <div class="absolute bottom-0 left-0 w-full bg-black/30 text-white p-4">
+              <h2 class="text-lg sm:text-2xl font-bold">{{ banner.event_name }}</h2>
+              <p class="text-sm">{{ banner.event_description }}</p>
+            </div>
+          </div>
+          <!-- Slider Controls -->
+          <button
+            type="button"
+            class="absolute top-1/2 left-2 -translate-y-1/2 z-20 flex items-center justify-center h-10 w-10 rounded-base bg-white/30 hover:bg-white/50 transition"
+            @click="prevBanner"
+            aria-label="Previous"
+          >
+            <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m15 19-7-7 7-7"/></svg>
+          </button>
+          <button
+            type="button"
+            class="absolute top-1/2 right-2 -translate-y-1/2 z-20 flex items-center justify-center h-10 w-10 rounded-base bg-white/30 hover:bg-white/50 transition"
+            @click="nextBanner"
+            aria-label="Next"
+          >
+            <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m9 5 7 7-7 7"/></svg>
+          </button>
+          <!-- Slider Indicators -->
+          <div class="absolute z-30 flex -translate-x-1/2 bottom-4 left-1/2 space-x-3">
+            <button
+              v-for="(banner, idx) in eventBannerList"
+              :key="banner.id"
+              type="button"
+              class="w-3 h-3 rounded-base"
+              :class="activeBanner === idx ? 'bg-white' : 'bg-white/50'"
+              @click="slideTo(idx)"
+              :aria-current="activeBanner === idx ? 'true' : 'false'"
+              :aria-label="`Slide ${idx + 1}`"
+            ></button>
+          </div>
+        </div>
+      </div>
       <div
         class="flex justify-center -mt-10 px-4 relative z-10 max-w-7xl mx-auto"
       >
@@ -252,41 +334,6 @@ watch(
             <span v-if="!isLoadMore">Muat Lebih Banyak</span>
             <span v-else>Memuat...</span>
           </Button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Section Event -->
-    <section id="event" class="relative pt-6 sm:pt-24 pb-6 lg:pb-12">
-      <div class="pl-4 lg:pl-[54px]">
-        <div class="inline-flex items-center gap-2.5 w-auto h-[35px] py-[5px]">
-          <span
-            class="text-base sm:text-2xl lg:text-section-title font-semibold"
-            >Event</span
-          >
-        </div>
-      </div>
-
-      <div
-        class="overflow-x-auto overflow-y-hidden no-scrollbar mx-4 lg:mx-[57px] pt-3 lg:pt-[17px] scroll-smooth snap-x snap-mandatory"
-      >
-        <div class="flex gap-4 sm:gap-8 min-w-max">
-          <!-- Skeleton loading -->
-          <template v-if="isLoadingEvent">
-            <div v-for="i in 5" :key="i" class="snap-start shrink-0">
-              <EventCardSkeleton />
-            </div>
-          </template>
-          <!-- Actual content -->
-          <template v-else>
-            <div
-              v-for="(event, i) in eventList"
-              :key="i"
-              class="snap-start shrink-0"
-            >
-              <EventCard :event="event" />
-            </div>
-          </template>
         </div>
       </div>
     </section>

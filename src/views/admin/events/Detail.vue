@@ -54,7 +54,7 @@ const loadEvent = async () => {
 const loadMerchants = async () => {
   loadingMerchants.value = true;
   try {
-    const response = await api.get("/public/merchants");
+    const response = await api.get("/api/public/merchants");
     merchants.value = response.data.data || response.data || [];
   } catch (error) {
     console.error("Failed to load merchants:", error);
@@ -91,6 +91,11 @@ const handleInvite = async () => {
   }
 };
 
+const segmentationMap = {
+  1: "UMKM Toko",
+  2: "UMKM Kuliner",
+  3: "UMKM Jasa",
+};
 // Delete event
 const confirmDelete = () => {
   showDeleteModal.value = true;
@@ -113,6 +118,16 @@ const goToEdit = () => {
   });
 };
 
+function formatDate(dateStr) {
+  if (!dateStr) return "-";
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 const goBack = () => router.push({ name: "Admin - Events" });
 
 onMounted(async () => {
@@ -123,29 +138,6 @@ onMounted(async () => {
 
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- Header -->
-    <div class="bg-white shadow-sm sticky top-0 z-20 px-4 sm:px-6 py-4">
-      <Breadcrumb :items="breadcrumbItems" />
-      <div class="flex items-center justify-between mt-4">
-        <h1 class="text-xl sm:text-2xl font-bold text-primary">
-          Detail Event
-        </h1>
-        <div class="flex gap-2">
-          <Button @click="goBack" variant="secondary">
-            <i class="pi pi-arrow-left mr-2"></i>
-            Kembali
-          </Button>
-          <Button @click="goToEdit" variant="warning">
-            <i class="pi pi-pencil mr-2"></i>
-            Edit
-          </Button>
-          <Button @click="confirmDelete" variant="danger">
-            <i class="pi pi-trash mr-2"></i>
-            Hapus
-          </Button>
-        </div>
-      </div>
-    </div>
 
     <!-- Content -->
     <div class="px-4 sm:px-6 py-6" v-if="event">
@@ -170,17 +162,17 @@ onMounted(async () => {
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
               <div class="flex items-center gap-3">
-                <i class="pi pi-calendar text-primary"></i>
+                <i class="pi pi-calendar text-merchant-primary"></i>
                 <div>
                   <p class="text-sm text-gray-500">Tanggal Mulai</p>
-                  <p class="font-medium">{{ event.event_start_date }}</p>
+                  <p class="font-medium">{{ formatDate(event.event_start_date) }}</p>
                 </div>
               </div>
               <div class="flex items-center gap-3">
-                <i class="pi pi-calendar-times text-primary"></i>
+                <i class="pi pi-calendar-times text-merchant-primary"></i>
                 <div>
                   <p class="text-sm text-gray-500">Tanggal Selesai</p>
-                  <p class="font-medium">{{ event.event_end_date }}</p>
+                  <p class="font-medium">{{ formatDate(event.event_end_date) }}</p>
                 </div>
               </div>
             </div>
@@ -193,7 +185,7 @@ onMounted(async () => {
             <h3 class="text-lg font-semibold">
               Merchant Terdaftar ({{ event.merchants?.length || 0 }})
             </h3>
-            <Button @click="showInviteModal = true" variant="primary">
+            <Button @click="showInviteModal = true" variant="merchant">
               <i class="pi pi-plus mr-2"></i>
               Undang Merchant
             </Button>
@@ -204,7 +196,7 @@ onMounted(async () => {
               <div
                 v-for="merchant in event.merchants"
                 :key="merchant.id"
-                class="border rounded-lg p-4 hover:shadow-md transition"
+                class="border border-merchant-primary rounded-lg p-4 hover:shadow-md transition"
               >
                 <div class="flex items-center gap-3">
                   <img
@@ -213,8 +205,15 @@ onMounted(async () => {
                     class="w-12 h-12 rounded-full object-cover"
                   />
                   <div class="flex-1">
-                    <h4 class="font-medium">{{ merchant.name }}</h4>
-                    <p class="text-sm text-gray-500">{{ merchant.slug }}</p>
+                    <h4 class="font-medium">
+                      {{ merchant.name?.slice(0, 15) }}<span v-if="merchant.name && merchant.name.length > 15">…</span>
+                    </h4>
+                    <StatusLabel
+                      :status="segmentationMap[merchant.segmentation_id]?.toLowerCase().replace(/\s/g, '_')"
+                      :label="segmentationMap[merchant.segmentation_id]"
+                      variant="segmentation"
+                      size="xs"
+                    />
                   </div>
                   <StatusLabel :status="merchant.pivot.status" />
                 </div>
@@ -269,13 +268,14 @@ onMounted(async () => {
     <!-- Loading State -->
     <div v-else class="flex items-center justify-center py-12">
       <div class="text-center">
-        <i class="pi pi-spin pi-spinner text-4xl text-primary mb-4"></i>
+        <i class="pi pi-spin pi-spinner text-4xl text-merchant-primary mb-4"></i>
         <p class="text-gray-600">Memuat data event...</p>
       </div>
     </div>
 
     <!-- Invite Modal -->
     <ResponsiveModal
+      variant="merchant"
       :show="showInviteModal"
       @close="showInviteModal = false"
       title="Undang Merchant"
@@ -287,7 +287,7 @@ onMounted(async () => {
         </p>
 
         <div v-if="loadingMerchants" class="text-center py-8">
-          <i class="pi pi-spin pi-spinner text-2xl text-primary"></i>
+          <i class="pi pi-spin pi-spinner text-2xl text-merchant-primary"></i>
         </div>
 
         <div v-else-if="availableMerchants.length === 0" class="text-center py-8">

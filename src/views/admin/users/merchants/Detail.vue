@@ -15,19 +15,6 @@ const ordersChart = ref(null);
 const productChartEl = ref(null);
 let productChart = ref(null);
 
-function getSegmentationColor(segmentationName) {
-  switch ((segmentationName || "").toLowerCase()) {
-    case "umkm toko":
-      return { bg: "rgba(68,164,180,0.1)", text: "#44a4b4" };
-    case "umkm kuliner":
-      return { bg: "rgba(244,196,108,0.1)", text: "#f4c46c" };
-    case "umkm jasa":
-      return { bg: "rgba(255,94,94,0.1)", text: "#ff5e5e" };
-    default:
-      return { bg: "#f3f4f6", text: "#6b7280" };
-  }
-}
-
 const loadMerchant = async () => {
   try {
     const res = await api.get(`/api/admin/merchants/${route.params.id}`);
@@ -237,7 +224,6 @@ function renderProductChart(productOrders) {
       categories,
       labels: {
         style: { fontSize: "12px", fontWeight: 500, colors: "#64748b" },
-        // Tooltip full category name
         formatter: function (val, idx) {
           return val;
         }
@@ -317,7 +303,7 @@ onMounted(async () => {
                 <h2 class="text-2xl font-bold text-gray-900 mb-1">{{ merchant.name }}</h2>
                 <p class="text-gray-600">{{ merchant.slug }}</p>
               </div>
-              <StatusLabel :status="merchant.status" />
+              <StatusLabel :status="merchant.status" variant="merchant" />
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -335,17 +321,12 @@ onMounted(async () => {
               </div>
               <div class="flex items-center gap-2">
                 <i class="pi pi-tag text-admin-primary"></i>
-                <span>
-                  <span
-                    class="px-2 py-1 rounded-full text-xs font-semibold"
-                    :style="{
-                      backgroundColor: getSegmentationColor(merchant.segmentation?.name).bg,
-                      color: getSegmentationColor(merchant.segmentation?.name).text
-                    }"
-                  >
-                    {{ merchant.segmentation?.name || '-' }}
-                  </span>
-                </span>
+                <StatusLabel
+                  :status="merchant.segmentation?.code || merchant.segmentation?.name?.toLowerCase().replace(/\s/g, '_')"
+                  :label="merchant.segmentation?.name"
+                  variant="segmentation"
+                  size="sm"
+                />
               </div>
             </div>
           </div>
