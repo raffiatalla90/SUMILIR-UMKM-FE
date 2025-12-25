@@ -9,7 +9,6 @@ import StatusLabel from "@/components/common/StatusLabel.vue";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import MobilePagination from "@/components/common/MobilePagination.vue";
 import { useVouchers } from "@/composables/useVouchers";
-import AdminTable from "../../../components/common/AdminTable.vue";
 
 const router = useRouter();
 const toast = useToast();

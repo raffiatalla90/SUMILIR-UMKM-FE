@@ -10,7 +10,6 @@ import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import MobilePagination from "@/components/common/MobilePagination.vue";
 import { useEvents } from "@/composables/useEvents";
 import { getImageUrl } from "@/libs/getImageUrl";
-import AdminTable from "../../../components/common/AdminTable.vue";
 
 const router = useRouter();
 const toast = useToast();
