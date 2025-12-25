@@ -270,7 +270,7 @@ const populateFormFromProduct = async (product) => {
   // IMAGES
   productImages.value = product.images.map((img) => ({
     id: img.id,
-    preview: getImageUrl(img.id),
+    preview: img.src_url,
     existing: true,
   }));
   coverImageIndex.value = product.images.findIndex((i) => i.is_cover) || 0;
@@ -335,7 +335,8 @@ const fetchProductData = async () => {
   try {
     const product = await fetchProductDetail(productSlug.value);
     await populateFormFromProduct(product);
-  } catch {
+  } catch (error) {
+    console.error("Fetch product error:", error);
     toast.error("Gagal memuat produk");
     router.push(`/merchant-center/${currentMerchantId.value}/products`);
   } finally {
@@ -772,14 +773,14 @@ const formMinPurchase = computed({
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 pb-20 sm:pb-0">
+  <div class="min-h-screen pb-20 bg-gray-50 sm:pb-0">
     <!-- Mobile Header -->
     <div
-      class="fixed sm:hidden top-0 left-0 right-0 bg-merchant-primary text-white px-4 py-6 flex items-center justify-center z-50 rounded-b-2xl shadow-lg"
+      class="fixed top-0 left-0 right-0 z-50 flex items-center justify-center px-4 py-6 text-white shadow-lg sm:hidden bg-merchant-primary rounded-b-2xl"
     >
       <button
         @click="router.back()"
-        class="absolute left-4 w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition"
+        class="absolute flex items-center justify-center w-10 h-10 transition rounded-full left-4 hover:bg-white/10"
       >
         <i class="pi pi-arrow-left"></i>
       </button>
@@ -787,9 +788,9 @@ const formMinPurchase = computed({
     </div>
 
     <!-- Desktop Header -->
-    <div class="hidden sm:block sticky top-0 left-0 right-0 z-30 py-6">
+    <div class="sticky top-0 left-0 right-0 z-30 hidden py-6 sm:block">
       <div
-        class="mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap gap-y-2 items-center justify-between gap-x-4"
+        class="flex flex-wrap items-center justify-between px-4 mx-auto sm:px-6 lg:px-8 gap-y-2 gap-x-4"
       >
         <div>
           <!-- ✅ Use Breadcrumb Component -->
@@ -797,7 +798,7 @@ const formMinPurchase = computed({
             :items="breadcrumbItems"
             :merchantId="currentMerchantId"
           />
-          <p class="text-muted-foreground text-xs lg:text-sm">
+          <p class="text-xs text-muted-foreground lg:text-sm">
             {{ loadingData ? "Memuat data produk..." : name || "Edit Produk" }}
           </p>
         </div>
@@ -821,23 +822,23 @@ const formMinPurchase = computed({
     <!-- ✅ Loading State - IMPROVED -->
     <div
       v-if="loadingData"
-      class="flex flex-col justify-center items-center py-20 gap-3"
+      class="flex flex-col items-center justify-center gap-3 py-20"
     >
       <div
-        class="w-12 h-12 border-4 border-gray-300 border-t-merchant-primary rounded-full animate-spin"
+        class="w-12 h-12 border-4 border-gray-300 rounded-full border-t-merchant-primary animate-spin"
       ></div>
       <p class="text-sm text-muted-foreground">Memuat data produk...</p>
     </div>
 
     <!-- ✅ Content (Only show when data loaded) -->
-    <div v-else class="mx-auto px-0 sm:px-4 lg:px-6 sm:py-6 sm:pt-0">
+    <div v-else class="px-0 mx-auto sm:px-4 lg:px-6 sm:py-6 sm:pt-0">
       <Form ref="formRef" :validation-schema="schema" @submit="onSubmit">
         <!-- Foto Produk -->
         <div
-          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
+          class="p-4 mb-2 bg-white sm:mb-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
         >
           <h3
-            class="text-sm font-semibold text-black mb-3 flex items-center gap-2"
+            class="flex items-center gap-2 mb-3 text-sm font-semibold text-black"
           >
             <i class="pi pi-image text-merchant-primary"></i>
             Foto Produk
@@ -845,7 +846,7 @@ const formMinPurchase = computed({
           </h3>
 
           <div
-            class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3 mb-3"
+            class="grid grid-cols-3 gap-3 mb-3 sm:grid-cols-4 lg:grid-cols-6"
           >
             <div
               v-for="(img, index) in productImages"
@@ -855,7 +856,7 @@ const formMinPurchase = computed({
               @dragover="onDragOver"
               @drop="onDrop($event, index)"
               @dragend="onDragEnd"
-              class="relative aspect-square rounded-xl overflow-hidden border-2 group cursor-move"
+              class="relative overflow-hidden border-2 cursor-move aspect-square rounded-xl group"
               :class="
                 index === coverImageIndex
                   ? 'border-merchant-primary ring-2 ring-merchant-primary/20'
@@ -864,13 +865,13 @@ const formMinPurchase = computed({
             >
               <img
                 :src="img.preview"
-                class="w-full h-full object-cover pointer-events-none"
+                class="object-cover w-full h-full pointer-events-none"
               />
 
               <div
-                class="absolute top-2 right-2 w-6 h-6 bg-black/60 rounded-full flex items-center justify-center pointer-events-none"
+                class="absolute flex items-center justify-center w-6 h-6 rounded-full pointer-events-none top-2 right-2 bg-black/60"
               >
-                <i class="pi pi-arrows-alt text-white text-xs"></i>
+                <i class="text-xs text-white pi pi-arrows-alt"></i>
               </div>
 
               <div
@@ -882,14 +883,14 @@ const formMinPurchase = computed({
               </div>
 
               <div
-                class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2"
+                class="absolute inset-0 flex items-center justify-center gap-2 transition opacity-0 bg-black/50 group-hover:opacity-100"
               >
                 <button
                   @click.stop="removeImage(index)"
                   type="button"
-                  class="w-8 h-8 bg-white rounded-full flex items-center justify-center hover:scale-110 transition"
+                  class="flex items-center justify-center w-8 h-8 transition bg-white rounded-full hover:scale-110"
                 >
-                  <i class="pi pi-trash text-danger-foreground text-sm"></i>
+                  <i class="text-sm pi pi-trash text-danger-foreground"></i>
                 </button>
               </div>
             </div>
@@ -898,9 +899,9 @@ const formMinPurchase = computed({
               v-if="productImages.length < 6"
               @click="triggerFileInput"
               type="button"
-              class="aspect-square rounded-xl border-2 border-dashed border-gray-300 hover:border-merchant-primary hover:bg-merchant-primary/5 transition flex flex-col items-center justify-center gap-2"
+              class="flex flex-col items-center justify-center gap-2 transition border-2 border-gray-300 border-dashed aspect-square rounded-xl hover:border-merchant-primary hover:bg-merchant-primary/5"
             >
-              <i class="pi pi-plus text-2xl text-merchant-primary"></i>
+              <i class="text-2xl pi pi-plus text-merchant-primary"></i>
               <span class="text-xs text-muted-foreground">Tambah</span>
             </button>
           </div>
@@ -925,9 +926,9 @@ const formMinPurchase = computed({
 
         <!-- Info Dasar -->
         <div
-          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 space-y-3 sm:rounded-xl sm:shadow-sm"
+          class="p-4 mb-2 space-y-3 bg-white sm:mb-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
         >
-          <h3 class="text-sm font-semibold text-black flex items-center gap-2">
+          <h3 class="flex items-center gap-2 text-sm font-semibold text-black">
             <i class="pi pi-info-circle text-merchant-primary"></i>
             Informasi Dasar
           </h3>
@@ -949,7 +950,7 @@ const formMinPurchase = computed({
             required
           />
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <SelectField
               name="category_id"
               label="Kategori Utama"
@@ -960,7 +961,7 @@ const formMinPurchase = computed({
             />
 
             <div v-if="selectedCategory">
-              <label class="block text-sm font-bold text-black mb-2">
+              <label class="block mb-2 text-sm font-bold text-black">
                 Sub Kategori
                 <span class="text-xs font-normal text-muted-foreground"
                   >(Maks. 4)</span
@@ -970,10 +971,10 @@ const formMinPurchase = computed({
               <!-- ✅ Loading State for Level 2 -->
               <div
                 v-if="loadingLevel2"
-                class="py-4 px-3 bg-gray-50 rounded-lg border border-gray-200 text-center"
+                class="px-3 py-4 text-center border border-gray-200 rounded-lg bg-gray-50"
               >
                 <div
-                  class="w-5 h-5 border-2 border-gray-300 border-t-merchant-primary rounded-full animate-spin mx-auto mb-2"
+                  class="w-5 h-5 mx-auto mb-2 border-2 border-gray-300 rounded-full border-t-merchant-primary animate-spin"
                 ></div>
                 <p class="text-xs text-muted-foreground">
                   Memuat sub kategori...
@@ -983,9 +984,9 @@ const formMinPurchase = computed({
               <!-- ✅ Empty State -->
               <div
                 v-else-if="!loadingLevel2 && categoriesLevel2.length === 0"
-                class="py-4 px-3 bg-gray-50 rounded-lg border border-gray-200 text-center"
+                class="px-3 py-4 text-center border border-gray-200 rounded-lg bg-gray-50"
               >
-                <i class="pi pi-inbox text-2xl text-gray-300 mb-2 block"></i>
+                <i class="block mb-2 text-2xl text-gray-300 pi pi-inbox"></i>
                 <p class="text-xs text-gray-500">
                   Tidak ada sub kategori tersedia
                 </p>
@@ -993,7 +994,7 @@ const formMinPurchase = computed({
 
               <!-- ✅ Sub Categories List -->
               <div v-else class="space-y-2">
-                <div class="space-y-2 mb-2">
+                <div class="mb-2 space-y-2">
                   <div
                     v-for="(subCat, index) in selectedSubCategories"
                     :key="index"
@@ -1019,9 +1020,9 @@ const formMinPurchase = computed({
                     <button
                       @click="selectedSubCategories.splice(index, 1)"
                       type="button"
-                      class="w-9 h-9 rounded-xl bg-danger-background text-danger-foreground hover:bg-red-100 flex items-center justify-center transition"
+                      class="flex items-center justify-center transition w-9 h-9 rounded-xl bg-danger-background text-danger-foreground hover:bg-red-100"
                     >
-                      <i class="pi pi-trash text-sm"></i>
+                      <i class="text-sm pi pi-trash"></i>
                     </button>
                   </div>
                 </div>
@@ -1030,9 +1031,9 @@ const formMinPurchase = computed({
                   v-if="canAddSubCategory"
                   @click="selectedSubCategories.push('')"
                   type="button"
-                  class="text-sm text-merchant-primary hover:underline flex items-center gap-1 font-medium"
+                  class="flex items-center gap-1 text-sm font-medium text-merchant-primary hover:underline"
                 >
-                  <i class="pi pi-plus text-xs"></i>
+                  <i class="text-xs pi pi-plus"></i>
                   Tambah Sub Kategori
                 </button>
               </div>
@@ -1042,7 +1043,7 @@ const formMinPurchase = computed({
 
         <!-- Pengaturan Varian -->
         <div
-          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
+          class="p-4 mb-2 bg-white sm:mb-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
         >
           <label
             @click="useVariants = !useVariants"
@@ -1074,11 +1075,11 @@ const formMinPurchase = computed({
         <!-- Variasi Section (jika useVariants true) -->
         <div
           v-if="useVariants"
-          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 space-y-4 sm:rounded-xl sm:shadow-sm"
+          class="p-4 mb-2 space-y-4 bg-white sm:mb-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
         >
           <div class="flex items-center justify-between">
             <h3
-              class="text-sm font-semibold text-black flex items-center gap-2"
+              class="flex items-center gap-2 text-sm font-semibold text-black"
             >
               <i class="pi pi-box text-merchant-primary"></i>
               Varian
@@ -1090,7 +1091,7 @@ const formMinPurchase = computed({
               v-if="canAddVariant"
               @click="addVariantEdit"
               type="button"
-              class="text-sm text-merchant-primary hover:underline flex items-center gap-1"
+              class="flex items-center gap-1 text-sm text-merchant-primary hover:underline"
             >
               <i class="pi pi-plus"></i>
               Tambah
@@ -1098,11 +1099,11 @@ const formMinPurchase = computed({
           </div>
 
           <!-- Variants Grid - PERBAIKAN TextField dengan v-model unik -->
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div
               v-for="(variant, vIndex) in variants"
               :key="variant.clientKey"
-              class="border-2 border-gray-200 rounded-xl overflow-hidden bg-white hover:border-merchant-primary/50 transition"
+              class="overflow-hidden transition bg-white border-2 border-gray-200 rounded-xl hover:border-merchant-primary/50"
             >
               <!-- Variant Header -->
               <div class="p-4 space-y-4 bg-white">
@@ -1111,7 +1112,7 @@ const formMinPurchase = computed({
                 >
                   <div class="flex items-center gap-2">
                     <span
-                      class="px-3 py-1 bg-merchant-primary text-white text-xs font-bold rounded-full"
+                      class="px-3 py-1 text-xs font-bold text-white rounded-full bg-merchant-primary"
                     >
                       Varian {{ vIndex + 1 }}
                     </span>
@@ -1120,7 +1121,7 @@ const formMinPurchase = computed({
                         variant.options.filter((opt) => opt.name.trim())
                           .length > 0
                       "
-                      class="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full"
+                      class="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full"
                     >
                       {{
                         variant.options.filter((opt) => opt.name.trim()).length
@@ -1131,9 +1132,9 @@ const formMinPurchase = computed({
                   <button
                     @click="removeVariant(vIndex)"
                     type="button"
-                    class="w-8 h-8 rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100 flex items-center justify-center transition flex-shrink-0"
+                    class="flex items-center justify-center flex-shrink-0 w-8 h-8 transition rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100"
                   >
-                    <i class="pi pi-trash text-sm"></i>
+                    <i class="text-sm pi pi-trash"></i>
                   </button>
                 </div>
 
@@ -1155,7 +1156,7 @@ const formMinPurchase = computed({
                 <div v-if="vIndex === 0">
                   <label
                     @click="toggleVariantImages(variant.clientKey)"
-                    class="flex items-center justify-between cursor-pointer py-3 px-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition"
+                    class="flex items-center justify-between px-4 py-3 transition border border-gray-200 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
                   >
                     <div class="flex items-center gap-2">
                       <i class="pi pi-image text-merchant-primary"></i>
@@ -1187,13 +1188,13 @@ const formMinPurchase = computed({
                 <button
                   @click="toggleVariantExpand(variant.clientKey)"
                   type="button"
-                  class="w-full flex items-center justify-between py-3 px-4 bg-merchant-primary/5 rounded-lg border border-merchant-primary/20 hover:bg-merchant-primary/10 transition"
+                  class="flex items-center justify-between w-full px-4 py-3 transition border rounded-lg bg-merchant-primary/5 border-merchant-primary/20 hover:bg-merchant-primary/10"
                 >
                   <div class="flex items-center gap-2">
                     <i class="pi pi-list text-merchant-primary"></i>
                     <span class="text-sm font-semibold text-black">
                       Kelola Opsi
-                      <span class="text-muted-foreground ml-1">
+                      <span class="ml-1 text-muted-foreground">
                         ({{
                           variant.options.filter((opt) => opt.name.trim())
                             .length
@@ -1215,29 +1216,29 @@ const formMinPurchase = computed({
               <!-- Accordion Content - tetap sama seperti sebelumnya -->
               <transition
                 enter-active-class="transition-all duration-300 ease-out"
-                enter-from-class="max-h-0 opacity-0"
+                enter-from-class="opacity-0 max-h-0"
                 enter-to-class="max-h-[2000px] opacity-100"
                 leave-active-class="transition-all duration-200 ease-in"
                 leave-from-class="max-h-[2000px] opacity-100"
-                leave-to-class="max-h-0 opacity-0"
+                leave-to-class="opacity-0 max-h-0"
               >
                 <div
                   v-if="isVariantExpanded(variant.clientKey)"
-                  class="border-t border-gray-200 overflow-hidden"
+                  class="overflow-hidden border-t border-gray-200"
                 >
-                  <div class="p-4 pt-3 bg-gray-50 space-y-3">
+                  <div class="p-4 pt-3 space-y-3 bg-gray-50">
                     <div
                       class="flex items-center justify-between pb-2 border-b border-gray-300"
                     >
                       <label
-                        class="text-xs font-bold text-black uppercase tracking-wide"
+                        class="text-xs font-bold tracking-wide text-black uppercase"
                       >
                         Daftar Opsi
                       </label>
                       <button
                         @click="addOptionEdit(vIndex)"
                         type="button"
-                        class="text-xs text-merchant-primary hover:underline flex items-center gap-1 font-semibold"
+                        class="flex items-center gap-1 text-xs font-semibold text-merchant-primary hover:underline"
                       >
                         <i class="pi pi-plus text-[10px]"></i>
                         Tambah
@@ -1284,7 +1285,7 @@ const formMinPurchase = computed({
                                   option.image_path ||
                                   option.image_url
                                 "
-                                class="relative w-20 h-20 rounded-lg overflow-hidden border-2 border-gray-200 group"
+                                class="relative w-20 h-20 overflow-hidden border-2 border-gray-200 rounded-lg group"
                               >
                                 <img
                                   :src="
@@ -1293,24 +1294,24 @@ const formMinPurchase = computed({
                                       ? getVariantImageUrl(option.id)
                                       : '')
                                   "
-                                  class="w-full h-full object-cover"
+                                  class="object-cover w-full h-full"
                                 />
                                 <button
                                   v-if="option.images.length > 0"
                                   @click="removeOptionImage(vIndex, oIndex, 0)"
                                   type="button"
-                                  class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center"
+                                  class="absolute inset-0 flex items-center justify-center transition opacity-0 bg-black/60 group-hover:opacity-100"
                                 >
-                                  <i class="pi pi-trash text-white text-sm"></i>
+                                  <i class="text-sm text-white pi pi-trash"></i>
                                 </button>
                               </div>
 
                               <label
                                 v-else
-                                class="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 hover:border-merchant-primary hover:bg-merchant-primary/5 transition flex flex-col items-center justify-center cursor-pointer gap-1"
+                                class="flex flex-col items-center justify-center w-20 h-20 gap-1 transition border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:border-merchant-primary hover:bg-merchant-primary/5"
                               >
                                 <i
-                                  class="pi pi-plus text-lg text-merchant-primary"
+                                  class="text-lg pi pi-plus text-merchant-primary"
                                 ></i>
                                 <span
                                   class="text-[10px] text-gray-500 font-medium"
@@ -1339,7 +1340,7 @@ const formMinPurchase = computed({
                             type="button"
                             class="w-8 h-8 rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100 flex items-center justify-center transition flex-shrink-0 mt-0.5"
                           >
-                            <i class="pi pi-times text-sm"></i>
+                            <i class="text-sm pi pi-times"></i>
                           </button>
                         </div>
                       </div>
@@ -1350,7 +1351,7 @@ const formMinPurchase = computed({
                       type="button"
                       class="w-full py-2.5 px-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-merchant-primary font-bold hover:border-merchant-primary hover:bg-white transition flex items-center justify-center gap-2"
                     >
-                      <i class="pi pi-plus text-xs"></i>
+                      <i class="text-xs pi pi-plus"></i>
                       Tambah Opsi Baru
                     </button>
                   </div>
@@ -1362,10 +1363,10 @@ const formMinPurchase = computed({
           <!-- Combinations Summary -->
           <div
             v-if="variants.length > 0"
-            class="bg-merchant-primary/5 rounded-xl p-4 border-2 border-merchant-primary/20"
+            class="p-4 border-2 bg-merchant-primary/5 rounded-xl border-merchant-primary/20"
           >
             <div
-              class="flex flex-wrap sm:flex-row items-start sm:items-center justify-between gap-3"
+              class="flex flex-wrap items-start justify-between gap-3 sm:flex-row sm:items-center"
             >
               <div>
                 <p class="text-sm font-semibold text-merchant-primary">
@@ -1381,13 +1382,13 @@ const formMinPurchase = computed({
                 :disabled="totalCombinations === 0"
                 class="w-full sm:w-auto px-5 py-2.5 bg-merchant-primary text-white text-sm font-semibold rounded-lg hover:bg-merchant-primary/90 disabled:bg-gray-300 disabled:cursor-not-allowed transition shadow-sm"
               >
-                <i class="pi pi-cog mr-2"></i>
+                <i class="mr-2 pi pi-cog"></i>
                 Atur Harga & Stok
               </button>
             </div>
             <p
               v-if="combinationsExceedLimit"
-              class="text-xs text-danger-foreground flex items-center gap-1 mt-2 font-medium"
+              class="flex items-center gap-1 mt-2 text-xs font-medium text-danger-foreground"
             >
               <i class="pi pi-exclamation-triangle"></i>
               Kombinasi melebihi batas maksimal ({{ maxOptions }})
@@ -1398,9 +1399,9 @@ const formMinPurchase = computed({
         <!-- Harga & Stok (tanpa variasi) -->
         <div
           v-if="!useVariants"
-          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 space-y-4 sm:rounded-xl sm:shadow-sm"
+          class="p-4 mb-2 space-y-4 bg-white sm:mb-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
         >
-          <h3 class="text-sm font-semibold text-black flex items-center gap-2">
+          <h3 class="flex items-center gap-2 text-sm font-semibold text-black">
             <i class="pi pi-tag text-merchant-primary"></i>
             Harga & Stok
           </h3>
@@ -1411,7 +1412,7 @@ const formMinPurchase = computed({
             placeholder="Contoh: PRD-001"
             v-model="formSku"
           />
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <!-- ✅ FIXED: Gunakan computed v-model -->
 
             <TextField
@@ -1438,12 +1439,12 @@ const formMinPurchase = computed({
 
         <!-- TAMBAHKAN: Add-on Groups Section -->
         <div
-          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 space-y-4 sm:rounded-xl sm:shadow-sm"
+          class="p-4 mb-2 space-y-4 bg-white sm:mb-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
         >
           <div class="flex items-center justify-between">
             <div>
               <h3
-                class="text-sm font-semibold text-black flex items-center gap-2"
+                class="flex items-center gap-2 text-sm font-semibold text-black"
               >
                 <i class="pi pi-plus-circle text-merchant-primary"></i>
                 Grup Add-on (Opsional)
@@ -1451,7 +1452,7 @@ const formMinPurchase = computed({
                   >(Maks. {{ maxAddOnGroups }})</span
                 >
               </h3>
-              <p class="text-xs text-muted-foreground mt-1">
+              <p class="mt-1 text-xs text-muted-foreground">
                 Kelompokkan add-on berdasarkan kategori (contoh: tingkat
                 kepedasan, topping)
               </p>
@@ -1460,7 +1461,7 @@ const formMinPurchase = computed({
               v-if="canAddAddOnGroup"
               @click="addAddOnGroupEdit"
               type="button"
-              class="text-sm text-merchant-primary hover:underline flex items-center gap-1 font-semibold"
+              class="flex items-center gap-1 text-sm font-semibold text-merchant-primary hover:underline"
             >
               <i class="pi pi-plus"></i>
               Tambah
@@ -1470,12 +1471,12 @@ const formMinPurchase = computed({
           <!-- Grid Layout untuk Desktop -->
           <div
             v-if="addOnGroups.length > 0"
-            class="grid grid-cols-1 lg:grid-cols-2 gap-4"
+            class="grid grid-cols-1 gap-4 lg:grid-cols-2"
           >
             <div
               v-for="(group, gIndex) in addOnGroups"
               :key="group.clientKey"
-              class="border-2 border-gray-200 rounded-xl overflow-hidden bg-white hover:border-merchant-primary/50 transition"
+              class="overflow-hidden transition bg-white border-2 border-gray-200 rounded-xl hover:border-merchant-primary/50"
             >
               <!-- Group Header -->
               <div class="p-4 space-y-4 bg-white">
@@ -1483,21 +1484,21 @@ const formMinPurchase = computed({
                 <div
                   class="flex items-center justify-between pb-3 border-b border-gray-100"
                 >
-                  <div class="flex items-center gap-2 flex-wrap">
+                  <div class="flex flex-wrap items-center gap-2">
                     <span
-                      class="px-3 py-1 bg-merchant-primary text-white text-xs font-bold rounded-full"
+                      class="px-3 py-1 text-xs font-bold text-white rounded-full bg-merchant-primary"
                     >
                       Grup {{ gIndex + 1 }}
                     </span>
                     <span
                       v-if="group.is_required || group.min_selection > 0"
-                      class="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded-full flex items-center gap-1"
+                      class="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-700"
                     >
                       <i class="pi pi-exclamation-circle text-[10px]"></i>
                       Wajib
                     </span>
                     <span
-                      class="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full flex items-center gap-1"
+                      class="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full"
                     >
                       <i class="pi pi-list text-[10px]"></i>
                       {{ group.min_selection }}-{{ group.max_selection }}
@@ -1507,9 +1508,9 @@ const formMinPurchase = computed({
                   <button
                     @click="removeAddOnGroupEdit(gIndex)"
                     type="button"
-                    class="w-8 h-8 rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100 flex items-center justify-center transition flex-shrink-0"
+                    class="flex items-center justify-center flex-shrink-0 w-8 h-8 transition rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100"
                   >
-                    <i class="pi pi-trash text-sm"></i>
+                    <i class="text-sm pi pi-trash"></i>
                   </button>
                 </div>
 
@@ -1526,9 +1527,9 @@ const formMinPurchase = computed({
                 <div class="space-y-2">
                   <!-- Min/Max Selection -->
                   <div
-                    class="bg-gray-50 rounded-lg border border-gray-200 p-3 space-y-3"
+                    class="p-3 space-y-3 border border-gray-200 rounded-lg bg-gray-50"
                   >
-                    <label class="text-xs font-semibold text-gray-700 block">
+                    <label class="block text-xs font-semibold text-gray-700">
                       Aturan Pemilihan
                     </label>
 
@@ -1614,7 +1615,7 @@ const formMinPurchase = computed({
                     <!-- Validation Warning -->
                     <div
                       v-if="group.min_selection > group.max_selection"
-                      class="flex items-start gap-2 p-2 bg-red-50 border border-red-200 rounded-lg"
+                      class="flex items-start gap-2 p-2 border border-red-200 rounded-lg bg-red-50"
                     >
                       <i
                         class="pi pi-exclamation-triangle text-red-600 text-xs mt-0.5"
@@ -1630,13 +1631,13 @@ const formMinPurchase = computed({
                 <button
                   @click="toggleAddOnGroupExpand(group.clientKey)"
                   type="button"
-                  class="w-full flex items-center justify-between py-3 px-4 bg-merchant-primary/5 rounded-lg border border-merchant-primary/20 hover:bg-merchant-primary/10 transition"
+                  class="flex items-center justify-between w-full px-4 py-3 transition border rounded-lg bg-merchant-primary/5 border-merchant-primary/20 hover:bg-merchant-primary/10"
                 >
                   <div class="flex items-center gap-2">
                     <i class="pi pi-list text-merchant-primary"></i>
                     <span class="text-sm font-semibold text-black">
                       Kelola Opsi
-                      <span class="text-muted-foreground ml-1">
+                      <span class="ml-1 text-muted-foreground">
                         ({{
                           group.options.filter((opt) => opt.name.trim()).length
                         }})
@@ -1657,23 +1658,23 @@ const formMinPurchase = computed({
               <!-- Accordion Content - Options List -->
               <transition
                 enter-active-class="transition-all duration-300 ease-out"
-                enter-from-class="max-h-0 opacity-0"
+                enter-from-class="opacity-0 max-h-0"
                 enter-to-class="max-h-[2000px] opacity-100"
                 leave-active-class="transition-all duration-200 ease-in"
                 leave-from-class="max-h-[2000px] opacity-100"
-                leave-to-class="max-h-0 opacity-0"
+                leave-to-class="opacity-0 max-h-0"
               >
                 <div
                   v-if="isAddOnGroupExpandedEdit(group.clientKey)"
-                  class="border-t border-gray-200 overflow-hidden"
+                  class="overflow-hidden border-t border-gray-200"
                 >
-                  <div class="p-4 pt-3 bg-gray-50 space-y-3">
+                  <div class="p-4 pt-3 space-y-3 bg-gray-50">
                     <!-- Options Header -->
                     <div
                       class="flex items-center justify-between pb-2 border-b border-gray-300"
                     >
                       <label
-                        class="text-xs font-bold text-black uppercase tracking-wide"
+                        class="text-xs font-bold tracking-wide text-black uppercase"
                       >
                         Daftar Opsi
                       </label>
@@ -1681,7 +1682,7 @@ const formMinPurchase = computed({
                         @click="addAddOnOptionEdit(gIndex)"
                         type="button"
                         :disabled="group.options.length >= maxAddOnOptions"
-                        class="text-xs text-merchant-primary hover:underline flex items-center gap-1 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                        class="flex items-center gap-1 text-xs font-semibold text-merchant-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <i class="pi pi-plus text-[10px]"></i>
                         Tambah
@@ -1693,7 +1694,7 @@ const formMinPurchase = computed({
                       <div
                         v-for="(option, oIndex) in group.options"
                         :key="option.clientKey"
-                        class="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow"
+                        class="p-3 transition-shadow bg-white border border-gray-200 rounded-lg hover:shadow-md"
                       >
                         <div class="flex items-start gap-2.5">
                           <div
@@ -1727,7 +1728,7 @@ const formMinPurchase = computed({
                             />
                             <p
                               v-if="option.price === 0"
-                              class="text-xs text-gray-500 -mt-1 flex items-center gap-1"
+                              class="flex items-center gap-1 -mt-1 text-xs text-gray-500"
                             >
                               <i class="pi pi-info-circle text-[10px]"></i>
                               Gratis (Rp 0)
@@ -1741,7 +1742,7 @@ const formMinPurchase = computed({
                             type="button"
                             class="w-8 h-8 rounded-lg bg-white border border-gray-300 hover:bg-red-50 hover:border-red-300 hover:text-red-600 flex items-center justify-center transition flex-shrink-0 mt-0.5"
                           >
-                            <i class="pi pi-times text-sm"></i>
+                            <i class="text-sm pi pi-times"></i>
                           </button>
                         </div>
                       </div>
@@ -1754,7 +1755,7 @@ const formMinPurchase = computed({
                       :disabled="group.options.length >= maxAddOnOptions"
                       class="w-full py-2.5 px-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-merchant-primary font-bold hover:border-merchant-primary hover:bg-white transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <i class="pi pi-plus text-xs"></i>
+                      <i class="text-xs pi pi-plus"></i>
                       Tambah Opsi Baru
                     </button>
                   </div>
@@ -1766,16 +1767,16 @@ const formMinPurchase = computed({
           <!-- Empty State -->
           <div
             v-else
-            class="text-center py-8 px-4 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50"
+            class="px-4 py-8 text-center border-2 border-gray-300 border-dashed rounded-xl bg-gray-50"
           >
-            <i class="pi pi-plus-circle text-4xl text-gray-300 mb-3 block"></i>
-            <p class="text-sm text-gray-500 mb-3">
+            <i class="block mb-3 text-4xl text-gray-300 pi pi-plus-circle"></i>
+            <p class="mb-3 text-sm text-gray-500">
               Belum ada grup add-on ditambahkan
             </p>
             <button
               @click="addAddOnGroupEdit"
               type="button"
-              class="inline-flex items-center gap-2 px-4 py-2 bg-merchant-primary text-white rounded-lg hover:bg-merchant-primary/90 transition text-sm font-medium"
+              class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition rounded-lg bg-merchant-primary hover:bg-merchant-primary/90"
             >
               <i class="pi pi-plus"></i>
               Tambah Grup Pertama
@@ -1785,7 +1786,7 @@ const formMinPurchase = computed({
 
         <!-- Min Purchase & Condition -->
         <div
-          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 space-y-4 sm:rounded-xl sm:shadow-sm"
+          class="p-4 mb-2 space-y-4 bg-white sm:mb-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
         >
           <TextField
             name="min_purchase"
@@ -1798,7 +1799,7 @@ const formMinPurchase = computed({
         </div>
 
         <!-- Submit Button Desktop -->
-        <div class="hidden sm:flex justify-end gap-3">
+        <div class="justify-end hidden gap-3 sm:flex">
           <Button type="submit" variant="merchant" size="md" :loading="loading">
             <span>{{ loading ? "Menyimpan..." : "Simpan Perubahan" }}</span>
           </Button>
@@ -1806,7 +1807,7 @@ const formMinPurchase = computed({
 
         <!-- Submit Button Mobile -->
         <div
-          class="fixed sm:hidden bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-40"
+          class="fixed bottom-0 left-0 right-0 z-40 p-4 bg-white border-t border-gray-200 sm:hidden"
         >
           <Button type="submit" :loading="loading" variant="merchant" block>
             Simpan Perubahan
@@ -1829,7 +1830,7 @@ const formMinPurchase = computed({
     >
       <!-- Bulk Edit Section -->
       <div
-        class="bg-merchant-primary/5 rounded-xl p-4 border border-merchant-primary/20 mb-4"
+        class="p-4 mb-4 border bg-merchant-primary/5 rounded-xl border-merchant-primary/20"
       >
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-xs font-semibold text-black">Edit Massal</h3>
@@ -1838,7 +1839,7 @@ const formMinPurchase = computed({
             @click="toggleAllCombinations"
           >
             <div
-              class="w-5 h-5 rounded border-2 flex items-center justify-center transition"
+              class="flex items-center justify-center w-5 h-5 transition border-2 rounded"
               :class="
                 allCombinationsSelected
                   ? 'bg-merchant-primary border-merchant-primary'
@@ -1847,7 +1848,7 @@ const formMinPurchase = computed({
             >
               <i
                 v-if="allCombinationsSelected"
-                class="pi pi-check text-white text-xs"
+                class="text-xs text-white pi pi-check"
               ></i>
             </div>
             <span class="text-xs font-medium text-gray-700">Pilih Semua</span>
@@ -1901,7 +1902,7 @@ const formMinPurchase = computed({
           v-for="(combo, cIndex) in combinations"
           :key="cIndex"
           @click="toggleCombinationSelection(cIndex)"
-          class="bg-white border-2 rounded-xl p-4 transition cursor-pointer hover:shadow-md"
+          class="p-4 transition bg-white border-2 cursor-pointer rounded-xl hover:shadow-md"
           :class="
             selectedCombinations.has(cIndex)
               ? 'border-merchant-primary bg-merchant-primary/5'
@@ -1919,15 +1920,15 @@ const formMinPurchase = computed({
             >
               <i
                 v-if="selectedCombinations.has(cIndex)"
-                class="pi pi-check text-white text-xs"
+                class="text-xs text-white pi pi-check"
               ></i>
             </div>
-            <h4 class="text-sm font-semibold text-black flex-1">
+            <h4 class="flex-1 text-sm font-semibold text-black">
               {{ combo.combination }}
             </h4>
           </div>
 
-          <div class="space-y-3 pl-8" @click.stop>
+          <div class="pl-8 space-y-3" @click.stop>
             <TextField
               label="SKU (Opsional)"
               :name="`combination_${cIndex}_sku`"

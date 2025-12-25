@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from "vue";
-import { getImageUrl } from "@/libs/getImageUrl";
+// import { getImageUrl } from "@/libs/getImageUrl";
 
 const props = defineProps({
   product: {
@@ -48,11 +48,8 @@ const formattedPrice = computed(() => {
 
 // Get image URL
 const productImageUrl = computed(() => {
-  if (props.product.cover_image?.id) {
-    return (
-      props.product.cover_image.src_url ||
-      getImageUrl(props.product.cover_image.id)
-    );
+  if (props.product.cover_image) {
+    return props.product.cover_image.src_url || props.product.cover_image;
   }
   return null;
 });
@@ -73,19 +70,19 @@ const productImageUrl = computed(() => {
     ${customClass} `"
   >
     <!-- Product Image (1:1 aspect ratio) -->
-    <div class="relative w-full aspect-square bg-gray-200 overflow-hidden">
+    <div class="relative w-full overflow-hidden bg-gray-200 aspect-square">
       <img
         v-if="productImageUrl"
         :src="productImageUrl"
         :alt="product.name"
-        class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
+        class="absolute inset-0 object-cover w-full h-full transition-transform duration-300 ease-out group-hover:scale-105"
         @error="(e) => (e.target.style.display = 'none')"
       />
       <div
         v-else
-        class="absolute inset-0 w-full h-full flex items-center justify-center bg-gray-100"
+        class="absolute inset-0 flex items-center justify-center w-full h-full bg-gray-100"
       >
-        <i class="pi pi-image text-4xl text-danger-foreground"></i>
+        <i class="text-4xl pi pi-image text-danger-foreground"></i>
       </div>
     </div>
 
@@ -95,25 +92,25 @@ const productImageUrl = computed(() => {
     >
       <!-- Product Name -->
       <h3
-        class="text-xs font-semibold text-gray-900 line-clamp-2 mb-1"
+        class="mb-1 text-xs font-semibold text-gray-900 line-clamp-2"
         :title="product.name"
       >
         {{ product.name }}
       </h3>
 
       <!-- Price -->
-      <p class="text-xs font-bold text-primary mb-2">
+      <p class="mb-2 text-xs font-bold text-primary">
         {{ formattedPrice }}
       </p>
 
       <!-- Rating & Distance (auto push to bottom) -->
       <div class="mt-auto pt-2 text-[11px] text-xs text-gray-600">
         <span class="flex items-center gap-1 mb-1 truncate">
-          <i class="pi pi-shop text-base me-1 text-merchant-primary"></i>
+          <i class="text-base pi pi-shop me-1 text-merchant-primary"></i>
           {{ product.merchant?.name ?? "Nama Toko" }}
         </span>
         <span class="flex items-center gap-1">
-          <i class="pi pi-map-marker text-base me-1 text-danger-foreground"></i>
+          <i class="text-base pi pi-map-marker me-1 text-danger-foreground"></i>
           {{ product.distance ?? "1.5" }} km
         </span>
       </div>

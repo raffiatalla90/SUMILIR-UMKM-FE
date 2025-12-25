@@ -12,12 +12,8 @@ onMounted(async () => {
     //     segments: ["UMKM Toko"],
     //   },
     // });
-    const response = await api.get("/api/cart");
-    // const response = await api.get("/api/public/search", {
-    //   params: {
-    //     q: "ayam",
-    //   },
-    // });
+    // const response = await api.get("/api/cart");
+    const response = await api.get("/api/products/asdasd", {});
     // const response = await api.get("/api/public/search-merchants", {
     //   params: {
     //     q: "a",
