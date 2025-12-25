@@ -43,9 +43,16 @@ function goBack() {
   router.back();
 }
 const goToProductDetail = (product) => {
+  const slug = product?.slug;
+
+  if (typeof slug !== "string" || !slug.trim()) {
+    console.warn("[Search] Invalid product slug:", product);
+    return;
+  }
+
   router.push({
     name: "Product Detail",
-    params: { slug: product.slug },
+    params: { slug },
   });
 };
 
@@ -538,16 +545,16 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 pb-24">
+  <div class="min-h-screen pb-24 bg-gray-50">
     <!-- ================= MOBILE STICKY SEARCH HEADER ================= -->
-    <div class="sm:hidden sticky top-0 z-40 bg-white border-b border-gray-200">
+    <div class="sticky top-0 z-40 bg-white border-b border-gray-200 sm:hidden">
       <div class="flex items-center gap-2 px-3 py-3">
         <!-- BACK -->
         <button
           @click="goBack"
-          class="p-2 px-3 rounded-full hover:bg-gray-100 transition"
+          class="p-2 px-3 transition rounded-full hover:bg-gray-100"
         >
-          <i class="pi pi-chevron-left text-sm"></i>
+          <i class="text-sm pi pi-chevron-left"></i>
         </button>
 
         <!-- SEARCH INPUT -->
@@ -563,13 +570,13 @@ onMounted(() => {
         </form>
       </div>
     </div>
-    <div class="max-w-7xl mx-auto px-4 py-4 space-y-5">
+    <div class="px-4 py-4 mx-auto space-y-5 max-w-7xl">
       <div>
-        <h1 class="text-lg sm:text-xl font-semibold text-gray-900">
+        <h1 class="text-lg font-semibold text-gray-900 sm:text-xl">
           Hasil pencarian untuk
           <span class="text-primary">"{{ keyword }}"</span>
         </h1>
-        <p class="text-sm text-muted-foreground mt-1">
+        <p class="mt-1 text-sm text-muted-foreground">
           Menampilkan produk dan UMKM terkait
         </p>
       </div>
@@ -578,7 +585,7 @@ onMounted(() => {
       <div class="flex group">
         <button
           @click="activeTab = 'products'"
-          class="px-3 py-2 text-sm font-medium border-b-2 transition w-full group-hover:text-primary group-hover:border-primary cursor-pointer"
+          class="w-full px-3 py-2 text-sm font-medium transition border-b-2 cursor-pointer group-hover:text-primary group-hover:border-primary"
           :class="
             activeTab === 'products'
               ? 'border-primary text-primary'
@@ -589,7 +596,7 @@ onMounted(() => {
         </button>
         <button
           @click="activeTab = 'merchants'"
-          class="px-3 py-2 text-sm font-medium border-b-2 transition w-full group-hover:text-primary group-hover:border-primary cursor-pointer"
+          class="w-full px-3 py-2 text-sm font-medium transition border-b-2 cursor-pointer group-hover:text-primary group-hover:border-primary"
           :class="
             activeTab === 'merchants'
               ? 'border-primary text-primary'
@@ -647,7 +654,7 @@ onMounted(() => {
       <!-- PRODUCTS -->
       <section
         v-if="activeTab === 'products'"
-        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"
+        class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
       >
         <!-- LOADING -->
         <template v-if="isLoading">
@@ -660,7 +667,7 @@ onMounted(() => {
             v-for="product in products"
             :key="product.id"
             :product="product"
-            @click="goToProductDetail(product)"
+            @click="product?.slug && goToProductDetail(product)"
           />
         </template>
       </section>
@@ -670,8 +677,8 @@ onMounted(() => {
         v-if="isEmptyProducts"
         class="flex flex-col items-center justify-center py-16 text-center"
       >
-        <p class="text-primary text-sm">Produk tidak ditemukan</p>
-        <p class="text-xs text-muted-foreground mt-1">
+        <p class="text-sm text-primary">Produk tidak ditemukan</p>
+        <p class="mt-1 text-xs text-muted-foreground">
           Coba ubah kata kunci atau filter pencarian
         </p>
       </div>
@@ -688,7 +695,7 @@ onMounted(() => {
       <!-- MERCHANTS -->
       <section
         v-if="activeTab === 'merchants'"
-        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"
+        class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
       >
         <!-- LOADING -->
         <template v-if="isLoading">
@@ -710,8 +717,8 @@ onMounted(() => {
         v-if="isEmptyMerchants"
         class="flex flex-col items-center justify-center py-16 text-center"
       >
-        <p class="text-primary text-sm">UMKM tidak ditemukan</p>
-        <p class="text-xs text-muted-foreground mt-1">
+        <p class="text-sm text-primary">UMKM tidak ditemukan</p>
+        <p class="mt-1 text-xs text-muted-foreground">
           Coba gunakan filter atau kata kunci lain
         </p>
       </div>
@@ -739,7 +746,7 @@ onMounted(() => {
           <!-- PRICE -->
           <div>
             <label class="text-sm font-medium">Rentang Harga</label>
-            <div class="flex gap-2 mt-2 items-center">
+            <div class="flex items-center gap-2 mt-2">
               <TextField
                 type="number"
                 v-model="tempDetailFilters.minPrice"
@@ -769,7 +776,7 @@ onMounted(() => {
                 v-for="seg in availableSegments"
                 :key="seg.key"
                 @click="toggleSegment(seg.key)"
-                class="px-3 py-2 text-xs rounded-xl border"
+                class="px-3 py-2 text-xs border rounded-xl"
                 :class="
                   tempDetailFilters.segments.includes(seg.key)
                     ? 'bg-primary text-white border-primary'
@@ -792,7 +799,7 @@ onMounted(() => {
                 v-for="cat in availableCategories"
                 :key="cat.key"
                 @click="toggleCategory(cat.key)"
-                class="px-3 py-2 text-xs rounded-xl border"
+                class="px-3 py-2 text-xs border rounded-xl"
                 :class="
                   tempDetailFilters.categories.includes(cat.key)
                     ? 'bg-primary text-white border-primary'
@@ -815,7 +822,7 @@ onMounted(() => {
                 v-for="sub in availableSubCategories"
                 :key="sub.key"
                 @click="toggleSubCategory(sub.key)"
-                class="px-3 py-2 text-xs rounded-xl border"
+                class="px-3 py-2 text-xs border rounded-xl"
                 :class="
                   tempDetailFilters.subCategories.includes(sub.key)
                     ? 'bg-primary text-white border-primary'
@@ -840,7 +847,7 @@ onMounted(() => {
                 v-for="seg in availableSegments"
                 :key="seg.key"
                 @click="toggleSegment(seg.key)"
-                class="px-3 py-2 text-xs rounded-xl border"
+                class="px-3 py-2 text-xs border rounded-xl"
                 :class="
                   tempDetailFilters.segments.includes(seg.key)
                     ? 'bg-primary text-white border-primary'
