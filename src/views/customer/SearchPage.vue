@@ -132,6 +132,9 @@ const activeFilterCount = computed(() => {
 });
 
 const hasActiveFilters = computed(() => activeFilterCount.value > 0);
+function safeString(v) {
+  return typeof v === "string" ? v : undefined;
+}
 
 /* ================= SORT OPTIONS ================= */
 const instantSortOptions = [
@@ -241,39 +244,47 @@ function buildMerchantQuery() {
 }
 
 function buildProductQuery() {
-  const sort = activeInstantSorts.value.find((s) =>
+  const sortKey = activeInstantSorts.value.find((s) =>
     ["latest", "oldest", "cheapest", "expensive"].includes(s)
   );
 
   return {
-    q: keyword.value || undefined,
-    min_price: detailFilters.value.minPrice ?? undefined,
-    max_price: detailFilters.value.maxPrice ?? undefined,
+    q: typeof keyword.value === "string" ? keyword.value : undefined,
+    min_price:
+      typeof detailFilters.value.minPrice === "number"
+        ? detailFilters.value.minPrice
+        : undefined,
+    max_price:
+      typeof detailFilters.value.maxPrice === "number"
+        ? detailFilters.value.maxPrice
+        : undefined,
 
-    // 🔥 PRIORITAS SUB KATEGORI
     categories: detailFilters.value.subCategories.length
-      ? detailFilters.value.subCategories
+      ? detailFilters.value.subCategories.map(String)
       : detailFilters.value.categories.length
-      ? detailFilters.value.categories
+      ? detailFilters.value.categories.map(String)
       : undefined,
 
     segments: detailFilters.value.segments.length
-      ? detailFilters.value.segments
+      ? detailFilters.value.segments.map(String)
       : undefined,
 
-    sort: sort || undefined,
-    page: page.value,
-    per_page: perPage,
+    sort: typeof sortKey === "string" ? sortKey : undefined,
+
+    page: String(page.value),
+    per_page: String(perPage),
   };
 }
 
 function submitSearch() {
-  if (!searchInput.value.trim()) return;
+  const q =
+    typeof searchInput.value === "string" ? searchInput.value.trim() : "";
+
+  if (!q) return;
+
   router.push({
-    path: "/search",
-    query: {
-      q: searchInput.value.trim(),
-    },
+    name: "Search",
+    query: { q },
   });
 }
 
@@ -299,15 +310,6 @@ watch(activeInstantSorts, () => {
   fetchProducts(true);
 });
 
-watch(activeTab, (tab) => {
-  if (tab === "products") {
-    fetchProducts(true);
-  }
-
-  if (tab === "merchants") {
-    fetchMerchants(true);
-  }
-});
 watch(activeTab, (tab) => {
   resetAllFilters();
 
