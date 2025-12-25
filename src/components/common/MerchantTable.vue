@@ -18,10 +18,6 @@ const props = defineProps({
   columns: {
     type: Array,
     required: true,
-    // Example: [
-    //   { key: 'name', label: 'Nama', sortable: true },
-    //   { key: 'status', label: 'Status', sortable: false }
-    // ]
   },
 
   // Selection
@@ -38,10 +34,6 @@ const props = defineProps({
   actions: {
     type: Array,
     default: () => [],
-    // Example: [
-    //   { icon: 'pi-eye', label: 'Detail', handler: (item) => {} },
-    //   { icon: 'pi-pencil', label: 'Edit', handler: (item) => {} }
-    // ]
   },
 
   // Pagination
@@ -61,7 +53,7 @@ const props = defineProps({
   // Customization
   emptyMessage: {
     type: String,
-    default: "Tidak ada data",
+    default: "Tidak ada daa",
   },
   showCheckbox: {
     type: Boolean,
@@ -161,185 +153,161 @@ const getNestedValue = (obj, path) => {
   <div class="bg-white rounded-lg shadow overflow-hidden">
     <!-- Loading State -->
     <div v-if="loading" class="flex justify-center items-center py-20">
-      <div
-        class="w-10 h-10 border-4 border-muted-foreground border-t-merchant-primary rounded-full animate-spin"
-      ></div>
+      <div class="w-12 h-12 border-4 border-gray-300 border-t-admin-primary rounded-full animate-spin"></div>
     </div>
 
     <!-- Empty State -->
-    <div
-      v-else-if="items.length === 0"
-      class="flex flex-col items-center justify-center py-20 text-center"
-    >
-      <i class="pi pi-inbox text-5xl text-muted-foreground mb-4"></i>
-      <p class="text-muted-foreground">{{ emptyMessage }}</p>
+    <div v-else-if="!items || items.length === 0" class="flex flex-col items-center justify-center py-20">
+      <i class="pi pi-inbox text-6xl text-gray-300 mb-4"></i>
+      <p class="text-gray-500 text-lg font-medium">{{ emptyMessage }}</p>
     </div>
 
-    <!-- Table -->
-    <div v-else class="w-full overflow-x-auto">
-      <div class="min-w-[1000px]">
-        <table class="w-full">
-          <!-- Header -->
-          <thead>
-            <tr class="border-b border-muted-background bg-muted-background">
-              <!-- Checkbox Column -->
-              <th v-if="showCheckbox" class="px-6 py-4 text-left w-12">
-                <label class="flex items-center cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    :checked="selectAll"
-                    @change="toggleSelectAll"
-                    class="appearance-none w-5 h-5 border-2 border-muted-foreground rounded-md bg-transparent cursor-pointer transition-all duration-200 checked:bg-merchant-primary checked:border-merchant-primary focus:outline-none focus:ring-2 focus:ring-merchant-primary focus:ring-offset-2 relative before:content-[''] before:absolute before:inset-0 before:bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOSIgdmlld0JveD0iMCAwIDEyIDkiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xIDQuNUw0LjUgOEwxMSAxIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K')] before:bg-center before:bg-no-repeat before:opacity-0 checked:before:opacity-100"
-                  />
-                </label>
-              </th>
+    <!-- Table Content (only show when items exist) -->
+    <div v-else class="overflow-x-auto">
+      <table class="w-full">
+        <thead class="bg-gray-50 border-b">
+          <tr>
+            <!-- Checkbox Column -->
+            <th v-if="showCheckbox" class="px-6 py-3 text-left">
+              <input
+                type="checkbox"
+                :checked="selectAll"
+                @change="toggleSelectAll"
+                class="w-4 h-4 text-admin-primary rounded border-gray-300 focus:ring-admin-primary"
+              />
+            </th>
 
-              <!-- Dynamic Columns -->
-              <th
-                v-for="column in columns"
-                :key="column.key"
-                class="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider"
-                :class="column.headerClass"
-              >
-                {{ column.label }}
-              </th>
-
-              <!-- Actions Column -->
-              <th
-                v-if="actions.length > 0"
-                class="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider w-32"
-              >
-                Aksi
-              </th>
-            </tr>
-          </thead>
-
-          <!-- Body -->
-          <tbody class="divide-y divide-muted-background">
-            <tr
-              v-for="item in items"
-              :key="item.id"
-              class="hover:bg-muted-background transition"
-              @click="handleRowClick(item)"
+            <!-- Data Columns -->
+            <th
+              v-for="column in columns"
+              :key="column.key"
+              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              :class="column.sortable ? 'cursor-pointer hover:bg-gray-100' : ''"
             >
-              <!-- Checkbox -->
-              <td v-if="showCheckbox" class="px-6 py-4" @click.stop>
-                <label class="cursor-pointer inline-block">
-                  <input
-                    type="checkbox"
-                    :checked="isItemSelected(item.slug)"
-                    @change="toggleItemSelection(item.slug)"
-                    class="appearance-none w-5 h-5 border-2 border-muted-foreground rounded-md bg-transparent cursor-pointer transition-all duration-200 checked:bg-merchant-primary checked:border-merchant-primary focus:outline-none focus:ring-2 focus:ring-merchant-primary focus:ring-offset-2 relative before:content-[''] before:absolute before:inset-0 before:bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOSIgdmlld0JveD0iMCAwIDEyIDkiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xIDQuNUw0LjUgOEwxMSAxIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K')] before:bg-center before:bg-no-repeat before:opacity-0 checked:before:opacity-100"
-                  />
-                </label>
-              </td>
+              {{ column.label }}
+            </th>
+          </tr>
+        </thead>
 
-              <!-- Dynamic Columns with Slots -->
-              <td
-                v-for="column in columns"
-                :key="column.key"
-                class="px-6 py-4"
-                :class="column.cellClass"
-              >
-                <div class="flex items-center">
-                  <slot
-                    v-if="hasSlot(`cell-${column.key}`)"
-                    :name="`cell-${column.key}`"
-                    :item="item"
-                    :value="getNestedValue(item, column.key)"
-                  />
+        <tbody class="bg-white divide-y divide-gray-200">
+          <tr
+            v-for="item in items"
+            :key="item.id"
+            @click="handleRowClick(item)"
+            class="hover:bg-gray-50 cursor-pointer transition"
+          >
+            <!-- Checkbox Cell -->
+            <td v-if="showCheckbox" class="px-6 py-4 whitespace-nowrap" @click.stop>
+              <input
+                type="checkbox"
+                :checked="isItemSelected(item.slug)"
+                @change="toggleItemSelection(item.slug)"
+                class="w-4 h-4 text-admin-primary rounded border-gray-300 focus:ring-admin-primary"
+              />
+            </td>
 
-                  <span v-else class="text-sm">
-                    {{ getNestedValue(item, column.key) || "-" }}
-                  </span>
-                </div>
-              </td>
+            <!-- Dynamic Columns with Slots -->
+            <td
+              v-for="column in columns"
+              :key="column.key"
+              class="px-6 py-4"
+              :class="column.cellClass"
+            >
+              <div class="flex items-center">
+                <slot
+                  v-if="hasSlot(`cell-${column.key}`)"
+                  :name="`cell-${column.key}`"
+                  :item="item"
+                  :value="getNestedValue(item, column.key)"
+                />
 
-              <!-- Actions -->
-              <td v-if="actions.length > 0" class="px-6 py-4" @click.stop>
-                <div class="flex items-center justify-end gap-2">
-                  <button
-                    v-for="(action, index) in actions"
-                    :key="index"
-                    @click="action.handler(item)"
-                    class="p-2 rounded-lg transition"
-                    :class="
-                      action.class ||
-                      'hover:bg-muted-background text-muted-foreground'
-                    "
-                    :title="action.label"
-                  >
-                    <i :class="['pi', action.icon, 'text-sm']"></i>
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                <span v-else class="text-sm">
+                  {{ getNestedValue(item, column.key) || "-" }}
+                </span>
+              </div>
+            </td>
+
+            <!-- Actions -->
+            <td v-if="actions.length > 0" class="px-6 py-4" @click.stop>
+              <div class="flex items-center justify-end gap-2">
+                <button
+                  v-for="(action, index) in actions"
+                  :key="index"
+                  @click="action.handler(item)"
+                  class="p-2 rounded-lg transition"
+                  :class="
+                    action.class ||
+                    'hover:bg-muted-background text-muted-foreground'
+                  "
+                  :title="action.label"
+                >
+                  <i :class="['pi', action.icon, 'text-sm']"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <div v-if="!loading" class="border-t border-muted-background px-6 py-4">
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+      <!-- Pagination Info -->
+      <div class="text-sm text-muted-foreground">
+        Menampilkan
+        <span class="font-semibold text-black">
+          {{ paginationInfo.per_page }}
+        </span>
+        items/halaman
       </div>
-    </div>
 
-    <!-- Pagination -->
-    <div v-if="!loading" class="border-t border-muted-background px-6 py-4">
-      <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <!-- Pagination Info -->
-        <div class="text-sm text-muted-foreground">
-          Menampilkan
-          <span class="font-semibold text-black">
-            {{ paginationInfo.per_page }}
+      <!-- Pagination Controls -->
+      <div class="flex items-center gap-2">
+        <!-- Previous Button -->
+        <Button
+          @click="prevPage"
+          :disabled="currentPage === 1"
+          variant="merchant"
+          size="sm"
+        >
+          <i class="pi pi-chevron-left text-xs"></i>
+          <span>Prev</span>
+        </Button>
+
+        <!-- Page Numbers -->
+        <template v-for="(page, index) in visiblePages" :key="index">
+          <span
+            v-if="page === '...'"
+            class="px-3 py-2 text-muted-foreground text-sm"
+          >
+            ...
           </span>
-          items/halaman
-        </div>
-
-        <!-- Pagination Controls -->
-        <div class="flex items-center gap-2">
-          <!-- Previous Button -->
-          <Button
-            @click="prevPage"
-            :disabled="currentPage === 1"
-            variant="merchant"
-            size="sm"
+          <button
+            v-else
+            @click="goToPage(page)"
+            class="px-3 py-1.5 rounded-lg border transition min-w-10 text-sm"
+            :class="
+              currentPage === page
+                ? 'bg-merchant-primary text-white border-merchant-primary font-semibold'
+                : 'border-muted-background hover:bg-muted-background text-muted-foreground'
+            "
           >
-            <i class="pi pi-chevron-left text-xs"></i>
-            <span>Prev</span>
-          </Button>
+            {{ page }}
+          </button>
+        </template>
 
-          <!-- Page Numbers -->
-          <template v-for="(page, index) in visiblePages" :key="index">
-            <!-- Ellipsis -->
-            <span
-              v-if="page === '...'"
-              class="px-3 py-2 text-muted-foreground text-sm"
-            >
-              ...
-            </span>
-
-            <!-- Page Button -->
-            <button
-              v-else
-              @click="goToPage(page)"
-              class="px-3 py-1.5 rounded-lg border transition min-w-[40px] text-sm"
-              :class="
-                currentPage === page
-                  ? 'bg-merchant-primary text-white border-merchant-primary font-semibold'
-                  : 'border-muted-background hover:bg-muted-background text-muted-foreground'
-              "
-            >
-              {{ page }}
-            </button>
-          </template>
-
-          <!-- Next Button -->
-          <Button
-            @click="nextPage"
-            :disabled="currentPage === totalPages"
-            variant="merchant"
-            size="sm"
-          >
-            <span>Next</span>
-            <i class="pi pi-chevron-right text-xs"></i>
-          </Button>
-        </div>
+        <!-- Next Button -->
+        <Button
+          @click="nextPage"
+          :disabled="currentPage === totalPages"
+          variant="merchant"
+          size="sm"
+        >
+          <span>Next</span>
+          <i class="pi pi-chevron-right text-xs"></i>
+        </Button>
       </div>
     </div>
   </div>

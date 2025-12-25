@@ -8,7 +8,7 @@ import { saveBlob } from "@/libs/saveBlob.js";
 export function useProducts() {
   const toast = useToast();
   const products = ref([]);
-  const loading = ref(false);
+  const loading = ref(true);
   const loadingExport = ref(false);
   const pagination = ref({
     current_page: 1,

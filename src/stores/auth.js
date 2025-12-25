@@ -138,7 +138,7 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   async function register(payload) {
-    const { data } = await api.post("/api/auth/register", payload);
+    const { data } = await api.post("/auth/register", payload);
     toast.success("Registrasi berhasil, silakan login");
     return data;
   }

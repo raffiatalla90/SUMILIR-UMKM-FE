@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import api from "@/libs/axios";
+import * as SegmentationService from "@/services/api/segmentation";
 import { getPublicProducts } from "@/services/api/product";
 const data = ref(null);
 
@@ -15,7 +16,17 @@ onMounted(async () => {
     //   segment: ["UMKM Kuliner"],
     //   limit: 12,
     // });
-    const response = await api.get("/api/products/asdgfd");
+    // const response = await api.get("/api/public/search", {
+    //   params: {
+    //     q: "ayam",
+    //   },
+    // });
+    const response = await api.get("/api/public/search-merchants", {
+      params: {
+        q: "a",
+        segment: ["UMKM Kuliner"],
+      },
+    });
     data.value = response.data;
     console.log("API Response:", response.data);
   } catch (error) {
