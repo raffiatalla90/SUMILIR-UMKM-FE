@@ -9,38 +9,42 @@ export default defineConfig(({ mode }) => {
   const apiBase = env.VITE_API_BASE_URL || "/api";
 
   return {
+    // ✅ Vue di root, tidak perlu /build/
+    base: "/",
+
     plugins: [
       vue(),
       tailwindcss(),
       VitePWA({
         registerType: "autoUpdate",
-        devOptions: { enabled: true },
+        devOptions: { enabled: mode === "development" },
         manifest: {
-          name: "SIMSLIFE",
-          short_name: "SIMSLIFE",
+          name: "Sumilir",
+          short_name: "Sumilir",
           description: "UMKM App",
           theme_color: "#ff9800",
           background_color: "#ffffff",
           display: "standalone",
-          start_url: "/",
-          scope: "/",
+          start_url: "/", // ✅ Root
+          scope: "/", // ✅ Root
           icons: [
-            // { src: "/pwa-192x192.png", sizes: "192x192", type: "image/png" },
-            // { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png" },
-            // {
-            //   src: "/pwa-512x512-maskable.png",
-            //   sizes: "512x512",
-            //   type: "image/png",
-            //   purpose: "any maskable",
-            // },
+            {
+              src: "/icon192.png",
+              sizes: "192x192",
+              type: "image/png",
+            },
+            {
+              src: "/icon512.png",
+              sizes: "512x512",
+              type: "image/png",
+            },
           ],
         },
         workbox: {
           cleanupOutdatedCaches: true,
-          navigateFallback: "/index.html",
-          navigateFallbackDenylist: [/^\/api\//],
+          navigateFallback: "/index.html", // ✅ Root
+          navigateFallbackDenylist: [/^\/api\//], // ✅ Exclude /api/
           runtimeCaching: [
-            // cache assets statis
             {
               urlPattern: ({ request, sameOrigin }) =>
                 sameOrigin &&
@@ -48,9 +52,8 @@ export default defineConfig(({ mode }) => {
                   request.destination
                 ),
               handler: "StaleWhileRevalidate",
-              options: { cacheName: "assets-v1" },
+              options: { cacheName: "assets-cache-v1" },
             },
-            // cache GET API (bukan navigasi)
             {
               urlPattern: new RegExp(
                 `^${apiBase.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}/.*`
@@ -70,6 +73,36 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": fileURLToPath(new URL("./src", import.meta.url)),
+      },
+    },
+    build: {
+      outDir: "dist",
+      assetsDir: "assets",
+      sourcemap: false,
+      minify: "terser",
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            "vendor-vue": ["vue", "vue-router", "pinia"],
+          },
+        },
+      },
+    },
+    server: {
+      port: 5173,
+      host: true,
+      proxy: {
+        "/api": {
+          target: env.VITE_API_BASE_URL || "http://localhost:8000",
+          changeOrigin: true,
+          secure: false,
+        },
+        "/sanctum": {
+          target: env.VITE_BASE_URL || "http://localhost:8000",
+          changeOrigin: true,
+          secure: false,
+        },
       },
     },
   };

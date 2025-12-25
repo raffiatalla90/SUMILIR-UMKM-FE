@@ -1,80 +1,50 @@
+// src/libs/axios.js
 import axios from "axios";
 
-// Ambil dan log env
-const rawBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").trim();
-const baseURL = rawBaseUrl || "http://localhost:8000/api";
-console.log("[API] VITE_API_BASE_URL =", rawBaseUrl || "(empty)");
-console.log("[API] Using baseURL     =", baseURL);
-if (!baseURL.includes("/api")) {
-  console.error("❌ baseURL tidak ada /api! Periksa .env dan restart Vite");
-}
-// Ekspos untuk dicek via Console
-// eslint-disable-next-line no-undef
-window.__API_BASE__ = baseURL;
-
-// Helper: bentuk URL penuh untuk logging
-function resolveFullUrl(cfg) {
-  const u = cfg.url || "";
-  if (/^https?:\/\//i.test(u)) return u; // sudah absolute
-  const b = (cfg.baseURL || "").replace(/\/+$/, "");
-  const p = String(u).startsWith("/") ? u : `/${u}`;
-  return `${b}${p}`;
-}
-
 const api = axios.create({
-  baseURL,
-  withCredentials: String(import.meta.env.VITE_WITH_CREDENTIALS) === "true",
-  timeout: Number(import.meta.env.VITE_HTTP_TIMEOUT_MS ?? 20000),
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000",
+  withCredentials: true,
   headers: {
-    "Content-Type": "application/json",
     Accept: "application/json",
+    "X-Requested-With": "XMLHttpRequest",
   },
 });
 
-// Request interceptor
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("token");
-    if (token) config.headers.Authorization = `Bearer ${token}`;
+/**
+ * 🛠 Helper untuk membaca cookie browser
+ */
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) {
+    // Kita harus men-decode karena cookie dari PHP biasanya di-URL-encode (ada %3D dll)
+    return decodeURIComponent(parts.pop().split(";").shift());
+  }
+  return null;
+}
 
-    const full = resolveFullUrl(config);
-    const method = (config.method || "get").toUpperCase();
-    console.log(`[API] → ${method} ${full}`, {
-      params: config.params,
-      // Hindari log data besar: tampilkan ringkas
-      hasData: !!config.data,
-      contentType:
-        config.headers?.["Content-Type"] || config.headers?.["content-type"],
-    });
+/**
+ * ⚡ REQUEST INTERCEPTOR
+ * Tugas: Ambil cookie XSRF-TOKEN, lalu tempel ke Header X-XSRF-TOKEN
+ */
+api.interceptors.request.use((config) => {
+  const token = getCookie("XSRF-TOKEN");
 
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+  if (token) {
+    config.headers["X-XSRF-TOKEN"] = token;
+  }
 
-// Response interceptor
+  return config;
+});
+
+// Response Interceptor (Biarkan seperti kode Anda sebelumnya)
 api.interceptors.response.use(
-  (response) => {
-    const full = resolveFullUrl(response.config);
-    const method = (response.config.method || "get").toUpperCase();
-    console.log(`[API] ← ${response.status} ${method} ${full}`);
-    return response;
-  },
+  (response) => response,
   (error) => {
-    const cfg = error.config || {};
-    const full = resolveFullUrl(cfg);
-    const method = (cfg.method || "get").toUpperCase();
-
     if (error.response) {
-      console.warn(`[API] ✖ ${error.response.status} ${method} ${full}`, {
-        data: error.response.data,
-      });
-      if (error.response.status === 401) {
-        localStorage.removeItem("token");
-        window.location.href = "/login";
-      }
-    } else {
-      console.error(`[API] ✖ ${method} ${full} failed:`, error.message);
+      const status = error.response.status;
+      if (status === 401) console.warn("Unauthenticated (401)");
+      if (status === 419) console.warn("CSRF token mismatch (419)");
     }
     return Promise.reject(error);
   }

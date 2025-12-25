@@ -17,21 +17,27 @@ importers:
       laravel-echo:
         specifier: ^2.2.4
         version: 2.2.4(pusher-js@8.4.0)(socket.io-client@4.8.1)
+      laravel-vite-plugin:
+        specifier: ^2.0.1
+        version: 2.0.1(vite@7.1.11(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0))
       leaflet:
         specifier: ^1.9.4
         version: 1.9.4
+      lodash:
+        specifier: ^4.17.21
+        version: 4.17.21
       pinia:
         specifier: ^3.0.3
         version: 3.0.3(vue@3.5.22)
+      pinia-plugin-persistedstate:
+        specifier: ^4.7.1
+        version: 4.7.1(pinia@3.0.3(vue@3.5.22))
       primeicons:
         specifier: ^7.0.0
         version: 7.0.0
       vee-validate:
         specifier: ^4.15.1
         version: 4.15.1(vue@3.5.22)
-      vite-plugin-pwa:
-        specifier: ^1.1.0
-        version: 1.1.0(vite@7.1.11(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0))(workbox-build@7.3.0)(workbox-window@7.3.0)
       vue:
         specifier: ^3.5.22
         version: 3.5.22
@@ -63,6 +69,9 @@ importers:
       vite:
         specifier: ^7.1.7
         version: 7.1.11(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0)
+      vite-plugin-pwa:
+        specifier: ^1.1.0
+        version: 1.1.0(vite@7.1.11(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0))(workbox-build@7.3.0)(workbox-window@7.3.0)
 
 packages:
 
@@ -1244,6 +1253,9 @@ packages:
     resolution: {integrity: sha512-8QmQKqEASLd5nx0U1B1okLElbUuuttJ/AnYmRXbbbGDWh6uS208EjD4Xqq/I9wK7u0v6O08XhTWnt5XtEbR6Dg==}
     engines: {node: '>= 0.4'}
 
+  defu@6.1.4:
+    resolution: {integrity: sha512-mEQCMmwJu317oSz8CwdIOdwf3xMif1ttiM8LTufzc3g6kR+9Pe236twL8j3IYT1F7GfRgGcW6MWxzZjLIkuHIg==}
+
   delayed-stream@1.0.0:
     resolution: {integrity: sha512-ZySD7Nf91aLB0RxL4KGrKHBXl7Eds1DAmEdcoVawXnLD7SDhpNgtuII2aAkg7a7QS41jxPSZ17p4VdGnMHk3MQ==}
     engines: {node: '>=0.4.0'}
@@ -1615,6 +1627,13 @@ packages:
       pusher-js: '*'
       socket.io-client: '*'
 
+  laravel-vite-plugin@2.0.1:
+    resolution: {integrity: sha512-zQuvzWfUKQu9oNVi1o0RZAJCwhGsdhx4NEOyrVQwJHaWDseGP9tl7XUPLY2T8Cj6+IrZ6lmyxlR1KC8unf3RLA==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    hasBin: true
+    peerDependencies:
+      vite: ^7.0.0
+
   leaflet@1.9.4:
     resolution: {integrity: sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA==}
 
@@ -1786,6 +1805,20 @@ packages:
   picomatch@4.0.3:
     resolution: {integrity: sha512-5gTmgEY/sqK6gFXLIsQNH19lWb4ebPDLA4SdLP7dsWkIXHWlG66oPuVvXSGFPppYZz8ZDZq0dYYrbHfBCVUb1Q==}
     engines: {node: '>=12'}
+
+  pinia-plugin-persistedstate@4.7.1:
+    resolution: {integrity: sha512-WHOqh2esDlR3eAaknPbqXrkkj0D24h8shrDPqysgCFR6ghqP/fpFfJmMPJp0gETHsvrh9YNNg6dQfo2OEtDnIQ==}
+    peerDependencies:
+      '@nuxt/kit': '>=3.0.0'
+      '@pinia/nuxt': '>=0.10.0'
+      pinia: '>=3.0.0'
+    peerDependenciesMeta:
+      '@nuxt/kit':
+        optional: true
+      '@pinia/nuxt':
+        optional: true
+      pinia:
+        optional: true
 
   pinia@3.0.3:
     resolution: {integrity: sha512-ttXO/InUULUXkMHpTdp9Fj4hLpD/2AoJdmAbAeW2yu1iy1k+pkFekQXw5VpC0/5p51IOR/jDaDRfRWRnMMsGOA==}
@@ -2109,6 +2142,9 @@ packages:
     resolution: {integrity: sha512-DkFsiTwEKau8VIxyZBGdO6tOudD+QoUBPuHj3e6QFqmbfCRj1ArmYWue9lEp6jLSWBIw4XPlDLjFIZNLdRAMSg==}
     peerDependencies:
       vue: ^3.4.26
+
+  vite-plugin-full-reload@1.2.0:
+    resolution: {integrity: sha512-kz18NW79x0IHbxRSHm0jttP4zoO9P9gXh+n6UTwlNKnviTTEpOlum6oS9SmecrTtSr+muHEn5TUuC75UovQzcA==}
 
   vite-plugin-pwa@1.1.0:
     resolution: {integrity: sha512-VsSpdubPzXhHWVINcSx6uHRMpOHVHQcHsef1QgkOlEoaIDAlssFEW88LBq1a59BuokAhsh2kUDJbaX1bZv4Bjw==}
@@ -3519,6 +3555,8 @@ snapshots:
       has-property-descriptors: 1.0.2
       object-keys: 1.1.1
 
+  defu@6.1.4: {}
+
   delayed-stream@1.0.0: {}
 
   detect-libc@2.1.2: {}
@@ -3954,6 +3992,12 @@ snapshots:
       pusher-js: 8.4.0
       socket.io-client: 4.8.1
 
+  laravel-vite-plugin@2.0.1(vite@7.1.11(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0)):
+    dependencies:
+      picocolors: 1.1.1
+      vite: 7.1.11(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0)
+      vite-plugin-full-reload: 1.2.0
+
   leaflet@1.9.4: {}
 
   leven@3.1.0: {}
@@ -4085,6 +4129,12 @@ snapshots:
   picomatch@2.3.1: {}
 
   picomatch@4.0.3: {}
+
+  pinia-plugin-persistedstate@4.7.1(pinia@3.0.3(vue@3.5.22)):
+    dependencies:
+      defu: 6.1.4
+    optionalDependencies:
+      pinia: 3.0.3(vue@3.5.22)
 
   pinia@3.0.3(vue@3.5.22):
     dependencies:
@@ -4487,6 +4537,11 @@ snapshots:
       '@vue/devtools-api': 7.7.7
       type-fest: 4.41.0
       vue: 3.5.22
+
+  vite-plugin-full-reload@1.2.0:
+    dependencies:
+      picocolors: 1.1.1
+      picomatch: 2.3.1
 
   vite-plugin-pwa@1.1.0(vite@7.1.11(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0))(workbox-build@7.3.0)(workbox-window@7.3.0):
     dependencies:

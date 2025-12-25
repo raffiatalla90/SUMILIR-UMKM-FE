@@ -1,6 +1,6 @@
 <template>
   <div class="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg">
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl md:max-w-3xl">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold">Buat Post Baru</h2>
         <button @click="$emit('close')" class="text-sm px-2 py-1 rounded hover:bg-gray-100">Tutup ✕</button>
@@ -64,7 +64,7 @@
           <button
             type="submit"
             :disabled="loading || submitDisabled"
-            class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-60"
+            class="flex-1 bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/85 disabled:opacity-60"
           >
             {{ loading ? 'Mengirim...' : 'Kirim' }}
           </button>

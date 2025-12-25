@@ -77,7 +77,7 @@
 
         <AppButton
           type="button"
-          variant="outline"
+          variant="primary-outline"
           size="md"
           @click="goToLogin"
           block
@@ -107,8 +107,8 @@ try {
 } catch {}
 
 const isAuthenticated = computed(() => !!auth?.isAuthenticated?.value);
-const status = computed(() => (route.query.status || "").toString());
-const email = ref((route.query.email || "").toString());
+const status = computed(() => (route?.query?.status || "").toString());
+const email = ref((route?.query?.email || "").toString());
 const sending = ref(false);
 
 // Tampilkan toast sekali per perubahan status

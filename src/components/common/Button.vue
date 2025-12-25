@@ -4,7 +4,7 @@
     :disabled="isDisabled"
     :aria-busy="loading ? 'true' : 'false'"
     :class="[
-      'inline-flex items-center justify-center rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 ',
+      'inline-flex items-center justify-center rounded-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 hover:-translate-y-0.5',
       block ? 'w-full' : 'w-auto',
       sizeClasses[size],
       variantClasses[variant],
@@ -12,7 +12,7 @@
       isDisabled ? 'cursor-not-allowed opacity-70' : 'cursor-pointer',
     ]"
   >
-    <span class="inline-flex items-center gap-2">
+    <span class="inline-flex justify-center items-center gap-2">
       <svg
         v-if="loading"
         class="h-4 w-4 animate-spin"
@@ -46,12 +46,14 @@ Contoh pakai:
 <template>
   <AppButton type="submit" :loading="saving" block> Simpan </AppButton>
   <AppButton variant="outline" @click="onCancel"> Batal </AppButton>
+  <AppButton variant="merchant" size="md"> Merchant Action </AppButton>
+  <AppButton variant="merchant-outline"> Outline Merchant </AppButton>
   <AppButton variant="ghost" size="sm"> Aksi Kecil </AppButton>
 </template>
 
 Props:
 - type: "button" | "submit" | "reset" (default: "button")
-- variant: "primary" | "outline" | "ghost" (default: "primary")
+- variant: "primary" | "merchant" | "outline" | "merchant-outline" | "ghost" | "danger" (default: "primary")
 - size: "sm" | "md" | "lg" (default: "md")
 - loading: boolean => tampilkan spinner dan auto disabled
 - disabled: boolean => nonaktifkan tombol
@@ -65,7 +67,7 @@ import { computed } from "vue";
 
 const props = defineProps({
   type: { type: String, default: "button" },
-  variant: { type: String, default: "primary" }, // primary | outline | ghost
+  variant: { type: String, default: "primary" }, // primary | merchant | outline | merchant-outline | ghost | danger
   size: { type: String, default: "md" }, // sm | md | lg
   loading: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
@@ -76,16 +78,50 @@ const props = defineProps({
 const isDisabled = computed(() => props.disabled || props.loading);
 
 const sizeClasses = {
-  sm: "text-sm py-2 px-3",
-  md: "text-base py-2.5 px-4",
-  lg: "text-lg py-3 px-5",
+  sm: "text-xs sm:text-sm py-2 px-3",
+  md: "text-sm sm:text-base py-2.5 px-4",
+  lg: "text-base sm:text-lg py-3 px-5",
 };
 
 const variantClasses = {
+  // Orange Primary (default)
   primary:
-    "bg-primary text-white hover:bg-[#ff8c00] disabled:bg-gray-400 shadow-sm hover:shadow-lg active:scale-95",
-  outline:
-    "border border-primary text-primary hover:bg-primary/10 disabled:opacity-60",
-  ghost: "text-primary hover:bg-primary/10 disabled:opacity-60",
+    "bg-primary text-white hover:bg-primary/90 disabled:bg-gray-400 shadow-sm hover:shadow-lg duration-200 active:scale-95 focus:ring-primary",
+
+  secondary:
+    "bg-secondary text-white hover:bg-secondary/90 disabled:bg-gray-400 shadow-sm hover:shadow-lg duration-200 active:scale-95 focus:ring-secondary",
+  // Blue Merchant Primary
+  merchant:
+    "bg-merchant-primary text-white hover:bg-merchant-primary/90 disabled:bg-gray-400 shadow-sm hover:shadow-lg duration-200 active:scale-95 focus:ring-merchant-primary",
+
+  // Outline Primary (Orange)
+  "primary-outline":
+    "border border-primary text-primary hover:bg-primary/10 disabled:opacity-60 focus:ring-primary duration-200 active:scale-95",
+
+  // Outline Merchant (Blue)
+  "merchant-outline":
+    "border border-merchant-primary text-merchant-primary hover:bg-merchant-primary/10 disabled:opacity-60 focus:ring-merchant-primary duration-200 active:scale-95",
+
+  // Ghost (no background)
+  ghost:
+    "text-primary hover:bg-primary/10 disabled:opacity-60 focus:ring-primary duration-200 active:scale-95",
+
+  // Ghost Merchant
+  "merchant-ghost":
+    "text-merchant-primary hover:bg-merchant-primary/10 disabled:opacity-60 focus:ring-merchant-primary duration-200 active:scale-95",
+
+  // Danger (Red)
+  danger:
+    "bg-danger-foreground text-white hover:bg-red-600 disabled:bg-gray-400 shadow-sm hover:shadow-lg duration-200 active:scale-95 focus:ring-red-500",
+
+  // Outline Danger
+  "danger-outline":
+    "border border-danger-foreground text-danger-foreground hover:bg-danger-background disabled:opacity-60 focus:ring-red-500 duration-200 active:scale-95",
+
+  muted:
+    "bg-muted-background text-muted-foreground hover:bg-gray-300 disabled:bg-muted-background disabled:opacity-60 focus:ring-gray-400 duration-200 active:scale-95",
+
+  "muted-outline":
+    "border border-muted-foreground text-muted-foreground hover:bg-gray-100 disabled:opacity-60 focus:ring-gray-400 duration-200 active:scale-95",
 };
 </script>
