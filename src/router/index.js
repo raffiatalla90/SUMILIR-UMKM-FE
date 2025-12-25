@@ -109,7 +109,7 @@ const routes = [
         path: "search/:keyword?",
         name: "Search Page",
         component: () => import("@/views/customer/SearchPage.vue"),
-        meta: { title: "Search | SUMILIR" },
+        meta: { title: "Cari | SUMILIR" },
       },
 
       // Halaman Community
@@ -347,6 +347,14 @@ const routes = [
         component: () => import("@/views/merchant/products/Create.vue"),
         meta: {
           title: "Buat Product UMKM | SUMILIR",
+        },
+      },
+      {
+        path: "products/:slug",
+        name: "Merchant - Product Detail",
+        component: () => import("@/views/merchant/products/Detail.vue"),
+        meta: {
+          title: "Product Detail UMKM | SUMILIR",
         },
       },
       {

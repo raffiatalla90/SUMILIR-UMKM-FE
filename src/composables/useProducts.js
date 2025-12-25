@@ -8,7 +8,8 @@ import { saveBlob } from "@/libs/saveBlob.js";
 export function useProducts() {
   const toast = useToast();
   const products = ref([]);
-  const loading = ref(true);
+  const loading = ref(false);
+  const loadingFetchProducts = ref(true);
   const loadingExport = ref(false);
   const pagination = ref({
     current_page: 1,
@@ -56,7 +57,7 @@ export function useProducts() {
 
     // jika request sedang berjalan dengan signature sama, kembalikan promise yang sama
     if (
-      loading.value &&
+      loadingFetchProducts.value &&
       lastRequestParams === requestSignature &&
       pendingRequest
     ) {
@@ -64,12 +65,12 @@ export function useProducts() {
     }
 
     // jika request sama dengan request terakhir yang selesai -> pakai cache lokal
-    if (lastRequestParams === requestSignature && !loading.value) {
+    if (lastRequestParams === requestSignature && !loadingFetchProducts.value) {
       return { data: products.value, meta: pagination.value };
     }
 
     lastRequestParams = requestSignature;
-    loading.value = true;
+    loadingFetchProducts.value = true;
 
     const params = {
       merchant_id: merchantId,
@@ -111,7 +112,7 @@ export function useProducts() {
         lastRequestParams = null;
         throw error;
       } finally {
-        loading.value = false;
+        loadingFetchProducts.value = false;
         pendingRequest = null;
       }
     })();
@@ -564,6 +565,7 @@ export function useProducts() {
   return {
     products,
     loadingExport,
+    loadingFetchProducts,
     loading,
     pagination,
     fetchProducts,

@@ -67,21 +67,21 @@ const menuItems = computed(() => [
     icon: "pi-chart-bar",
     route: `/merchant-center/${currentMerchantId.value}/dashboard`,
   },
-  {
-    label: "Pesanan",
-    icon: "pi-shopping-bag",
-    route: `/merchant-center/${currentMerchantId.value}/orders`,
-  },
+  // {
+  //   label: "Pesanan",
+  //   icon: "pi-shopping-bag",
+  //   route: `/merchant-center/${currentMerchantId.value}/orders`,
+  // },
   {
     label: "Produk",
     icon: "pi-box",
     route: `/merchant-center/${currentMerchantId.value}/products`,
   },
-  {
-    label: "Komunitas",
-    icon: "pi-comments",
-    route: `/merchant-center/${currentMerchantId.value}/community`,
-  },
+  // {
+  //   label: "Komunitas",
+  //   icon: "pi-comments",
+  //   route: `/merchant-center/${currentMerchantId.value}/community`,
+  // },
   {
     label: "Potongan Harga",
     icon: "pi-tag",

@@ -39,7 +39,9 @@ const debouncedLoadProductsByPerPage = () => {
 
 // ✅ Get merchantId from route
 const currentMerchantId = computed(() => {
-  return route.params.merchantId ? Number(route.params.merchantId) : null;
+  return route.params && route.params.merchantId
+    ? Number(route.params.merchantId)
+    : null;
 });
 
 // ✅ Breadcrumb items
@@ -60,6 +62,7 @@ const {
   products,
   loadingExport,
   loading,
+  loadingFetchProducts,
   pagination,
   fetchProducts,
   deleteProduct,
@@ -169,11 +172,6 @@ const loadProducts = async () => {
   // ✅ Validate merchantId exists
   if (!currentMerchantId.value) {
     toast.error("Merchant ID tidak ditemukan");
-    return;
-  }
-
-  // ✅ ADD: Prevent duplicate calls
-  if (loading.value) {
     return;
   }
 
@@ -307,7 +305,6 @@ const resetFilters = () => {
   activeFilters.value = { ...defaultFilters };
   currentPage.value = 1;
   closeFilterModal();
-  toast.success("Filter berhasil direset");
   loadProducts();
 };
 
@@ -618,16 +615,8 @@ watch(currentMerchantId, (newId, oldId) => {
 
 // ✅ Watch currentPage untuk auto-load
 watch(currentPage, () => {
-  logCookies("currentPage changed"); // ✅ ADD: Log cookies on page change
   loadProducts();
 });
-
-// ✅ REMOVE: Problematic watchEffect if exists
-// watchEffect(() => {
-//   // This might cause infinite loops
-//   loadProducts();
-// });
-onMounted(() => {});
 
 watch(perPage, (val, oldVal) => {
   if (val === oldVal) return;
@@ -640,7 +629,6 @@ watch(perPage, (val, oldVal) => {
 onMounted(async () => {
   const savedPerPage = localStorage.getItem("products_per_page");
   if (savedPerPage) perPage.value = Number(savedPerPage);
-  logCookies("onMounted");
 
   // ✅ Guard di FE juga: cegah akses jika merchant belum approved
   const merchant =
@@ -711,11 +699,11 @@ const paginationInfo = computed(() => ({
 const tableColumns = [
   { key: "name", label: "Produk", sortable: true },
   { key: "sku", label: "SKU", sortable: true, cellClass: "font-mono" },
-  // ✅ FIXED: Use sanitized key for slot name (dots are invalid in v-slot)
   { key: "category", label: "Kategori", sortable: false },
   { key: "total_stock", label: "Stok", sortable: true },
   { key: "price", label: "Harga", sortable: true },
   { key: "status", label: "Status", sortable: true },
+  { key: "actions", label: "Aksi", sortable: false },
 ];
 
 const tableActions = [
@@ -723,25 +711,25 @@ const tableActions = [
     icon: "pi-eye",
     label: "Lihat Detail",
     handler: (product) => goToDetail(product),
-    class: " hover:bg-muted-foreground/20 text-muted-foreground",
+    variant: "muted-outline",
   },
   {
     icon: "pi-pencil",
     label: "Edit Produk",
     handler: (product) => goToEdit(product),
-    class: " text-merchant-primary hover:bg-merchant-primary/20",
+    variant: "merchant-outline",
   },
   {
     icon: "pi-cog",
     label: "Ubah Status",
     handler: (product) => toggleProductVisibility(product),
-    class: "hover:bg-muted-foreground/20 text-warning-foreground",
+    variant: "primary-outline",
   },
   {
     icon: "pi-trash",
     label: "Hapus Produk",
     handler: (product) => deleteProductAction(product),
-    class: "hover:bg-danger-background text-danger-foreground",
+    variant: "danger-outline",
   },
 ];
 </script>
@@ -1097,7 +1085,7 @@ const tableActions = [
 
     <!-- ✅ FIXED: Loading State -->
     <div
-      v-if="loading"
+      v-if="loadingFetchProducts"
       class="flex justify-center items-center py-20 bg-white rounded-lg mx-4 sm:mx-6"
     >
       <div
@@ -1107,7 +1095,7 @@ const tableActions = [
 
     <!-- ✅ FIXED: Empty State -->
     <div
-      v-else-if="products.length === 0 && !loading"
+      v-else-if="products.length === 0 && !loadingFetchProducts"
       class="flex flex-col items-center justify-center py-20 bg-white rounded-lg text-center mx-4 sm:mx-6"
     >
       <i class="pi pi-inbox text-5xl text-muted-foreground mb-4"></i>
@@ -1138,11 +1126,10 @@ const tableActions = [
       <div class="hidden sm:block mb-4">
         <MerchantTable
           :items="products"
-          :loading="loading"
+          :loading="loadingFetchProducts"
           :columns="tableColumns"
           :selected-items="selectedProducts"
           :select-all="selectAll"
-          :actions="tableActions"
           :current-page="currentPage"
           :total-pages="totalPages"
           :pagination-info="paginationInfo"
@@ -1264,12 +1251,31 @@ const tableActions = [
               Tidak ada kategori
             </span>
           </template>
+
+          <template #cell-actions="{ item }">
+            <div class="flex gap-1">
+              <Button
+                v-for="action in tableActions"
+                :key="action.label"
+                :title="action.label"
+                size="sm"
+                class="!w-8 border-none"
+                :variant="action.variant || 'muted'"
+                @click.stop="action.handler(item)"
+              >
+                <i :class="['pi', action.icon, 'text-sm']"></i>
+              </Button>
+            </div>
+          </template>
         </MerchantTable>
       </div>
     </div>
 
     <!-- ✅ FIXED: Mobile Pagination (Bottom) -->
-    <div v-if="!loading && products.length > 0" class="sm:hidden px-4 pb-4">
+    <div
+      v-if="!loadingFetchProducts && products.length > 0"
+      class="sm:hidden px-4 pb-4"
+    >
       <MobilePagination
         :current-page="currentPage"
         :total-pages="totalPages"

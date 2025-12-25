@@ -109,7 +109,7 @@ export const useAuthStore = defineStore("auth", () => {
       persistUser(data);
       loadSelectedMerchant();
 
-      toast.success("Login berhasil 👋", { timeout: 2500 });
+      toast.success("Login berhasil!", { timeout: 2500 });
       return data;
     } catch (error) {
       const status = error.response?.status;
@@ -129,7 +129,7 @@ export const useAuthStore = defineStore("auth", () => {
   async function logout() {
     try {
       await api.post("/logout");
-      toast.success("Berhasil logout 👋", { timeout: 2000 });
+      toast.success("Berhasil logout!", { timeout: 2000 });
     } catch {
       toast.warning("Logout gagal, sesi dibersihkan");
     } finally {
