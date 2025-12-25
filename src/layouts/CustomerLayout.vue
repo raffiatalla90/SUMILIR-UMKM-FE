@@ -93,7 +93,8 @@ function isMenuActive(m) {
   if (m.key === "komunitas") {
     return route.path.startsWith("/community");
   }
-  if (!m.to) return false; // <-- Guard for missing 'to'
+  // Pastikan m.to ada dan bertipe string
+  if (!m.to || typeof m.to !== "string") return false;
   if (m.to !== "#") return route.path === m.to;
   return activeKey.value === m.key;
 }

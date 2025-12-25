@@ -487,6 +487,7 @@ async function fetchPost() {
   loading.value = true;
   try {
     const res = await api.get(`/api/community/posts/${route.params.slug}`);
+    const res = await api.get(`/api/community/posts/${route.params.slug}`);
     post.value = res.data?.data || res.data?.post || res.data;
     post.value.images = normalizeImages(
       post.value.images || post.value.post_images || []

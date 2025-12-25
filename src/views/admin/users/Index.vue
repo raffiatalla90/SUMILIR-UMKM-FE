@@ -3,10 +3,6 @@ import { ref, computed, watch, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
 import Button from "@/components/common/Button.vue";
-import UserList from "./customers/Index.vue";
-import CreateCustomer from "./customers/Create.vue";
-import MerchantList from "./merchants/Index.vue";
-
 const route = useRoute();
 const router = useRouter();
 const emit = defineEmits(["toggle-sidebar"]);
@@ -32,16 +28,19 @@ const effectiveTab = computed(() => {
 const isCreateRoute = computed(() => route.name === "Admin - Customer Create" || route.name === "Admin - Merchant Create");
 
 const breadcrumbItems = computed(() => {
-  // Users
-  const items = [{ label: "Users", to: { name: "Admin - Users", query: { tab: effectiveTab.value } } }];
+  const items = [
+    {
+      label: "Users",
+      path: { name: "Admin - Users", query: { tab: effectiveTab.value } },
+    },
+    {
+      label: effectiveTab.value === "merchants" ? "Merchants" : "Customers",
+      path: !isListRoute.value
+        ? { name: "Admin - Users", query: { tab: effectiveTab.value } }
+        : undefined,
+    },
+  ];
 
-  // Customer/Merchant
-  items.push({
-    label: effectiveTab.value === "merchants" ? "Merchant" : "Customer",
-    to: { name: "Admin - Users", query: { tab: effectiveTab.value } },
-  });
-
-  // Detail 
   if (isDetailRoute.value) {
     items.push({ label: "Detail" });
   } else if (isCreateRoute.value && effectiveTab.value === "customers") {
@@ -49,7 +48,6 @@ const breadcrumbItems = computed(() => {
   } else if (isCreateRoute.value && effectiveTab.value === "merchants") {
     items.push({ label: "Tambah Merchant" });
   }
-
 
   return items;
 });
