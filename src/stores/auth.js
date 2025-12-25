@@ -104,7 +104,7 @@ export const useAuthStore = defineStore("auth", () => {
       await api.post("/login", credentials);
 
       // 👤 Ambil user
-      const { data } = await api.get("/me");
+      const { data } = await api.get("/api/me");
 
       persistUser(data);
       loadSelectedMerchant();
@@ -159,7 +159,7 @@ export const useAuthStore = defineStore("auth", () => {
 
     // Validasi ke server
     try {
-      const { data } = await api.get("/me");
+      const { data } = await api.get("/api/me");
       persistUser(data);
     } catch {
       clearUser();
