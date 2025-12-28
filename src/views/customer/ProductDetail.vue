@@ -1351,7 +1351,7 @@ const tempSelectedAddons = ref([]);
 const addonGroups = ref([]);
 
 // misc
-const showScrollHeader = ref(false);
+const showScrollHeader = ref(true);
 const lastScrollY = ref(0);
 const relatedProducts = ref([]);
 const cartItemsCount = computed(() => {
