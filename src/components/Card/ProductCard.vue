@@ -1,6 +1,7 @@
 <script setup>
-import { computed } from "vue";
-// import { getImageUrl } from "@/libs/getImageUrl";
+import { ref, computed, watch } from "vue";
+
+const imageError = ref(false);
 
 const props = defineProps({
   product: {
@@ -48,11 +49,20 @@ const formattedPrice = computed(() => {
 
 // Get image URL
 const productImageUrl = computed(() => {
+  if (imageError.value) return null;
+
   if (props.product.cover_image) {
     return props.product.cover_image.src_url || props.product.cover_image;
   }
   return null;
 });
+
+watch(
+  () => props.product?.id,
+  () => {
+    imageError.value = false;
+  }
+);
 </script>
 
 <template>
@@ -70,19 +80,21 @@ const productImageUrl = computed(() => {
     ${customClass} `"
   >
     <!-- Product Image (1:1 aspect ratio) -->
-    <div class="relative w-full overflow-hidden bg-gray-200 aspect-square">
+    <div
+      class="relative w-full overflow-hidden bg-muted-background aspect-square"
+    >
       <img
         v-if="productImageUrl"
         :src="productImageUrl"
         :alt="product.name"
         class="absolute inset-0 object-cover w-full h-full transition-transform duration-300 ease-out group-hover:scale-105"
-        @error="(e) => (e.target.style.display = 'none')"
+        @error="imageError = true"
       />
       <div
         v-else
-        class="absolute inset-0 flex items-center justify-center w-full h-full bg-gray-100"
+        class="absolute inset-0 flex items-center justify-center w-full h-full bg-muted-background"
       >
-        <i class="text-4xl pi pi-image text-danger-foreground"></i>
+        <i class="text-4xl pi pi-shopping-bag text-primary"></i>
       </div>
     </div>
 

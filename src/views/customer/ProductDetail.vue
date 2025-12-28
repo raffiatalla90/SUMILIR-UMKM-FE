@@ -29,7 +29,7 @@
 
     <!-- Sticky Header saat Scroll (Mobile only) -->
     <div
-      class="fixed top-0 left-0 right-0 z-40 transition-transform duration-300 ease-out border-b border-gray-200 shadow-md bg-white/95 backdrop-blur-md"
+      class="sticky top-0 left-0 right-0 z-40 transition-transform duration-300 ease-out border-b border-gray-200 shadow-md sm:hidden bg-white/95 backdrop-blur-md"
       :class="showScrollHeader ? 'translate-y-0' : '-translate-y-full'"
     >
       <div class="flex items-center gap-2 px-3 py-3">
@@ -1258,7 +1258,7 @@ function getOptionValueSrcUrl(optionIndex, valueId) {
 
 async function addToCart() {
   if (!authStore.isAuthenticated) {
-    toast.info("Silakan login terlebih dahulu");
+    toast.info("Silakan login terlebih dahulu untuk menambahkan ke keranjang.");
     router.push({
       name: "Login",
       query: { redirect: route.fullPath },
@@ -1416,7 +1416,7 @@ const isAnyModalOpen = computed(
 );
 const goToCart = () => {
   if (!authStore.isAuthenticated) {
-    toast.info("Silakan login terlebih dahulu untuk menambahkan ke keranjang.");
+    toast.info("Silakan login terlebih dahulu untuk mengakses keranjang.");
     router.push({
       name: "Login",
       query: { redirect: route.fullPath },
@@ -1842,13 +1842,6 @@ watch(
   },
   { immediate: true }
 );
-watch(showScrollHeader, (val) => {
-  if (val) {
-    setTimeout(() => {
-      document.querySelector("input[type='text']")?.focus();
-    }, 100);
-  }
-});
 
 onBeforeUnmount(() => {
   if (abortController) {

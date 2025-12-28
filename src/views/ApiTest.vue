@@ -7,17 +7,24 @@ const data = ref(null);
 
 onMounted(async () => {
   try {
-    // const response = await api.get("/api/public/products", {
-    //   params: {
-    //     segments: ["UMKM Toko"],
-    //   },
+    // const response = await api.get("/api/public/products/bakmi-jawa-0GYTK", {
+    //   // params: {
+    //   //   segments: ["UMKM Toko"],
+    //   // },
     // });
     // const response = await api.get("/api/cart");
-    const response = await api.get("/api/products/asdasd", {});
+    // const response = await api.get(
+    //   "/api/products/kopi-arabica-premium-8xha9",
+    //   {}
+    // );
+    const response = await api.get(
+      "/api/products/kopi-arabica-premium-2cNzl",
+      {}
+    );
     // const response = await api.get("/api/public/search-merchants", {
     //   params: {
     //     q: "a",
-    //     segment: ["UMKM Kuliner"],
+    //     // segment: ["UMKM Kuliner"],
     //   },
     // });
     data.value = response.data;
