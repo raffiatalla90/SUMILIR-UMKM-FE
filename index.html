@@ -6,13 +6,17 @@
       name="google-site-verification"
       content="S5dDfAxkjyY4zDfKigeqeJdYNhbHrD7FMT9aYfWSvBo"
     />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon16.png?v=5" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon32.png?v=5" />
-    <link rel="icon" sizes="any" href="/favicon.png?v=5" />
-    <link rel="shortcut icon" href="/favicon.ico?v=5" />
+    <meta property="og:site_name" content="Sumilir" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://sumilir.web.id/og-image.png" />
+
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon32.png" />
+    <link rel="icon" sizes="any" href="/favicon.png" />
+    <link rel="icon" href="/favicon.ico" />
 
     <!-- SVG (OPSIONAL, FIREFOX SAJA) -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=5" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link href="/src/style.css" rel="stylesheet" />
@@ -70,7 +74,11 @@
         height: 64px;
       }
     </style>
-    <title>SUMILIR</title>
+    <title>Sumilir – Marketplace UMKM Lokal Banyuanyar</title>
+    <meta
+      name="description"
+      content="Sumilir adalah marketplace UMKM lokal Banyuanyar untuk produk kuliner, toko, dan jasa."
+    />
   </head>
   <body>
     <!-- Splash -->
@@ -85,5 +93,16 @@
 
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Sumilir",
+        "url": "https://sumilir.web.id",
+        "logo": "https://sumilir.web.id/favicon.png",
+        "description": "Marketplace UMKM lokal Banyuanyar untuk produk kuliner, toko, dan jasa.",
+        "sameAs": []
+      }
+    </script>
   </body>
 </html>

@@ -1170,6 +1170,7 @@ import {
   onUnmounted,
   onBeforeUnmount,
 } from "vue";
+import { setMeta } from "@/router/seo";
 import { useRoute, useRouter } from "vue-router";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock.js";
@@ -1828,6 +1829,15 @@ async function doFetchProduct(slug) {
 onMounted(async () => {
   window.addEventListener("scroll", handleScroll);
   await fetchCartCount();
+});
+watch(product, (p) => {
+  if (!p) return;
+
+  setMeta({
+    title: `${p.name} – UMKM ${p.merchant?.name || "Lokal"}`,
+    description: p.description?.slice(0, 155),
+    image: selectedImage.value,
+  });
 });
 watch(
   () => authStore.authReady,

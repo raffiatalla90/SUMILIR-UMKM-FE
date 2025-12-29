@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+import { setMeta } from "./seo";
 import CommunityView from "@/views/CommunityView.vue";
 import CommunityDetailView from "@/views/CommunityDetailView.vue";
 
@@ -37,19 +38,31 @@ const routes = [
         path: "",
         name: "Beranda",
         component: () => import("@/views/customer/Home.vue"),
-        meta: { title: "Beranda | SUMILIR" },
+        meta: {
+          title: "Marketplace UMKM Lokal Banyuanyar",
+          description:
+            "Sumilir adalah marketplace UMKM lokal Banyuanyar. Temukan produk kuliner, toko, dan jasa UMKM. Pesan langsung via WhatsApp.",
+        },
       },
       {
         path: "product-toko",
         name: "Product Toko",
         component: () => import("@/views/customer/ProductTokoHome.vue"),
-        meta: { title: "Semua Produk Toko | SUMILIR" },
+        meta: {
+          title: "Produk Toko UMKM Lokal",
+          description:
+            "Produk kebutuhan toko dari UMKM lokal Banyuanyar. Praktis, dekat, dan terpercaya.",
+        },
       },
       {
         path: "product-kuliner",
         name: "Product Kuliner",
         component: () => import("@/views/customer/ProductKulinerHome.vue"),
-        meta: { title: "Semua Produk Kuliner | SUMILIR" },
+        meta: {
+          title: "Produk Kuliner UMKM Banyuanyar",
+          description:
+            "Temukan produk kuliner UMKM Banyuanyar yang enak dan terjangkau. Pesan mudah via WhatsApp.",
+        },
       },
       {
         path: "merchant/:slug",
@@ -85,7 +98,6 @@ const routes = [
         meta: { title: "Product Detail | SUMILIR" },
       },
       {
-        path: "keranjang",
         path: "cart",
         name: "Keranjang",
         component: () => import("@/views/customer/Cart.vue"),
@@ -117,7 +129,11 @@ const routes = [
         path: "community",
         name: "community",
         component: CommunityView,
-        meta: { title: "Community | SUMILIR" },
+        meta: {
+          title: "Komunitas UMKM Lokal Banyuanyar",
+          description:
+            "Komunitas UMKM lokal Banyuanyar di Sumilir. Tempat berbagi informasi, diskusi, dan promosi antar pelaku UMKM dan warga.",
+        },
       },
       {
         path: "community/:slug",
@@ -445,7 +461,15 @@ let authInitialized = false;
 
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
-  document.title = to.meta.title || "SUMILIR";
+  const defaultTitle = "Sumilir – Marketplace UMKM Lokal Banyuanyar";
+
+  const defaultDesc =
+    "Sumilir adalah marketplace UMKM lokal Banyuanyar untuk produk kuliner, toko, dan jasa.";
+
+  setMeta({
+    title: to.meta.title ? `${to.meta.title} – Sumilir` : defaultTitle,
+    description: to.meta.description || defaultDesc,
+  });
 
   if (!authInitialized) {
     authInitialized = true;

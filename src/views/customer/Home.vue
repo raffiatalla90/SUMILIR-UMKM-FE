@@ -163,6 +163,14 @@ watch(
 
 <template>
   <div class="relative app-container">
+    <section class="sr-only">
+      <h1>Sumilir – Marketplace UMKM Lokal Banyuanyar</h1>
+      <p>
+        Sumilir adalah platform marketplace UMKM lokal Banyuanyar yang
+        menghubungkan penjual dan pembeli untuk produk kuliner, toko, dan jasa.
+      </p>
+    </section>
+
     <!-- Section: Hero + Event Banner Slider -->
     <section id="hero" class="relative pb-2">
       <div class="relative w-full">

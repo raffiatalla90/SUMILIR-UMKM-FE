@@ -185,7 +185,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="flex flex-col min-h-screen pb-16 sm:pb-0">
     <!-- Navbar Desktop (hidden on mobile) -->
-    <div
+    <nav
       class="hidden sm:block sticky top-0 z-50 w-full h-[91px] bg-white border-b border-gray-200 shadow-sm"
     >
       <div class="max-w-[1440px] mx-auto h-full px-4">
@@ -194,6 +194,7 @@ onBeforeUnmount(() => {
           <RouterLink
             to="/"
             class="text-[30px] font-bold leading-[100%] tracking-[0] text-black"
+            title="Sumilir – Marketplace UMKM Lokal Banyuanyar"
           >
             <img :src="LogoText" alt="SUMILIR" class="hidden h-10 md:block" />
             <img :src="LogoNoText" alt="SUMILIR" class="h-10 md:hidden" />
@@ -289,7 +290,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </div>
-    </div>
+    </nav>
     <!-- SEARCH BAR (Desktop) -->
     <transition
       enter-active-class="transition-all duration-300 ease-out"
