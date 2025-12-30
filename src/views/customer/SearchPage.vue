@@ -82,7 +82,7 @@ function scrollToTop() {
 }
 
 /* ================= BASIC ================= */
-const keyword = ref("");
+// const keyword = ref("");
 const activeTab = ref("products");
 
 /* ================= MODAL ================= */
@@ -101,7 +101,6 @@ const detailFilters = ref({
 });
 
 const tempDetailFilters = ref({ ...detailFilters.value, subCategories: [] });
-const searchInput = ref(keyword.value);
 
 const isEmptyProducts = computed(
   () =>
@@ -314,8 +313,7 @@ function buildMerchantQuery() {
   );
 
   return {
-    q: keyword.value || undefined,
-
+    q: route.query.q || undefined,
     segments: detailFilters.value.segments.length
       ? detailFilters.value.segments
       : undefined,
@@ -341,7 +339,7 @@ function buildProductQuery() {
   );
 
   return {
-    q: typeof keyword.value === "string" ? keyword.value : undefined,
+    q: route.query.q || undefined,
     min_price:
       typeof detailFilters.value.minPrice === "number"
         ? detailFilters.value.minPrice
@@ -369,13 +367,11 @@ function buildProductQuery() {
 }
 
 function submitSearch() {
-  const q =
-    typeof searchInput.value === "string" ? searchInput.value.trim() : "";
-
+  const q = route.query.q;
   if (!q) return;
 
   router.push({
-    name: "Search",
+    name: "Search Page",
     query: { q },
   });
 }
@@ -435,17 +431,18 @@ watch(
 
 watch(
   () => route.query.q,
-  (newQ, oldQ) => {
-    if (newQ !== oldQ) {
-      keyword.value = newQ || "";
-      searchInput.value = newQ || "";
+  (q) => {
+    page.value = 1;
+    products.value = [];
+    hasMore.value = true;
 
-      fetchProducts(true);
-      setupObserver();
-      if (activeTab.value === "merchants") {
-        fetchMerchants(true);
-        // setupMerchantObserver();
-      }
+    if (!q) return;
+
+    fetchProducts(true);
+    nextTick(setupObserver);
+
+    if (activeTab.value === "merchants") {
+      fetchMerchants(true);
     }
   },
   { immediate: true }
@@ -606,35 +603,6 @@ function applyFilters(list) {
   return filtered;
 }
 
-// const finalMerchants = computed(() => {
-//   if (activeInstantSorts.value.includes("nearest")) {
-//     // Hanya lakukan sorting jarak di sini
-//     let sorted = [...merchants.value];
-//     sorted.sort((a, b) => a.distance - b.distance);
-//     return sorted;
-//   }
-
-//   return merchants.value;
-// });
-
-// watch(loadMoreMerchantRef, (el) => {
-//   if (el && activeTab.value === "merchants") {
-//     setupMerchantObserver();
-//   }
-// });
-
-watch(
-  () => (route && route.query ? route.query.q : ""),
-  (newQ, oldQ) => {
-    if (newQ !== oldQ) {
-      keyword.value = newQ || "";
-      searchInput.value = newQ || "";
-      fetchProducts(true);
-    }
-  },
-  { immediate: true }
-);
-
 function handleMerchantInfiniteScroll() {
   if (
     activeTab.value !== "merchants" ||
@@ -657,14 +625,11 @@ function handleMerchantInfiniteScroll() {
 onMounted(() => {
   window.addEventListener("scroll", handleScroll);
   window.addEventListener("scroll", handleMerchantInfiniteScroll);
-  if (route.query.q) {
-    keyword.value = route.query.q;
-    searchInput.value = route.query.q;
-  }
+
   fetchLevel1Categories();
   fetchSegmentations();
-  fetchProducts(true);
-  setupObserver();
+  // fetchProducts(true);
+  // setupObserver();
 });
 
 onBeforeUnmount(() => {
@@ -692,7 +657,8 @@ onBeforeUnmount(() => {
         <form @submit.prevent="submitSearch" class="flex-1">
           <div class="relative">
             <TextField
-              v-model="searchInput"
+              :modelValue="route.query.q || ''"
+              @update:modelValue="(v) => router.replace({ query: { q: v } })"
               name="search"
               placeholder="Cari produk atau UMKM…"
               variant="primary"
@@ -705,7 +671,7 @@ onBeforeUnmount(() => {
       <div>
         <h1 class="text-lg font-semibold text-gray-900 sm:text-xl">
           Hasil pencarian untuk
-          <span class="text-primary">"{{ keyword }}"</span>
+          <span class="text-primary">"{{ route.query.q }}"</span>
         </h1>
         <p class="mt-1 text-sm text-muted-foreground">
           Menampilkan produk dan UMKM terkait

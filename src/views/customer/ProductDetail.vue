@@ -1834,7 +1834,7 @@ watch(product, (p) => {
   if (!p) return;
 
   setMeta({
-    title: `${p.name} – UMKM ${p.merchant?.name || "Lokal"}`,
+    title: `${p.name} –  ${p.merchant?.name || "Lokal"}`,
     description: p.description?.slice(0, 155),
     image: selectedImage.value,
   });
