@@ -31,36 +31,39 @@
       <!-- Pilih Kategori -->
       <section>
         <h2 class="text-lg font-semibold mb-4">Pilih Kategori</h2>
-        <div class="grid grid-cols-5 sm:grid-cols-6 gap-3 sm:gap-4">
+          <div class="w-full grid grid-cols-5 gap-4 justify-items-center">
           <!-- Kategori dari Backend (4 kategori awal atau semua) -->
-          <button
-            v-for="cat in displayedCategories"
-            :key="cat.id"
-            @click="selectCategory(cat.id)"
-            class="flex flex-col items-center gap-2 transition-all duration-200"
-            :class="selectedCategoryId === cat.id ? 'scale-105' : 'hover:scale-105'"
-          >
-            <div
-              class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl border-2 flex items-center justify-center transition-all duration-200"
-              :class="selectedCategoryId === cat.id 
-                ? 'bg-[#FFA30E] border-[#FFA30E] text-white' 
-                : 'bg-white border-gray-300 text-gray-600 hover:border-[#FFA30E]'"
+          <template v-for="(cat, idx) in displayedCategories" :key="cat.id">
+            <button
+              @click="selectCategory(cat.id)"
+              class="flex flex-col items-center gap-2 transition-all duration-200 aspect-square"
+              :class="selectedCategoryId === cat.id ? 'scale-105' : 'hover:scale-105'"
+              style="aspect-ratio: 1/1;"
             >
-              <i :class="getCategoryIcon(cat)" class="text-xl"></i>
-            </div>
-            <span class="text-xs sm:text-sm text-gray-700 text-center line-clamp-2">{{ cat.name }}</span>
-          </button>
-          
-          <!-- Tombol Semua / Tutup -->
-          <button
-            @click="toggleShowAllCategories"
-            class="flex flex-col items-center gap-2 transition-all duration-200 hover:scale-105"
-          >
+              <div
+                class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl border-2 flex items-center justify-center transition-all duration-200 aspect-square"
+                :class="selectedCategoryId === cat.id 
+                  ? 'bg-[#FFA30E] border-[#FFA30E] text-white' 
+                  : 'bg-white border-gray-300 text-gray-600 hover:border-[#FFA30E]'"
+                style="aspect-ratio: 1/1;"
+              >
+                <i :class="getCategoryIcon(cat)" class="text-xl"></i>
+              </div>
+              <span class="text-xs sm:text-sm text-gray-700 text-center line-clamp-2">{{ cat.name }}</span>
+            </button>
+          </template>
+          <!-- Tombol Semua / Tutup di paling kanan, tetap kotak -->
+            <button
+              @click="toggleShowAllCategories"
+              class="flex flex-col items-center gap-2 transition-all duration-200 hover:scale-105 aspect-square"
+              style="aspect-ratio: 1/1;"
+            >
             <div
-              class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl border-2 flex items-center justify-center transition-all duration-200"
+              class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl border-2 flex items-center justify-center transition-all duration-200 aspect-square"
               :class="showAllCategories 
                 ? 'bg-gray-500 border-gray-500 text-white' 
                 : 'bg-[#FFA30E] border-[#FFA30E] text-white'"
+              style="aspect-ratio: 1/1;"
             >
               <i :class="showAllCategories ? 'pi pi-times' : 'pi pi-th-large'" class="text-xl"></i>
             </div>
@@ -177,6 +180,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import api from '@/libs/axios.js'
+import { useToast } from 'vue-toastification'
+
+const toast = useToast()
 
 const searchQuery = ref('')
 const jasaList = ref([])
@@ -186,6 +192,14 @@ const promoScroller = ref(null)
 const selectedCategoryId = ref(null)
 const loadingJasa = ref(false)
 const showAllCategories = ref(false)
+
+// Watch searchQuery to reset category filter if searching
+import { watch } from 'vue'
+watch(searchQuery, (val) => {
+  if (val && val.length > 0) {
+    selectedCategoryId.value = null;
+  }
+})
 
 // Tampilkan 4 kategori awal atau semua
 const displayedCategories = computed(() => {
@@ -343,9 +357,9 @@ onMounted(async () => {
   loadingJasa.value = true;
   try {
     const [jasaRes, promoRes, categoryRes] = await Promise.all([
-      api.get('/public/jasas'),
-      api.get('/promos'),
-      api.get('/public/jasa-categories')
+      api.get('/api/public/jasas'),
+      api.get('/api/promos'),
+      api.get('/api/public/categories/level-1')
     ])
 
     jasaList.value = (jasaRes.data ?? []).map((j) => ({
@@ -358,10 +372,16 @@ onMounted(async () => {
       image: promoImages[i % promoImages.length]
     }))
     
-    // Filter only active categories
-    categories.value = (categoryRes.data ?? []).filter(c => c.is_active !== false);
+      // Ambil data categories dari response { success, message, data }
+      categories.value = (categoryRes.data?.data ?? categoryRes.data ?? []).map(c => ({
+        id: c.value ?? c.id,
+        name: c.label ?? c.name,
+        value: c.value ?? c.id,
+        label: c.label ?? c.name
+      }));
   } catch (e) {
     console.error('Gagal memuat data:', e)
+    toast.error('Gagal memuat data layanan. Silakan coba lagi nanti.')
   } finally {
     loadingJasa.value = false;
   }

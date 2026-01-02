@@ -192,7 +192,12 @@ const validationSchema = yup.object({
   title: yup.string().required("Nama layanan wajib diisi"),
   description: yup.string().nullable(),
   jasa_category_id: yup.number().required("Kategori layanan wajib dipilih"),
-  jasa_subcategory_id: yup.number().nullable(),
+  jasa_subcategory_id: yup
+    .number()
+    .transform((value, originalValue) => {
+      return originalValue === "" || originalValue === null ? null : value;
+    })
+    .nullable(),
   fixed_price: yup.number().min(0).required("Harga tetap wajib diisi"),
   base_price: yup.number().min(0).required("Harga mulai dari wajib diisi"),
   service_type: yup.string().required("Tipe layanan wajib dipilih"),
@@ -205,10 +210,9 @@ const validationSchema = yup.object({
 
 const loadCategories = async () => {
   try {
-    const { data } = await api.get("/public/jasa-categories", {
-      params: { is_active: true },
-    });
-    jasaCategories.value = data;
+	const { data } = await api.get("/api/public/categories/level-1");
+    // Backend mengembalikan { success, message, data: [...] }
+    jasaCategories.value = data.data ?? data;
   } catch (error) {
     console.error("Error loading categories:", error);
   }
@@ -221,9 +225,9 @@ const loadSubcategories = async (categoryId) => {
   }
   try {
     console.log("Loading subcategories for category:", categoryId);
-    const { data } = await api.get(`/public/jasa-categories/${categoryId}/subcategories`);
+  	const { data } = await api.get(`/api/public/categories/${categoryId}/sub-categories`);
     console.log("Subcategories loaded:", data);
-    jasaSubcategories.value = data;
+    jasaSubcategories.value = data.data ?? data;
   } catch (error) {
     console.error("Error loading subcategories:", error);
     jasaSubcategories.value = [];
@@ -291,9 +295,9 @@ const submitForm = async (values) => {
 
     // Biarkan axios yang set header multipart/form-data + boundary secara otomatis
     const { data } = await api.post(
-      `/merchants/${currentMerchantId.value}/jasas`,
-      fd
-    );
+    `/api/merchants/${currentMerchantId.value}/jasas`,
+    fd
+  );
 
     toast.success("Jasa berhasil dibuat!");
     router.push(`/merchant-center/${currentMerchantId.value}/jasas`);
@@ -344,7 +348,7 @@ onMounted(() => {
                   name="jasa_category_id"
                   label="Pilih Kategori Utama"
                   placeholder="Pilih kategori..."
-                  :options="jasaCategories.map(c => ({ value: c.id, label: c.name }))"
+                  :options="jasaCategories.map(c => ({ value: c.value ?? c.id, label: c.label ?? c.name }))"
                   v-model="formData.jasa_category_id"
                   @update:modelValue="handleCategoryChange"
                   required
@@ -354,7 +358,7 @@ onMounted(() => {
                   name="jasa_subcategory_id"
                   label="Pilih Jenis Layanan Lebih Spesifik"
                   placeholder="Pilih sub kategori..."
-                  :options="jasaSubcategories.map(s => ({ value: s.id, label: s.name }))"
+                  :options="jasaSubcategories.map(s => ({ value: s.value ?? s.id, label: s.label ?? s.name }))"
                   v-model="formData.jasa_subcategory_id"
                 />
 

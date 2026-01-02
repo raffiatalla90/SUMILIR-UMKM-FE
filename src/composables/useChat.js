@@ -11,7 +11,7 @@ export function useChat() {
   async function fetchConversations(params = {}) {
     loading.value = true;
     try {
-      const { data } = await api.get("/chats", { params });
+      const { data } = await api.get("/api/chats", { params });
       conversations.value = data.data || data;
       return conversations.value;
     } finally {
@@ -21,7 +21,7 @@ export function useChat() {
 
   // Start or get a conversation for a jasa (buyer side)
   async function startConversation(jasaId) {
-    const { data } = await api.post("/chats/start", { jasa_id: jasaId });
+    const { data } = await api.post("/api/chats/start", { jasa_id: jasaId });
     const convo = data.data || data;
     activeConversation.value = convo;
     return convo;
@@ -30,7 +30,7 @@ export function useChat() {
   async function loadConversation(conversationId) {
     loading.value = true;
     try {
-      const { data } = await api.get(`/chats/${conversationId}`);
+      const { data } = await api.get(`/api/chats/${conversationId}`);
       const payload = data.data || data;
       activeConversation.value = payload.conversation || payload;
       messages.value = payload.messages || [];
@@ -41,14 +41,14 @@ export function useChat() {
   }
 
   async function sendMessage(conversationId, body) {
-    const { data } = await api.post(`/chats/${conversationId}/messages`, { body });
+    const { data } = await api.post(`/api/chats/${conversationId}/messages`, { body });
     const msg = data.data || data;
     messages.value.push(msg);
     return msg;
   }
 
   async function makeOffer(conversationId, offerPrice, note = "") {
-    const { data } = await api.post(`/chats/${conversationId}/offers`, {
+    const { data } = await api.post(`/api/chats/${conversationId}/offers`, {
       offer_price: offerPrice,
       body: note || null,
     });
@@ -59,8 +59,8 @@ export function useChat() {
 
   async function respondOffer(conversationId, messageId, accept = true) {
     const url = accept
-      ? `/chats/${conversationId}/offers/${messageId}/accept`
-      : `/chats/${conversationId}/offers/${messageId}/reject`;
+      ? `/api/chats/${conversationId}/offers/${messageId}/accept`
+      : `/api/chats/${conversationId}/offers/${messageId}/reject`;
     const { data } = await api.post(url);
     const updated = data.data || data;
     // Update local messages array

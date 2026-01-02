@@ -70,11 +70,14 @@ export function useJasa() {
     Object.keys(params).forEach((k) => params[k] === undefined && delete params[k]);
 
     try {
-      // Owner listing endpoint
-      pendingRequest = api.get("/jasas/owner", { params });
+      // Gunakan endpoint jasa lama: GET /api/jasa
+      pendingRequest = api.get("/api/jasa", { params });
       const { data } = await pendingRequest;
 
-      jasas.value = data.data || [];
+      // Dukung dua bentuk response:
+      // 1) Array langsung: [ {...}, {...} ]
+      // 2) Paginated: { data: [...], meta: {...} }
+      jasas.value = Array.isArray(data) ? data : (data.data || []);
 
       if (data.meta) {
         pagination.value = {
@@ -99,11 +102,11 @@ export function useJasa() {
     try {
       let endpoint;
       if (isOwnerView) {
-        // Owner view: use authenticated endpoint (/jasas/{id} with auth)
-        endpoint = `/jasas/${id}`;
+        // Owner / admin view: gunakan endpoint lama /api/jasa/{id}
+        endpoint = `/api/jasa/${id}`;
       } else {
-        // Public view: use public endpoint
-        endpoint = `/public/jasas/${id}`;
+        // Public view: gunakan prefix /api/public
+        endpoint = `/api/public/jasas/${id}`;
       }
       const { data } = await api.get(endpoint);
       const payload = data.data ?? data;
@@ -118,7 +121,8 @@ export function useJasa() {
   const deleteJasa = async (id) => {
     loading.value = true;
     try {
-      await api.delete(`/jasas/${id}`);
+      // Endpoint lama: DELETE /api/jasa/{id}
+      await api.delete(`/api/jasa/${id}`);
       jasas.value = jasas.value.filter((j) => j.id !== id);
       pagination.value.total = Math.max(0, (pagination.value.total || 0) - 1);
     } catch (err) {
@@ -131,7 +135,7 @@ export function useJasa() {
   const updateJasaStatus = async (id, status) => {
     loading.value = true;
     try {
-      const { data } = await api.put(`/jasas/${id}`, { status });
+      const { data } = await api.put(`/api/jasa/${id}`, { status });
       const idx = jasas.value.findIndex((j) => j.id === id);
       if (idx !== -1) jasas.value[idx].status = status;
       return data;
@@ -146,7 +150,7 @@ export function useJasa() {
     loading.value = true;
     try {
       for (const id of ids) {
-        await api.delete(`/jasas/${id}`);
+        await api.delete(`/api/jasa/${id}`);
       }
       jasas.value = jasas.value.filter((j) => !ids.includes(j.id));
       pagination.value.total = Math.max(0, (pagination.value.total || 0) - ids.length);
@@ -161,7 +165,7 @@ export function useJasa() {
     loading.value = true;
     try {
       for (const id of ids) {
-        await api.put(`/jasas/${id}`, { status });
+        await api.put(`/api/jasa/${id}`, { status });
       }
       jasas.value.forEach((j) => {
         if (ids.includes(j.id)) j.status = status;

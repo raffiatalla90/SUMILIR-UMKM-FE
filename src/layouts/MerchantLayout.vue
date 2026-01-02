@@ -76,44 +76,41 @@ watch(
   { immediate: true }
 );
 
-// ✅ Check if current merchant is UMKM Jasa (segmentation_id = 3)
-const isJasaMerchant = computed(() => {
-  const merchant = currentMerchant.value;
-  return merchant?.segmentation_id === 3;
-});
-
-// ✅ Menu items dengan dynamic merchantId dan dynamic product/jasa route
+// ✅ Menu items dengan merchantId dinamis dan menu terpisah untuk Produk & Jasa
 const menuItems = computed(() => {
-  const isJasa = isJasaMerchant.value;
-  const items = [
+  const base = `/merchant-center/${currentMerchantId.value}`;
+  return [
     {
       label: "Dashboard",
       icon: "pi-chart-bar",
-      route: `/merchant-center/${currentMerchantId.value}/dashboard`,
+      route: `${base}/dashboard`,
     },
     {
       label: "Pesanan",
       icon: "pi-shopping-bag",
-      route: `/merchant-center/${currentMerchantId.value}/orders`,
+      route: `${base}/orders`,
     },
     {
-      label: isJasa ? "Jasa" : "Produk",
+      label: "Produk",
       icon: "pi-box",
-      route: `/merchant-center/${currentMerchantId.value}/${isJasa ? "jasas" : "products"}`,
+      route: `${base}/products`,
+    },
+    {
+      label: "Jasa",
+      icon: "pi-briefcase",
+      route: `${base}/jasas`,
     },
     {
       label: "Komunitas",
       icon: "pi-comments",
-      route: `/merchant-center/${currentMerchantId.value}/community`,
+      route: `${base}/community`,
     },
     {
       label: "Potongan Harga",
       icon: "pi-tag",
-      route: `/merchant-center/${currentMerchantId.value}/discounts`,
+      route: `${base}/discounts`,
     },
   ];
-  
-  return items;
 });
 
 const logout = async () => {

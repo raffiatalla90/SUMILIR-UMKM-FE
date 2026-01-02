@@ -237,15 +237,15 @@ const fetchMerchantData = async () => {
   loading.value = true
   try {
     const merchantId = route.params.id
-    
-    // Fetch merchant detail
-    const { data: merchantData } = await api.get(`/public/merchants/${merchantId}`)
+
+    // Fetch merchant detail (public API)
+    const { data: merchantData } = await api.get(`/api/public/merchants/${merchantId}`)
     merchant.value = merchantData.data || merchantData
-    
-    // Fetch jasa dari merchant tersebut
-    const { data: jasaData } = await api.get('/public/jasas', {
+
+    // Fetch jasa dari merchant tersebut (public jasa index dengan filter merchantId)
+    const { data: jasaData } = await api.get('/api/public/jasas', {
       params: {
-        merchant_id: merchantId,
+        merchantId: merchantId,
         per_page: 50
       }
     })

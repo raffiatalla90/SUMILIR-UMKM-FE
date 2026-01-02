@@ -9,7 +9,7 @@ import Button from "@/components/common/Button.vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
-import { getImageUrl } from "@/libs/getImageUrl.js";
+import { getImageUrlJasa } from "@/libs/getImageUrl.js";
 import { useJasa } from "@/composables/useJasa";
 
 const { fetchJasaDetail } = useJasa();
@@ -132,11 +132,11 @@ const mainImageSrc = computed(() => {
   const images = jasa.value.images || [];
   if (images.length) {
     const img = images[currentImageIndex.value] || images[0];
-    return getImageUrl(img?.path || img?.id || jasa.value.image);
+    return getImageUrlJasa(img?.path || img?.id || jasa.value.image);
   }
 
   if (jasa.value.image) {
-    return getImageUrl(jasa.value.image);
+    return getImageUrlJasa(jasa.value.image);
   }
 
   return "";
@@ -388,7 +388,7 @@ const getSelectionTypeLabel = (group) => {
               >
                 <img
                   v-if="image.id || image.path"
-                  :src="getImageUrl(image.path || image.id)"
+                  :src="getImageUrlJasa(image.path || image.id)"
                   :alt="`${jasa.title} ${index + 1}`"
                   class="max-w-full max-h-full object-contain"
                   @error="(e) => (e.target.style.display = 'none')"

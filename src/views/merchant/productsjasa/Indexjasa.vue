@@ -21,7 +21,7 @@ import { useJasa } from "@/composables/useJasa"; // ✅ GANTI: import useJasa
 import { useChat } from "@/composables/useChat";
 import ChatWindow from "@/components/common/ChatWindow.vue";
 import { useCategories } from "@/composables/useCategories";
-import { getImageUrl } from "@/libs/getImageUrl.js";
+import { getImageUrlJasa } from "@/libs/getImageUrl.js";
 import api from "@/libs/axios";
 
 const router = useRouter();
@@ -729,10 +729,10 @@ const getPrimaryImageSrc = (jasaItem) => {
   const images = jasaItem.images || [];
   if (images.length) {
     const image = images.find((img) => img.is_cover) || images[0];
-    return getImageUrl(image?.path || image?.id || jasaItem.image);
+    return getImageUrlJasa(image?.path || image?.id || jasaItem.image);
   }
   if (jasaItem.image) {
-    return getImageUrl(jasaItem.image);
+    return getImageUrlJasa(jasaItem.image);
   }
   return "";
 };
