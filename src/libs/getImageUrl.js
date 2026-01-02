@@ -13,17 +13,40 @@ export const getImageUrlJasa = (imageIdOrPath) => {
   const backendBase = apiBase.replace(/\/api\/?$/, "");
 
   if (typeof imageIdOrPath === "string") {
+    let path = imageIdOrPath.trim();
+
     // Full URL already
-    if (imageIdOrPath.startsWith("http")) {
-      return imageIdOrPath;
+    if (path.startsWith("http")) {
+      return path;
     }
 
-    // Storage path from Laravel (e.g. /storage/jasas/xxx.jpg)
-    if (imageIdOrPath.startsWith("/storage")) {
-      return `${backendBase}${imageIdOrPath}`;
+    // Normalisasi backslash ke slash
+    path = path.replace(/\\/g, "/");
+
+    // Jika sudah bentuk /storage/...
+    if (path.startsWith("/storage/")) {
+      return `${backendBase}${path}`;
+    }
+    if (path.startsWith("storage/")) {
+      return `${backendBase}/${path}`;
+    }
+
+    // Jika path mulai dengan /jasa/... → arahkan ke /storage/jasa/...
+    if (path.startsWith("/jasa/")) {
+      return `${backendBase}/storage${path}`;
+    }
+
+    // Jika path mulai dengan jasa/... → arahkan ke /storage/jasa/...
+    if (path.startsWith("jasa/")) {
+      return `${backendBase}/storage/${path}`;
+    }
+
+    // Jika hanya nama file (mengandung ekstensi gambar), simpan di /storage/jasa/
+    if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(path)) {
+      return `${backendBase}/storage/jasa/${path}`;
     }
   }
 
-  // Otherwise treat as ID and construct the URL under backend host
+  // Fallback: anggap sebagai ID ke route /images/{id}
   return `${backendBase}/images/${encodeURIComponent(imageIdOrPath)}`;
 };

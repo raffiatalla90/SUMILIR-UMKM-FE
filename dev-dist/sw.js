@@ -68,6 +68,7 @@ if (!self.define) {
   };
 }
 define(['./workbox-14ef65e8'], (function (workbox) { 'use strict';
+define(['./workbox-14ef65e8'], (function (workbox) { 'use strict';
 
   self.skipWaiting();
   workbox.clientsClaim();
@@ -78,8 +79,11 @@ define(['./workbox-14ef65e8'], (function (workbox) { 'use strict';
    * See https://goo.gl/S9QRab
    */
   workbox.precacheAndRoute([{
+    "url": "registerSW.js",
+    "revision": "3ca0b8505b4bec776b69afdba2768812"
+  }, {
     "url": "/index.html",
-    "revision": "0.d4k2jqfqj88"
+    "revision": "0.r8i396bsuig"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("/index.html"), {
@@ -93,7 +97,7 @@ define(['./workbox-14ef65e8'], (function (workbox) { 'use strict';
     "cacheName": "assets-v1",
     plugins: []
   }), 'GET');
-  workbox.registerRoute(/^http:\/\/localhost:8000\/api\/.*/, new workbox.NetworkFirst({
+  workbox.registerRoute(/^http:\/\/localhost:8000\/.*/, new workbox.NetworkFirst({
     "cacheName": "api-cache-v1",
     plugins: [new workbox.CacheableResponsePlugin({
       statuses: [0, 200]

@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import { initializeCsrfToken } from "@/composables/useCsrfToken";
+// import { initializeCsrfToken } from "@/composables/useCsrfToken";
 import CommunityView from "@/views/CommunityView.vue";
 import CommunityDetailView from "@/views/CommunityDetailView.vue";
 
@@ -396,6 +396,14 @@ const routes = [
         component: () =>
           import("@/views/merchant/productsjasa/Indexjasa.vue"),
         meta: { title: "Jasa UMKM | SUMILIR" },
+      },
+      // Handle /jasas/index agar tidak dianggap sebagai :id = "index"
+      {
+        path: "jasas/index",
+        redirect: (to) => ({
+          name: "Merchant - Jasa Index",
+          params: { merchantId: to.params.merchantId },
+        }),
       },
       {
         path: "jasas/create",

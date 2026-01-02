@@ -238,10 +238,10 @@ watch(
             <PromoCard
               v-for="(promo, i) in promoList"
               :key="promo.id || i"
+              :promo="promo"
               class="snap-start shrink-0"
             />
-              <PromoCard :promo="promo" />
-                 </template>
+          </template>
         </div>
       </div>
     

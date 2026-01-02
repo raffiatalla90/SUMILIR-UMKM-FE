@@ -2,7 +2,7 @@
   <div class="min-h-screen bg-gray-50 pb-32 sm:pb-28">
     <!-- Gambar header -->
     <div class="w-full h-48 sm:h-60 bg-gray-200 overflow-hidden">
-      <img :src="jasaImage" class="w-full h-full object-cover" />
+      <img :src="jasaImage" @error="onImgError($event, 'header')" class="w-full h-full object-cover" />
     </div>
 
     <!-- Info utama -->
@@ -15,6 +15,7 @@
             :src="getMerchantLogo(jasa.merchant.logo_path)" 
             alt="Logo Toko" 
             class="w-full h-full object-cover"
+            @error="onImgError($event, 'logo')"
           />
           <i v-else class="pi pi-shop text-gray-400 text-xl"></i>
         </div>
@@ -238,6 +239,7 @@
               price: jasa?.fixed_price || jasa?.base_price || 100000,
               tgl: selectedDate.toISOString(),
               waktu: activeTime,
+              payment_methods: jasa?.payment_methods || '',
             },
           }"
           class="flex-1 py-3 rounded-full bg-[#FFA30E] hover:bg-[#e5920d] text-white font-semibold text-center transition"
@@ -282,6 +284,7 @@
                   :src="getMerchantLogo(jasa.merchant.logo_path)" 
                   alt="Logo Toko" 
                   class="w-full h-full object-cover"
+                  @error="onImgError($event, 'logo')"
                 />
                 <i v-else class="pi pi-shop text-gray-400"></i>
               </div>
@@ -497,7 +500,7 @@ const formatPaymentMethods = (methods) => {
 onMounted(async () => {
   try {
     console.log("[JasaDetail] Fetching jasa ID:", route.params.id);
-    const { data } = await api.get(`/public/jasas/${route.params.id}`);
+    const { data } = await api.get(`/api/public/jasas/${route.params.id}`);
     console.log("[JasaDetail] Jasa data:", data);
     jasa.value = data;
     
@@ -528,6 +531,15 @@ onMounted(async () => {
     initActiveTime();
   }
 });
+
+
+function onImgError(e, type) {
+  if (type === 'header') {
+    e.target.src = fallbackHeader
+  } else if (type === 'logo') {
+    e.target.src = fallbackLogo
+  }
+}
 </script>
 
 <style>
