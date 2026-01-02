@@ -19,6 +19,7 @@ import MobilePagination from "@/components/common/MobilePagination.vue";
 import BulkActionBar from "@/components/common/BulkActionBar.vue";
 import { useProducts } from "@/composables/useProducts";
 import { useCategories } from "@/composables/useCategories";
+import api from "@/libs/axios";
 
 const router = useRouter();
 const route = useRoute();
@@ -430,8 +431,13 @@ const deleteProductAction = (product) => {
 const confirmDeleteProduct = async () => {
   if (!selectedProductForDelete.value) return;
 
-  await deleteProduct(selectedProductForDelete.value.slug); // ✅ slug
-  closeDeleteModal();
+  try {
+    await deleteProduct(selectedProductForDelete.value.slug); // ✅ slug
+    toast.success("Produk berhasil dihapus");
+    closeDeleteModal();
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Gagal menghapus produk");
+  }
 };
 
 const hasSelectedProducts = computed(() => {
@@ -613,8 +619,10 @@ const confirmBulkStatusChange = async () => {
     selectedProducts.value = [];
     selectAll.value = false;
     closeBulkStatusChangeModal();
-  } catch (e) {
-    // error toast sudah di composable
+  } catch (error) {
+    toast.error(
+      error.response?.data?.message || "Gagal mengubah status produk"
+    );
   }
 };
 
@@ -669,6 +677,13 @@ watch(currentPage, () => {
   loadProducts();
 });
 
+// ✅ REMOVE: Problematic watchEffect if exists
+// watchEffect(() => {
+//   // This might cause infinite loops
+//   loadProducts();
+// });
+onMounted(() => {});
+
 watch(perPage, (val, oldVal) => {
   if (val === oldVal) return;
 
@@ -680,6 +695,7 @@ watch(perPage, (val, oldVal) => {
 onMounted(async () => {
   const savedPerPage = localStorage.getItem("products_per_page");
   if (savedPerPage) perPage.value = Number(savedPerPage);
+  logCookies("onMounted");
 
   // ✅ Guard di FE juga: cegah akses jika merchant belum approved
   const merchant =

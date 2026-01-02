@@ -28,7 +28,16 @@ export const useAuthStore = defineStore("auth", () => {
       timeout: 2500,
     });
   }
+  function requireLoginToast() {
+    toast.info("Silakan login terlebih dahulu untuk melanjutkan", {
+      timeout: 2500,
+    });
+  }
 
+  const userRoles = computed(
+    () =>
+      user.value?.roles?.map((r) => (typeof r === "string" ? r : r.name)) || []
+  );
   const userRoles = computed(
     () =>
       user.value?.roles?.map((r) => (typeof r === "string" ? r : r.name)) || []
@@ -77,13 +86,67 @@ export const useAuthStore = defineStore("auth", () => {
     localStorage.setItem("user", JSON.stringify(minimal));
   }
 
+  const allMerchants = computed(() => user.value?.merchants || []);
+
+  const activeMerchant = computed(() => {
+    if (!allMerchants.value.length) return null;
+
+    if (selectedMerchantId.value) {
+      const found = allMerchants.value.find(
+        (m) => m.id === selectedMerchantId.value
+      );
+      if (found) return found;
+    }
+
+    return (
+      allMerchants.value.find((m) => m.status === "approved") ||
+      allMerchants.value[0]
+    );
+  });
+
+  const merchantId = computed(() => activeMerchant.value?.id || null);
+  const merchantName = computed(
+    () => activeMerchant.value?.name || user.value?.name || "User"
+  );
+
+  // =========================
+  // HELPERS
+  // =========================
+  function persistUser(data) {
+    const minimal = {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      roles: data.roles,
+      merchants: data.merchants || [],
+    };
+
+    user.value = minimal;
+    localStorage.setItem("user", JSON.stringify(minimal));
+  }
+
   function clearUser() {
+    console.log("[Auth] 🗑️ Clearing user data.");
     console.log("[Auth] 🗑️ Clearing user data.");
     user.value = null;
     selectedMerchantId.value = null;
     localStorage.removeItem("user");
     localStorage.removeItem("auth_token");
+    localStorage.removeItem("auth_token");
     localStorage.removeItem("selected_merchant_id");
+  }
+
+  function loadSelectedMerchant() {
+    const saved = localStorage.getItem("selected_merchant_id");
+    if (saved) selectedMerchantId.value = Number(saved);
+  }
+
+  function setActiveMerchant(id) {
+    selectedMerchantId.value = Number(id);
+    localStorage.setItem("selected_merchant_id", String(id));
+  }
+  function getMerchantById(id) {
+    return allMerchants.value.find((m) => Number(m.id) === Number(id)) || null;
   }
 
   function loadSelectedMerchant() {
@@ -120,11 +183,31 @@ export const useAuthStore = defineStore("auth", () => {
       const { data } = await api.get("/api/me");
 
       persistUser(data);
+      try {
+        await api.get("/sanctum/csrf-cookie");
+      } catch {
+        console.warn("Gagal mendapatkan CSRF cookie");
+      }
+
+      // 🔐 Login
+      await api.post("/login", credentials);
+
+      // 👤 Ambil user
+      const { data } = await api.get("/api/me");
+
+      persistUser(data);
       loadSelectedMerchant();
 
       toast.success("Login berhasil 👋", { timeout: 2500 });
+      toast.success("Login berhasil 👋", { timeout: 2500 });
       return data;
     } catch (error) {
+      const status = error.response?.status;
+
+      if (status === 401) {
+        toast.error("Email atau password salah");
+      } else if (status === 403) {
+        toast.warning(error.response?.data?.message || "Akses ditolak");
       const status = error.response?.status;
 
       if (status === 401) {
@@ -146,6 +229,10 @@ export const useAuthStore = defineStore("auth", () => {
       toast.success("Berhasil logout 👋", { timeout: 2000 });
     } catch {
       toast.warning("Logout gagal, sesi dibersihkan");
+      await api.post("/logout");
+      toast.success("Berhasil logout 👋", { timeout: 2000 });
+    } catch {
+      toast.warning("Logout gagal, sesi dibersihkan");
     } finally {
       clearUser();
     }
@@ -155,9 +242,16 @@ export const useAuthStore = defineStore("auth", () => {
     const { data } = await api.post("/api/auth/register", payload);
     toast.success("Registrasi berhasil, silakan login");
     return data;
+  async function register(payload) {
+    const { data } = await api.post("/api/auth/register", payload);
+    toast.success("Registrasi berhasil, silakan login");
+    return data;
   }
 
   async function initAuth() {
+    authReady.value = false;
+
+    // Load dari localStorage dulu (optimistic)
     authReady.value = false;
 
     // Load dari localStorage dulu (optimistic)
@@ -181,6 +275,8 @@ export const useAuthStore = defineStore("auth", () => {
       clearUser();
     } finally {
       authReady.value = true;
+    } finally {
+      authReady.value = true;
     }
   }
 
@@ -199,6 +295,8 @@ export const useAuthStore = defineStore("auth", () => {
     isAuthenticated,
 
     // roles
+
+    // roles
     userRoles,
     isAdmin,
     isMerchant,
@@ -206,10 +304,18 @@ export const useAuthStore = defineStore("auth", () => {
 
     // merchant
     allMerchants,
+
+    // merchant
+    allMerchants,
     activeMerchant,
     merchantId,
     merchantId,
     merchantName,
+    setActiveMerchant,
+    getMerchantById,
+
+    // actions
+    requireLoginToast,
     setActiveMerchant,
     getMerchantById,
 

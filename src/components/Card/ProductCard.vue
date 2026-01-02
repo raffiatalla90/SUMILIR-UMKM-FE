@@ -9,12 +9,7 @@ const props = defineProps({
     default: () => ({
       id: 1,
       name: "Nama Produk",
-      name: "Nama Produk",
       description: "Deskripsi produk singkat",
-      min_price: 0,
-      max_price: 0,
-      cover_image: null,
-      merchant: null,
       min_price: 0,
       max_price: 0,
       cover_image: null,
@@ -94,7 +89,6 @@ const productImageUrl = computed(() => {
       </div>
     </div>
 
-    <!-- Product Info -->
     <!-- Product Info -->
     <div
       class="flex flex-col flex-1 px-3 sm:px-4 py-2 sm:py-3 bg-white min-h-[120px]"

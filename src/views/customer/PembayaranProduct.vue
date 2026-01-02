@@ -84,28 +84,6 @@
                 </span>
               </div>
             </div>
-          </div>
-
-          <!-- Addons jika ada (untuk single product) -->
-          <div
-            v-if="!isFromCart && order.addons && order.addons.length > 0"
-            class="space-y-2"
-          >
-            <div class="text-xs font-semibold text-gray-700">Tambahan:</div>
-            <!-- ✅ Tampilkan nama + harga per add-on -->
-            <div
-              v-for="(addon, idx) in checkout.selectedAddons"
-              :key="idx"
-              class="text-xs text-gray-700 flex items-center justify-between gap-2"
-            >
-              <div class="flex items-center gap-1">
-                <span class="w-1 h-1 bg-gray-400 rounded-full"></span>
-                <span>{{ addon.name }}</span>
-              </div>
-              <span class="font-semibold text-gray-900">
-                +Rp {{ formatIDR(Number(addon.price || 0)) }}
-              </span>
-            </div>
             <!-- subtotal add-on per quantity -->
             <p class="text-xs text-gray-600">
               Total tambahan: Rp {{ formatIDR(addonTotal) }}
@@ -129,13 +107,8 @@
       <!-- Metode Pengiriman -->
       <section class="bg-white rounded-xl border border-gray-200 p-4">
         <h2 class="font-semibold text-gray-800 mb-3">Metode Pengiriman</h2>
-        <div class="flex items-center gap-4 text-sm">
-          <label
-            class="flex items-center gap-2"
-            :class="
-              isGuest ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-            "
-          >
+        <div class="flex flex-wrap items-center gap-4 text-sm">
+          <label class="flex items-center gap-2 cursor-pointer">
             <input
               type="radio"
               value="delivery"
@@ -211,9 +184,7 @@
             <p class="text-gray-600 leading-snug mt-1">
               {{
                 // ✅ Prioritas: merchant_address dari API product detail
-                merchantAddressFromProduct ||
-                order.store?.address ||
-                "Alamat toko belum tersedia"
+                order.store?.address || "Alamat toko belum tersedia"
               }}
             </p>
           </div>
@@ -318,16 +289,8 @@
             class="pt-3 border-t border-gray-200 text-sm text-gray-700 space-y-2"
           >
             <div class="flex justify-between">
-              <span> Harga Produk ({{ order.quantity }}x) </span>
-              <span>Rp {{ formatIDR(lineSubtotal) }}</span>
-            </div>
-
-            <div
-              v-if="checkout.selectedAddons.length > 0"
-              class="flex justify-between"
-            >
-              <span>Tambahan (per item)</span>
-              <span>Rp {{ formatIDR(addonUnitTotal) }}</span>
+              <span>Subtotal Produk </span>
+              <span>Rp {{ formatIDR(amounts.product) }}</span>
             </div>
 
             <div
@@ -520,24 +483,6 @@ import MobileHeader from "@/components/customer/MobileHeader.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import { useCheckoutStore } from "@/stores/checkout";
 import { useAuthStore } from "@/stores/auth";
-import * as yup from "yup";
-import { Form } from "vee-validate";
-
-const schema = yup.object({
-  nama: yup.string().required("Nama wajib diisi"),
-  tel: yup
-    .string()
-    .max(13, "No. Telepon maksimal 13 digit")
-    .matches(
-      /^08[0-9]{8,11}$/,
-      "Format nomor telepon tidak valid, harus diawali dengan 08, lebih dari 10 digit"
-    )
-    .min(10, "No. Telepon minimal 10 digit"),
-
-  metodePengiriman: yup.string().required(),
-  catatanProduk: yup.string(),
-  catatanAlamat: yup.string(),
-});
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -570,22 +515,26 @@ const checkoutItems = computed(() => {
 });
 
 // Order view model (dari store)
-const order = computed(() => ({
-  slug: checkout.productSlug,
-  title: checkout.productTitle,
-  image: checkout.productImage,
-  quantity: checkout.qty,
-  size: checkout.selectedSizeName || "",
-  variant: checkout.selectedVariantName || "",
-  addons: checkout.selectedAddons.map((a) => a.name),
-  store: {
-    id: checkout.store.id,
-    slug: checkout.store.slug,
-    name: checkout.store.name,
-    address: checkout.store.address,
-    phone: checkout.store.phone,
-  },
-}));
+const order = computed(() => {
+  if (checkout.from === "cart") {
+    return {
+      store: checkout.store,
+      items: checkout.cartItems,
+    };
+  }
+
+  // single product
+  return {
+    slug: checkout.productSlug,
+    title: checkout.productTitle,
+    image: checkout.productImage,
+    quantity: checkout.qty,
+    size: checkout.selectedSizeName || "",
+    variant: checkout.selectedVariantName || "",
+    addons: checkout.selectedAddons.map((a) => a.name),
+    store: checkout.store,
+  };
+});
 
 // Nominal dari store
 const amounts = ref({
@@ -597,25 +546,20 @@ const amounts = ref({
 // ✅ total addon per item (bukan dikali qty)
 const addonUnitTotal = computed(() => Number(checkout.addonTotal || 0));
 // ✅ subtotal baris: (unitPrice + addon per item) * qty
-const lineSubtotal = computed(
-  () =>
-    (Number(checkout.unitPrice || 0) + addonUnitTotal.value) *
-    Number(checkout.qty || 1)
-);
+const total = computed(() => checkout.totalPrice);
 
 // sinkronisasi amounts.product
 watch(
-  () => [checkout.unitPrice, checkout.addonTotal, checkout.qty],
-  () => {
-    amounts.value.product = lineSubtotal.value;
+  () => checkout.totalPrice,
+  (v) => {
+    amounts.value.product = v;
   },
   { immediate: true }
 );
-
-// Total akhir: subtotal baris + ongkir - diskon
-const total = computed(() =>
-  Math.max(0, lineSubtotal.value + amounts.value.ongkir - amounts.value.diskon)
-);
+const getAddonTotal = (item) => {
+  if (!item.addons || !item.addons.length) return 0;
+  return item.addons.reduce((sum, a) => sum + Number(a.price || 0), 0);
+};
 
 const formatIDR = (v) => Number(v || 0).toLocaleString("id-ID");
 
@@ -637,7 +581,6 @@ function normalizePhone(raw) {
 }
 
 // Tambah state alamat merchant dari product detail
-const merchantAddressFromProduct = ref("");
 
 // Saat mounted, jika slug tersedia, fetch product untuk ambil merchant_address
 onMounted(async () => {
@@ -750,21 +693,35 @@ const openWhatsapp = () => {
     return;
   }
 
-  const productDetails = [
-    `Produk: ${order.value.title}`,
-    order.value.size ? `Ukuran: ${order.value.size}` : "",
-    order.value.variant ? `Varian: ${order.value.variant}` : "",
-    checkout.selectedAddons.length > 0
-      ? `Tambahan: ${checkout.selectedAddons.map((a) => a.name).join(", ")}`
-      : "",
-    `Jumlah: ${checkout.qty}x`,
-    `Harga Satuan: Rp ${formatIDR(
-      Number(checkout.unitPrice || 0) + addonUnitTotal.value
-    )}`,
-    `Subtotal: Rp ${formatIDR(lineSubtotal.value)}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  let productDetails = "";
+
+  if (checkout.from === "cart") {
+    productDetails = checkout.cartItems
+      .map(
+        (i, idx) =>
+          `${idx + 1}. ${i.name}\n` +
+          (i.variant ? `Varian: ${i.variant}\n` : "") +
+          (i.size ? `Ukuran: ${i.size}\n` : "") +
+          `Jumlah: ${i.quantity}x\n` +
+          `Harga: Rp ${formatIDR(
+            (i.unitPrice + i.addonTotalPrice) * i.quantity
+          )}`
+      )
+      .join("\n\n");
+  } else {
+    productDetails = [
+      `Produk: ${order.value.title}`,
+      order.value.size ? `Ukuran: ${order.value.size}` : "",
+      order.value.variant ? `Varian: ${order.value.variant}` : "",
+      checkout.selectedAddons.length
+        ? `Tambahan: ${checkout.selectedAddons.map((a) => a.name).join(", ")}`
+        : "",
+      `Jumlah: ${checkout.qty}x`,
+      `Subtotal: Rp ${formatIDR(total.value)}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
 
   const deliveryInfo =
     form.value.metodePengiriman === "delivery"
@@ -797,7 +754,7 @@ const openWhatsapp = () => {
     "\n*PEMBAYARAN*",
     `Metode: ${pay.value.method}`,
     "\n*RINCIAN HARGA*",
-    `Harga Produk: Rp ${formatIDR(lineSubtotal.value)}`,
+    `Harga Produk: Rp ${formatIDR(amounts.value.product)}`,
     form.value.metodePengiriman === "delivery"
       ? `Ongkir: Rp ${formatIDR(amounts.value.ongkir)}`
       : "",

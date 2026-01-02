@@ -13,9 +13,6 @@ const authStore = useAuthStore();
 const searchBarRef = ref(null);
 const searchInputRef = ref(null);
 
-const searchBarRef = ref(null);
-const searchInputRef = ref(null);
-
 const isAuthenticated = computed(() => authStore.isAuthenticated);
 const user = computed(() => authStore.user);
 
@@ -158,7 +155,7 @@ watch(
 <template>
   <div class="flex flex-col min-h-screen pb-16 sm:pb-0">
     <!-- Navbar Desktop (hidden on mobile) -->
-    <nav
+    <div
       class="hidden sm:block sticky top-0 z-50 w-full h-[91px] bg-white border-b border-gray-200 shadow-sm"
     >
       <div class="max-w-[1440px] mx-auto h-full px-4">
@@ -192,12 +189,12 @@ watch(
                 <!-- Icon dan label seperti sebelumnya -->
                 <span
                   v-html="m.icon"
-                  class="block w-6 h-6 transition-colors duration-200 lg:hidden hover:text-primary"
+                  class="lg:hidden block w-6 h-6 transition-colors hover:text-primary duration-200"
                   :class="isMenuActive(m) ? 'text-primary' : 'text-black'"
                 ></span>
                 <span class="relative hidden lg:inline-block">
                   <span
-                    class="block transition-colors duration-200 select-none hover:text-primary"
+                    class="block select-none transition-colors hover:text-primary duration-200"
                     :class="isMenuActive(m) ? 'text-primary' : 'text-black'"
                   >
                     {{ m.label }}
@@ -252,9 +249,7 @@ watch(
                 ></span>
                 <span
                   class="text-base font-bold leading-[100%] tracking-[0] text-black md:block hidden"
-                  class="text-base font-bold leading-[100%] tracking-[0] text-black md:block hidden"
                 >
-                  {{ user?.name ? user.name.split(" ")[0] : "Profil" }}
                   {{ user?.name ? user.name.split(" ")[0] : "Profil" }}
                 </span>
               </RouterLink>
@@ -342,7 +337,7 @@ watch(
             />
             <span
               v-else
-              class="flex items-center justify-center text-2xl font-bold text-black rounded-full w-7 h-7 bg-muted-background"
+              class="w-7 h-7 rounded-full bg-muted-background flex items-center justify-center text-black text-2xl font-bold"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

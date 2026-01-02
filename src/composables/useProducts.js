@@ -3,6 +3,7 @@
 import { ref } from "vue";
 import api from "@/libs/axios";
 import { getVariantImageUrl } from "@/libs/getVariantImageUrl.js";
+import { getVariantImageUrl } from "@/libs/getVariantImageUrl.js";
 
 export function useProducts() {
   const toast = useToast();
@@ -24,12 +25,18 @@ export function useProducts() {
 
   // Fetch Product Detail (admin scope?) -- pastikan endpoint sesuai
   const fetchProductDetail = async (productSlug) => {
+  // Fetch Product Detail (admin scope?) -- pastikan endpoint sesuai
+  const fetchProductDetail = async (productSlug) => {
     try {
+      const response = await api.get(`/api/products/${productSlug}`);
       const response = await api.get(`/api/products/${productSlug}`);
       const payload = response.data?.data ?? response.data;
       if (!payload)
+      if (!payload)
         throw new Error("Product data tidak ditemukan pada response");
 
+      // normalisasi kecil
+      if (payload.addon_groups) payload.addonGroups = payload.addon_groups;
       // normalisasi kecil
       if (payload.addon_groups) payload.addonGroups = payload.addon_groups;
       if (!Array.isArray(payload.images)) {
@@ -37,6 +44,7 @@ export function useProducts() {
       }
       return payload;
     } catch (err) {
+      toast.error("Gagal memuat detail produk");
       toast.error("Gagal memuat detail produk");
       throw err;
     }
@@ -85,9 +93,16 @@ export function useProducts() {
       lastRequestParams === requestSignature &&
       pendingRequest
     ) {
+    // jika request sedang berjalan dengan signature sama, kembalikan promise yang sama
+    if (
+      loading.value &&
+      lastRequestParams === requestSignature &&
+      pendingRequest
+    ) {
       return pendingRequest;
     }
 
+    // jika request sama dengan request terakhir yang selesai -> pakai cache lokal
     // jika request sama dengan request terakhir yang selesai -> pakai cache lokal
     if (lastRequestParams === requestSignature && !loading.value) {
       return { data: products.value, meta: pagination.value };
@@ -112,13 +127,30 @@ export function useProducts() {
     Object.keys(params).forEach(
       (k) => params[k] === undefined && delete params[k]
     );
+    Object.keys(params).forEach(
+      (k) => params[k] === undefined && delete params[k]
+    );
 
     // Buat pendingRequest sebagai promise yang mengembalikan `data` (konsisten)
     pendingRequest = (async () => {
       try {
         const { data } = await api.get("/api/products", { params });
         const payload = data.data || data;
+    // Buat pendingRequest sebagai promise yang mengembalikan `data` (konsisten)
+    pendingRequest = (async () => {
+      try {
+        const { data } = await api.get("/api/products", { params });
+        const payload = data.data || data;
 
+        products.value = payload.data || payload; // tergantung response shape
+        if (data.meta) {
+          pagination.value = {
+            current_page: data.meta.current_page,
+            last_page: data.meta.last_page,
+            per_page: data.meta.per_page,
+            total: data.meta.total,
+          };
+        }
         products.value = payload.data || payload; // tergantung response shape
         if (data.meta) {
           pagination.value = {
@@ -460,10 +492,13 @@ export function useProducts() {
     fetchProducts,
     fetchProductDetail,
     fetchPublicProductDetail, // <-- expose function ini
+    fetchPublicProductDetail, // <-- expose function ini
     updateProductStatus,
     deleteProduct,
     bulkDeleteProducts,
     bulkUpdateStatus,
+    fetchProductsToko,
+    fetchProductsKuliner,
     fetchProductsToko,
     fetchProductsKuliner,
   };

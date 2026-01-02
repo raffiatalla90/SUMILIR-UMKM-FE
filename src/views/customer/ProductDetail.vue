@@ -138,8 +138,8 @@
     </div>
 
     <!-- Loading Skeleton -->
-    <div v-if="loading || !product" class="mx-auto max-w-7xl sm:px-4 sm:py-6">
-      <div class="overflow-hidden bg-white sm:rounded-2xl sm:shadow-lg">
+    <div v-if="loading || !product" class="max-w-7xl mx-auto sm:px-4 sm:py-6">
+      <div class="bg-white sm:rounded-2xl sm:shadow-lg overflow-hidden">
         <div class="sm:grid sm:grid-cols-2 sm:gap-8 sm:p-8">
           <!-- Skeleton Gambar -->
           <div class="sm:sticky sm:top-8 sm:self-start">
@@ -312,7 +312,7 @@
           <div class="sm:sticky sm:top-8 sm:self-start">
             <!-- Main Image Display with Swipe Support -->
             <div
-              class="relative flex items-center justify-center w-full mb-4 overflow-hidden aspect-square sm:rounded-2xl group"
+              class="w-full aspect-square flex items-center justify-center sm:rounded-2xl overflow-hidden mb-4 relative group"
               @touchstart="handleTouchStart"
               @touchmove="handleTouchMove"
               @touchend="handleTouchEnd"
@@ -321,7 +321,7 @@
                 v-if="selectedImage"
                 :src="selectedImage"
                 :alt="product?.name"
-                class="object-contain w-full h-full transition-transform duration-300 select-none sm:rounded-2xl group-hover:scale-105"
+                class="w-full h-full object-contain sm:rounded-2xl transition-transform duration-300 group-hover:scale-105 select-none"
                 draggable="false"
               />
               <div v-else class="text-gray-400">No Image</div>
@@ -339,7 +339,7 @@
               <button
                 v-if="productImages.length > 1"
                 @click.stop="prevImage"
-                class="absolute items-center justify-center hidden w-12 h-12 transition-all -translate-y-1/2 rounded-full shadow-lg sm:flex left-4 top-1/2 bg-white/90 backdrop-blur-sm hover:bg-white active:scale-95"
+                class="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg items-center justify-center hover:bg-white transition-all active:scale-95"
               >
                 <svg
                   class="w-6 h-6 text-gray-800"
@@ -358,7 +358,7 @@
               <button
                 v-if="productImages.length > 1"
                 @click.stop="nextImage"
-                class="absolute items-center justify-center hidden w-12 h-12 transition-all -translate-y-1/2 rounded-full shadow-lg sm:flex right-4 top-1/2 bg-white/90 backdrop-blur-sm hover:bg-white active:scale-95"
+                class="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg items-center justify-center hover:bg-white transition-all active:scale-95"
               >
                 <svg
                   class="w-6 h-6 text-gray-800"
@@ -401,7 +401,7 @@
               ></button>
             </div>
             <!-- Thumbnail Gallery -->
-            <div v-if="productImages.length > 1" class="px-4 py-2 sm:px-2">
+            <div v-if="productImages.length > 1" class="px-4 sm:px-2 py-2">
               <div class="thumb-strip">
                 <button
                   v-for="(image, index) in productImages"
@@ -413,7 +413,7 @@
                   <img
                     :src="image"
                     :alt="`${product?.name} - ${index + 1}`"
-                    class="object-cover w-full h-full"
+                    class="w-full h-full object-cover"
                   />
                 </button>
               </div>
@@ -427,7 +427,7 @@
               <h1 class="mb-2 text-xl font-bold text-gray-900 sm:text-3xl">
                 {{ product?.name || "Nama Produk" }}
               </h1>
-              <p class="text-lg font-semibold text-gray-900 sm:text-2xl">
+              <p class="text-lg sm:text-2xl font-semibold text-gray-900">
                 Rp {{ formatIDR(getCurrentPrice()) }}
                 <!-- ✅ gunakan harga kombinasi -->
               </p>
@@ -460,7 +460,7 @@
               <!-- Banner archived -->
               <div
                 v-if="isArchived"
-                class="p-3 mt-3 text-sm text-yellow-800 border border-yellow-200 rounded-lg bg-yellow-50"
+                class="mt-3 p-3 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm"
               >
                 Produk ini telah diarsipkan dan tidak tersedia untuk dibeli.
               </div>
@@ -468,7 +468,7 @@
 
             <!-- Ukuran/Varian (Option 1) -->
             <div v-if="sizes.length > 0" class="py-4 border-b border-gray-200">
-              <h3 class="mb-3 text-sm font-semibold text-gray-900">
+              <h3 class="text-sm font-semibold text-gray-900 mb-3">
                 {{ option1Label }} <span class="text-red-500">*</span>
               </h3>
               <div class="flex flex-wrap gap-2">
@@ -491,12 +491,12 @@
                     <!-- 🖼️ Image jika ada -->
                     <div
                       v-if="getOptionValueSrcUrl(1, size.id)"
-                      class="flex items-center justify-center w-12 h-12 overflow-hidden bg-gray-100 rounded-md"
+                      class="w-12 h-12 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center"
                     >
                       <img
                         :src="getOptionValueSrcUrl(1, size.id)"
                         :alt="size.name"
-                        class="object-cover w-full h-full"
+                        class="w-full h-full object-cover"
                       />
                     </div>
 
@@ -526,7 +526,7 @@
               v-if="variants.length > 0"
               class="py-4 border-b border-gray-200"
             >
-              <h3 class="mb-3 text-sm font-semibold text-gray-900">
+              <h3 class="text-sm font-semibold text-gray-900 mb-3">
                 {{ option2Label }} <span class="text-red-500">*</span>
                 <!-- ✅ label dinamis -->
               </h3>
@@ -586,7 +586,7 @@
                 <h3 class="text-sm font-semibold text-gray-900">Tambahan</h3>
                 <button
                   @click="showAddonModal = true"
-                  class="text-sm font-medium cursor-pointer text-primary hover:underline"
+                  class="text-sm text-primary hover:underline font-medium cursor-pointer"
                 >
                   {{
                     selectedAddons.length > 0
@@ -698,7 +698,7 @@
               </h3>
 
               <p
-                class="text-sm leading-relaxed text-gray-700 whitespace-pre-line"
+                class="text-sm text-gray-700 leading-relaxed whitespace-pre-line"
               >
                 {{ displayedDescription }}
               </p>
@@ -706,7 +706,7 @@
               <button
                 v-if="isLongDescription"
                 @click="showFullDescription = !showFullDescription"
-                class="mt-2 text-sm font-semibold cursor-pointer text-primary focus:outline-none hover:underline"
+                class="mt-2 text-primary text-sm font-semibold focus:outline-none cursor-pointer hover:underline"
                 type="button"
               >
                 {{ showFullDescription ? "Sembunyikan" : "Lihat Selengkapnya" }}
@@ -717,15 +717,15 @@
             <!-- Info Toko -->
             <div class="py-4 border-b border-gray-200">
               <div class="flex items-center justify-between">
-                <div class="flex items-center min-w-0 gap-3">
+                <div class="flex items-center gap-3 min-w-0">
                   <div
-                    class="flex-shrink-0 w-12 h-12 overflow-hidden bg-gray-200 rounded-full"
+                    class="w-12 h-12 rounded-full bg-gray-200 overflow-hidden flex-shrink-0"
                   >
                     <img
                       v-if="product?.merchant?.logo"
                       :src="product.merchant.logo"
                       alt="UMKM logo"
-                      class="object-cover w-full h-full"
+                      class="w-full h-full object-cover"
                     />
                   </div>
                   <div class="min-w-0">
@@ -780,7 +780,7 @@
 
   <!-- Bottom Action Bar (Mobile) -->
   <div
-    class="fixed left-0 right-0 z-40 px-4 py-3 bg-white border-t border-gray-200 sm:hidden bottom-16"
+    class="sm:hidden fixed bottom-16 left-0 right-0 z-40 bg-white border-t border-gray-200 px-4 py-3"
   >
     <div v-if="loading" class="flex items-center gap-3">
       <div class="w-12 h-12 bg-gray-200 rounded-xl animate-pulse"></div>
@@ -790,8 +790,6 @@
       <!-- Tombol Keranjang -->
       <button
         @click="addToCart"
-        class="w-12 h-12 rounded-xl border-2 border-[#FFA30E] text-[#FFA30E] hover:bg-orange-50 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center hover:-translate-y-0.5 active:scale-95"
-        :disabled="getCurrentStock() === 0 || isArchived"
         class="w-12 h-12 rounded-xl border-2 border-[#FFA30E] text-[#FFA30E] hover:bg-orange-50 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center hover:-translate-y-0.5 active:scale-95"
         :disabled="getCurrentStock() === 0 || isArchived"
         :title="getCurrentStock() === 0 ? 'Stok Habis' : 'Tambah ke Keranjang'"
@@ -818,7 +816,6 @@
         variant="primary"
         customClass="w-full"
         :disabled="getCurrentStock() === 0 || isArchived"
-        :disabled="getCurrentStock() === 0 || isArchived"
       >
         {{ getCurrentStock() === 0 ? "Stok Habis" : "Beli Sekarang" }}
       </Button>
@@ -827,18 +824,18 @@
 
   <!-- Bottom Action Bar (Desktop) -->
   <div
-    class="fixed bottom-0 left-0 right-0 z-40 hidden bg-white border-t border-gray-200 shadow-lg sm:block"
+    class="hidden sm:block fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-lg"
   >
-    <div class="px-4 py-4 mx-auto max-w-7xl">
+    <div class="max-w-7xl mx-auto px-4 py-4">
       <div v-if="loading" class="flex items-center justify-between">
         <div class="space-y-2">
-          <div class="w-32 h-4 bg-gray-200 rounded animate-pulse"></div>
-          <div class="w-40 bg-gray-200 rounded h-7 animate-pulse"></div>
+          <div class="h-4 w-32 bg-gray-200 rounded animate-pulse"></div>
+          <div class="h-7 w-40 bg-gray-200 rounded animate-pulse"></div>
         </div>
         <div class="flex gap-3">
-          <div class="w-12 h-12 bg-gray-200 rounded-xl animate-pulse"></div>
-          <div class="w-32 h-12 bg-gray-200 rounded-xl animate-pulse"></div>
-          <div class="h-12 bg-gray-200 w-36 rounded-xl animate-pulse"></div>
+          <div class="h-12 w-12 bg-gray-200 rounded-xl animate-pulse"></div>
+          <div class="h-12 w-32 bg-gray-200 rounded-xl animate-pulse"></div>
+          <div class="h-12 w-36 bg-gray-200 rounded-xl animate-pulse"></div>
         </div>
       </div>
       <div v-else class="flex items-center justify-between">
@@ -877,7 +874,6 @@
             @click="addToCart"
             variant="primary-outline"
             :disabled="getCurrentStock() === 0 || isArchived"
-            :disabled="getCurrentStock() === 0 || isArchived"
             :title="
               getCurrentStock() === 0 ? 'Stok Habis' : 'Tambah ke Keranjang'
             "
@@ -903,7 +899,6 @@
           <Button
             @click="buyNow"
             :disabled="getCurrentStock() === 0 || isArchived"
-            :disabled="getCurrentStock() === 0 || isArchived"
             variant="primary"
           >
             {{ getCurrentStock() === 0 ? "Stok Habis" : "Beli Sekarang" }}
@@ -924,11 +919,8 @@
     <!-- Addon Groups -->
     <div class="space-y-2">
       <div v-for="group in addonGroups" :key="group.id" class="">
-    <div class="space-y-2">
-      <div v-for="group in addonGroups" :key="group.id" class="">
         <!-- Group Header -->
         <div class="mb-3">
-          <div class="flex items-center justify-between capitalize">
           <div class="flex items-center justify-between capitalize">
             <h4 class="text-sm font-semibold text-gray-900">
               {{ group.name }}
@@ -947,7 +939,7 @@
               Pilih 1
             </span>
           </div>
-          <p v-if="group.description" class="mt-1 text-xs text-gray-600">
+          <p v-if="group.description" class="text-xs text-gray-600 mt-1">
             {{ group.description }}
           </p>
         </div>
@@ -984,7 +976,6 @@
                   <div class="flex-1 min-w-0">
                     <p
                       class="text-sm font-medium text-gray-900 capitalize"
-                      class="text-sm font-medium text-gray-900 capitalize"
                       :class="{
                         'line-through text-gray-400': !addon.available,
                       }"
@@ -1005,9 +996,7 @@
                     </p>
                   </div>
 
-
                   <span
-                    class="text-sm font-semibold text-gray-900 whitespace-nowrap"
                     class="text-sm font-semibold text-gray-900 whitespace-nowrap"
                   >
                     +Rp {{ formatIDR(addon.price) }}
@@ -1094,28 +1083,20 @@
         <!-- Actions -->
         <div class="flex gap-3">
           <Button
-          <Button
             @click="resetAddons"
             type="button"
-            variant="muted-outline"
-            class="w-full"
             variant="muted-outline"
             class="w-full"
           >
             Reset
           </Button>
           <Button
-          </Button>
-          <Button
             @click="applyAddons"
             type="button"
             variant="primary"
             class="w-full"
-            variant="primary"
-            class="w-full"
           >
             Terapkan
-          </Button>
           </Button>
         </div>
       </div>
@@ -1136,7 +1117,7 @@
         class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-green-500 hover:bg-green-50 transition active:scale-95 cursor-pointer"
       >
         <div
-          class="flex items-center justify-center w-10 h-10 bg-green-500 rounded-full"
+          class="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center"
         >
           <svg
             class="w-6 h-6 text-white"
@@ -1160,7 +1141,7 @@
         class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-blue-600 hover:bg-blue-50 transition active:scale-95 cursor-pointer"
       >
         <div
-          class="flex items-center justify-center w-10 h-10 bg-blue-600 rounded-full"
+          class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center"
         >
           <svg
             class="w-6 h-6 text-white"
@@ -1184,7 +1165,7 @@
         class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition active:scale-95 cursor-pointer"
       >
         <div
-          class="flex items-center justify-center w-10 h-10 bg-blue-400 rounded-full"
+          class="w-10 h-10 rounded-full bg-blue-400 flex items-center justify-center"
         >
           <svg
             class="w-6 h-6 text-white"
@@ -1208,7 +1189,7 @@
         class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition active:scale-95 cursor-pointer"
       >
         <div
-          class="flex items-center justify-center w-10 h-10 bg-gray-600 rounded-full"
+          class="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center"
         >
           <svg
             class="w-5 h-5 text-white"
@@ -1234,7 +1215,7 @@
     <template #footer>
       <button
         @click="showShareModal = false"
-        class="w-full px-4 py-3 font-semibold text-gray-700 transition bg-gray-100 rounded-xl hover:bg-gray-200"
+        class="w-full px-4 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition"
       >
         Tutup
       </button>
@@ -1251,7 +1232,6 @@ import {
   onUnmounted,
   onBeforeUnmount,
 } from "vue";
-import { setMeta } from "@/router/seo";
 import { useRoute, useRouter } from "vue-router";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock.js";
@@ -1259,7 +1239,6 @@ import { getVariantImageUrl } from "@/libs/getVariantImageUrl.js";
 import Button from "@/components/common/Button.vue";
 import { useCheckoutStore } from "@/stores/checkout";
 import ProductCard from "@/components/Card/ProductCard.vue";
-import Textfield from "@/components/forms/TextField.vue";
 import { useProducts } from "@/composables/useProducts.js";
 import { useToast } from "vue-toastification";
 import { useCartStore } from "@/stores/cart";
@@ -1318,35 +1297,6 @@ function handleTouchEnd() {
   touchEndX.value = 0;
 }
 
-
-function handleTouchStart(e) {
-  if (!e.touches || e.touches.length === 0) return;
-  touchStartX.value = e.touches[0].clientX;
-}
-
-function handleTouchMove(e) {
-  if (!e.touches || e.touches.length === 0) return;
-  touchEndX.value = e.touches[0].clientX;
-}
-
-function handleTouchEnd() {
-  const deltaX = touchEndX.value - touchStartX.value;
-
-  if (Math.abs(deltaX) < swipeThreshold) return;
-
-  if (deltaX > 0) {
-    // swipe kanan → gambar sebelumnya
-    prevImage();
-  } else {
-    // swipe kiri → gambar berikutnya
-    nextImage();
-  }
-
-  // reset
-  touchStartX.value = 0;
-  touchEndX.value = 0;
-}
-
 function getOptionValueSrcUrl(optionIndex, valueId) {
   // optionIndex: 1 untuk option pertama, 2 untuk kedua
   const option = product.value?.options?.[optionIndex - 1];
@@ -1354,7 +1304,6 @@ function getOptionValueSrcUrl(optionIndex, valueId) {
   const value = option.values.find((v) => Number(v.id) === Number(valueId));
   return value?.src_url || null;
 }
-
 
 async function addToCart() {
   if (!authStore.isAuthenticated) {
@@ -1368,19 +1317,15 @@ async function addToCart() {
 
   if (getCurrentStock() <= 0) {
     toast.error("Stok habis");
-    toast.error("Stok habis");
     return;
   }
 
   if (sizes.value.length > 0 && !selectedSize.value) {
     toast.warning(`Pilih ${option1Label.value}`);
-    toast.warning(`Pilih ${option1Label.value}`);
     return;
   }
 
-
   if (variants.value.length > 0 && !selectedVariant.value) {
-    toast.warning(`Pilih ${option2Label.value}`);
     toast.warning(`Pilih ${option2Label.value}`);
     return;
   }
@@ -1455,7 +1400,7 @@ const tempSelectedAddons = ref([]);
 const addonGroups = ref([]);
 
 // misc
-const showScrollHeader = ref(true);
+const showScrollHeader = ref(false);
 const lastScrollY = ref(0);
 const relatedProducts = ref([]);
 const cartItemsCount = computed(() => {
@@ -1487,7 +1432,6 @@ async function copyLink() {
 }
 
 function shareVia(platform) {
-function shareVia(platform) {
   const url = encodeURIComponent(shareUrl.value);
   const text = encodeURIComponent(shareText.value);
 
@@ -1495,7 +1439,6 @@ function shareVia(platform) {
 
   switch (platform) {
     case "whatsapp":
-      // Mobile & desktop support
       // Mobile & desktop support
       shareLink = `https://wa.me/?text=${text}%20${url}`;
       break;
@@ -1505,7 +1448,6 @@ function shareVia(platform) {
       break;
 
     case "twitter":
-      // Twitter / X
       // Twitter / X
       shareLink = `https://twitter.com/intent/tweet?text=${text}&url=${url}`;
       break;
@@ -1519,7 +1461,6 @@ function shareVia(platform) {
 
 // body scroll lock for modals
 const isAnyModalOpen = computed(
-  () => showAddonModal.value || showShareModal.value
   () => showAddonModal.value || showShareModal.value
 );
 const goToCart = () => {
@@ -1673,14 +1614,8 @@ function initDefaultRequiredAddons() {
     if (isSingleRequired(group) && Array.isArray(group.items)) {
       const first = group.items[0];
       if (first?.addon_id) {
-    if (isSingleRequired(group) && Array.isArray(group.items)) {
-      const first = group.items[0];
-      if (first?.addon_id) {
         defaults.push({
           addon_group_id: group.id,
-          addon_id: first.addon_id,
-          name: first.name,
-          price: Number(first.price || 0),
           addon_id: first.addon_id,
           name: first.name,
           price: Number(first.price || 0),
@@ -1718,7 +1653,6 @@ async function doFetchProduct(slug) {
           if (img.image_url) return img.image_url;
           // jika id tersedia — gunakan getImageUrl helper (yang kamu import)
           if (img.src_url) return img.src_url;
-          if (img.src_url) return img.src_url;
           // jika image_path tersedia, coba resolve
           if (img.image_path) {
             return typeof absoluteImagePath === "function"
@@ -1741,7 +1675,6 @@ async function doFetchProduct(slug) {
     if (typeof src === "object") {
       if (src.image_url) return src.image_url;
       if (src.src_url) return src.src_url;
-      if (src.src_url) return src.src_url;
     }
     return null;
   }
@@ -1763,7 +1696,6 @@ async function doFetchProduct(slug) {
 
       const fallbackMapped = {
         product: maybeProduct,
-        productImages: (maybeProduct.images || []).map((img) => img?.src_url),
         productImages: (maybeProduct.images || []).map((img) => img?.src_url),
         sizes: (maybeProduct.options?.[0]?.values || []).map((v) => ({
           id: v.id,
@@ -1884,7 +1816,6 @@ async function doFetchProduct(slug) {
       ? mapped.addonGroups
       : mapped.product?.addon_groups ?? [];
 
-
     relatedProducts.value = Array.isArray(mapped.related_products)
       ? mapped.related_products
       : mapped.relatedProducts ?? [];
@@ -1922,9 +1853,7 @@ async function doFetchProduct(slug) {
 }
 
 onMounted(async () => {
-onMounted(async () => {
   window.addEventListener("scroll", handleScroll);
-  await fetchCartCount();
   await fetchCartCount();
 });
 watch(
@@ -1953,24 +1882,9 @@ onUnmounted(() => window.removeEventListener("scroll", handleScroll));
 const currentImageIndex = ref(0);
 // simple scroll handler (as in your original)
 function handleScroll() {
-  const currentY = window.scrollY || document.documentElement.scrollTop || 0;
-
-  const delta = currentY - lastScrollY.value;
-
-  // threshold agar tidak flicker
-  const THRESHOLD = 10;
-
-  if (Math.abs(delta) < THRESHOLD) return;
-
-  if (delta > 0 && currentY > 80) {
-    // 🔽 scroll ke bawah → sembunyikan navbar
-    showScrollHeader.value = false;
-  } else {
-    // 🔼 scroll ke atas → tampilkan navbar
-    showScrollHeader.value = true;
-  }
-
-  lastScrollY.value = currentY;
+  const y = window.scrollY || document.documentElement.scrollTop || 0;
+  showScrollHeader.value = y > 80;
+  lastScrollY.value = y;
 }
 
 // buyNow: keep your existing behavior, but use safe fields
@@ -1985,15 +1899,7 @@ function buyNow() {
   const unitPrice =
     Number(getCurrentPrice()) || Number(product.value?.price || 0);
 
-
   const sizeId = selectedSize.value?.id ?? null;
-  const sizeName = selectedSize.value?.name ?? "";
-
-  const optionVariantId = selectedVariant.value?.id ?? 0;
-  const variantName = [sizeName, selectedVariant.value?.name]
-    .filter(Boolean)
-    .join(" - ");
-
   const sizeName = selectedSize.value?.name ?? "";
 
   const optionVariantId = selectedVariant.value?.id ?? 0;
@@ -2036,7 +1942,6 @@ function buyNow() {
     sizeId,
     sizeName,
     variantId: productVariantId, // ✅ BENAR
-    variantId: productVariantId, // ✅ BENAR
     variantName,
     unitPrice,
     stock,
@@ -2056,7 +1961,6 @@ function buyNow() {
 function isAddonSelected(addon) {
   return tempSelectedAddons.value.some(
     (a) => Number(a.addon_id) === Number(addon.addon_id)
-    (a) => Number(a.addon_id) === Number(addon.addon_id)
   );
 }
 
@@ -2065,24 +1969,13 @@ function toggleAddon(addon, group) {
   const addonId = addon.addon_id ?? addon.id;
   if (!addonId) return;
 
-  const addonId = addon.addon_id ?? addon.id;
-  if (!addonId) return;
-
   const idx = tempSelectedAddons.value.findIndex(
     (a) => Number(a.addon_id) === Number(addonId)
-    (a) => Number(a.addon_id) === Number(addonId)
   );
-
 
   if (idx >= 0) {
     tempSelectedAddons.value.splice(idx, 1);
   } else {
-    tempSelectedAddons.value.push({
-      addon_group_id: group.id,
-      addon_id: addonId,
-      name: addon.name,
-      price: Number(addon.price || 0),
-    });
     tempSelectedAddons.value.push({
       addon_group_id: group.id,
       addon_id: addonId,
@@ -2099,22 +1992,9 @@ function selectSingleAddon(addon, group) {
     return;
   }
 
-  if (!addon || !addon.addon_id) {
-    console.warn("Invalid addon object", addon);
-    return;
-  }
-
   tempSelectedAddons.value = tempSelectedAddons.value.filter(
     (a) => Number(a.addon_group_id) !== Number(group.id)
-    (a) => Number(a.addon_group_id) !== Number(group.id)
   );
-
-  tempSelectedAddons.value.push({
-    addon_group_id: group.id,
-    addon_id: addon.addon_id,
-    name: addon.name,
-    price: Number(addon.price || 0),
-  });
 
   tempSelectedAddons.value.push({
     addon_group_id: group.id,
@@ -2127,7 +2007,6 @@ function selectSingleAddon(addon, group) {
 // Cek apakah group sudah mencapai batas pilihan (dipakai di template disable checkbox)
 function isGroupMaxed(group, addon) {
   const count = tempSelectedAddons.value.filter((a) =>
-    group.items.some((gi) => Number(gi.addon?.id) === Number(a.addon_id))
     group.items.some((gi) => Number(gi.addon?.id) === Number(a.addon_id))
   ).length;
   const maxSel = Number(group.maxSelection || 1);
@@ -2151,12 +2030,8 @@ function resetAddons() {
   addonGroups.value.forEach((group) => {
     const minSel = Number(group.min_selection ?? (group.required ? 1 : 0));
     const maxSel = Number(group.maxSelection ?? group.max_selection ?? 1);
-    const minSel = Number(group.min_selection ?? (group.required ? 1 : 0));
-    const maxSel = Number(group.maxSelection ?? group.max_selection ?? 1);
 
     if (minSel > 0 && maxSel === 1 && Array.isArray(group.items)) {
-      const first = group.items[0];
-      if (first?.addon_id) {
       const first = group.items[0];
       if (first?.addon_id) {
         tempSelectedAddons.value.push({
@@ -2164,19 +2039,10 @@ function resetAddons() {
           addon_id: first.addon_id,
           name: first.name,
           price: Number(first.price || 0),
-          addon_id: first.addon_id,
-          name: first.name,
-          price: Number(first.price || 0),
         });
       }
     }
   });
-}
-function isSingleRequired(group) {
-  const min = Number(group.min_selection ?? (group.required ? 1 : 0));
-  const max = Number(group.maxSelection ?? group.max_selection ?? 1);
-
-  return min === 1 && max === 1;
 }
 function isSingleRequired(group) {
   const min = Number(group.min_selection ?? (group.required ? 1 : 0));

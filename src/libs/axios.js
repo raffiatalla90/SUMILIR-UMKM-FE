@@ -2,6 +2,7 @@
 // src/libs/axios.js
 import axios from "axios";
 
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000",
   baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000",
@@ -41,10 +42,16 @@ api.interceptors.request.use((config) => {
 });
 
 // Response Interceptor (Biarkan seperti kode Anda sebelumnya)
+// Response Interceptor (Biarkan seperti kode Anda sebelumnya)
 api.interceptors.response.use(
+  (response) => response,
   (response) => response,
   (error) => {
     if (error.response) {
+      const status = error.response.status;
+      if (status === 401) console.warn("Unauthenticated (401)");
+      if (status === 419) console.warn("CSRF token mismatch (419)");
+    }
       const status = error.response.status;
       if (status === 401) console.warn("Unauthenticated (401)");
       if (status === 419) console.warn("CSRF token mismatch (419)");
