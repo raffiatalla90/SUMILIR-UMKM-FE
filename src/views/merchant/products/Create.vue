@@ -730,7 +730,7 @@ const onSubmit = veeHandleSubmit(
     <!-- Desktop Header -->
     <div class="sticky top-0 left-0 right-0 z-50 hidden py-6 sm:block">
       <div
-        class="flex flex-wrap items-center justify-between px-4 mx-auto sm:px-6 lg:px-8 gap-y-2 gap-x-4"
+        class="flex flex-wrap items-center justify-between px-4 mx-auto sm:px-6 sm:px-8 gap-y-2 gap-x-4"
       >
         <div>
           <!-- ✅ Use Breadcrumb Component -->
@@ -738,7 +738,7 @@ const onSubmit = veeHandleSubmit(
             :items="breadcrumbItems"
             :merchantId="currentMerchantId"
           />
-          <p class="text-xs text-muted-foreground lg:text-sm">
+          <p class="text-xs text-muted-foreground sm:text-sm">
             Lengkapi informasi produk Anda.
           </p>
         </div>
@@ -760,7 +760,7 @@ const onSubmit = veeHandleSubmit(
     <div class="h-[72px] sm:h-0"></div>
 
     <!-- Container Responsive -->
-    <div class="px-0 mx-auto sm:px-4 lg:px-6 sm:py-6 sm:pt-0">
+    <div class="px-0 mx-auto sm:px-4 sm:px-6 sm:py-6 sm:pt-0">
       <!-- ✅ FIXED: Remove ref, use @submit -->
       <Form @submit="onSubmit">
         <!-- Foto Produk -->
@@ -777,7 +777,7 @@ const onSubmit = veeHandleSubmit(
 
           <!-- Image Grid - RESPONSIVE -->
           <div
-            class="grid grid-cols-3 gap-3 mb-3 sm:grid-cols-4 lg:grid-cols-6"
+            class="grid grid-cols-3 gap-3 mb-3 sm:grid-cols-4 sm:grid-cols-6"
           >
             <div
               v-for="(img, index) in productImages"
@@ -1039,7 +1039,7 @@ const onSubmit = veeHandleSubmit(
           </div>
 
           <!-- RESPONSIVE GRID dengan Accordion - PERBAIKAN -->
-          <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div
               v-for="(variant, vIndex) in variants"
               :key="variant.id"
@@ -1421,7 +1421,7 @@ const onSubmit = veeHandleSubmit(
           <!-- UPDATED: Grid Layout untuk Desktop -->
           <div
             v-if="addOnGroups.length > 0"
-            class="grid grid-cols-1 gap-4 lg:grid-cols-2"
+            class="grid grid-cols-1 gap-4 sm:grid-cols-2"
           >
             <div
               v-for="(group, gIndex) in addOnGroups"

@@ -16,7 +16,6 @@ import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import { useCategories } from "@/composables/useCategories";
 import { useProducts } from "@/composables/useProducts";
-import { getImageUrl } from "@/libs/getImageUrl";
 import { getVariantImageUrl } from "@/libs/getVariantImageUrl";
 
 // === SHARED COMPOSABLES (SAMA DENGAN CREATE) ===

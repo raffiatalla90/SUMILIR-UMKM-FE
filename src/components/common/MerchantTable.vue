@@ -25,9 +25,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
-  selectAll: {
-    type: Boolean,
-    default: false,
+
+  rowKey: {
+    type: String,
+    default: "id",
   },
 
   // Actions
@@ -53,7 +54,7 @@ const props = defineProps({
   // Customization
   emptyMessage: {
     type: String,
-    default: "Tidak ada daa",
+    default: "Tidak ada data",
   },
   showCheckbox: {
     type: Boolean,
@@ -69,12 +70,18 @@ const hasSlot = (name) => {
 };
 const emit = defineEmits([
   "update:selectedItems",
-  "update:selectAll",
   "row-click",
   "page-change",
   "next-page",
   "prev-page",
 ]);
+const isAllSelected = computed(() => {
+  if (!props.items.length) return false;
+
+  return props.items.every((item) =>
+    props.selectedItems.includes(getItemKey(item))
+  );
+});
 
 // Computed
 const visiblePages = computed(() => {
@@ -101,24 +108,30 @@ const visiblePages = computed(() => {
 
 // Methods
 const toggleSelectAll = () => {
-  emit("update:selectAll", !props.selectAll);
+  if (isAllSelected.value) {
+    // unselect all
+    emit("update:selectedItems", []);
+  } else {
+    // select all
+    const allKeys = props.items.map((item) => getItemKey(item));
+    emit("update:selectedItems", allKeys);
+  }
 };
 
-const toggleItemSelection = (itemId) => {
+const getItemKey = (item) => item[props.rowKey];
+const toggleItemSelection = (item) => {
+  const key = getItemKey(item);
   const selected = [...props.selectedItems];
-  const index = selected.indexOf(itemId);
+  const index = selected.indexOf(key);
 
-  if (index > -1) {
-    selected.splice(index, 1);
-  } else {
-    selected.push(itemId);
-  }
+  if (index > -1) selected.splice(index, 1);
+  else selected.push(key);
 
   emit("update:selectedItems", selected);
 };
 
-const isItemSelected = (itemId) => {
-  return props.selectedItems.includes(itemId);
+const isItemSelected = (item) => {
+  return props.selectedItems.includes(getItemKey(item));
 };
 
 const handleRowClick = (item) => {
@@ -150,11 +163,11 @@ const getNestedValue = (obj, path) => {
 </script>
 
 <template>
-  <div class="bg-white rounded-lg shadow overflow-hidden">
+  <div class="overflow-hidden bg-white rounded-lg shadow">
     <!-- Loading State -->
-    <div v-if="loading" class="flex justify-center items-center py-20">
+    <div v-if="loading" class="flex items-center justify-center py-20">
       <div
-        class="w-12 h-12 border-4 border-gray-300 border-t-admin-primary rounded-full animate-spin"
+        class="w-12 h-12 border-4 border-gray-300 rounded-full border-t-admin-primary animate-spin"
       ></div>
     </div>
 
@@ -163,8 +176,8 @@ const getNestedValue = (obj, path) => {
       v-else-if="!items || items.length === 0"
       class="flex flex-col items-center justify-center py-20"
     >
-      <i class="pi pi-inbox text-6xl text-gray-300 mb-4"></i>
-      <p class="text-gray-500 text-lg font-medium">{{ emptyMessage }}</p>
+      <i class="mb-4 text-6xl text-gray-300 pi pi-inbox"></i>
+      <p class="text-lg font-medium text-gray-500">{{ emptyMessage }}</p>
     </div>
 
     <!-- Table Content (only show when items exist) -->
@@ -176,9 +189,9 @@ const getNestedValue = (obj, path) => {
             <th v-if="showCheckbox" class="px-6 py-3 text-left">
               <input
                 type="checkbox"
-                :checked="selectAll"
+                :checked="isAllSelected"
                 @change="toggleSelectAll"
-                class="w-4 h-4 text-admin-primary rounded border-gray-300 focus:ring-admin-primary"
+                class="appearance-none w-4.5 h-4.5 border-1 border-muted-foreground rounded-sm bg-transparent cursor-pointer transition-all duration-100 checked:bg-merchant-primary checked:border-merchant-primary focus:outline-none focus:ring-2 focus:ring-merchant-primary focus:ring-offset-2 relative before:content-[''] before:absolute before:inset-0 before:bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOSIgdmlld0JveD0iMCAwIDEyIDkiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xIDQuNUw0LjUgOEwxMSAxIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K')] before:bg-center before:bg-no-repeat before:opacity-0 checked:before:opacity-100"
               />
             </th>
 
@@ -186,7 +199,7 @@ const getNestedValue = (obj, path) => {
             <th
               v-for="column in columns"
               :key="column.key"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              class="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase"
               :class="column.sortable ? 'cursor-pointer hover:bg-gray-100' : ''"
             >
               {{ column.label }}
@@ -199,7 +212,7 @@ const getNestedValue = (obj, path) => {
             v-for="item in items"
             :key="item.id"
             @click="handleRowClick(item)"
-            class="hover:bg-gray-50 cursor-pointer transition"
+            class="transition cursor-pointer hover:bg-gray-50"
           >
             <!-- Checkbox Cell -->
             <td
@@ -209,9 +222,9 @@ const getNestedValue = (obj, path) => {
             >
               <input
                 type="checkbox"
-                :checked="isItemSelected(item.slug)"
-                @change="toggleItemSelection(item.slug)"
-                class="w-4 h-4 text-admin-primary rounded border-gray-300 focus:ring-admin-primary"
+                :checked="isItemSelected(item)"
+                @change="toggleItemSelection(item)"
+                class="appearance-none w-4.5 h-4.5 border-1 border-muted-foreground rounded-sm bg-transparent cursor-pointer transition-all duration-100 checked:bg-merchant-primary checked:border-merchant-primary focus:outline-none focus:ring-2 focus:ring-merchant-primary focus:ring-offset-2 relative before:content-[''] before:absolute before:inset-0 before:bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOSIgdmlld0JveD0iMCAwIDEyIDkiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xIDQuNUw0LjUgOEwxMSAxIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K')] before:bg-center before:bg-no-repeat before:opacity-0 checked:before:opacity-100"
               />
             </td>
 
@@ -235,25 +248,6 @@ const getNestedValue = (obj, path) => {
                 </span>
               </div>
             </td>
-
-            <!-- Actions -->
-            <!-- <td v-if="actions.length > 0" class="px-6 py-4" @click.stop>
-              <div class="flex items-center justify-end gap-2">
-                <button
-                  v-for="(action, index) in actions"
-                  :key="index"
-                  @click="action.handler(item)"
-                  class="p-2 rounded-lg transition"
-                  :class="
-                    action.class ||
-                    'hover:bg-muted-background text-muted-foreground'
-                  "
-                  :title="action.label"
-                >
-                  <i :class="['pi', action.icon, 'text-sm']"></i>
-                </button>
-              </div>
-            </td> -->
           </tr>
         </tbody>
       </table>
@@ -261,8 +255,8 @@ const getNestedValue = (obj, path) => {
   </div>
 
   <!-- Pagination -->
-  <div v-if="!loading" class="border-t border-muted-background px-6 py-4">
-    <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+  <div v-if="!loading" class="px-6 py-4 border-t border-muted-background">
+    <div class="flex flex-col items-center justify-between gap-4 sm:flex-row">
       <!-- Pagination Info -->
       <div class="text-sm text-muted-foreground">
         Menampilkan
@@ -281,7 +275,7 @@ const getNestedValue = (obj, path) => {
           variant="merchant"
           size="sm"
         >
-          <i class="pi pi-chevron-left text-xs"></i>
+          <i class="text-xs pi pi-chevron-left"></i>
           <span>Prev</span>
         </Button>
 
@@ -289,7 +283,7 @@ const getNestedValue = (obj, path) => {
         <template v-for="(page, index) in visiblePages" :key="index">
           <span
             v-if="page === '...'"
-            class="px-3 py-2 text-muted-foreground text-sm"
+            class="px-3 py-2 text-sm text-muted-foreground"
           >
             ...
           </span>
@@ -315,7 +309,7 @@ const getNestedValue = (obj, path) => {
           size="sm"
         >
           <span>Next</span>
-          <i class="pi pi-chevron-right text-xs"></i>
+          <i class="text-xs pi pi-chevron-right"></i>
         </Button>
       </div>
     </div>

@@ -1,16 +1,35 @@
 <script setup>
 import { useRouter, useRoute } from "vue-router";
 import { onMounted, ref, computed, nextTick } from "vue";
+import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
 import api from "@/libs/axios";
 import Chart from "chart.js/auto";
+import { useAuthStore } from "@/stores/auth";
 
 const router = useRouter();
 const route = useRoute();
 const emit = defineEmits(["toggle-sidebar"]);
 const loading = ref(true);
+const authStore = useAuthStore();
+
 // ======================
 // STATE
 // ======================
+const currentMerchantName = computed(() => {
+  const merchant = authStore.getMerchantById(currentMerchantId.value);
+  return merchant?.name || "UMKM";
+});
+const currentMerchantId = computed(() => {
+  return route.params && route.params.merchantId
+    ? Number(route.params.merchantId)
+    : null;
+});
+
+const breadcrumbItems = computed(() => [
+  {
+    label: "Dashboard",
+  },
+]);
 const dashboardStats = ref([]);
 const statusChart = ref(null);
 const categoryChart = ref(null);
@@ -198,21 +217,22 @@ onMounted(fetchDashboard);
   <div class="min-h-screen bg-gray-50">
     <!-- HEADER -->
     <div
-      class="fixed sm:static top-0 left-0 right-0 bg-white z-20 px-4 sm:px-6 py-5 flex items-center justify-between"
+      class="fixed top-0 left-0 right-0 z-20 flex items-center justify-between px-4 py-6 bg-white sm:static sm:px-6"
     >
       <div class="flex items-center gap-3">
         <button
           @click="emit('toggle-sidebar')"
-          class="w-10 h-10 rounded-full flex items-center justify-center sm:hidden hover:bg-gray-100"
+          class="flex items-center justify-center w-10 h-10 rounded-full sm:hidden hover:bg-gray-100"
         >
           <i class="pi pi-bars"></i>
         </button>
         <div>
-          <h1 class="text-lg sm:text-2xl font-semibold text-merchant-primary">
-            Dashboard
-          </h1>
-          <p class="text-xs sm:text-sm text-muted-foreground">
-            Ringkasan kondisi katalog toko
+          <Breadcrumb
+            :items="breadcrumbItems"
+            :merchantId="currentMerchantId"
+          />
+          <p class="mt-1 text-xs sm:text-sm text-muted-foreground">
+            Ringkasan kondisi katalog {{ currentMerchantName }}
           </p>
         </div>
       </div>
@@ -226,7 +246,7 @@ onMounted(fetchDashboard);
       class="flex justify-center items-center min-h-[80dvh] w-full rounded-lg mx-0"
     >
       <div
-        class="w-10 h-10 border-4 border-muted-foreground border-t-merchant-primary rounded-full animate-spin"
+        class="w-10 h-10 border-4 rounded-full border-muted-foreground border-t-merchant-primary animate-spin"
       ></div>
     </div>
 
@@ -234,15 +254,15 @@ onMounted(fetchDashboard);
       <!-- ======================
          PRIMARY STATS
     ====================== -->
-      <div class="px-4 sm:px-6 sm:mt-6 mt-2">
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="px-4 mt-2 sm:px-6 sm:mt-6">
+        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <div
             v-for="(stat, i) in primaryStats"
             :key="i"
-            class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100"
+            class="p-4 bg-white border border-gray-100 shadow-sm rounded-2xl"
           >
             <div
-              class="w-10 h-10 rounded-xl flex items-center justify-center mb-2"
+              class="flex items-center justify-center w-10 h-10 mb-2 rounded-xl"
               :class="stat.color"
             >
               <i :class="stat.icon"></i>
@@ -256,15 +276,15 @@ onMounted(fetchDashboard);
       <!-- ======================
          SECONDARY STATS (SCROLL)
     ====================== -->
-      <div class="px-4 sm:px-6 mt-4">
-        <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+      <div class="px-4 mt-4 sm:px-6">
+        <div class="flex gap-3 pb-2 overflow-x-auto scrollbar-hide">
           <div
             v-for="(stat, i) in secondaryStats"
             :key="i"
             class="min-w-[160px] bg-white rounded-2xl p-4 shadow-sm border border-gray-100"
           >
             <div
-              class="w-9 h-9 rounded-xl flex items-center justify-center mb-2"
+              class="flex items-center justify-center mb-2 w-9 h-9 rounded-xl"
               :class="stat.color"
             >
               <i :class="stat.icon"></i>
@@ -278,17 +298,17 @@ onMounted(fetchDashboard);
       <!-- ======================
          CHARTS
     ====================== -->
-      <div class="px-4 sm:px-6 mt-8 space-y-4 mb-4">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="bg-white rounded-2xl p-4 shadow-sm">
-            <h3 class="text-sm font-semibold mb-3">Status Produk</h3>
+      <div class="px-4 mt-8 mb-4 space-y-4 sm:px-6">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="p-4 bg-white shadow-sm rounded-2xl">
+            <h3 class="mb-3 text-sm font-semibold">Status Produk</h3>
             <div class="relative h-[220px]">
               <canvas ref="statusChartRef"></canvas>
             </div>
           </div>
 
-          <div class="bg-white rounded-2xl p-4 shadow-sm">
-            <h3 class="text-sm font-semibold mb-3">Produk per Kategori</h3>
+          <div class="p-4 bg-white shadow-sm rounded-2xl">
+            <h3 class="mb-3 text-sm font-semibold">Produk per Kategori</h3>
             <div class="relative h-[220px]">
               <canvas ref="categoryChartRef"></canvas>
             </div>

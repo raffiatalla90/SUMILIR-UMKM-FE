@@ -27,7 +27,7 @@ const routes = [
     path: "/test-api",
     name: "ApiTest",
     component: () => import("@/views/ApiTest.vue"),
-    meta: { title: "API Test | SUMILIR" },
+    meta: { title: "API Test" },
   },
   // ✅ Halaman Beranda (Public/Customer)
   {
@@ -41,7 +41,7 @@ const routes = [
         meta: {
           title: "Marketplace UMKM Lokal Banyuanyar",
           description:
-            "Sumilir adalah marketplace UMKM lokal Banyuanyar. Temukan produk kuliner, toko, dan jasa UMKM. Pesan langsung via WhatsApp.",
+            "Sumilir adalah marketplace UMKM lokal Banyuanyar. Temukan produk kuliner, toko, dan jasa UMKM atau mulai berinteraksi dengan komunitas UMKM lokal.",
         },
       },
       {
@@ -61,14 +61,14 @@ const routes = [
         meta: {
           title: "Produk Kuliner UMKM Banyuanyar",
           description:
-            "Temukan produk kuliner UMKM Banyuanyar yang enak dan terjangkau. Pesan mudah via WhatsApp.",
+            "Temukan produk kuliner UMKM Banyuanyar yang enak dan terjangkau.",
         },
       },
       {
         path: "merchant/:slug",
         name: "Merchant Detail",
         component: () => import("@/views/customer/ProductTokoHome.vue"),
-        meta: { title: "Detail Toko | SUMILIR" },
+        meta: { title: "Detail Toko" },
       },
 
       // Halaman Jasa Teknisi & Pembayaran
@@ -76,26 +76,26 @@ const routes = [
         path: "jasa-teknisi",
         name: "JasaTeknisi",
         component: () => import("@/views/customer/JasaTeknisi.vue"),
-        meta: { title: "Semua Jasa Teknisi | SUMILIR" },
+        meta: { title: "Semua Jasa Teknisi" },
       },
       {
         path: "jasa/:id",
         name: "JasaDetail",
         component: () => import("@/views/customer/JasaDetail.vue"),
-        meta: { title: "Detail Jasa | SUMILIR" },
+        meta: { title: "Detail Jasa" },
       },
       {
         path: "pembayaran-jasa",
         name: "Pembayaran Jasa",
         component: () => import("@/views/customer/PembayaranJasa.vue"),
-        meta: { title: "Pembayaran | SUMILIR" },
+        meta: { title: "Pembayaran" },
       },
 
       {
         path: "products/:slug",
         name: "Product Detail",
         component: () => import("@/views/customer/ProductDetail.vue"),
-        meta: { title: "Product Detail | SUMILIR" },
+        meta: { title: "Product Detail" },
       },
       {
         path: "cart",
@@ -104,7 +104,7 @@ const routes = [
         meta: {
           requiresAuth: true,
           roles: ["customer"],
-          title: "Keranjang | SUMILIR",
+          title: "Keranjang",
         },
       },
       {
@@ -114,14 +114,14 @@ const routes = [
         meta: {
           // requiresAuth: true,
           // roles: ["customer"],
-          title: "Pembayaran | SUMILIR",
+          title: "Pembayaran",
         },
       },
       {
         path: "search/:keyword?",
         name: "Search Page",
         component: () => import("@/views/customer/SearchPage.vue"),
-        meta: { title: "Cari | SUMILIR" },
+        meta: { title: "Cari" },
       },
 
       // Halaman Community
@@ -140,7 +140,7 @@ const routes = [
         name: "community-detail",
         component: CommunityDetailView,
         props: true,
-        meta: { title: "Community Detail | SUMILIR" },
+        meta: { title: "Community Detail" },
       },
     ],
   },
@@ -155,31 +155,31 @@ const routes = [
         path: "login",
         name: "Login",
         component: () => import("@/views/auth/Login.vue"),
-        meta: { title: "Login | SUMILIR" },
+        meta: { title: "Login" },
       },
       {
         path: "register",
         name: "Register",
         component: () => import("@/views/auth/Register.vue"),
-        meta: { title: "Register | SUMILIR" },
+        meta: { title: "Register" },
       },
       {
         path: "forgot-password",
         name: "Forgot Password",
         component: () => import("@/views/auth/ForgotPassword.vue"),
-        meta: { title: "Forgot Password | SUMILIR" },
+        meta: { title: "Forgot Password" },
       },
       {
         path: "reset-password/:token?",
         name: "Reset Password",
         component: () => import("@/views/auth/ResetPassword.vue"),
-        meta: { title: "Reset Password | SUMILIR" },
+        meta: { title: "Reset Password" },
       },
       {
         path: "verify-email",
         name: "Email Verification",
         component: () => import("@/views/auth/EmailVerification.vue"),
-        meta: { title: "Email Verification | SUMILIR" },
+        meta: { title: "Email Verification" },
       },
     ],
   },
@@ -192,7 +192,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       roles: ["customer"],
-      title: "Merchant Register | SUMILIR",
+      title: "Merchant Register",
     },
   },
 
@@ -215,7 +215,7 @@ const routes = [
         path: "dashboard",
         name: "Admin Dashboard",
         component: () => import("@/views/admin/Dashboard.vue"),
-        meta: { title: "Admin Dashboard | SUMILIR" },
+        meta: { title: "Admin Dashboard" },
       },
       // EVENTS
       {
@@ -351,21 +351,21 @@ const routes = [
         name: "Merchant - Dashboard",
         component: () => import("@/views/merchant/dashboard/Index.vue"),
         meta: {
-          title: "Merchant Dashboard | SUMILIR",
+          title: "Dashboard UMKM",
         },
       },
       {
         path: "products",
         name: "Merchant - Product UMKM",
         component: () => import("@/views/merchant/products/Index.vue"),
-        meta: { title: "Product UMKM | SUMILIR" },
+        meta: { title: "Product UMKM" },
       },
       {
         path: "products/create",
         name: "Merchant - Buat Product",
         component: () => import("@/views/merchant/products/Create.vue"),
         meta: {
-          title: "Buat Product UMKM | SUMILIR",
+          title: "Buat Product UMKM",
         },
       },
       {
@@ -373,7 +373,7 @@ const routes = [
         name: "Merchant - Product Detail",
         component: () => import("@/views/merchant/products/Detail.vue"),
         meta: {
-          title: "Product Detail UMKM | SUMILIR",
+          title: "Product Detail UMKM",
         },
       },
       {
@@ -381,7 +381,7 @@ const routes = [
         name: "Merchant - Product Edit",
         component: () => import("@/views/merchant/products/Edit.vue"),
         meta: {
-          title: "Edit Product UMKM | SUMILIR",
+          title: "Edit Product UMKM",
         },
       },
       {
@@ -389,15 +389,31 @@ const routes = [
         name: "Merchant - Community",
         component: () => import("@/views/merchant/community/Index.vue"),
         meta: {
-          title: "Community | SUMILIR",
+          title: "Community",
         },
       },
       {
-        path: "discounts",
-        name: "Merchant - Discounts",
-        component: () => import("@/views/merchant/discounts/Index.vue"),
+        path: "vouchers",
+        name: "Merchant - Voucher",
+        component: () => import("@/views/merchant/vouchers/Index.vue"),
         meta: {
-          title: "Discounts | SUMILIR",
+          title: "Voucher",
+        },
+      },
+      {
+        path: "vouchers/create",
+        name: "Merchant - Buat Voucher",
+        component: () => import("@/views/merchant/vouchers/Create.vue"),
+        meta: {
+          title: "Buat Voucher UMKM",
+        },
+      },
+      {
+        path: "vouchers/:id/edit",
+        name: "Merchant - Voucher Edit",
+        component: () => import("@/views/merchant/vouchers/Edit.vue"),
+        meta: {
+          title: "Edit Voucher UMKM",
         },
       },
       {
@@ -405,7 +421,7 @@ const routes = [
         name: "Merchant - Orders",
         component: () => import("@/views/merchant/orders/Index.vue"),
         meta: {
-          title: "Orders | SUMILIR",
+          title: "Orders",
         },
       },
     ],
@@ -416,7 +432,7 @@ const routes = [
   //   path: "/unauthorized",
   //   name: "Unauthorized",
   //   component: () => import("@/views/errors/Unauthorized.vue"),
-  //   meta: { title: "Unauthorized | SUMILIR" },
+  //   meta: { title: "Unauthorized" },
   // },
 
   // Fallback

@@ -1,15 +1,15 @@
 <template>
-  <div class="min-h-screen bg-gray-50 pb-28 max-w-7xl mx-auto">
+  <div class="min-h-screen mx-auto bg-gray-50 pb-28 max-w-7xl">
     <!-- Mobile Header -->
     <MobileHeader title="Checkout Pesanan" variant="primary" />
 
-    <main class="px-4 space-y-4 pt-4">
+    <main class="px-4 pt-4 space-y-4">
       <!-- DATA PEMESAN (HANYA JIKA BELUM LOGIN) -->
       <section
         v-if="isGuest"
-        class="bg-white rounded-xl border border-gray-200 p-4"
+        class="p-4 bg-white border border-gray-200 rounded-xl"
       >
-        <h2 class="font-semibold text-gray-800 mb-3">Data Pemesan</h2>
+        <h2 class="mb-3 font-semibold text-gray-800">Data Pemesan</h2>
 
         <Form :validation-schema="schema">
           <div class="space-y-3">
@@ -31,26 +31,26 @@
           </div>
         </Form>
 
-        <p class="text-xs text-gray-500 mt-2">
+        <p class="mt-2 text-xs text-gray-500">
           Digunakan untuk keperluan konfirmasi pesanan
         </p>
       </section>
 
       <!-- Detail Pesanan -->
-      <section class="bg-white rounded-xl border border-gray-200 p-4">
-        <h2 class="font-semibold text-gray-800 mb-3">Detail Pesanan</h2>
+      <section class="p-4 bg-white border border-gray-200 rounded-xl">
+        <h2 class="mb-3 font-semibold text-gray-800">Detail Pesanan</h2>
 
         <div class="space-y-3">
           <div class="space-y-4">
             <div
               v-for="item in checkoutItems"
               :key="item.id"
-              class="flex flex-col gap-3 bg-white p-4 last:border-none border-b border-gray-200"
+              class="flex flex-col gap-3 p-4 bg-white border-b border-gray-200 last:border-none"
             >
               <div class="flex gap-3">
                 <!-- IMAGE -->
-                <div class="w-20 h-20 rounded-lg bg-gray-100 overflow-hidden">
-                  <img :src="item.image" class="w-full h-full object-cover" />
+                <div class="w-20 h-20 overflow-hidden bg-gray-100 rounded-lg">
+                  <img :src="item.image" class="object-cover w-full h-full" />
                 </div>
 
                 <!-- INFO -->
@@ -62,13 +62,13 @@
                   <!-- VARIANT -->
                   <div
                     v-if="item.variant"
-                    class="text-xs text-muted-foreground capitalize"
+                    class="text-xs capitalize text-muted-foreground"
                   >
                     Varian: {{ item.variant }}
                   </div>
 
                   <!-- PRICE + QTY -->
-                  <div class="flex justify-between items-center mt-2">
+                  <div class="flex items-center justify-between mt-2">
                     <span class="text-sm font-bold text-[#FFA30E]">
                       Rp {{ formatIDR(item.price) }}
                     </span>
@@ -87,7 +87,7 @@
                 <div
                   v-for="addon in item.addons"
                   :key="addon.id || addon.label"
-                  class="text-xs text-gray-700 flex items-center justify-between gap-2"
+                  class="flex items-center justify-between gap-2 text-xs text-gray-700"
                 >
                   <div class="flex items-center gap-1">
                     + <span>{{ addon.name || addon.label }}</span>
@@ -95,12 +95,12 @@
                   <span class=""> Rp {{ formatIDR(addon.price) }} </span>
                 </div>
                 <!-- subtotal add-on per quantity -->
-                <!-- <p class="text-xs text-gray-600 pt-1">
+                <!-- <p class="pt-1 text-xs text-gray-600">
                   Total tambahan: Rp {{ formatIDR(getAddonTotal(item)) }}
                 </p> -->
               </div>
               <div
-                class="flex items-center justify-between gap-2 text-black text-sm font-semibold"
+                class="flex items-center justify-between gap-2 text-sm font-semibold text-black"
               >
                 <div class="flex items-center gap-1">
                   <span>Total </span>
@@ -132,8 +132,8 @@
       </section>
 
       <!-- Metode Pengiriman -->
-      <section class="bg-white rounded-xl border border-gray-200 p-4">
-        <h2 class="font-semibold text-gray-800 mb-3">Metode Pengiriman</h2>
+      <section class="p-4 bg-white border border-gray-200 rounded-xl">
+        <h2 class="mb-3 font-semibold text-gray-800">Metode Pengiriman</h2>
         <div class="flex items-center gap-4 text-sm">
           <label
             class="flex items-center gap-2"
@@ -166,7 +166,7 @@
       <!-- Detail Alamat - hanya tampil jika diantar -->
       <section
         v-if="form.metodePengiriman === 'delivery'"
-        class="bg-white rounded-xl border border-gray-200 p-4"
+        class="p-4 bg-white border border-gray-200 rounded-xl"
       >
         <div class="flex items-center justify-between mb-3">
           <h2 class="font-semibold text-gray-800">Alamat Pengiriman</h2>
@@ -180,22 +180,22 @@
 
         <div v-if="selectedAddress" class="space-y-3">
           <div class="flex items-start gap-2 text-sm">
-            <i class="pi pi-map-marker text-primary text-xl"></i>
+            <i class="text-xl pi pi-map-marker text-primary"></i>
             <div class="flex-1">
               <div class="font-semibold text-gray-800">
                 {{ selectedAddress.label }}
               </div>
-              <p class="text-gray-600 leading-snug mt-1">
+              <p class="mt-1 leading-snug text-gray-600">
                 {{ selectedAddress.fullAddress }}
               </p>
-              <p class="text-gray-500 text-xs mt-1">
+              <p class="mt-1 text-xs text-gray-500">
                 {{ selectedAddress.penerima }} - {{ selectedAddress.telp }}
               </p>
             </div>
           </div>
         </div>
 
-        <div v-else class="text-sm text-gray-500 text-center py-4">
+        <div v-else class="py-4 text-sm text-center text-gray-500">
           Belum ada alamat dipilih
         </div>
       </section>
@@ -203,17 +203,17 @@
       <!-- Alamat Toko - untuk pickup -->
       <section
         v-if="form.metodePengiriman === 'pickup'"
-        class="bg-white rounded-xl border border-gray-200 p-4"
+        class="p-4 bg-white border border-gray-200 rounded-xl"
       >
-        <h2 class="font-semibold text-gray-800 mb-3">Lokasi Toko</h2>
+        <h2 class="mb-3 font-semibold text-gray-800">Lokasi Toko</h2>
         <div class="flex items-start gap-2 text-sm">
-          <i class="pi pi-map-marker text-merchant-primary text-xl"></i>
+          <i class="text-xl pi pi-map-marker text-merchant-primary"></i>
 
           <div class="flex-1">
             <div class="font-semibold text-gray-800">
               {{ order.store?.name || "Toko" }}
             </div>
-            <p class="text-gray-600 leading-snug mt-1">
+            <p class="mt-1 leading-snug text-gray-600">
               {{
                 // ✅ Prioritas: merchant_address dari API product detail
                 order.store?.address || "Alamat toko belum tersedia"
@@ -225,12 +225,12 @@
 
       <!-- Promo -->
       <section
-        class="bg-white rounded-xl border border-gray-200 overflow-hidden"
+        class="overflow-hidden bg-white border border-gray-200 rounded-xl"
       >
-        <div class="px-4 py-3 flex items-center justify-between bg-lime-50">
+        <div class="flex items-center justify-between px-4 py-3 bg-lime-50">
           <div class="text-sm font-semibold text-gray-800">
             {{
-              selectedPromo ? selectedPromo.title : "Belum ada promo dipilih"
+              selectedPromo ? selectedPromo.name : "Belum ada voucher dipilih"
             }}
           </div>
           <button
@@ -242,7 +242,7 @@
           </button>
           <button
             v-else
-            class="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 hover:bg-red-200 transition"
+            class="px-3 py-1 text-xs font-semibold text-red-700 transition bg-red-100 rounded-full hover:bg-red-200"
             @click="clearPromo"
           >
             Batalkan
@@ -250,7 +250,7 @@
         </div>
 
         <button
-          class="w-full px-4 py-3 flex items-center justify-between text-sm text-gray-700 hover:bg-gray-50 transition"
+          class="flex items-center justify-between w-full px-4 py-3 text-sm text-gray-700 transition hover:bg-gray-50"
           @click="openPromo = true"
         >
           Lihat promo lainnya
@@ -259,13 +259,13 @@
       </section>
 
       <!-- Ringkasan Pembayaran -->
-      <section class="bg-white rounded-xl border border-gray-200 p-4">
-        <h2 class="font-semibold text-gray-800 mb-3">Ringkasan Pembayaran</h2>
+      <section class="p-4 bg-white border border-gray-200 rounded-xl">
+        <h2 class="mb-3 font-semibold text-gray-800">Ringkasan Pembayaran</h2>
 
         <div class="space-y-3">
           <!-- Metode Pembayaran -->
           <div>
-            <div class="text-sm text-gray-600 mb-2">Metode Pembayaran</div>
+            <div class="mb-2 text-sm text-gray-600">Metode Pembayaran</div>
             <div class="flex items-center gap-6 text-sm">
               <label
                 class="flex items-center gap-2"
@@ -298,7 +298,7 @@
             <!-- Info message untuk delivery -->
             <p
               v-if="form.metodePengiriman === 'delivery'"
-              class="text-xs text-amber-600 mt-2 flex items-start gap-1"
+              class="flex items-start gap-1 mt-2 text-xs text-amber-600"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -318,7 +318,7 @@
 
           <!-- Rincian Harga -->
           <div
-            class="pt-3 border-t border-gray-200 text-sm text-gray-700 space-y-2"
+            class="pt-3 space-y-2 text-sm text-gray-700 border-t border-gray-200"
           >
             <div class="flex justify-between">
               <span>Subtotal Produk </span>
@@ -341,7 +341,7 @@
                 Diskon
                 <span
                   v-if="selectedPromo"
-                  class="text-amber-600 font-semibold text-xs"
+                  class="text-xs font-semibold text-amber-600"
                 >
                   ({{ selectedPromo.code }})
                 </span>
@@ -349,9 +349,9 @@
               <span>-Rp {{ formatIDR(amounts.diskon) }}</span>
             </div>
 
-            <div class="border-t border-gray-300 my-2"></div>
+            <div class="my-2 border-t border-gray-300"></div>
 
-            <div class="flex justify-between font-bold text-base">
+            <div class="flex justify-between text-base font-bold">
               <span>Total Pembayaran</span>
               <span class="text-[#FFA30E]">Rp {{ formatIDR(total) }}</span>
             </div>
@@ -362,11 +362,11 @@
 
     <!-- Bottom bar (Total + Pesan button) -->
     <footer
-      class="fixed left-0 right-0 bottom-16 sm:bottom-0 z-20 bg-white border-t border-gray-200 shadow-lg"
+      class="fixed left-0 right-0 z-20 bg-white border-t border-gray-200 shadow-lg bottom-16 sm:bottom-0"
     >
-      <div class="px-4 py-3 space-y-2 max-w-7xl mx-auto">
+      <div class="px-4 py-3 mx-auto space-y-2 max-w-7xl">
         <div
-          class="flex items-center justify-between text-xs sm:text-sm font-semibold text-gray-900"
+          class="flex items-center justify-between text-xs font-semibold text-gray-900 sm:text-sm"
         >
           <span>Total Pembayaran</span>
           <span class="text-[#FFA30E]">Rp {{ formatIDR(total) }}</span>
@@ -404,7 +404,7 @@
           v-for="addr in addresses"
           :key="addr.id"
           @click="selectAddress(addr)"
-          class="w-full text-left p-4 rounded-lg border transition"
+          class="w-full p-4 text-left transition border rounded-lg"
           :class="
             selectedAddress?.id === addr.id
               ? 'border-[#FFA30E] bg-orange-50'
@@ -429,10 +429,10 @@
                   Utama
                 </span>
               </div>
-              <p class="text-sm text-gray-600 leading-snug">
+              <p class="text-sm leading-snug text-gray-600">
                 {{ addr.fullAddress }}
               </p>
-              <p class="text-xs text-gray-500 mt-1">
+              <p class="mt-1 text-xs text-gray-500">
                 {{ addr.penerima }} - {{ addr.telp }}
               </p>
             </div>
@@ -443,7 +443,7 @@
       <template #footer>
         <button
           @click="showAlamatModal = false"
-          class="w-full px-4 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition"
+          class="w-full px-4 py-3 font-semibold text-gray-700 transition bg-gray-100 rounded-xl hover:bg-gray-200"
         >
           Tutup
         </button>
@@ -459,44 +459,83 @@
     >
       <div class="space-y-3">
         <div
+          v-if="voucherLoading"
+          class="py-6 text-sm text-center text-gray-500"
+        >
+          Memuat voucher...
+        </div>
+
+        <div
+          v-else-if="!promos.length"
+          class="py-6 text-sm text-center text-gray-500"
+        >
+          Tidak ada voucher tersedia
+        </div>
+
+        <div
           v-for="p in promos"
           :key="p.code"
-          class="rounded-xl border overflow-hidden"
+          class="p-4 space-y-1 border rounded-xl"
           :class="
             selectedPromo?.code === p.code
               ? 'border-[#FFA30E] bg-orange-50'
               : 'border-gray-200'
           "
         >
-          <div class="px-4 py-3 flex items-center justify-between">
-            <div class="flex-1">
-              <div class="text-sm font-semibold text-gray-800">
-                {{ p.title }}
-              </div>
-              <div class="text-xs text-gray-600 mt-0.5">{{ p.desc }}</div>
-              <div class="text-xs text-gray-500 mt-1">
-                Kode: <span class="font-mono font-semibold">{{ p.code }}</span>
-              </div>
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="font-semibold text-gray-900">{{ p.name }}</div>
+              <div class="text-xs text-gray-600">{{ p.desc }}</div>
             </div>
-            <button
-              class="px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+
+            <span
+              class="text-xs px-2 py-0.5 rounded-full"
               :class="
-                selectedPromo?.code === p.code
-                  ? 'bg-[#FFA30E] text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                p.type === 'percent'
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-blue-100 text-blue-700'
               "
-              @click="usePromo(p)"
             >
-              {{ selectedPromo?.code === p.code ? "Terpilih" : "Gunakan" }}
-            </button>
+              {{
+                p.type === "percent"
+                  ? p.value + "%"
+                  : "Rp " + formatIDR(p.value)
+              }}
+            </span>
           </div>
+
+          <div class="mt-1 text-xs text-gray-500">
+            Min. pembelian: Rp {{ formatIDR(p.min_purchase) }}
+          </div>
+
+          <div
+            v-if="p.type === 'percent' && p.max_discount"
+            class="text-xs text-gray-500"
+          >
+            Maks. diskon: Rp {{ formatIDR(p.max_discount) }}
+          </div>
+
+          <div class="text-xs text-gray-500">Pemakaian: {{ p.usage }}</div>
+
+          <button
+            class="w-full py-2 mt-2 text-xs font-semibold transition rounded-lg"
+            :disabled="p.is_expired"
+            :class="
+              p.is_expired
+                ? 'bg-gray-200 text-gray-400'
+                : 'bg-[#FFA30E] text-white hover:bg-[#e5920d]'
+            "
+            @click="usePromo(p)"
+          >
+            {{ p.is_expired ? "Tidak Berlaku" : "Gunakan Voucher" }}
+          </button>
         </div>
       </div>
 
       <template #footer>
         <button
           @click="openPromo = false"
-          class="w-full px-4 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition"
+          class="w-full px-4 py-3 font-semibold text-gray-700 transition bg-gray-100 rounded-xl hover:bg-gray-200"
         >
           Tutup
         </button>
@@ -516,6 +555,12 @@ import { useCheckoutStore } from "@/stores/checkout";
 import { useAuthStore } from "@/stores/auth";
 import * as yup from "yup";
 import { Form } from "vee-validate";
+import { useVouchers } from "@/composables/useVouchers";
+const {
+  fetchVouchersByMerchant,
+  vouchers,
+  loading: voucherLoading,
+} = useVouchers();
 
 const schema = yup.object({
   nama: yup.string().required("Nama wajib diisi"),
@@ -638,7 +683,24 @@ onMounted(async () => {
       router.replace({ name: "Beranda" });
     }
   }
+
+  if (order.value.store?.id) {
+    await fetchVouchersByMerchant(order.value.store.id);
+  }
 });
+const promos = computed(() =>
+  vouchers.value.map((v) => ({
+    code: v.voucher_code,
+    name: v.voucher_name,
+    desc: v.voucher_description,
+    type: v.voucher_type, // percent | fixed
+    value: Number(v.value),
+    max_discount: Number(v.max_discount_amount || 0),
+    min_purchase: Number(v.min_purchase_amount || 0),
+    usage: v.usage,
+    is_expired: v.is_expired,
+  }))
+);
 
 // Form & promo (tetap)
 const form = ref({
@@ -668,49 +730,65 @@ watch(
   },
   { immediate: true }
 );
+watch(
+  () => amounts.value.product,
+  () => {
+    if (selectedPromo.value) {
+      const discount = computeDiscount(selectedPromo.value);
+      if (discount <= 0) {
+        clearPromo();
+      } else {
+        amounts.value.diskon = discount;
+      }
+    }
+  }
+);
 
 const selectedPromo = ref(null);
-const promos = ref([
-  {
-    code: "PROMO5",
-    title: "Diskon 5%",
-    desc: "Potongan 5% dari harga produk",
-    type: "percent",
-    value: 5,
-  },
-  {
-    code: "PROMO10",
-    title: "Diskon 10%",
-    desc: "Potongan 10% dari harga produk",
-    type: "percent",
-    value: 10,
-  },
-  {
-    code: "HEMAT5K",
-    title: "Potongan Rp5.000",
-    desc: "Potongan flat 5rb",
-    type: "flat",
-    value: 5000,
-  },
-  {
-    code: "ONGKIR0",
-    title: "Gratis Ongkir",
-    desc: "Gratis biaya pengiriman",
-    type: "ongkir",
-    value: 0,
-  },
-]);
+
 function computeDiscount(promo) {
-  if (promo.type === "ongkir") return amounts.value.ongkir;
-  const base = amounts.value.product + addonUnitTotal.value;
-  if (promo.type === "percent") return Math.round((promo.value / 100) * base);
-  return Math.max(0, Math.min(promo.value, base));
+  const subtotal = amounts.value.product;
+
+  if (promo.is_expired) return 0;
+  if (subtotal < promo.min_purchase) return 0;
+
+  if (promo.type === "fixed") {
+    return Math.min(promo.value, subtotal);
+  }
+
+  if (promo.type === "percent") {
+    let discount = Math.floor((promo.value / 100) * subtotal);
+
+    if (promo.max_discount && discount > promo.max_discount) {
+      discount = promo.max_discount;
+    }
+
+    return discount;
+  }
+
+  return 0;
 }
+
 function usePromo(p) {
+  const discount = computeDiscount(p);
+
+  if (p.is_expired) {
+    alert("Voucher sudah tidak berlaku");
+    return;
+  }
+
+  if (amounts.value.product < p.min_purchase) {
+    alert(
+      `Minimal pembelian Rp ${formatIDR(p.min_purchase)} untuk voucher ini`
+    );
+    return;
+  }
+
   selectedPromo.value = p;
-  amounts.value.diskon = computeDiscount(p);
+  amounts.value.diskon = discount;
   openPromo.value = false;
 }
+
 function clearPromo() {
   selectedPromo.value = null;
   amounts.value.diskon = 0;
