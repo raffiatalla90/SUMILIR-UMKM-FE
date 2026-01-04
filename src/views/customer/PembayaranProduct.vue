@@ -223,8 +223,9 @@
         </div>
       </section>
 
-      <!-- Promo -->
+      <!-- Promo (hanya jika sudah login) -->
       <section
+        v-if="!isGuest"
         class="overflow-hidden bg-white border border-gray-200 rounded-xl"
       >
         <div class="flex items-center justify-between px-4 py-3 bg-lime-50">
@@ -450,8 +451,9 @@
       </template>
     </ResponsiveModal>
 
-    <!-- Modal Promo List -->
+    <!-- Modal Promo List (hanya jika sudah login) -->
     <ResponsiveModal
+      v-if="!isGuest"
       :show="openPromo"
       @close="openPromo = false"
       title="Pilih Promo"
@@ -519,9 +521,9 @@
 
           <button
             class="w-full py-2 mt-2 text-xs font-semibold transition rounded-lg"
-            :disabled="p.is_expired"
+            :disabled="p.is_expired || !isPromoEligible(p)"
             :class="
-              p.is_expired
+              p.is_expired || !isPromoEligible(p)
                 ? 'bg-gray-200 text-gray-400'
                 : 'bg-[#FFA30E] text-white hover:bg-[#e5920d]'
             "
@@ -556,11 +558,14 @@ import { useAuthStore } from "@/stores/auth";
 import * as yup from "yup";
 import { Form } from "vee-validate";
 import { useVouchers } from "@/composables/useVouchers";
+import { useToast } from "vue-toastification";
 const {
   fetchVouchersByMerchant,
   vouchers,
   loading: voucherLoading,
 } = useVouchers();
+
+const toast = useToast();
 
 const schema = yup.object({
   nama: yup.string().required("Nama wajib diisi"),
@@ -639,8 +644,14 @@ const amounts = ref({
 
 // ✅ total addon per item (bukan dikali qty)
 const addonUnitTotal = computed(() => Number(checkout.addonTotal || 0));
-// ✅ subtotal baris: (unitPrice + addon per item) * qty
-const total = computed(() => checkout.totalPrice);
+// ✅ Total akhir: harga produk + ongkir - diskon
+// amounts.product disinkronkan dari checkout.totalPrice (lihat watch di bawah)
+const total = computed(() => {
+  const product = Number(amounts.value.product || 0);
+  const ongkir = Number(amounts.value.ongkir || 0);
+  const diskon = Number(amounts.value.diskon || 0);
+  return Math.max(0, product + ongkir - diskon);
+});
 
 // sinkronisasi amounts.product
 watch(
@@ -684,7 +695,7 @@ onMounted(async () => {
     }
   }
 
-  if (order.value.store?.id) {
+  if (!isGuest.value && order.value.store?.id) {
     await fetchVouchersByMerchant(order.value.store.id);
   }
 });
@@ -711,6 +722,10 @@ const form = ref({
   catatanAlamat: "",
 });
 const pay = ref({ method: "QRIS" });
+
+// Promo state harus didefinisikan sebelum watcher (immediate)
+const selectedPromo = ref(null);
+
 watch(
   () => form.value.metodePengiriman,
   (v) => {
@@ -726,6 +741,12 @@ watch(
       form.value.metodePengiriman = "pickup"; // 🔒 paksa pickup
       pay.value.method = "QRIS"; // aman (atau COD kalau mau)
       amounts.value.ongkir = 0;
+      clearPromo();
+      return;
+    }
+
+    if (order.value.store?.id) {
+      fetchVouchersByMerchant(order.value.store.id);
     }
   },
   { immediate: true }
@@ -744,7 +765,10 @@ watch(
   }
 );
 
-const selectedPromo = ref(null);
+function isPromoEligible(promo) {
+  const subtotal = Number(amounts.value.product || 0);
+  return !promo?.is_expired && subtotal >= Number(promo?.min_purchase || 0);
+}
 
 function computeDiscount(promo) {
   const subtotal = amounts.value.product;
@@ -773,12 +797,12 @@ function usePromo(p) {
   const discount = computeDiscount(p);
 
   if (p.is_expired) {
-    alert("Voucher sudah tidak berlaku");
+    toast.warning("Voucher sudah tidak berlaku");
     return;
   }
 
   if (amounts.value.product < p.min_purchase) {
-    alert(
+    toast.warning(
       `Minimal pembelian Rp ${formatIDR(p.min_purchase)} untuk voucher ini`
     );
     return;
