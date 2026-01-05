@@ -167,7 +167,7 @@ const getNestedValue = (obj, path) => {
     <!-- Loading State -->
     <div v-if="loading" class="flex items-center justify-center py-20">
       <div
-        class="w-12 h-12 border-4 border-gray-300 rounded-full border-t-admin-primary animate-spin"
+        class="w-10 h-10 border-4 rounded-full border-muted-foreground border-t-merchant-primary animate-spin"
       ></div>
     </div>
 
@@ -176,8 +176,10 @@ const getNestedValue = (obj, path) => {
       v-else-if="!items || items.length === 0"
       class="flex flex-col items-center justify-center py-20"
     >
-      <i class="mb-4 text-6xl text-gray-300 pi pi-inbox"></i>
-      <p class="text-lg font-medium text-gray-500">{{ emptyMessage }}</p>
+      <i class="mb-4 text-5xl pi pi-inbox text-muted-foreground"></i>
+      <p class="mb-4 text-muted-foreground">
+        {{ emptyMessage }}
+      </p>
     </div>
 
     <!-- Table Content (only show when items exist) -->

@@ -10,6 +10,7 @@ import TextField from "@/components/forms/TextField.vue";
 import SelectField from "@/components/forms/SelectField.vue";
 import InputDateField from "@/components/forms/InputDateField.vue";
 import Button from "@/components/common/Button.vue";
+import MerchantList from "@/components/common/MerchantList.vue";
 import MerchantTable from "@/components/common/MerchantTable.vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
@@ -266,6 +267,22 @@ const toggleSelectAll = () => {
   } else {
     selectedVouchers.value = [];
   }
+};
+
+const toggleVoucherSelection = (voucherId) => {
+  if (!voucherId) return;
+
+  if (selectedVouchers.value.includes(voucherId)) {
+    selectedVouchers.value = selectedVouchers.value.filter(
+      (id) => id !== voucherId
+    );
+  } else {
+    selectedVouchers.value = [...selectedVouchers.value, voucherId];
+  }
+
+  selectAll.value =
+    vouchers.value.length > 0 &&
+    selectedVouchers.value.length === vouchers.value.length;
 };
 
 const goToCreate = () => {
@@ -529,149 +546,199 @@ onBeforeRouteLeave(() => {
           placeholder="10"
         />
       </div>
-    </div>
 
-    <div v-if="activeFilterCount > 0" class="mb-4">
-      <div
-        class="p-4 border bg-merchant-primary/5 rounded-xl border-merchant-primary/20"
-      >
-        <div class="flex items-center justify-between mb-3">
-          <div class="flex items-center gap-2">
-            <i class="pi pi-filter text-merchant-primary"></i>
-            <span class="text-sm font-semibold text-black">
-              {{ activeFilterCount }} Filter Aktif
+      <div v-if="activeFilterCount > 0" class="mb-4">
+        <div
+          class="p-4 border bg-merchant-primary/5 rounded-xl border-merchant-primary/20"
+        >
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <i class="pi pi-filter text-merchant-primary"></i>
+              <span class="text-sm font-semibold text-black">
+                {{ activeFilterCount }} Filter Aktif
+              </span>
+            </div>
+            <button
+              @click="resetFilters"
+              class="flex items-center gap-1 text-xs font-medium text-danger-foreground hover:underline"
+            >
+              <i class="pi pi-times-circle"></i>
+              Reset Semua
+            </button>
+          </div>
+
+          <div class="flex flex-wrap gap-2">
+            <!-- Existing filters (status, category, price, stock) -->
+            <span
+              v-if="activeFilters.status"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-merchant-primary/30 text-merchant-primary rounded-lg text-xs font-medium"
+            >
+              <i class="text-xs pi pi-bookmark"></i>
+              Status:
+              {{ activeFilters.status === "active" ? "Aktif" : "Tidak Aktif" }}
+              <button
+                @click="
+                  activeFilters.status = '';
+                  loadVouchers();
+                "
+              >
+                <i class="pi pi-times"></i>
+              </button>
+            </span>
+
+            <span
+              v-if="activeFilters.type"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-merchant-primary/30 text-merchant-primary rounded-lg text-xs font-medium"
+            >
+              <i class="text-xs pi pi-tag"></i>
+              Tipe:
+              {{ activeFilters.type === "percent" ? "Persentase" : "Nominal" }}
+              <button
+                @click="
+                  activeFilters.type = '';
+                  loadVouchers();
+                "
+                class="ml-1 hover:text-merchant-primary/80"
+              >
+                <i class="text-xs pi pi-times"></i>
+              </button>
+            </span>
+
+            <span
+              v-if="activeFilters.is_expired !== ''"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-merchant-primary/30 text-merchant-primary rounded-lg text-xs font-medium"
+            >
+              <i class="text-xs pi pi-clock"></i>
+              Kadaluarsa:
+              {{ activeFilters.is_expired === 1 ? "Ya" : "Tidak" }}
+              <button
+                @click="
+                  activeFilters.is_expired = '';
+                  loadVouchers();
+                "
+                class="ml-1 hover:text-merchant-primary/80"
+              >
+                <i class="text-xs pi pi-times"></i>
+              </button>
+            </span>
+
+            <!-- ✅ NEW: Sort Badges (Multiple) -->
+            <span
+              v-if="activeFilters.sortByDate"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-xs font-medium"
+            >
+              <i class="text-xs pi pi-calendar"></i>
+              {{
+                activeFilters.sortByDate === "newest" ? "Terbaru" : "Terlama"
+              }}
+              <button
+                @click="clearFilterGroup('sort_date')"
+                class="ml-1 hover:opacity-80"
+              >
+                <i class="text-xs pi pi-times"></i>
+              </button>
+            </span>
+
+            <span
+              v-if="activeFilters.sortByName"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 border border-purple-200 text-purple-700 rounded-lg text-xs font-medium"
+            >
+              <i class="text-xs pi pi-sort-alpha-down"></i>
+              {{
+                activeFilters.sortByName === "name_asc"
+                  ? "Nama A-Z"
+                  : "Nama Z-A"
+              }}
+              <button
+                @click="clearFilterGroup('sort_name')"
+                class="ml-1 hover:opacity-80"
+              >
+                <i class="text-xs pi pi-times"></i>
+              </button>
+            </span>
+
+            <span
+              v-if="activeFilters.sortByValue"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-200 text-green-700 rounded-lg text-xs font-medium"
+            >
+              <i class="text-xs pi pi-dollar"></i>
+              {{
+                activeFilters.sortByValue === "value_asc"
+                  ? "Harga Terendah"
+                  : "Harga Tertinggi"
+              }}
+              <button
+                @click="clearFilterGroup('sort_value')"
+                class="ml-1 hover:opacity-80"
+              >
+                <i class="text-xs pi pi-times"></i>
+              </button>
+            </span>
+
+            <span
+              v-if="activeFilters.sortByUsage"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 border border-orange-200 text-orange-700 rounded-lg text-xs font-medium"
+            >
+              <i class="text-xs pi pi-box"></i>
+              {{
+                activeFilters.sortByUsage === "usage_asc"
+                  ? "Stok Terendah"
+                  : "Stok Tertinggi"
+              }}
+              <button
+                @click="clearFilterGroup('sort_usage')"
+                class="ml-1 hover:opacity-80"
+              >
+                <i class="text-xs pi pi-times"></i>
+              </button>
             </span>
           </div>
-          <button
-            @click="resetFilters"
-            class="flex items-center gap-1 text-xs font-medium text-danger-foreground hover:underline"
-          >
-            <i class="pi pi-times-circle"></i>
-            Reset Semua
-          </button>
         </div>
+      </div>
 
-        <div class="flex flex-wrap gap-2">
-          <!-- Existing filters (status, category, price, stock) -->
+      <!-- Mobile: Toolbar (Pilih Semua + Filter) -->
+      <div
+        class="flex flex-row items-center justify-between gap-4 px-3 pb-1 rounded-lg sm:hidden"
+      >
+        <label class="flex items-center cursor-pointer group">
+          <input
+            type="checkbox"
+            v-model="selectAll"
+            @change="toggleSelectAll"
+            class="appearance-none w-5 h-5 border-2 border-muted-foreground rounded-md bg-transparent cursor-pointer transition-all duration-200 checked:bg-merchant-primary checked:border-merchant-primary focus:outline-none focus:ring-2 focus:ring-merchant-primary focus:ring-offset-2 relative before:content-[''] before:absolute before:inset-0 before:bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOSIgdmlld0JveD0iMCAwIDEyIDkiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xIDQuNUw0LjUgOEwxMSAxIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K')] before:bg-center before:bg-no-repeat before:opacity-0 checked:before:opacity-100"
+          />
           <span
-            v-if="activeFilters.status"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-merchant-primary/30 text-merchant-primary rounded-lg text-xs font-medium"
+            class="ml-2 text-xs transition-colors text-muted-foreground group-hover:text-merchant-primary"
           >
-            <i class="text-xs pi pi-bookmark"></i>
-            Status:
-            {{ activeFilters.status === "active" ? "Aktif" : "Tidak Aktif" }}
-            <button
-              @click="
-                activeFilters.status = '';
-                loadVouchers();
-              "
-            >
-              <i class="pi pi-times"></i>
-            </button>
+            Pilih Semua
           </span>
+        </label>
 
-          <span
-            v-if="activeFilters.type"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-merchant-primary/30 text-merchant-primary rounded-lg text-xs font-medium"
+        <div class="flex items-center h-10 gap-1">
+          <Button
+            @click="openFilterModal"
+            variant="muted-outline"
+            size="md"
+            custom-class="!flex sm:!hidden items-center gap-2 whitespace-nowrap relative h-full items-stretch h-full"
           >
-            <i class="text-xs pi pi-tag"></i>
-            Tipe:
-            {{ activeFilters.type === "percent" ? "Persentase" : "Nominal" }}
-            <button
-              @click="
-                activeFilters.type = '';
-                loadVouchers();
-              "
-              class="ml-1 hover:text-merchant-primary/80"
+            <i class="pi pi-filter"></i>
+            <span>Filter</span>
+            <span
+              v-if="activeFilterCount > 0"
+              class="absolute flex items-center justify-center w-5 h-5 text-xs font-semibold text-white rounded-full -top-2 -right-2 bg-primary"
             >
-              <i class="text-xs pi pi-times"></i>
-            </button>
-          </span>
-
-          <span
-            v-if="activeFilters.is_expired !== ''"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-merchant-primary/30 text-merchant-primary rounded-lg text-xs font-medium"
-          >
-            <i class="text-xs pi pi-clock"></i>
-            Kadaluarsa:
-            {{ activeFilters.is_expired === 1 ? "Ya" : "Tidak" }}
-            <button
-              @click="
-                activeFilters.is_expired = '';
-                loadVouchers();
-              "
-              class="ml-1 hover:text-merchant-primary/80"
-            >
-              <i class="text-xs pi pi-times"></i>
-            </button>
-          </span>
-
-          <!-- ✅ NEW: Sort Badges (Multiple) -->
-          <span
-            v-if="activeFilters.sortByDate"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-xs font-medium"
-          >
-            <i class="text-xs pi pi-calendar"></i>
-            {{ activeFilters.sortByDate === "newest" ? "Terbaru" : "Terlama" }}
-            <button
-              @click="clearFilterGroup('sort_date')"
-              class="ml-1 hover:opacity-80"
-            >
-              <i class="text-xs pi pi-times"></i>
-            </button>
-          </span>
-
-          <span
-            v-if="activeFilters.sortByName"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 border border-purple-200 text-purple-700 rounded-lg text-xs font-medium"
-          >
-            <i class="text-xs pi pi-sort-alpha-down"></i>
-            {{
-              activeFilters.sortByName === "name_asc" ? "Nama A-Z" : "Nama Z-A"
-            }}
-            <button
-              @click="clearFilterGroup('sort_name')"
-              class="ml-1 hover:opacity-80"
-            >
-              <i class="text-xs pi pi-times"></i>
-            </button>
-          </span>
-
-          <span
-            v-if="activeFilters.sortByValue"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-200 text-green-700 rounded-lg text-xs font-medium"
-          >
-            <i class="text-xs pi pi-dollar"></i>
-            {{
-              activeFilters.sortByValue === "value_asc"
-                ? "Harga Terendah"
-                : "Harga Tertinggi"
-            }}
-            <button
-              @click="clearFilterGroup('sort_value')"
-              class="ml-1 hover:opacity-80"
-            >
-              <i class="text-xs pi pi-times"></i>
-            </button>
-          </span>
-
-          <span
-            v-if="activeFilters.sortByUsage"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 border border-orange-200 text-orange-700 rounded-lg text-xs font-medium"
-          >
-            <i class="text-xs pi pi-box"></i>
-            {{
-              activeFilters.sortByUsage === "usage_asc"
-                ? "Stok Terendah"
-                : "Stok Tertinggi"
-            }}
-            <button
-              @click="clearFilterGroup('sort_usage')"
-              class="ml-1 hover:opacity-80"
-            >
-              <i class="text-xs pi pi-times"></i>
-            </button>
-          </span>
+              {{ activeFilterCount }}
+            </span>
+          </Button>
+          <SelectField
+            name="per_page"
+            variant="merchant"
+            size="sm"
+            v-model="perPage"
+            :options="perPageOptions"
+            class="sm:hidden w-fit"
+            placeholder="10"
+          />
         </div>
       </div>
     </div>
@@ -706,7 +773,7 @@ onBeforeRouteLeave(() => {
         :current-page="currentPage"
         :total-pages="totalPages"
         :pagination-info="paginationInfo"
-        empty-message="Tidak ada voucher yang sesuai dengan filter"
+        empty-message="Voucher tidak ditemukan"
         @row-click="goToDetail"
         @page-change="goToPage"
         @next-page="nextPage"
@@ -778,7 +845,7 @@ onBeforeRouteLeave(() => {
               :key="action.label"
               :title="action.label"
               size="sm"
-              class="!w-8 border-none"
+              class="w-8! border-none"
               :variant="action.variant || 'muted'"
               @click.stop="action.handler(item)"
             >
@@ -789,7 +856,140 @@ onBeforeRouteLeave(() => {
       </MerchantTable>
     </div>
 
-    <div class="px-4 pb-4 sm:hidden">
+    <!-- Mobile List (sm and below) -->
+    <div class="px-4 sm:hidden">
+      <div
+        v-if="loading"
+        class="flex items-center justify-center py-10 h-[70dvh]"
+      >
+        <div
+          class="w-10 h-10 border-4 rounded-full border-muted-foreground border-t-merchant-primary animate-spin"
+        ></div>
+      </div>
+
+      <div
+        v-else-if="!vouchers || vouchers.length === 0"
+        class="py-10 text-sm text-center text-muted-foreground"
+      >
+        Tidak ada voucher yang sesuai dengan filter
+      </div>
+
+      <div v-else class="mb-2 space-y-3">
+        <MerchantList
+          v-for="voucher in vouchers"
+          :key="voucher.id"
+          :item="voucher"
+          :selected="selectedVouchers.includes(voucher.id)"
+          :checkbox-value="voucher.id"
+          :show-image="false"
+          :title="voucher.voucher_name"
+          :subtitle="voucher.voucher_code"
+          @toggle-select="toggleVoucherSelection"
+          @view-detail="goToDetail"
+        >
+          <template #badges="{ item }">
+            <div class="flex items-center gap-2 mt-2">
+              <span
+                class="inline-flex items-center px-2.5 py-1 bg-merchant-primary/10 text-merchant-primary rounded-md text-xs font-medium whitespace-nowrap"
+              >
+                <i class="mr-2 pi pi-box"></i>Pemakaian:
+                {{ item.usage || "-" }}
+              </span>
+            </div>
+          </template>
+
+          <template #details="{ item }">
+            <div class="grid grid-cols-1 gap-2 text-sm">
+              <div class="flex items-center justify-between gap-3">
+                <span class="text-xs text-muted-foreground">Periode</span>
+                <span
+                  class="text-xs font-semibold truncate text-merchant-primary"
+                >
+                  {{ formatDateID(item.voucher_start_date) }} -
+                  {{ formatDateID(item.voucher_end_date) }}
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between gap-3">
+                <span class="text-xs text-muted-foreground">Nilai</span>
+                <span class="text-xs font-semibold text-merchant-primary">
+                  {{
+                    item.voucher_type === "percent"
+                      ? formatPercent(item.value)
+                      : formatPrice(item.value)
+                  }}
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between gap-3">
+                <span class="text-xs text-muted-foreground">Status</span>
+                <StatusLabel
+                  v-if="!item.is_expired"
+                  :status="
+                    item.voucher_status === 'active' ? 'success' : 'danger'
+                  "
+                  :label="
+                    item.voucher_status === 'active' ? 'Aktif' : 'Tidak Aktif'
+                  "
+                  variant="general"
+                  size="xs"
+                />
+                <StatusLabel
+                  v-else
+                  status="warning"
+                  label="Kadaluarsa"
+                  variant="general"
+                  size="xs"
+                />
+              </div>
+            </div>
+          </template>
+
+          <template #actions="{ item }">
+            <div class="flex items-center justify-between gap-2">
+              <Button
+                variant="danger-outline"
+                class="w-4! border-none"
+                @click.stop="deleteVoucherAction(item)"
+              >
+                <i class="pi pi-trash"></i>
+              </Button>
+
+              <div class="flex gap-2">
+                <Button
+                  variant="muted-outline"
+                  class="w-6! border-none"
+                  title="Lihat Detail"
+                  @click.stop="goToDetail(item)"
+                >
+                  <i class="pi pi-eye"></i>
+                </Button>
+
+                <Button
+                  variant="merchant-outline"
+                  class="w-6! border-none"
+                  title="Edit Voucher"
+                  @click.stop="goToEdit(item)"
+                >
+                  <i class="pi pi-pencil"></i>
+                </Button>
+
+                <Button
+                  variant="primary-outline"
+                  class="w-6! border-none"
+                  title="Ubah Status"
+                  @click.stop="toggleVoucherStatus(item)"
+                >
+                  <i class="pi pi-cog"></i>
+                </Button>
+              </div>
+            </div>
+          </template>
+        </MerchantList>
+      </div>
+    </div>
+
+    <div v-if="!loading" class="px-4 pb-4 sm:hidden">
       <MobilePagination
         :current-page="currentPage"
         :total-pages="totalPages"
@@ -814,7 +1014,7 @@ onBeforeRouteLeave(() => {
           class="flex items-start gap-3 p-4 border bg-danger-background/10 border-danger-foreground/20 rounded-xl"
         >
           <i
-            class="pi pi-exclamation-triangle text-danger-foreground text-xl flex-shrink-0 mt-0.5"
+            class="pi pi-exclamation-triangle text-danger-foreground text-xl shrink-0 mt-0.5"
           ></i>
           <div>
             <h4 class="mb-1 text-sm font-semibold text-danger-foreground">
@@ -877,7 +1077,7 @@ onBeforeRouteLeave(() => {
           class="flex items-start gap-3 p-4 border bg-danger-background/10 border-danger-foreground/20 rounded-xl"
         >
           <i
-            class="pi pi-exclamation-triangle text-danger-foreground text-xl flex-shrink-0 mt-0.5"
+            class="pi pi-exclamation-triangle text-danger-foreground text-xl shrink-0 mt-0.5"
           ></i>
           <div>
             <h4 class="mb-1 text-sm font-semibold text-danger-foreground">
@@ -966,7 +1166,7 @@ onBeforeRouteLeave(() => {
         class="flex items-start gap-3 p-4 border bg-warning-background/10 border-warning-foreground/20 rounded-xl"
       >
         <i
-          class="pi pi-info-circle text-warning-foreground text-xl flex-shrink-0 mt-0.5"
+          class="pi pi-info-circle text-warning-foreground text-xl shrink-0 mt-0.5"
         ></i>
         <div>
           <h4 class="mb-1 text-sm font-semibold text-warning-foreground">
@@ -1073,7 +1273,7 @@ onBeforeRouteLeave(() => {
         class="flex items-center w-full gap-4 p-4 text-left transition border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary group"
       >
         <div
-          class="flex items-center justify-center flex-shrink-0 w-12 h-12 transition-transform rounded-lg bg-success-background group-hover:scale-110"
+          class="flex items-center justify-center w-12 h-12 transition-transform rounded-lg shrink-0 bg-success-background group-hover:scale-110"
         >
           <i class="text-2xl pi pi-check-circle text-success-foreground"></i>
         </div>
@@ -1091,7 +1291,7 @@ onBeforeRouteLeave(() => {
         class="flex items-center w-full gap-4 p-4 text-left transition border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary group"
       >
         <div
-          class="flex items-center justify-center flex-shrink-0 w-12 h-12 transition-transform rounded-lg bg-danger-background group-hover:scale-110"
+          class="flex items-center justify-center w-12 h-12 transition-transform rounded-lg shrink-0 bg-danger-background group-hover:scale-110"
         >
           <i class="text-2xl pi pi-box text-danger-foreground"></i>
         </div>
@@ -1159,7 +1359,7 @@ onBeforeRouteLeave(() => {
         "
       >
         <div
-          class="flex items-center justify-center flex-shrink-0 w-12 h-12 transition-transform rounded-lg bg-success-background"
+          class="flex items-center justify-center w-12 h-12 transition-transform rounded-lg shrink-0 bg-success-background"
           :class="
             selectedVoucherForStatus?.voucher_status !== 'active' &&
             'group-hover:scale-110'
@@ -1168,7 +1368,7 @@ onBeforeRouteLeave(() => {
           <i class="text-2xl pi pi-check-circle text-success-foreground"></i>
         </div>
         <div>
-          <h4 class="text-sm font-semibold text-black sm:text-base">Active</h4>
+          <h4 class="text-sm font-semibold text-black sm:text-base">Aktif</h4>
           <p class="text-xs sm:text-sm text-muted-foreground">
             Voucher akan muncul di checkout dan dapat digunakan
           </p>
@@ -1187,7 +1387,7 @@ onBeforeRouteLeave(() => {
         "
       >
         <div
-          class="flex items-center justify-center flex-shrink-0 w-12 h-12 transition-transform rounded-lg bg-danger-background"
+          class="flex items-center justify-center w-12 h-12 transition-transform rounded-lg shrink-0 bg-danger-background"
           :class="
             selectedVoucherForStatus?.voucher_status !== 'inactive' &&
             'group-hover:scale-110'
@@ -1229,7 +1429,7 @@ onBeforeRouteLeave(() => {
         class="flex items-start gap-3 p-4 border bg-warning-background/10 border-warning-foreground/20 rounded-xl"
       >
         <i
-          class="pi pi-info-circle text-warning-foreground text-xl flex-shrink-0 mt-0.5"
+          class="pi pi-info-circle text-warning-foreground text-xl shrink-0 mt-0.5"
         ></i>
         <div>
           <h4 class="mb-1 text-sm font-semibold text-warning-foreground">
@@ -1474,9 +1674,18 @@ onBeforeRouteLeave(() => {
     </div>
 
     <template #footer>
-      <Button variant="muted-outline" block @click="showDetailModal = false">
-        Tutup
-      </Button>
+      <div class="flex gap-3">
+        <Button variant="muted-outline" block @click="showDetailModal = false">
+          Tutup
+        </Button>
+        <Button
+          variant="primary"
+          block
+          @click="goToEdit(selectedVoucherDetail)"
+        >
+          Edit
+        </Button>
+      </div>
     </template>
   </ResponsiveModal>
 

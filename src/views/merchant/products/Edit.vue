@@ -298,10 +298,26 @@ const populateFormFromProduct = async (product) => {
         })),
       };
     });
-  }
 
-  if (product.variants?.length) {
-    setCombinationsFromBackend(product.variants);
+    if (product.variants?.length) {
+      setCombinationsFromBackend(product.variants);
+    }
+  } else {
+    // Produk tanpa variants - populate SKU, price, stock
+    useVariants.value = false;
+    
+    // Jika ada 1 variant di backend (hasil dari variant OFF), ambil datanya
+    if (product.variants?.length === 1) {
+      const variant = product.variants[0];
+      setFieldValue("sku", variant.sku || "");
+      setFieldValue("price", Number(variant.price) || 0);
+      setFieldValue("stock", Number(variant.stock) || 0);
+    } else {
+      // Fallback ke data produk langsung
+      setFieldValue("sku", product.sku || "");
+      setFieldValue("price", product.price || 0);
+      setFieldValue("stock", product.stock || 0);
+    }
   }
 
   // ADDONS

@@ -811,7 +811,7 @@ const tableActions = [
     <div class="h-24 sm:h-0"></div>
 
     <!-- Search & Toolbar -->
-    <div class="px-4 mb-4 space-y-2 bg-white sm:px-6 sm:space-y-4">
+    <div class="px-4 my-2 space-y-2 sm:my-4 sm:px-6 sm:space-y-4">
       <!-- Search Bar -->
       <div class="pb-1 sm:flex sm:items-center sm:gap-4">
         <div class="flex-1 mb-2 sm:mb-0">
@@ -1081,30 +1081,8 @@ const tableActions = [
       </div>
     </div>
 
-    <!-- ✅ FIXED: Loading State -->
-    <div
-      v-if="loadingFetchProducts"
-      class="flex justify-center items-center min-h-[70dvh] w-full rounded-lg mx-0"
-    >
-      <div
-        class="w-10 h-10 border-4 rounded-full border-muted-foreground border-t-merchant-primary animate-spin"
-      ></div>
-    </div>
-
-    <!-- ✅ FIXED: Empty State -->
-    <div
-      v-else-if="products.length === 0 && !loadingFetchProducts"
-      class="flex flex-col items-center justify-center py-20 mx-4 text-center bg-white rounded-lg sm:mx-6"
-    >
-      <i class="mb-4 text-5xl pi pi-inbox text-muted-foreground"></i>
-      <p class="mb-2 text-lg font-semibold text-black">Tidak ada produk</p>
-      <p class="mb-4 text-muted-foreground">
-        Produk kosong atau tidak ditemukan
-      </p>
-    </div>
-
     <!-- ✅ FIXED: Product List -->
-    <div v-else class="px-4 sm:px-6">
+    <div class="px-4 sm:px-6">
       <!-- Mobile: Card List -->
       <div class="flex flex-col gap-2 py-2 sm:hidden">
         <ProductCard

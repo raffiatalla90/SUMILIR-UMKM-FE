@@ -139,6 +139,8 @@ const fetchDashboard = async () => {
       `/api/merchants/${merchantId.value}/dashboard`
     );
 
+    const voucherStats = data?.voucher_stats || {};
+
     dashboardStats.value = [
       {
         title: "Total Produk",
@@ -175,6 +177,40 @@ const fetchDashboard = async () => {
         value: data.stats.out_of_stock,
         icon: "pi pi-exclamation-triangle",
         color: "bg-red-100 text-red-600",
+      },
+
+      // ======================
+      // VOUCHER STATS
+      // ======================
+      {
+        title: "Total Voucher",
+        value: voucherStats.total ?? 0,
+        icon: "pi pi-tag",
+        color: "bg-blue-100 text-blue-600",
+      },
+      {
+        title: "Voucher Aktif",
+        value: voucherStats.active ?? 0,
+        icon: "pi pi-check-circle",
+        color: "bg-green-100 text-green-600",
+      },
+      {
+        title: "Voucher Tidak Aktif",
+        value: voucherStats.inactive ?? 0,
+        icon: "pi pi-times-circle",
+        color: "bg-red-100 text-red-600",
+      },
+      {
+        title: "Voucher Kadaluarsa",
+        value: voucherStats.expired ?? 0,
+        icon: "pi pi-clock",
+        color: "bg-yellow-100 text-yellow-600",
+      },
+      {
+        title: "Voucher Terpakai",
+        value: voucherStats.used ?? 0,
+        icon: "pi pi-chart-line",
+        color: "bg-purple-100 text-purple-600",
       },
     ];
 
