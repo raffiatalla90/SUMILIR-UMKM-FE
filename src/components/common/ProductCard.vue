@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";
 import { getImageUrl } from "@/libs/getImageUrl.js";
+import Button from "@/components/common/Button.vue";
 const props = defineProps({
   product: {
     type: Object,
@@ -69,7 +70,7 @@ const formatPrice = (min, max) => {
       >
         <img
           v-if="product.cover_image?.id"
-          :src="getImageUrl(product.cover_image.id)"
+          :src="product.cover_image.src_url"
           :alt="product.name"
           class="w-full h-full object-cover"
           @error="(e) => (e.target.style.display = 'none')"
@@ -117,7 +118,7 @@ const formatPrice = (min, max) => {
           class="font-medium text-right truncate ml-2"
           :title="product.categories?.[0]?.category_name"
         >
-          {{ product.categories?.[0]?.category_name || "-" }}
+          {{ product.categories?.[0]?.name || "-" }}
         </span>
       </div>
 
@@ -152,38 +153,42 @@ const formatPrice = (min, max) => {
 
     <!-- Actions -->
     <div class="flex items-center justify-between gap-2">
-      <button
+      <Button
         @click="emit('delete', product)"
-        class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-danger-background text-danger-foreground transition text-sm font-medium"
+        class="!w-4 border-none"
         title="Hapus Produk"
+        variant="danger-outline"
       >
         <i class="pi pi-trash"></i>
-      </button>
+      </Button>
 
       <div class="flex gap-2">
-        <button
+        <Button
           @click="emit('view-detail', product)"
-          class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted-background text-muted-foreground transition text-sm font-medium"
+          class="!w-4 border-none"
           title="Lihat Detail"
+          variant="muted-outline"
         >
           <i class="pi pi-eye"></i>
-        </button>
+        </Button>
 
-        <button
+        <Button
           @click="emit('edit', product)"
-          class="flex items-center gap-2 px-3 py-2 rounded-lg bg-merchant-primary/10 text-merchant-primary hover:bg-merchant-primary/20 transition text-sm font-medium"
+          class="!w-4 border-none"
           title="Edit Produk"
+          variant="merchant-outline"
         >
           <i class="pi pi-pencil"></i>
-        </button>
+        </Button>
 
-        <button
+        <Button
           @click="emit('toggle-visibility', product)"
-          class="flex items-center gap-2 px-3 py-2 rounded-lg transition text-sm font-medium hover:bg-warning-background text-warning-foreground"
+          class="!w-4 border-none"
           title="Ubah Status"
+          variant="primary-outline"
         >
           <i class="pi pi-cog"></i>
-        </button>
+        </Button>
       </div>
     </div>
   </div>

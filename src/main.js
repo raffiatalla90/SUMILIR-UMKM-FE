@@ -1,12 +1,13 @@
 import { createApp, nextTick } from "vue";
 import { createPinia } from "pinia";
+import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
 import router from "./router";
 import App from "./App.vue";
 import Toast from "vue-toastification";
 import "vue-toastification/dist/index.css";
 import "./style.css";
 import { registerSW } from "virtual:pwa-register";
-import { useAuthStore } from "@/stores/auth"; // import ini ditambahkan
+import { useAuthStore } from "@/stores/auth";
 import ProductCard from "@/components/Card/ProductCard.vue";
 import EventCard from "@/components/Card/EventCard.vue";
 import PromoCard from "@/components/Card/PromoCard.vue";
@@ -34,6 +35,7 @@ function hideSplash() {
 
 const app = createApp(App);
 const pinia = createPinia();
+pinia.use(piniaPluginPersistedstate);
 
 app.use(Toast);
 app.use(pinia);

@@ -25,7 +25,7 @@
           }}</span>
         </RouterLink>
 
-        <div class="flex items-center gap-3">
+        <div v-if="$slots['header-actions']" class="flex items-center gap-3">
           <slot name="header-actions" />
         </div>
       </div>

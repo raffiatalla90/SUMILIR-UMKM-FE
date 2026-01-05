@@ -158,7 +158,7 @@ async function submit() {
     for (const pair of formData.entries()) {
       console.log('formdata', pair[0], pair[1])
     }
-    const res = await api.post('/community/posts', formData, {
+    const res = await api.post('/api/community/posts', formData, {
       // jangan set Content-Type langsung
       transformRequest: [(data, headers) => {
         // pastikan axios tidak meng-stringify FormData

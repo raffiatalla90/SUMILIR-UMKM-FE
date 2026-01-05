@@ -5,7 +5,8 @@ import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth.js";
 import Button from "@/components/common/Button.vue";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
-
+import LogoWithText from "@/assets/icons/Merchant-with-Text.png";
+import LogoNoText from "@/assets/icons/Merchant-no-Text.png";
 const authStore = useAuthStore();
 const router = useRouter();
 const route = useRoute();
@@ -16,6 +17,9 @@ const showLogoutModal = ref(false);
 
 // ✅ Get merchantId dari route params
 const currentMerchantId = computed(() => {
+  if (!route || !route.params || typeof route.params !== "object") {
+    return authStore.merchantId;
+  }
   return route.params.merchantId
     ? Number(route.params.merchantId)
     : authStore.merchantId;
@@ -49,17 +53,10 @@ const showMerchantSelector = computed(() => merchantsCount.value > 1);
 
 // ✅ Watch route changes untuk update active merchant
 watch(
-  () => route.params.merchantId,
-  (newMerchantId) => {
-    if (newMerchantId) {
-      authStore.setActiveMerchant(Number(newMerchantId));
-      console.log(
-        "✅ Merchant changed to ID:",
-        newMerchantId,
-        "Name:",
-        merchantName.value
-      );
-    }
+  () => (route && route.params ? route.params : {}),
+  (params) => {
+    if (!params?.merchantId) return;
+    authStore.setActiveMerchant(Number(params.merchantId));
   },
   { immediate: true }
 );
@@ -71,21 +68,21 @@ const menuItems = computed(() => [
     icon: "pi-chart-bar",
     route: `/merchant-center/${currentMerchantId.value}/dashboard`,
   },
-  {
-    label: "Pesanan",
-    icon: "pi-shopping-bag",
-    route: `/merchant-center/${currentMerchantId.value}/orders`,
-  },
+  // {
+  //   label: "Pesanan",
+  //   icon: "pi-shopping-bag",
+  //   route: `/merchant-center/${currentMerchantId.value}/orders`,
+  // },
   {
     label: "Produk",
     icon: "pi-box",
     route: `/merchant-center/${currentMerchantId.value}/products`,
   },
-  {
-    label: "Komunitas",
-    icon: "pi-comments",
-    route: `/merchant-center/${currentMerchantId.value}/community`,
-  },
+  // {
+  //   label: "Komunitas",
+  //   icon: "pi-comments",
+  //   route: `/merchant-center/${currentMerchantId.value}/community`,
+  // },
   {
     label: "Potongan Harga",
     icon: "pi-tag",
@@ -169,23 +166,20 @@ defineExpose({
       <!-- Header -->
       <div
         :class="[
-          'flex items-center transition-all duration-300 h-20 shadow-sm',
+          'flex items-center  h-23 ',
           isOpen
             ? 'justify-between px-4'
-            : 'justify-between px-4 sm:justify-center sm:px-4',
+            : 'justify-between px-4 sm:justify-center ',
         ]"
       >
         <router-link to="/">
-          <h2
-            :class="[
-              'text-lg font-bold text-gray-800 transition-all duration-300',
-              isOpen
-                ? 'opacity-100'
-                : 'opacity-100 sm:opacity-0 sm:w-0 sm:hidden',
-            ]"
-          >
-            Sumilir Logo
-          </h2>
+          <img
+            v-if="isOpen"
+            :src="LogoWithText"
+            alt="SUMILIR"
+            class=""
+            :class="['', isOpen ? 'ms-3 opacity-100 h-8' : 'opacity-0 h-0']"
+          />
         </router-link>
 
         <!-- Hamburger Button -->
@@ -221,7 +215,7 @@ defineExpose({
             >
               <i
                 :class="[
-                  'pi text-lg flex-shrink-0',
+                  'pi text-lg shrink-0',
                   item.icon,
                   isActive(item.route)
                     ? 'text-merchant-primary'
@@ -278,8 +272,8 @@ defineExpose({
             :class="[
               'bg-merchant-primary text-white text-xs font-bold rounded-full text-center transition-all duration-300',
               isOpen
-                ? 'px-2 py-0.5 min-w-[24px]'
-                : 'px-2 py-0.5 min-w-[24px] sm:absolute sm:-top-1 sm:-right-1 sm:w-5 sm:h-5 sm:p-0 sm:flex sm:items-center sm:justify-center',
+                ? 'px-2 py-0.5 min-w-6'
+                : 'px-2 py-0.5 min-w-6 sm:absolute sm:-top-1 sm:-right-1 sm:w-5 sm:h-5 sm:p-0 sm:flex sm:items-center sm:justify-center',
             ]"
           >
             {{ notificationCount }}
@@ -313,7 +307,7 @@ defineExpose({
         <!-- ✅ Profile Card - Display current merchant based on route -->
         <div
           v-if="isOpen"
-          class="bg-gradient-to-r from-merchant-primary to-merchant-primary/80 text-white rounded-xl p-4 mt-2 sm:block"
+          class="bg-linear-to-r from-merchant-primary to-merchant-primary/80 text-white rounded-xl p-4 mt-2 sm:block"
         >
           <div class="flex items-center gap-3">
             <div

@@ -783,7 +783,7 @@ function extractHashtags(text = "") {
 async function fetchPosts() {
   loading.value = true;
   try {
-    const res = await api.get("/community/posts");
+    const res = await api.get("/api/community/posts");
     if (Array.isArray(res.data)) posts.value = res.data;
     else if (Array.isArray(res.data?.items)) posts.value = res.data.items;
     else if (Array.isArray(res.data?.data)) posts.value = res.data.data;

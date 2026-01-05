@@ -1,9 +1,9 @@
 <template>
-  <div class="max-w-3xl mx-auto py-4 sm:py-6 px-3 sm:px-6 md:px-8">
+  <div class="max-w-3xl px-3 py-4 mx-auto sm:py-6 sm:px-6 md:px-8">
     <!-- back button -->
     <router-link
       to="/community"
-      class="absolute left-8 top-8 z-20 flex items-center gap-2 bg-white/80 hover:bg-white px-3 py-2 rounded-full shadow transition"
+      class="absolute z-20 flex items-center gap-2 px-3 py-2 transition rounded-full shadow left-8 top-8 bg-white/80 hover:bg-white"
     >
       <svg
         class="w-5 h-5 text-secondary"
@@ -13,22 +13,22 @@
       >
         <path stroke-width="2" d="M15 19l-7-7 7-7" />
       </svg>
-      <span class="font-semibold text-secondary text-sm"></span>
+      <span class="text-sm font-semibold text-secondary"></span>
     </router-link>
 
-    <div v-if="loading" class="text-center py-8">Loading...</div>
+    <div v-if="loading" class="py-8 text-center">Loading...</div>
 
     <div v-else-if="post">
       <!-- Post card -->
-      <div class="bg-white rounded-lg shadow p-3 sm:p-5 md:p-6 mb-5 sm:mb-6">
-        <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start">
+      <div class="p-3 mb-5 bg-white rounded-lg shadow sm:p-5 md:p-6 sm:mb-6">
+        <div class="flex flex-col items-start gap-3 sm:flex-row sm:gap-4">
           <!-- avatar -->
           <img
             :src="
               post.author?.profile_picture || '/storage/profilepicdefault.png'
             "
             alt="avatar"
-            class="w-9 h-9 sm:w-11 sm:h-11 md:w-14 md:h-14 rounded-full object-cover shrink-0"
+            class="object-cover rounded-full w-9 h-9 sm:w-11 sm:h-11 md:w-14 md:h-14 shrink-0"
             loading="lazy"
           />
 
@@ -37,18 +37,18 @@
             <div class="flex flex-col gap-0.5">
               <div class="text-[10px] sm:text-xs text-gray-500">
                 oleh
-                <span class="font-medium text-gray-800 ml-1">
+                <span class="ml-1 font-medium text-gray-800">
                   {{ post.author?.name }}
                 </span>
               </div>
-              <div class="text-xs text-gray-500 mt-1">
+              <div class="mt-1 text-xs text-gray-500">
                 {{ formatDateTime(post.created_at) }}
               </div>
             </div>
 
             <!-- title -->
             <h1
-              class="mt-2 sm:mt-3 font-semibold text-base sm:text-xl md:text-2xl leading-snug text-gray-900"
+              class="mt-2 text-base font-semibold leading-snug text-gray-900 sm:mt-3 sm:text-xl md:text-2xl"
             >
               {{ post.post_title }}
             </h1>
@@ -69,7 +69,7 @@
             <div v-if="post.images.length === 1">
               <img
                 :src="imageUrl(post.images[0])"
-                class="w-full h-40 sm:h-52 md:h-72 lg:h-96 object-cover rounded-lg cursor-pointer"
+                class="object-cover w-full h-40 rounded-lg cursor-pointer sm:h-52 md:h-72 lg:h-96"
                 @click="openLightbox(post.images, 0)"
               />
             </div>
@@ -83,7 +83,7 @@
                 v-for="(img, i) in post.images.slice(0, 2)"
                 :key="i"
                 :src="imageUrl(img)"
-                class="w-full h-32 sm:h-40 md:h-56 object-cover rounded-lg cursor-pointer"
+                class="object-cover w-full h-32 rounded-lg cursor-pointer sm:h-40 md:h-56"
                 @click="openLightbox(post.images, i)"
               />
             </div>
@@ -92,7 +92,7 @@
             <div v-else>
               <img
                 :src="imageUrl(post.images[0])"
-                class="w-full h-40 sm:h-52 md:h-72 lg:h-96 object-cover rounded-lg mb-2 cursor-pointer"
+                class="object-cover w-full h-40 mb-2 rounded-lg cursor-pointer sm:h-52 md:h-72 lg:h-96"
                 @click="openLightbox(post.images, 0)"
               />
 
@@ -104,12 +104,12 @@
                 >
                   <img
                     :src="imageUrl(img)"
-                    class="w-full h-18 sm:h-24 md:h-32 object-cover rounded-md cursor-pointer"
+                    class="object-cover w-full rounded-md cursor-pointer h-18 sm:h-24 md:h-32"
                     @click="openLightbox(post.images, i + 1)"
                   />
                   <div
                     v-if="i === 2 && post.images.length > 4"
-                    class="absolute inset-0 bg-black/45 rounded-md flex items-center justify-center text-white text-xs sm:text-sm md:text-base font-semibold cursor-pointer"
+                    class="absolute inset-0 flex items-center justify-center text-xs font-semibold text-white rounded-md cursor-pointer bg-black/45 sm:text-sm md:text-base"
                     @click.stop="openLightbox(post.images, i + 1)"
                   >
                     +{{ post.images.length - 4 }}
@@ -124,10 +124,10 @@
       <!-- Comment section -->
       <section
         v-if="post"
-        class="bg-white rounded-lg shadow p-3 mb-15 sm:p-5 md:p-6"
+        class="p-3 bg-white rounded-lg shadow mb-15 sm:p-5 md:p-6"
       >
         <div class="flex items-center justify-between mb-3 sm:mb-4">
-          <h2 class="text-sm sm:text-base font-semibold">
+          <h2 class="text-sm font-semibold sm:text-base">
             Komentar ({{ totalCommentsCount }})
           </h2>
 
@@ -135,7 +135,7 @@
           <div class="relative">
             <button
               @click="toggleCommentSort"
-              class="flex items-center justify-center rounded-full bg-secondary text-white w-9 h-9 sm:w-10 sm:h-10 shadow transition hover:bg-secondary/90"
+              class="flex items-center justify-center text-white transition rounded-full shadow bg-secondary w-9 h-9 sm:w-10 sm:h-10 hover:bg-secondary/90"
               aria-haspopup="true"
               :aria-expanded="String(showCommentSort)"
             >
@@ -179,10 +179,10 @@
 
             <div
               v-if="showCommentSort"
-              class="absolute top-12 right-0 bg-white rounded-xl shadow-lg border border-gray-100 py-2 w-28 sm:w-32 z-50"
+              class="absolute right-0 z-50 py-2 bg-white border border-gray-100 shadow-lg top-12 rounded-xl w-28 sm:w-32"
             >
               <button
-                class="block w-full text-left px-3 sm:px-4 py-2 hover:bg-gray-100 text-xs sm:text-sm transition"
+                class="block w-full px-3 py-2 text-xs text-left transition sm:px-4 hover:bg-gray-100 sm:text-sm"
                 :class="
                   commentSort === 'newest'
                     ? 'bg-secondary/10 text-secondary font-bold'
@@ -209,7 +209,7 @@
                 Terbaru
               </button>
               <button
-                class="block w-full text-left px-3 sm:px-4 py-2 hover:bg-gray-100 text-xs sm:text-sm transition"
+                class="block w-full px-3 py-2 text-xs text-left transition sm:px-4 hover:bg-gray-100 sm:text-sm"
                 :class="
                   commentSort === 'oldest'
                     ? 'bg-secondary/10 text-secondary font-bold'
@@ -251,7 +251,7 @@
         </div>
 
         <!-- thread -->
-        <div class="mt-2 sm:mt-3 space-y-3 sm:space-y-4">
+        <div class="mt-2 space-y-3 sm:mt-3 sm:space-y-4">
           <CommentThread
             :comments="sortedComments"
             :postId="post.id"
@@ -261,10 +261,10 @@
         </div>
 
         <!-- show more -->
-        <div v-if="hasMore" class="text-center mt-3 sm:mt-4">
+        <div v-if="hasMore" class="mt-3 text-center sm:mt-4">
           <button
             @click="loadMore"
-            class="text-secondary text-xs sm:text-sm font-medium hover:underline"
+            class="text-xs font-medium text-secondary sm:text-sm hover:underline"
           >
             Show more ↓
           </button>
@@ -272,14 +272,14 @@
       </section>
     </div>
 
-    <div v-if="!loading && !post" class="text-center py-8 text-gray-500">
+    <div v-if="!loading && !post" class="py-8 text-center text-gray-500">
       Post tidak ditemukan.
     </div>
 
     <!-- Lightbox -->
     <div
       v-if="lightbox.open"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-3 sm:p-4"
+      class="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 sm:p-4"
     >
       <div class="absolute inset-0" @click="closeLightbox"></div>
 
@@ -486,7 +486,7 @@ function normalizeImages(arr) {
 async function fetchPost() {
   loading.value = true;
   try {
-    const res = await api.get(`/community/posts/${route.params.slug}`);
+    const res = await api.get(`/api/community/posts/${route.params.slug}`);
     post.value = res.data?.data || res.data?.post || res.data;
     post.value.images = normalizeImages(
       post.value.images || post.value.post_images || []
@@ -503,9 +503,12 @@ async function fetchComments(reset = true) {
   if (!post.value?.id) return;
   if (reset) page.value = 1;
   try {
-    const res = await api.get(`/community/posts/${post.value.id}/comments`, {
-      params: { page: page.value, per_page: perPage },
-    });
+    const res = await api.get(
+      `/api/community/posts/${post.value.id}/comments`,
+      {
+        params: { page: page.value, per_page: perPage },
+      }
+    );
     const payload = res.data?.comments || [];
     if (reset) comments.value = normalizeComments(payload);
     else comments.value = comments.value.concat(normalizeComments(payload));

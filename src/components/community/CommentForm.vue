@@ -79,11 +79,11 @@ async function submit() {
   loading.value = true
   try {
     if (isReply.value && props.parentId) {
-      await api.post(`/community/posts/${props.postId}/comments/${props.parentId}`, {
+      await api.post(`/api/community/posts/${props.postId}/comments/${props.parentId}`, {
         comment_content: text.value.trim()
       })
     } else {
-      await api.post(`/community/posts/${props.postId}/comments`, {
+      await api.post(`/api/community/posts/${props.postId}/comments`, {
         comment_content: text.value.trim()
       })
     }

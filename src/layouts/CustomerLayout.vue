@@ -1,17 +1,22 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, nextTick, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import Button from "@/components/common/Button.vue";
 import { useRouter } from "vue-router";
+import LogoText from "@/assets/icons/LogoWithText.png";
+import LogoNoText from "@/assets/icons/LogoNoText.png";
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 
+const searchBarRef = ref(null);
+const searchInputRef = ref(null);
+
 const isAuthenticated = computed(() => authStore.isAuthenticated);
 const user = computed(() => authStore.user);
 
-const menus = [
+const baseMenus = [
   {
     key: "home",
     label: "Beranda",
@@ -29,6 +34,13 @@ const menus = [
   //   </svg>`,
   // },
   {
+    key: "keranjang",
+    label: "Keranjang",
+    to: isAuthenticated.value ? "/cart" : "/login",
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" fill ="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" /> </svg>`,
+  },
+  {
     key: "peta",
     label: "Peta UMKM",
     to: "#",
@@ -44,6 +56,7 @@ const menus = [
       <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
     </svg>`,
   },
+
   {
     key: "profile",
     label: "Profil",
@@ -54,10 +67,21 @@ const menus = [
   },
 ];
 
+const menus = computed(() => {
+  return baseMenus.filter((m) => {
+    // ❌ sembunyikan keranjang jika belum login
+    if (m.key === "keranjang" && !isAuthenticated.value) {
+      return false;
+    }
+    return true;
+  });
+});
+
 // Simpan active utk menu statis
 const activeKey = ref(null);
 
 function isMenuActive(m) {
+  if (!m || typeof m !== "object") return false; // <-- Guard clause
   // Profile menu aktif jika route dimulai dengan /profile atau /login (saat belum auth)
   if (m.key === "profile") {
     return (
@@ -69,6 +93,8 @@ function isMenuActive(m) {
   if (m.key === "komunitas") {
     return route.path.startsWith("/community");
   }
+  // Pastikan m.to ada dan bertipe string
+  if (!m.to || typeof m.to !== "string") return false;
   if (m.to !== "#") return route.path === m.to;
   return activeKey.value === m.key;
 }
@@ -84,13 +110,53 @@ function onMenuClick(m, e) {
 function goToLogin() {
   router.push({ name: "Login" }).catch(() => router.push("/login"));
 }
+const showSearch = ref(false);
+const searchQuery = ref("");
+
+function toggleSearch() {
+  if (route.path === "/") {
+    // HOME → fokus ke search utama
+    router.push({
+      path: "/",
+      query: { focusSearch: "1" },
+    });
+  } else {
+    // PAGE LAIN → tampilkan searchbar fixed
+    showSearch.value = !showSearch.value;
+
+    nextTick(() => {
+      // optional: auto focus input fixed search
+      // kamu bisa pakai ref khusus jika mau
+    });
+  }
+}
+
+function submitSearch() {
+  if (!searchQuery.value.trim()) return;
+
+  router.push({
+    path: "/search",
+    query: { q: searchQuery.value },
+  });
+
+  showSearch.value = false;
+}
+watch(
+  () => route.path,
+  (path) => {
+    if (path === "/") {
+      showSearch.value = false;
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
   <div class="min-h-screen flex flex-col pb-16 sm:pb-0">
     <!-- Navbar Desktop (hidden on mobile) -->
-    <nav
-      class="hidden sm:block sticky top-0 z-50 w-full bg-white h-[91px] border-b border-[#D9D9D9]"
+    <div
+      class="hidden sm:block sticky top-0 z-50 w-full h-[91px] bg-white border-b border-gray-200 shadow-sm"
     >
       <div class="max-w-[1440px] mx-auto h-full px-4">
         <div class="h-full flex items-center">
@@ -99,60 +165,58 @@ function goToLogin() {
             to="/"
             class="text-[30px] font-bold leading-[100%] tracking-[0] text-black"
           >
-            SUMILIR
+            <img :src="LogoText" alt="SUMILIR" class="h-10 hidden md:block" />
+            <img :src="LogoNoText" alt="SUMILIR" class="h-10 md:hidden" />
           </RouterLink>
 
           <!-- Menu Desktop (tanpa profile, karena sudah di kanan) -->
           <ul
             class="flex absolute left-1/2 -translate-x-1/2 items-center gap-8"
           >
-            <li v-for="m in menus.slice(0, 4)" :key="m.key">
+            <li
+              v-for="m in menus
+                .filter((menu) => menu.key !== 'profile')
+                .slice(0, 4)"
+              :key="m.key"
+            >
               <RouterLink
                 :to="m.to"
                 @click="(e) => onMenuClick(m, e)"
                 class="group relative inline-block text-base font-semibold leading-[100%] tracking-[0]"
                 :aria-current="isMenuActive(m) ? 'page' : null"
               >
-                <!-- Icon untuk tablet (sm-lg) dengan warna dinamis -->
+                <!-- Icon dan label seperti sebelumnya -->
                 <span
                   v-html="m.icon"
-                  class="lg:hidden block w-6 h-6 transition-colors"
-                  :class="isMenuActive(m) ? 'text-primary' : 'text-gray-700'"
+                  class="lg:hidden block w-6 h-6 transition-colors hover:text-primary duration-200"
+                  :class="isMenuActive(m) ? 'text-primary' : 'text-black'"
                 ></span>
-
-                <!-- Text untuk desktop (lg+) -->
                 <span class="relative hidden lg:inline-block">
-                  <span class="block text-black select-none">
+                  <span
+                    class="block select-none transition-colors hover:text-primary duration-200"
+                    :class="isMenuActive(m) ? 'text-primary' : 'text-black'"
+                  >
                     {{ m.label }}
                   </span>
-                  <!-- Overlay label (primary) -->
-                  <span
-                    aria-hidden="true"
-                    class="absolute inset-0 overflow-hidden transition-all duration-300"
-                    :class="
-                      isMenuActive(m) ? 'w-full' : 'w-0 group-hover:w-full'
-                    "
-                  >
-                    <span class="block text-primary">
-                      {{ m.label }}
-                    </span>
-                  </span>
                 </span>
-                <!-- Underline -->
-                <span
-                  class="hidden lg:inline pointer-events-none absolute left-0 -bottom-1 h-[3px] w-full bg-primary origin-left transition-transform duration-300"
-                  :class="
-                    isMenuActive(m)
-                      ? 'scale-x-100'
-                      : 'scale-x-0 group-hover:scale-x-100'
-                  "
-                ></span>
               </RouterLink>
             </li>
           </ul>
+          <!-- ...existing code... -->
 
           <!-- Right side -->
           <div class="ml-auto flex items-center gap-4">
+            <!-- Search Button -->
+            <div class="border-r border-muted-foreground px-4">
+              <button
+                @click="toggleSearch"
+                class="p-2 px-3 rounded-full hover:bg-gray-100 transition"
+                aria-label="Cari"
+              >
+                <i class="pi pi-search"></i>
+              </button>
+            </div>
+
             <template v-if="isAuthenticated">
               <RouterLink
                 to="/profile"
@@ -183,9 +247,9 @@ function goToLogin() {
                     /></svg
                 ></span>
                 <span
-                  class="text-base font-bold leading-[100%] tracking-[0] text-black"
+                  class="text-base font-bold leading-[100%] tracking-[0] text-black md:block hidden"
                 >
-                  {{ user?.name || "Profil" }}
+                  {{ user?.name ? user.name.split(" ")[0] : "Profil" }}
                 </span>
               </RouterLink>
             </template>
@@ -195,7 +259,52 @@ function goToLogin() {
           </div>
         </div>
       </div>
-    </nav>
+    </div>
+    <!-- SEARCH BAR (Desktop) -->
+    <transition
+      enter-active-class="transition-all duration-300 ease-out"
+      enter-from-class="opacity-0 -translate-y-2"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition-all duration-200 ease-in"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 -translate-y-2"
+    >
+      <div
+        v-if="showSearch"
+        class="hidden sm:block bg-white border-b border-gray-200 shadow-sm fixed top-[91px] left-0 right-0 z-40"
+      >
+        <div class="max-w-[1440px] mx-auto px-4 py-4">
+          <form @submit.prevent="submitSearch" class="relative">
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Cari produk, jasa, atau UMKM…"
+              class="w-full h-12 rounded-xl border border-gray-300 pl-12 pr-4 text-sm focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-muted-foreground"
+              autofocus
+            />
+
+            <span
+              class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="w-5 h-5"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="m21 21-4.35-4.35m0 0A7.5 7.5 0 1 0 10.5 18a7.5 7.5 0 0 0 6.15-3.35Z"
+                />
+              </svg>
+            </span>
+          </form>
+        </div>
+      </div>
+    </transition>
 
     <!-- Main Content -->
     <main class="flex-1">
@@ -214,9 +323,7 @@ function goToLogin() {
           @click="(e) => onMenuClick(m, e)"
           class="flex flex-col items-center justify-center flex-1 h-full transition-colors"
           :class="
-            isMenuActive(m)
-              ? 'text-primary'
-              : 'text-gray-500 hover:text-primary'
+            isMenuActive(m) ? 'text-primary' : 'text-black hover:text-primary'
           "
         >
           <!-- Jika profile dan authenticated, tampilkan avatar -->
@@ -229,7 +336,7 @@ function goToLogin() {
             />
             <span
               v-else
-              class="w-7 h-7 rounded-full bg-muted-background flex items-center justify-center text-muted-foreground text-2xl font-bold"
+              class="w-7 h-7 rounded-full bg-muted-background flex items-center justify-center text-black text-2xl font-bold"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -237,7 +344,7 @@ function goToLogin() {
                 viewBox="0 0 24 24"
                 stroke-width="2"
                 stroke="currentColor"
-                class="w-4 h-4 text-muted-foreground"
+                class="w-4 h-4 text-black"
               >
                 <path
                   stroke-linecap="round"

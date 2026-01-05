@@ -255,7 +255,7 @@ async function handleSubmit(values) {
 
   isLoading.value = true;
   try {
-    const res = await api.post("/auth/forgot-password", {
+    const res = await api.post("/api/auth/forgot-password", {
       email: values.email,
     });
 
