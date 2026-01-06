@@ -502,7 +502,7 @@ const PAGE_SIZE = 2;
 const visibleMerchantCount = ref(PAGE_SIZE);
 
 function loadMoreProducts() {
-  page++;
+  page.value++;
   fetchProducts();
 }
 function loadMoreMerchants() {

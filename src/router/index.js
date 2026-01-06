@@ -229,12 +229,28 @@ const routes = [
           },
         ],
       },
-      // PRODUCTS
+      // VOUCHERS (View All)
       {
-        path: "products",
-        name: "Admin - Product",
-        component: () => import("@/views/admin/products/Index.vue"),
-        meta: { title: "Products | Admin SUMILIR" },
+        path: "vouchers",
+        name: "Admin - Vouchers",
+        component: () => import("@/views/admin/vouchers/Index.vue"),
+        children: [
+          {
+            path: "",
+            name: "Admin - Vouchers List",
+            component: () => import("@/views/admin/vouchers/List.vue"),
+          },
+          {
+            path: "create",
+            name: "Admin - Create Voucher",
+            component: () => import("@/views/admin/vouchers/Create.vue"),
+          },
+          {
+            path: ":id",
+            name: "Admin - Voucher Detail",
+            component: () => import("@/views/admin/vouchers/Detail.vue"),
+          },
+        ],
       },
       // REPORTS
       {
@@ -249,13 +265,7 @@ const routes = [
         component: () => import("@/views/admin/reports/Detail.vue"),
         meta: { title: "Report Detail | Admin SUMILIR" },
       },
-      // VOUCHERS (View All)
-      {
-        path: "vouchers",
-        name: "Admin - Vouchers",
-        component: () => import("@/views/admin/vouchers/Index.vue"),
-        meta: { title: "All Vouchers | Admin SUMILIR" },
-      },
+
       // USERS
       {
         path: "users",
