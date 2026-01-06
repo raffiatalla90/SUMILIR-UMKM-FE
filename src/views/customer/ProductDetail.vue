@@ -1,13 +1,13 @@
 <template>
-  <div class="min-h-screen bg-gray-50 pb-24 sm:pb-8">
+  <div class="min-h-screen pb-24 bg-gray-50 sm:pb-8">
     <!-- Header dengan tombol close (Hidden - replaced by floating button) -->
     <div
-      class="sticky top-0 z-50 bg-white border-b border-gray-200 sm:hidden hidden"
+      class="sticky top-0 z-50 hidden bg-white border-b border-gray-200 sm:hidden"
     >
       <div class="flex items-center justify-end px-4 py-3">
         <button
           @click="goBack"
-          class="p-2 hover:bg-gray-100 rounded-full transition active:scale-95"
+          class="p-2 transition rounded-full hover:bg-gray-100 active:scale-95"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -29,16 +29,16 @@
 
     <!-- Sticky Header saat Scroll (Mobile only) -->
     <div
-      class="bg-white/95 backdrop-blur-md shadow-md border-b border-gray-200 fixed top-0 left-0 right-0 z-40 transition-transform duration-300 ease-out"
+      class="sticky top-0 left-0 right-0 z-40 transition-transform duration-300 ease-out border-b border-gray-200 shadow-md sm:hidden bg-white/95 backdrop-blur-md"
       :class="showScrollHeader ? 'translate-y-0' : '-translate-y-full'"
     >
-      <div class="px-3 py-3 flex items-center gap-2">
+      <div class="flex items-center gap-2 px-3 py-3">
         <!-- Back -->
         <button
           @click="goBack"
-          class="p-2 px-3 hover:bg-gray-100 rounded-full transition active:scale-95"
+          class="p-2 px-3 transition rounded-full hover:bg-gray-100 active:scale-95"
         >
-          <i class="pi pi-chevron-left text-sm"></i>
+          <i class="text-sm pi pi-chevron-left"></i>
         </button>
 
         <!-- 🔍 SEARCH BAR -->
@@ -55,16 +55,16 @@
         <!-- Share Button -->
         <button
           @click="shareProduct"
-          class="w-10 h-10 backdrop-blur-sm hover:bg-gray-100 rounded-full transition-all active:scale-95"
+          class="w-10 h-10 transition-all rounded-full backdrop-blur-sm hover:bg-gray-100 active:scale-95"
         >
-          <i class="pi pi-share-alt text-lg"></i>
+          <i class="text-lg pi pi-share-alt"></i>
         </button>
         <!-- Cart -->
         <button
           @click="goToCart"
-          class="relative w-10 h-10 hover:bg-gray-100 rounded-full transition active:scale-95"
+          class="relative w-10 h-10 transition rounded-full hover:bg-gray-100 active:scale-95"
         >
-          <i class="pi pi-shopping-cart text-lg"></i>
+          <i class="text-lg pi pi-shopping-cart"></i>
 
           <span
             v-if="cartItemsCount > 0"
@@ -77,26 +77,26 @@
     </div>
 
     <!-- Loading Skeleton -->
-    <div v-if="loading || !product" class="max-w-7xl mx-auto sm:px-4 sm:py-6">
-      <div class="bg-white sm:rounded-2xl sm:shadow-lg overflow-hidden">
+    <div v-if="loading || !product" class="mx-auto max-w-7xl sm:px-4 sm:py-6">
+      <div class="overflow-hidden bg-white sm:rounded-2xl sm:shadow-lg">
         <div class="sm:grid sm:grid-cols-2 sm:gap-8 sm:p-8">
           <!-- Skeleton Gambar -->
           <div class="sm:sticky sm:top-8 sm:self-start">
             <div
-              class="w-full aspect-square bg-gray-200 animate-pulse sm:rounded-xl"
+              class="w-full bg-gray-200 aspect-square animate-pulse sm:rounded-xl"
             ></div>
           </div>
 
           <!-- Skeleton Info Produk -->
-          <div class="px-4 sm:px-0 py-4 sm:py-0 space-y-4">
+          <div class="px-4 py-4 space-y-4 sm:px-0 sm:py-0">
             <!-- Nama & Harga -->
-            <div class="pb-4 border-b border-gray-200 space-y-3">
-              <div class="h-8 bg-gray-200 rounded animate-pulse w-3/4"></div>
-              <div class="h-7 bg-gray-200 rounded animate-pulse w-1/2"></div>
+            <div class="pb-4 space-y-3 border-b border-gray-200">
+              <div class="w-3/4 h-8 bg-gray-200 rounded animate-pulse"></div>
+              <div class="w-1/2 bg-gray-200 rounded h-7 animate-pulse"></div>
               <div class="flex items-center gap-2">
-                <div class="h-5 bg-gray-200 rounded animate-pulse w-24"></div>
+                <div class="w-24 h-5 bg-gray-200 rounded animate-pulse"></div>
                 <div
-                  class="h-6 bg-gray-200 rounded-full animate-pulse w-20"
+                  class="w-20 h-6 bg-gray-200 rounded-full animate-pulse"
                 ></div>
               </div>
             </div>
@@ -104,17 +104,17 @@
             <!-- Ukuran -->
             <div class="py-4 border-b border-gray-200">
               <div
-                class="h-5 bg-gray-200 rounded animate-pulse w-20 mb-3"
+                class="w-20 h-5 mb-3 bg-gray-200 rounded animate-pulse"
               ></div>
               <div class="flex gap-2">
                 <div
-                  class="h-16 w-20 bg-gray-200 rounded-lg animate-pulse"
+                  class="w-20 h-16 bg-gray-200 rounded-lg animate-pulse"
                 ></div>
                 <div
-                  class="h-16 w-20 bg-gray-200 rounded-lg animate-pulse"
+                  class="w-20 h-16 bg-gray-200 rounded-lg animate-pulse"
                 ></div>
                 <div
-                  class="h-16 w-20 bg-gray-200 rounded-lg animate-pulse"
+                  class="w-20 h-16 bg-gray-200 rounded-lg animate-pulse"
                 ></div>
               </div>
             </div>
@@ -122,17 +122,17 @@
             <!-- Varian -->
             <div class="py-4 border-b border-gray-200">
               <div
-                class="h-5 bg-gray-200 rounded animate-pulse w-16 mb-3"
+                class="w-16 h-5 mb-3 bg-gray-200 rounded animate-pulse"
               ></div>
               <div class="flex gap-2">
                 <div
-                  class="h-16 w-24 bg-gray-200 rounded-lg animate-pulse"
+                  class="w-24 h-16 bg-gray-200 rounded-lg animate-pulse"
                 ></div>
                 <div
-                  class="h-16 w-24 bg-gray-200 rounded-lg animate-pulse"
+                  class="w-24 h-16 bg-gray-200 rounded-lg animate-pulse"
                 ></div>
                 <div
-                  class="h-16 w-24 bg-gray-200 rounded-lg animate-pulse"
+                  class="w-24 h-16 bg-gray-200 rounded-lg animate-pulse"
                 ></div>
               </div>
             </div>
@@ -140,7 +140,7 @@
             <!-- Tambahan -->
             <div class="py-4 border-b border-gray-200">
               <div class="flex justify-between mb-3">
-                <div class="h-5 bg-gray-200 rounded animate-pulse w-24"></div>
+                <div class="w-24 h-5 bg-gray-200 rounded animate-pulse"></div>
                 <div class="h-5 bg-gray-200 rounded animate-pulse w-28"></div>
               </div>
               <div class="h-12 bg-gray-200 rounded-lg animate-pulse"></div>
@@ -149,29 +149,29 @@
             <!-- Jumlah -->
             <div class="py-4 border-b border-gray-200">
               <div
-                class="h-5 bg-gray-200 rounded animate-pulse w-16 mb-3"
+                class="w-16 h-5 mb-3 bg-gray-200 rounded animate-pulse"
               ></div>
               <div class="flex gap-3">
                 <div
-                  class="h-10 w-10 bg-gray-200 rounded-lg animate-pulse"
+                  class="w-10 h-10 bg-gray-200 rounded-lg animate-pulse"
                 ></div>
                 <div
-                  class="h-10 w-16 bg-gray-200 rounded-lg animate-pulse"
+                  class="w-16 h-10 bg-gray-200 rounded-lg animate-pulse"
                 ></div>
                 <div
-                  class="h-10 w-10 bg-gray-200 rounded-lg animate-pulse"
+                  class="w-10 h-10 bg-gray-200 rounded-lg animate-pulse"
                 ></div>
               </div>
             </div>
 
             <!-- Deskripsi -->
-            <div class="py-4 border-b border-gray-200 space-y-2">
+            <div class="py-4 space-y-2 border-b border-gray-200">
               <div
-                class="h-5 bg-gray-200 rounded animate-pulse w-32 mb-2"
+                class="w-32 h-5 mb-2 bg-gray-200 rounded animate-pulse"
               ></div>
-              <div class="h-4 bg-gray-200 rounded animate-pulse w-full"></div>
-              <div class="h-4 bg-gray-200 rounded animate-pulse w-full"></div>
-              <div class="h-4 bg-gray-200 rounded animate-pulse w-3/4"></div>
+              <div class="w-full h-4 bg-gray-200 rounded animate-pulse"></div>
+              <div class="w-full h-4 bg-gray-200 rounded animate-pulse"></div>
+              <div class="w-3/4 h-4 bg-gray-200 rounded animate-pulse"></div>
             </div>
 
             <!-- Info Toko -->
@@ -183,15 +183,15 @@
                   ></div>
                   <div class="space-y-2">
                     <div
-                      class="h-4 bg-gray-200 rounded animate-pulse w-32"
+                      class="w-32 h-4 bg-gray-200 rounded animate-pulse"
                     ></div>
                     <div
-                      class="h-5 bg-gray-200 rounded-full animate-pulse w-16"
+                      class="w-16 h-5 bg-gray-200 rounded-full animate-pulse"
                     ></div>
                   </div>
                 </div>
                 <div
-                  class="h-9 w-20 bg-gray-200 rounded-lg animate-pulse"
+                  class="w-20 bg-gray-200 rounded-lg h-9 animate-pulse"
                 ></div>
               </div>
             </div>
@@ -199,40 +199,40 @@
             <!-- Produk Lain -->
             <div class="py-4">
               <div
-                class="h-5 bg-gray-200 rounded animate-pulse w-40 mb-3"
+                class="w-40 h-5 mb-3 bg-gray-200 rounded animate-pulse"
               ></div>
               <div class="flex gap-3">
                 <div class="min-w-[120px] sm:min-w-[140px]">
                   <div
-                    class="aspect-square bg-gray-200 rounded-xl animate-pulse mb-2"
+                    class="mb-2 bg-gray-200 aspect-square rounded-xl animate-pulse"
                   ></div>
                   <div
-                    class="h-4 bg-gray-200 rounded animate-pulse w-full mb-1"
+                    class="w-full h-4 mb-1 bg-gray-200 rounded animate-pulse"
                   ></div>
                   <div
-                    class="h-3 bg-gray-200 rounded animate-pulse w-2/3"
-                  ></div>
-                </div>
-                <div class="min-w-[120px] sm:min-w-[140px]">
-                  <div
-                    class="aspect-square bg-gray-200 rounded-xl animate-pulse mb-2"
-                  ></div>
-                  <div
-                    class="h-4 bg-gray-200 rounded animate-pulse w-full mb-1"
-                  ></div>
-                  <div
-                    class="h-3 bg-gray-200 rounded animate-pulse w-2/3"
+                    class="w-2/3 h-3 bg-gray-200 rounded animate-pulse"
                   ></div>
                 </div>
                 <div class="min-w-[120px] sm:min-w-[140px]">
                   <div
-                    class="aspect-square bg-gray-200 rounded-xl animate-pulse mb-2"
+                    class="mb-2 bg-gray-200 aspect-square rounded-xl animate-pulse"
                   ></div>
                   <div
-                    class="h-4 bg-gray-200 rounded animate-pulse w-full mb-1"
+                    class="w-full h-4 mb-1 bg-gray-200 rounded animate-pulse"
                   ></div>
                   <div
-                    class="h-3 bg-gray-200 rounded animate-pulse w-2/3"
+                    class="w-2/3 h-3 bg-gray-200 rounded animate-pulse"
+                  ></div>
+                </div>
+                <div class="min-w-[120px] sm:min-w-[140px]">
+                  <div
+                    class="mb-2 bg-gray-200 aspect-square rounded-xl animate-pulse"
+                  ></div>
+                  <div
+                    class="w-full h-4 mb-1 bg-gray-200 rounded animate-pulse"
+                  ></div>
+                  <div
+                    class="w-2/3 h-3 bg-gray-200 rounded animate-pulse"
                   ></div>
                 </div>
               </div>
@@ -243,15 +243,15 @@
     </div>
 
     <!-- Content (existing template) -->
-    <div v-else class="max-w-7xl mx-auto sm:px-4 sm:py-6">
-      <div class="bg-white sm:rounded-2xl sm:shadow-lg overflow-hidden">
+    <div v-else class="mx-auto max-w-7xl sm:px-4 sm:py-6">
+      <div class="overflow-hidden bg-white sm:rounded-2xl sm:shadow-lg">
         <!-- Layout Desktop: Grid 2 kolom -->
         <div class="sm:grid sm:grid-cols-2 sm:gap-8 sm:p-8">
           <!-- Kolom Kiri: Image Gallery -->
           <div class="sm:sticky sm:top-8 sm:self-start">
             <!-- Main Image Display with Swipe Support -->
             <div
-              class="w-full aspect-square flex items-center justify-center sm:rounded-2xl overflow-hidden mb-4 relative group"
+              class="relative flex items-center justify-center w-full mb-4 overflow-hidden aspect-square sm:rounded-2xl group"
               @touchstart="handleTouchStart"
               @touchmove="handleTouchMove"
               @touchend="handleTouchEnd"
@@ -260,16 +260,16 @@
                 v-if="selectedImage"
                 :src="selectedImage"
                 :alt="product?.name"
-                class="w-full h-full object-contain sm:rounded-2xl transition-transform duration-300 group-hover:scale-105 select-none"
+                class="object-contain w-full h-full transition-transform duration-300 select-none sm:rounded-2xl group-hover:scale-105"
                 draggable="false"
               />
               <div v-else class="text-gray-400">No Image</div>
 
               <div
                 v-if="getCurrentStock() === 0 || isArchived"
-                class="absolute inset-0 z-10 bg-black/55 backdrop-blur-sm flex flex-col items-center justify-center text-white text-center pointer-events-none sm:w-40 sm:h-40 w-30 h-30 m-auto rounded-full"
+                class="absolute inset-0 z-10 flex flex-col items-center justify-center m-auto text-center text-white rounded-full pointer-events-none bg-black/55 backdrop-blur-sm sm:w-40 sm:h-40 w-30 h-30"
               >
-                <p class="text-lg sm:text-2xl font-bold tracking-wide">
+                <p class="text-lg font-bold tracking-wide sm:text-2xl">
                   {{ isArchived ? "Diarsipkan" : "Habis" }}
                 </p>
               </div>
@@ -278,7 +278,7 @@
               <button
                 v-if="productImages.length > 1"
                 @click.stop="prevImage"
-                class="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg items-center justify-center hover:bg-white transition-all active:scale-95"
+                class="absolute items-center justify-center hidden w-12 h-12 transition-all -translate-y-1/2 rounded-full shadow-lg sm:flex left-4 top-1/2 bg-white/90 backdrop-blur-sm hover:bg-white active:scale-95"
               >
                 <svg
                   class="w-6 h-6 text-gray-800"
@@ -297,7 +297,7 @@
               <button
                 v-if="productImages.length > 1"
                 @click.stop="nextImage"
-                class="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg items-center justify-center hover:bg-white transition-all active:scale-95"
+                class="absolute items-center justify-center hidden w-12 h-12 transition-all -translate-y-1/2 rounded-full shadow-lg sm:flex right-4 top-1/2 bg-white/90 backdrop-blur-sm hover:bg-white active:scale-95"
               >
                 <svg
                   class="w-6 h-6 text-gray-800"
@@ -340,7 +340,7 @@
               ></button>
             </div>
             <!-- Thumbnail Gallery -->
-            <div v-if="productImages.length > 1" class="px-4 sm:px-2 py-2">
+            <div v-if="productImages.length > 1" class="px-4 py-2 sm:px-2">
               <div class="thumb-strip">
                 <button
                   v-for="(image, index) in productImages"
@@ -352,7 +352,7 @@
                   <img
                     :src="image"
                     :alt="`${product?.name} - ${index + 1}`"
-                    class="w-full h-full object-cover"
+                    class="object-cover w-full h-full"
                   />
                 </button>
               </div>
@@ -360,19 +360,19 @@
           </div>
 
           <!-- Kolom Kanan: Info Produk -->
-          <div class="px-4 sm:px-0 py-4 sm:py-0">
+          <div class="px-4 py-4 sm:px-0 sm:py-0">
             <!-- Nama & Harga -->
             <div class="pb-4 border-b border-gray-200">
-              <h1 class="text-xl sm:text-3xl font-bold text-gray-900 mb-2">
+              <h1 class="mb-2 text-xl font-bold text-gray-900 sm:text-3xl">
                 {{ product?.name || "Nama Produk" }}
               </h1>
-              <p class="text-lg sm:text-2xl font-semibold text-gray-900">
+              <p class="text-lg font-semibold text-gray-900 sm:text-2xl">
                 Rp {{ formatIDR(getCurrentPrice()) }}
                 <!-- ✅ gunakan harga kombinasi -->
               </p>
 
               <!-- Stok Info -->
-              <div class="mt-3 flex items-center gap-2">
+              <div class="flex items-center gap-2 mt-3">
                 <span class="text-sm text-gray-600">Stok:</span>
                 <div class="flex items-center gap-1.5">
                   <span
@@ -399,7 +399,7 @@
               <!-- Banner archived -->
               <div
                 v-if="isArchived"
-                class="mt-3 p-3 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm"
+                class="p-3 mt-3 text-sm text-yellow-800 border border-yellow-200 rounded-lg bg-yellow-50"
               >
                 Produk ini telah diarsipkan dan tidak tersedia untuk dibeli.
               </div>
@@ -407,7 +407,7 @@
 
             <!-- Ukuran/Varian (Option 1) -->
             <div v-if="sizes.length > 0" class="py-4 border-b border-gray-200">
-              <h3 class="text-sm font-semibold text-gray-900 mb-3">
+              <h3 class="mb-3 text-sm font-semibold text-gray-900">
                 {{ option1Label }} <span class="text-red-500">*</span>
               </h3>
               <div class="flex flex-wrap gap-2">
@@ -419,7 +419,7 @@
                     validateQuantity();
                   "
                   :disabled="!isSizeAvailable(size.name)"
-                  class="px-4 py-2 rounded-lg border text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="px-4 py-2 text-sm font-medium transition border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   :class="
                     selectedSize?.id === size.id
                       ? 'border-primary bg-primary/5 text-primary'
@@ -430,12 +430,12 @@
                     <!-- 🖼️ Image jika ada -->
                     <div
                       v-if="getOptionValueSrcUrl(1, size.id)"
-                      class="w-12 h-12 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center"
+                      class="flex items-center justify-center w-12 h-12 overflow-hidden bg-gray-100 rounded-md"
                     >
                       <img
                         :src="getOptionValueSrcUrl(1, size.id)"
                         :alt="size.name"
-                        class="w-full h-full object-cover"
+                        class="object-cover w-full h-full"
                       />
                     </div>
 
@@ -465,7 +465,7 @@
               v-if="variants.length > 0"
               class="py-4 border-b border-gray-200"
             >
-              <h3 class="text-sm font-semibold text-gray-900 mb-3">
+              <h3 class="mb-3 text-sm font-semibold text-gray-900">
                 {{ option2Label }} <span class="text-red-500">*</span>
                 <!-- ✅ label dinamis -->
               </h3>
@@ -478,7 +478,7 @@
                     validateQuantity();
                   "
                   :disabled="!isVariantAvailable(variant.id)"
-                  class="px-4 py-2 rounded-lg border text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="px-4 py-2 text-sm font-medium transition border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   :class="
                     selectedVariant?.id === variant.id
                       ? 'border-primary bg-primary/5 text-primary'
@@ -525,7 +525,7 @@
                 <h3 class="text-sm font-semibold text-gray-900">Tambahan</h3>
                 <button
                   @click="showAddonModal = true"
-                  class="text-sm text-primary hover:underline font-medium cursor-pointer"
+                  class="text-sm font-medium cursor-pointer text-primary hover:underline"
                 >
                   {{
                     selectedAddons.length > 0
@@ -540,14 +540,14 @@
                 <div
                   v-for="addon in selectedAddons"
                   :key="addon.id"
-                  class="flex items-center justify-between text-sm p-2 bg-gray-50 rounded-lg"
+                  class="flex items-center justify-between p-2 text-sm rounded-lg bg-gray-50"
                 >
                   <span class="text-gray-700">{{ addon.name }}</span>
                   <span class="font-semibold text-gray-900">
                     +Rp {{ formatIDR(addon.price) }}
                   </span>
                 </div>
-                <p class="text-xs text-gray-600 pt-1">
+                <p class="pt-1 text-xs text-gray-600">
                   Total tambahan: Rp {{ formatIDR(calculateAddonOnlyPrice()) }}
                 </p>
               </div>
@@ -577,12 +577,12 @@
                 </span>
               </div>
               <div
-                class="flex items-center justify-center sm:justify-end gap-3"
+                class="flex items-center justify-center gap-3 sm:justify-end"
               >
                 <button
                   @click="decreaseQuantity"
                   :disabled="quantity <= 1"
-                  class="w-10 h-10 rounded-lg border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="flex items-center justify-center w-10 h-10 transition border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -605,12 +605,12 @@
                   min="1"
                   :max="getCurrentStock()"
                   @input="validateQuantity"
-                  class="w-16 text-center border border-gray-300 rounded-lg py-2 text-sm font-semibold"
+                  class="w-16 py-2 text-sm font-semibold text-center border border-gray-300 rounded-lg"
                 />
                 <button
                   @click="increaseQuantity"
                   :disabled="quantity >= getCurrentStock()"
-                  class="w-10 h-10 rounded-lg border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="flex items-center justify-center w-10 h-10 transition border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -632,12 +632,12 @@
 
             <!-- Deskripsi Produk -->
             <div class="py-4 border-b border-gray-200">
-              <h3 class="text-sm font-semibold text-gray-900 mb-2">
+              <h3 class="mb-2 text-sm font-semibold text-gray-900">
                 Deskripsi Produk
               </h3>
 
               <p
-                class="text-sm text-gray-700 leading-relaxed whitespace-pre-line"
+                class="text-sm leading-relaxed text-gray-700 whitespace-pre-line"
               >
                 {{ displayedDescription }}
               </p>
@@ -645,7 +645,7 @@
               <button
                 v-if="isLongDescription"
                 @click="showFullDescription = !showFullDescription"
-                class="mt-2 text-primary text-sm font-semibold focus:outline-none cursor-pointer hover:underline"
+                class="mt-2 text-sm font-semibold cursor-pointer text-primary focus:outline-none hover:underline"
                 type="button"
               >
                 {{ showFullDescription ? "Sembunyikan" : "Lihat Selengkapnya" }}
@@ -655,15 +655,15 @@
             <!-- Info Toko -->
             <div class="py-4 border-b border-gray-200">
               <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3 min-w-0">
+                <div class="flex items-center min-w-0 gap-3">
                   <div
-                    class="w-12 h-12 rounded-full bg-gray-200 overflow-hidden flex-shrink-0"
+                    class="flex-shrink-0 w-12 h-12 overflow-hidden bg-gray-200 rounded-full"
                   >
                     <img
                       v-if="product?.merchant?.logo"
                       :src="product.merchant.logo"
                       alt="UMKM logo"
-                      class="w-full h-full object-cover"
+                      class="object-cover w-full h-full"
                     />
                   </div>
                   <div class="min-w-0">
@@ -688,12 +688,12 @@
 
             <!-- Produk Lain dari Toko -->
             <div class="py-4">
-              <h3 class="text-sm font-semibold text-gray-900 mb-3">
+              <h3 class="mb-3 text-sm font-semibold text-gray-900">
                 Produk lain dari toko ini
               </h3>
               <div
                 v-if="relatedProducts.length > 0"
-                class="flex gap-3 overflow-x-auto no-scrollbar pb-2"
+                class="flex gap-3 pb-2 overflow-x-auto no-scrollbar"
               >
                 <ProductCard
                   v-for="item in relatedProducts"
@@ -705,7 +705,7 @@
               </div>
               <div
                 v-else
-                class="text-gray-400 text-sm italic px-2 py-6 text-center"
+                class="px-2 py-6 text-sm italic text-center text-gray-400"
               >
                 Tidak ada produk lain dari toko ini.
               </div>
@@ -718,7 +718,7 @@
 
   <!-- Bottom Action Bar (Mobile) -->
   <div
-    class="sm:hidden fixed bottom-16 left-0 right-0 z-40 bg-white border-t border-gray-200 px-4 py-3"
+    class="fixed left-0 right-0 z-40 px-4 py-3 bg-white border-t border-gray-200 sm:hidden bottom-16"
   >
     <div v-if="loading" class="flex items-center gap-3">
       <div class="w-12 h-12 bg-gray-200 rounded-xl animate-pulse"></div>
@@ -762,18 +762,18 @@
 
   <!-- Bottom Action Bar (Desktop) -->
   <div
-    class="hidden sm:block fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-lg"
+    class="fixed bottom-0 left-0 right-0 z-40 hidden bg-white border-t border-gray-200 shadow-lg sm:block"
   >
-    <div class="max-w-7xl mx-auto px-4 py-4">
+    <div class="px-4 py-4 mx-auto max-w-7xl">
       <div v-if="loading" class="flex items-center justify-between">
         <div class="space-y-2">
-          <div class="h-4 w-32 bg-gray-200 rounded animate-pulse"></div>
-          <div class="h-7 w-40 bg-gray-200 rounded animate-pulse"></div>
+          <div class="w-32 h-4 bg-gray-200 rounded animate-pulse"></div>
+          <div class="w-40 bg-gray-200 rounded h-7 animate-pulse"></div>
         </div>
         <div class="flex gap-3">
-          <div class="h-12 w-12 bg-gray-200 rounded-xl animate-pulse"></div>
-          <div class="h-12 w-32 bg-gray-200 rounded-xl animate-pulse"></div>
-          <div class="h-12 w-36 bg-gray-200 rounded-xl animate-pulse"></div>
+          <div class="w-12 h-12 bg-gray-200 rounded-xl animate-pulse"></div>
+          <div class="w-32 h-12 bg-gray-200 rounded-xl animate-pulse"></div>
+          <div class="h-12 bg-gray-200 w-36 rounded-xl animate-pulse"></div>
         </div>
       </div>
       <div v-else class="flex items-center justify-between">
@@ -862,8 +862,8 @@
           <div class="flex items-center justify-between capitalize">
             <h4 class="text-sm font-semibold text-gray-900">
               {{ group.name }}
-              <span v-if="group.required" class="text-red-500 ml-1">*</span>
-              <span v-else class="text-muted-foreground font-normal text-xs"
+              <span v-if="group.required" class="ml-1 text-red-500">*</span>
+              <span v-else class="text-xs font-normal text-muted-foreground"
                 >(Opsional)</span
               >
             </h4>
@@ -877,7 +877,7 @@
               Pilih 1
             </span>
           </div>
-          <p v-if="group.description" class="text-xs text-gray-600 mt-1">
+          <p v-if="group.description" class="mt-1 text-xs text-gray-600">
             {{ group.description }}
           </p>
         </div>
@@ -888,14 +888,14 @@
             <label
               v-for="addon in group.items"
               :key="addon.id"
-              class="flex items-start justify-between p-3 rounded-lg border transition cursor-pointer"
+              class="flex items-start justify-between p-3 transition border rounded-lg cursor-pointer"
               :class="
                 isAddonSelected(addon)
                   ? 'border-primary bg-primary/5'
                   : 'border-gray-200 hover:border-gray-300'
               "
             >
-              <div class="flex items-start gap-3 flex-1">
+              <div class="flex items-start flex-1 gap-3">
                 <!-- RADIO -->
                 <input
                   type="radio"
@@ -908,7 +908,7 @@
 
                 <!-- INFO -->
                 <div
-                  class="flex items-start justify-between gap-2 w-full"
+                  class="flex items-start justify-between w-full gap-2"
                   :class="{ 'opacity-50 cursor-not-allowed': !addon.available }"
                 >
                   <div class="flex-1 min-w-0">
@@ -947,14 +947,14 @@
             <label
               v-for="addon in group.items"
               :key="addon.id"
-              class="flex items-start justify-between gap-3 p-3 rounded-lg border transition cursor-pointer"
+              class="flex items-start justify-between gap-3 p-3 transition border rounded-lg cursor-pointer"
               :class="
                 isAddonSelected(addon)
                   ? 'border-primary bg-primary/5'
                   : 'border-gray-200 hover:border-gray-300'
               "
             >
-              <div class="flex items-start gap-3 flex-1">
+              <div class="flex items-start flex-1 gap-3">
                 <!-- CHECKBOX -->
                 <input
                   type="checkbox"
@@ -966,7 +966,7 @@
 
                 <!-- INFO -->
                 <div
-                  class="flex items-start justify-between gap-2 w-full"
+                  class="flex items-start justify-between w-full gap-2"
                   :class="{ 'opacity-50 cursor-not-allowed': !addon.available }"
                 >
                   <div class="flex-1 min-w-0">
@@ -1052,10 +1052,10 @@
       <!-- WhatsApp -->
       <button
         @click="shareVia('whatsapp')"
-        class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-green-500 hover:bg-green-50 transition active:scale-95 cursor-pointer"
+        class="flex items-center w-full gap-3 p-4 transition border border-gray-200 cursor-pointer rounded-xl hover:border-green-500 hover:bg-green-50 active:scale-95"
       >
         <div
-          class="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center"
+          class="flex items-center justify-center w-10 h-10 bg-green-500 rounded-full"
         >
           <svg
             class="w-6 h-6 text-white"
@@ -1076,10 +1076,10 @@
       <!-- Facebook -->
       <button
         @click="shareVia('facebook')"
-        class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-blue-600 hover:bg-blue-50 transition active:scale-95 cursor-pointer"
+        class="flex items-center w-full gap-3 p-4 transition border border-gray-200 cursor-pointer rounded-xl hover:border-blue-600 hover:bg-blue-50 active:scale-95"
       >
         <div
-          class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center"
+          class="flex items-center justify-center w-10 h-10 bg-blue-600 rounded-full"
         >
           <svg
             class="w-6 h-6 text-white"
@@ -1100,10 +1100,10 @@
       <!-- Twitter -->
       <button
         @click="shareVia('twitter')"
-        class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition active:scale-95 cursor-pointer"
+        class="flex items-center w-full gap-3 p-4 transition border border-gray-200 cursor-pointer rounded-xl hover:border-blue-400 hover:bg-blue-50 active:scale-95"
       >
         <div
-          class="w-10 h-10 rounded-full bg-blue-400 flex items-center justify-center"
+          class="flex items-center justify-center w-10 h-10 bg-blue-400 rounded-full"
         >
           <svg
             class="w-6 h-6 text-white"
@@ -1124,10 +1124,10 @@
       <!-- Copy Link -->
       <button
         @click="copyLink"
-        class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition active:scale-95 cursor-pointer"
+        class="flex items-center w-full gap-3 p-4 transition border border-gray-200 cursor-pointer rounded-xl hover:border-gray-400 hover:bg-gray-50 active:scale-95"
       >
         <div
-          class="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center"
+          class="flex items-center justify-center w-10 h-10 bg-gray-600 rounded-full"
         >
           <svg
             class="w-5 h-5 text-white"
@@ -1153,7 +1153,7 @@
     <template #footer>
       <button
         @click="showShareModal = false"
-        class="w-full px-4 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition"
+        class="w-full px-4 py-3 font-semibold text-gray-700 transition bg-gray-100 rounded-xl hover:bg-gray-200"
       >
         Tutup
       </button>
@@ -1170,6 +1170,7 @@ import {
   onUnmounted,
   onBeforeUnmount,
 } from "vue";
+import { setMeta } from "@/router/seo";
 import { useRoute, useRouter } from "vue-router";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock.js";
@@ -1258,7 +1259,7 @@ function getOptionValueSrcUrl(optionIndex, valueId) {
 
 async function addToCart() {
   if (!authStore.isAuthenticated) {
-    toast.info("Silakan login terlebih dahulu");
+    toast.info("Silakan login terlebih dahulu untuk menambahkan ke keranjang.");
     router.push({
       name: "Login",
       query: { redirect: route.fullPath },
@@ -1309,7 +1310,7 @@ async function addToCart() {
     await addCart(payload);
     await cartStore.fetchCartCount(true); // force refresh
 
-    toast.success("Produk ditambahkan ke keranjang 🛒");
+    toast.success("Produk ditambahkan ke keranjang");
   } catch (e) {
     toast.error(e.response?.data?.message || "Gagal menambahkan ke keranjang");
   }
@@ -1351,7 +1352,7 @@ const tempSelectedAddons = ref([]);
 const addonGroups = ref([]);
 
 // misc
-const showScrollHeader = ref(false);
+const showScrollHeader = ref(true);
 const lastScrollY = ref(0);
 const relatedProducts = ref([]);
 const cartItemsCount = computed(() => {
@@ -1368,7 +1369,7 @@ const shareText = computed(() => {
 async function copyLink() {
   try {
     await navigator.clipboard.writeText(shareUrl.value);
-    toast.success("Link produk berhasil disalin 📋");
+    toast.success("Link produk berhasil disalin ");
   } catch (e) {
     // fallback untuk browser lama
     const input = document.createElement("input");
@@ -1378,7 +1379,7 @@ async function copyLink() {
     document.execCommand("copy");
     document.body.removeChild(input);
 
-    toast.success("Link produk berhasil disalin 📋");
+    toast.success("Link produk berhasil disalin ");
   }
 }
 
@@ -1416,7 +1417,7 @@ const isAnyModalOpen = computed(
 );
 const goToCart = () => {
   if (!authStore.isAuthenticated) {
-    toast.info("Silakan login terlebih dahulu untuk menambahkan ke keranjang.");
+    toast.info("Silakan login terlebih dahulu untuk mengakses keranjang.");
     router.push({
       name: "Login",
       query: { redirect: route.fullPath },
@@ -1829,6 +1830,15 @@ onMounted(async () => {
   window.addEventListener("scroll", handleScroll);
   await fetchCartCount();
 });
+watch(product, (p) => {
+  if (!p) return;
+
+  setMeta({
+    title: `${p.name} –  ${p.merchant?.name || "Lokal"}`,
+    description: p.description?.slice(0, 155),
+    image: selectedImage.value,
+  });
+});
 watch(
   () => authStore.authReady,
   (ready) => {
@@ -1842,13 +1852,6 @@ watch(
   },
   { immediate: true }
 );
-watch(showScrollHeader, (val) => {
-  if (val) {
-    setTimeout(() => {
-      document.querySelector("input[type='text']")?.focus();
-    }, 100);
-  }
-});
 
 onBeforeUnmount(() => {
   if (abortController) {
@@ -1885,12 +1888,6 @@ function handleScroll() {
 
 // buyNow: keep your existing behavior, but use safe fields
 function buyNow() {
-  if (!authStore.isAuthenticated) {
-    toast.info("Silakan login terlebih dahulu untuk melanjutkan pembelian.");
-    router.push({ name: "Login", query: { redirect: route.fullPath } });
-    return;
-  }
-
   const qty = Number(quantity.value || 1);
   const unitPrice =
     Number(getCurrentPrice()) || Number(product.value?.price || 0);

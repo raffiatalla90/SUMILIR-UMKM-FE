@@ -45,7 +45,7 @@ const maxAddOnOptions = 10;
 const formPrice = ref(0);
 const formStock = ref(0);
 const formMinPurchase = ref(1);
-const formSku = ref("");
+const formSKU = ref("");
 
 const {
   productImages,
@@ -249,6 +249,17 @@ onMounted(async () => {
 // ============================================================
 // WATCHERS
 // ============================================================
+watch(useVariants, (enabled) => {
+  if (!enabled) {
+    // 🔥 RESET SEMUA STATE VARIANTS
+    variants.value = [];
+    combinations.value = [];
+    selectedCombinations.value.clear();
+    variantNames.value = {};
+    variantUsesImages.value = {};
+  }
+});
+
 // ✅ Sync selectedCategory dengan form
 watch(name, (newName) => {
   setFieldValue("name", newName);
@@ -271,7 +282,7 @@ watch(selectedCategory, async (newCat) => {
 watch(
   () => values.sku,
   (newVal) => {
-    formSku.value = newVal || "";
+    formSKU.value = newVal || "";
   }
 );
 // ✅ Sync form values dengan reactive variables (untuk v-model)
@@ -296,7 +307,7 @@ watch(
   }
 );
 
-watch(formSku, (newVal) => {
+watch(formSKU, (newVal) => {
   setFieldValue("sku", newVal);
 });
 // ✅ Sync reactive variables kembali ke form (two-way binding)
@@ -497,14 +508,16 @@ const onSubmit = veeHandleSubmit(
       formData.append("merchant_id", currentMerchantId.value);
       formData.append("name", values.name);
       formData.append("description", values.description);
-      formData.append("category_id", values.category_id);
+      const categoryIds = [
+        values.category_id,
+        ...selectedSubCategories.value.filter(Boolean),
+      ];
+
+      categoryIds.forEach((catId, index) => {
+        formData.append(`category_ids[${index}]`, catId);
+      });
       formData.append("min_purchase", values.min_purchase);
       formData.append("status", "draft");
-
-      // Sub Categories
-      selectedSubCategories.value.forEach((subCat, index) => {
-        formData.append(`sub_categories[${index}]`, subCat);
-      });
 
       // Product Images
       productImages.value.forEach((img, index) => {
@@ -514,7 +527,7 @@ const onSubmit = veeHandleSubmit(
       formData.append("cover_image_index", coverImageIndex.value);
 
       // Variants or Direct Pricing
-      if (useVariants.value) {
+      if (useVariants.value === true && variants.value.length > 0) {
         variants.value.forEach((variant, vIndex) => {
           formData.append(`variants[${vIndex}][name]`, variant.name);
           formData.append(
@@ -565,11 +578,11 @@ const onSubmit = veeHandleSubmit(
           });
         });
       } else {
-        if (values.sku) {
-          formData.append("sku", values.sku);
+        if (formSKU.value) {
+          formData.append("sku", formSKU.value);
         }
-        formData.append("price", values.price);
-        formData.append("stock", values.stock);
+        formData.append("price", String(formPrice.value));
+        formData.append("stock", String(formStock.value));
       }
 
       // Add-on Groups
@@ -599,6 +612,9 @@ const onSubmit = veeHandleSubmit(
           });
         }
       });
+
+      console.log("useVariants:", useVariants.value);
+      console.log("variants:", variants.value);
 
       // API Call
       const response = await api.post("/api/products", formData, {
@@ -696,15 +712,15 @@ const onSubmit = veeHandleSubmit(
 
 <!-- Template unchanged, just ensure mobile header back button uses dynamic route -->
 <template>
-  <div class="min-h-screen bg-gray-50 pb-20 sm:pb-0">
+  <div class="min-h-screen pb-20 bg-gray-50 sm:pb-0">
     <!-- Mobile Header -->
     <div
-      class="fixed sm:hidden top-0 left-0 right-0 bg-merchant-primary text-white px-4 py-6 flex items-center justify-center z-50 rounded-b-2xl"
+      class="fixed top-0 left-0 right-0 z-50 flex items-center justify-center px-4 py-6 text-white sm:hidden bg-merchant-primary rounded-b-2xl"
     >
       <!-- ✅ FIXED: Back button dengan dynamic route -->
       <button
         @click="router.push(`/merchant-center/${currentMerchantId}/products`)"
-        class="absolute left-4 w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition"
+        class="absolute flex items-center justify-center w-10 h-10 transition rounded-full left-4 hover:bg-white/10"
       >
         <i class="pi pi-arrow-left"></i>
       </button>
@@ -712,9 +728,9 @@ const onSubmit = veeHandleSubmit(
     </div>
 
     <!-- Desktop Header -->
-    <div class="hidden sm:block sticky top-0 left-0 right-0 z-50 py-6">
+    <div class="sticky top-0 left-0 right-0 z-50 hidden py-6 sm:block">
       <div
-        class="mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap gap-y-2 items-center justify-between gap-x-4"
+        class="flex flex-wrap items-center justify-between px-4 mx-auto sm:px-6 sm:px-8 gap-y-2 gap-x-4"
       >
         <div>
           <!-- ✅ Use Breadcrumb Component -->
@@ -722,7 +738,7 @@ const onSubmit = veeHandleSubmit(
             :items="breadcrumbItems"
             :merchantId="currentMerchantId"
           />
-          <p class="text-muted-foreground text-xs lg:text-sm">
+          <p class="text-xs text-muted-foreground sm:text-sm">
             Lengkapi informasi produk Anda.
           </p>
         </div>
@@ -744,15 +760,15 @@ const onSubmit = veeHandleSubmit(
     <div class="h-[72px] sm:h-0"></div>
 
     <!-- Container Responsive -->
-    <div class="mx-auto px-0 sm:px-4 lg:px-6 sm:py-6 sm:pt-0">
+    <div class="px-0 mx-auto sm:px-4 sm:px-6 sm:py-6 sm:pt-0">
       <!-- ✅ FIXED: Remove ref, use @submit -->
       <Form @submit="onSubmit">
         <!-- Foto Produk -->
         <div
-          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
+          class="p-4 mb-2 bg-white sm:mb-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
         >
           <h3
-            class="text-sm font-semibold text-black mb-3 flex items-center gap-2"
+            class="flex items-center gap-2 mb-3 text-sm font-semibold text-black"
           >
             <i class="pi pi-image text-merchant-primary"></i>
             Foto Produk
@@ -761,7 +777,7 @@ const onSubmit = veeHandleSubmit(
 
           <!-- Image Grid - RESPONSIVE -->
           <div
-            class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3 mb-3"
+            class="grid grid-cols-3 gap-3 mb-3 sm:grid-cols-4 sm:grid-cols-6"
           >
             <div
               v-for="(img, index) in productImages"
@@ -771,7 +787,7 @@ const onSubmit = veeHandleSubmit(
               @dragover="onDragOver"
               @drop="onDrop($event, index)"
               @dragend="onDragEnd"
-              class="relative aspect-square rounded-xl overflow-hidden border-2 group cursor-move"
+              class="relative overflow-hidden border-2 cursor-move aspect-square rounded-xl group"
               :class="
                 index === coverImageIndex
                   ? 'border-merchant-primary ring-2 ring-merchant-primary/20'
@@ -780,14 +796,14 @@ const onSubmit = veeHandleSubmit(
             >
               <img
                 :src="img.preview"
-                class="w-full h-full object-cover pointer-events-none"
+                class="object-cover w-full h-full pointer-events-none"
               />
 
               <!-- Drag Handle -->
               <div
-                class="absolute top-2 right-2 w-6 h-6 bg-black/60 rounded-full flex items-center justify-center pointer-events-none"
+                class="absolute flex items-center justify-center w-6 h-6 rounded-full pointer-events-none top-2 right-2 bg-black/60"
               >
-                <i class="pi pi-arrows-alt text-white text-xs"></i>
+                <i class="text-xs text-white pi pi-arrows-alt"></i>
               </div>
 
               <!-- Cover Badge -->
@@ -801,14 +817,14 @@ const onSubmit = veeHandleSubmit(
 
               <!-- Actions -->
               <div
-                class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2"
+                class="absolute inset-0 flex items-center justify-center gap-2 transition opacity-0 bg-black/50 group-hover:opacity-100"
               >
                 <button
                   @click.stop="removeImage(index)"
                   type="button"
-                  class="w-8 h-8 bg-white rounded-full flex items-center justify-center hover:scale-110 transition"
+                  class="flex items-center justify-center w-8 h-8 transition bg-white rounded-full hover:scale-110"
                 >
-                  <i class="pi pi-trash text-danger-foreground text-sm"></i>
+                  <i class="text-sm pi pi-trash text-danger-foreground"></i>
                 </button>
               </div>
             </div>
@@ -818,9 +834,9 @@ const onSubmit = veeHandleSubmit(
               v-if="productImages.length < 6"
               @click="triggerFileInput"
               type="button"
-              class="aspect-square rounded-xl border-2 border-dashed border-gray-300 hover:border-merchant-primary hover:bg-merchant-primary/5 transition flex flex-col items-center justify-center gap-2"
+              class="flex flex-col items-center justify-center gap-2 transition border-2 border-gray-300 border-dashed aspect-square rounded-xl hover:border-merchant-primary hover:bg-merchant-primary/5"
             >
-              <i class="pi pi-plus text-2xl text-merchant-primary"></i>
+              <i class="text-2xl pi pi-plus text-merchant-primary"></i>
               <span class="text-xs text-muted-foreground">Tambah</span>
             </button>
           </div>
@@ -845,9 +861,9 @@ const onSubmit = veeHandleSubmit(
 
         <!-- Info Dasar -->
         <div
-          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 space-y-3 sm:rounded-xl sm:shadow-sm"
+          class="p-4 mb-2 space-y-3 bg-white sm:mb-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
         >
-          <h3 class="text-sm font-semibold text-black flex items-center gap-2">
+          <h3 class="flex items-center gap-2 text-sm font-semibold text-black">
             <i class="pi pi-info-circle text-merchant-primary"></i>
             Informasi Dasar
           </h3>
@@ -870,7 +886,7 @@ const onSubmit = veeHandleSubmit(
           />
 
           <!-- ✅ UPDATED: Kategori Section dengan Loading State -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <!-- Level 1 Category -->
             <div class="relative">
               <SelectField
@@ -885,7 +901,7 @@ const onSubmit = veeHandleSubmit(
               <!-- Empty State -->
               <p
                 v-if="!loadingLevel1 && categoriesLevel1.length === 0"
-                class="text-xs text-amber-600 mt-1 flex items-center gap-1"
+                class="flex items-center gap-1 mt-1 text-xs text-amber-600"
               >
                 <i class="pi pi-exclamation-triangle"></i>
                 Tidak ada kategori tersedia
@@ -894,7 +910,7 @@ const onSubmit = veeHandleSubmit(
 
             <!-- Sub Categories -->
             <div v-if="selectedCategory">
-              <label class="block text-sm font-medium text-gray-700 mb-2">
+              <label class="block mb-2 text-sm font-medium text-gray-700">
                 Sub Kategori
                 <span class="text-xs font-normal text-muted-foreground"
                   >(Maks. 4)</span
@@ -906,23 +922,23 @@ const onSubmit = veeHandleSubmit(
                 v-if="loadingLevel2"
                 class="flex items-center justify-center py-4 text-sm text-gray-500"
               >
-                <i class="pi pi-spin pi-spinner text-merchant-primary mr-2"></i>
+                <i class="mr-2 pi pi-spin pi-spinner text-merchant-primary"></i>
                 Memuat sub-kategori...
               </div>
 
               <!-- Empty State -->
               <div
                 v-else-if="!loadingLevel2 && categoriesLevel2.length === 0"
-                class="py-4 px-3 bg-gray-50 rounded-lg border border-gray-200 text-center"
+                class="px-3 py-4 text-center border border-gray-200 rounded-lg bg-gray-50"
               >
-                <i class="pi pi-inbox text-2xl text-gray-300 mb-2 block"></i>
+                <i class="block mb-2 text-2xl text-gray-300 pi pi-inbox"></i>
                 <p class="text-xs text-gray-500">
                   Kategori ini tidak memiliki sub-kategori
                 </p>
               </div>
 
               <!-- Sub-category List -->
-              <div v-else class="space-y-2 mb-2">
+              <div v-else class="mb-2 space-y-2">
                 <div
                   v-for="(subCat, index) in selectedSubCategories"
                   :key="index"
@@ -930,7 +946,7 @@ const onSubmit = veeHandleSubmit(
                 >
                   <select
                     v-model="selectedSubCategories[index]"
-                    class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-merchant-primary focus:border-transparent"
+                    class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-merchant-primary focus:border-transparent"
                   >
                     <option value="" disabled>Pilih sub kategori</option>
                     <option
@@ -945,9 +961,9 @@ const onSubmit = veeHandleSubmit(
                   <button
                     @click="selectedSubCategories.splice(index, 1)"
                     type="button"
-                    class="w-8 h-8 rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100 flex items-center justify-center transition"
+                    class="flex items-center justify-center w-8 h-8 transition rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100"
                   >
-                    <i class="pi pi-trash text-sm"></i>
+                    <i class="text-sm pi pi-trash"></i>
                   </button>
                 </div>
               </div>
@@ -957,9 +973,9 @@ const onSubmit = veeHandleSubmit(
                 v-if="canAddSubCategory && categoriesLevel2.length > 0"
                 @click="selectedSubCategories.push('')"
                 type="button"
-                class="text-sm text-merchant-primary hover:underline flex items-center gap-1"
+                class="flex items-center gap-1 text-sm text-merchant-primary hover:underline"
               >
-                <i class="pi pi-plus text-xs"></i>
+                <i class="text-xs pi pi-plus"></i>
                 Tambah Sub Kategori
               </button>
             </div>
@@ -968,7 +984,7 @@ const onSubmit = veeHandleSubmit(
 
         <!-- Variasi Toggle -->
         <div
-          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
+          class="p-4 mb-2 bg-white sm:mb-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
         >
           <label
             class="flex items-center justify-between cursor-pointer"
@@ -999,11 +1015,11 @@ const onSubmit = veeHandleSubmit(
         <!-- Variasi Section -->
         <div
           v-if="useVariants"
-          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 space-y-4 sm:rounded-xl sm:shadow-sm"
+          class="p-4 mb-2 space-y-4 bg-white sm:mb-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
         >
           <div class="flex items-center justify-between">
             <h3
-              class="text-sm font-semibold text-black flex items-center gap-2"
+              class="flex items-center gap-2 text-sm font-semibold text-black"
             >
               <i class="pi pi-box text-merchant-primary"></i>
               Varian
@@ -1015,7 +1031,7 @@ const onSubmit = veeHandleSubmit(
               v-if="canAddVariant"
               @click="addVariant"
               type="button"
-              class="text-sm text-merchant-primary hover:underline flex items-center gap-1"
+              class="flex items-center gap-1 text-sm text-merchant-primary hover:underline"
             >
               <i class="pi pi-plus"></i>
               Tambah
@@ -1023,11 +1039,11 @@ const onSubmit = veeHandleSubmit(
           </div>
 
           <!-- RESPONSIVE GRID dengan Accordion - PERBAIKAN -->
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div
               v-for="(variant, vIndex) in variants"
               :key="variant.id"
-              class="border-2 border-gray-200 rounded-xl overflow-hidden bg-white hover:border-merchant-primary/50 transition"
+              class="overflow-hidden transition bg-white border-2 border-gray-200 rounded-xl hover:border-merchant-primary/50"
             >
               <!-- Variant Header - Always Visible -->
               <div class="p-4 space-y-4 bg-white">
@@ -1037,7 +1053,7 @@ const onSubmit = veeHandleSubmit(
                 >
                   <div class="flex items-center gap-2">
                     <span
-                      class="px-3 py-1 bg-merchant-primary text-white text-xs font-bold rounded-full"
+                      class="px-3 py-1 text-xs font-bold text-white rounded-full bg-merchant-primary"
                     >
                       Varian {{ vIndex + 1 }}
                     </span>
@@ -1046,7 +1062,7 @@ const onSubmit = veeHandleSubmit(
                         variant.options.filter((opt) => opt.name.trim())
                           .length > 0
                       "
-                      class="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full"
+                      class="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full"
                     >
                       {{
                         variant.options.filter((opt) => opt.name.trim()).length
@@ -1057,9 +1073,9 @@ const onSubmit = veeHandleSubmit(
                   <button
                     @click="removeVariant(vIndex)"
                     type="button"
-                    class="w-8 h-8 rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100 flex items-center justify-center transition flex-shrink-0"
+                    class="flex items-center justify-center flex-shrink-0 w-8 h-8 transition rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100"
                   >
-                    <i class="pi pi-trash text-sm"></i>
+                    <i class="text-sm pi pi-trash"></i>
                   </button>
                 </div>
 
@@ -1082,7 +1098,7 @@ const onSubmit = veeHandleSubmit(
                 <div v-if="vIndex === 0">
                   <label
                     @click="toggleVariantImages(variant.id)"
-                    class="flex items-center justify-between cursor-pointer py-3 px-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition"
+                    class="flex items-center justify-between px-4 py-3 transition border border-gray-200 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
                   >
                     <div class="flex items-center gap-2">
                       <i class="pi pi-image text-merchant-primary"></i>
@@ -1115,13 +1131,13 @@ const onSubmit = veeHandleSubmit(
                 <button
                   @click="toggleVariantExpand(variant.id)"
                   type="button"
-                  class="w-full flex items-center justify-between py-3 px-4 bg-merchant-primary/5 rounded-lg border border-merchant-primary/20 hover:bg-merchant-primary/10 transition"
+                  class="flex items-center justify-between w-full px-4 py-3 transition border rounded-lg bg-merchant-primary/5 border-merchant-primary/20 hover:bg-merchant-primary/10"
                 >
                   <div class="flex items-center gap-2">
                     <i class="pi pi-list text-merchant-primary"></i>
                     <span class="text-sm font-semibold text-black">
                       Kelola Opsi
-                      <span class="text-muted-foreground ml-1">
+                      <span class="ml-1 text-muted-foreground">
                         ({{
                           variant.options.filter((opt) => opt.name.trim())
                             .length
@@ -1143,23 +1159,23 @@ const onSubmit = veeHandleSubmit(
               <!-- Accordion Content - tetap sama -->
               <transition
                 enter-active-class="transition-all duration-300 ease-out"
-                enter-from-class="max-h-0 opacity-0"
+                enter-from-class="opacity-0 max-h-0"
                 enter-to-class="max-h-[2000px] opacity-100"
                 leave-active-class="transition-all duration-200 ease-in"
                 leave-from-class="max-h-[2000px] opacity-100"
-                leave-to-class="max-h-0 opacity-0"
+                leave-to-class="opacity-0 max-h-0"
               >
                 <div
                   v-if="isVariantExpanded(variant.id)"
-                  class="border-t border-gray-200 overflow-hidden"
+                  class="overflow-hidden border-t border-gray-200"
                 >
-                  <div class="p-4 pt-3 bg-gray-50 space-y-3">
+                  <div class="p-4 pt-3 space-y-3 bg-gray-50">
                     <!-- Header Opsi dengan Border -->
                     <div
                       class="flex items-center justify-between pb-2 border-b border-gray-300"
                     >
                       <label
-                        class="text-xs font-bold text-black uppercase tracking-wide"
+                        class="text-xs font-bold tracking-wide text-black uppercase"
                       >
                         Daftar Opsi
                       </label>
@@ -1167,7 +1183,7 @@ const onSubmit = veeHandleSubmit(
                         @click="addOption(vIndex)"
                         :disabled="!canAddVariantOption(vIndex)"
                         type="button"
-                        class="text-xs text-merchant-primary hover:underline flex items-center gap-1 font-semibold"
+                        class="flex items-center gap-1 text-xs font-semibold text-merchant-primary hover:underline"
                       >
                         <i class="pi pi-plus text-[10px]"></i>
                         Tambah
@@ -1220,28 +1236,28 @@ const onSubmit = veeHandleSubmit(
                               <!-- Image Preview -->
                               <div
                                 v-if="option.images.length > 0"
-                                class="relative w-20 h-20 rounded-lg overflow-hidden border-2 border-gray-200 group"
+                                class="relative w-20 h-20 overflow-hidden border-2 border-gray-200 rounded-lg group"
                               >
                                 <img
                                   :src="option.images[0].preview"
-                                  class="w-full h-full object-cover"
+                                  class="object-cover w-full h-full"
                                 />
                                 <button
                                   @click="removeOptionImage(vIndex, oIndex, 0)"
                                   type="button"
-                                  class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center"
+                                  class="absolute inset-0 flex items-center justify-center transition opacity-0 bg-black/60 group-hover:opacity-100"
                                 >
-                                  <i class="pi pi-trash text-white text-sm"></i>
+                                  <i class="text-sm text-white pi pi-trash"></i>
                                 </button>
                               </div>
 
                               <!-- Upload Button -->
                               <label
                                 v-else
-                                class="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 hover:border-merchant-primary hover:bg-merchant-primary/5 transition flex flex-col items-center justify-center cursor-pointer gap-1"
+                                class="flex flex-col items-center justify-center w-20 h-20 gap-1 transition border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:border-merchant-primary hover:bg-merchant-primary/5"
                               >
                                 <i
-                                  class="pi pi-plus text-lg text-merchant-primary"
+                                  class="text-lg pi pi-plus text-merchant-primary"
                                 ></i>
                                 <span
                                   class="text-[10px] text-gray-500 font-medium"
@@ -1271,7 +1287,7 @@ const onSubmit = veeHandleSubmit(
                             type="button"
                             class="w-8 h-8 rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100 flex items-center justify-center transition flex-shrink-0 mt-0.5"
                           >
-                            <i class="pi pi-times text-sm"></i>
+                            <i class="text-sm pi pi-times"></i>
                           </button>
                         </div>
                       </div>
@@ -1283,7 +1299,7 @@ const onSubmit = veeHandleSubmit(
                       type="button"
                       class="w-full py-2.5 px-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-merchant-primary font-bold hover:border-merchant-primary hover:bg-white transition flex items-center justify-center gap-2"
                     >
-                      <i class="pi pi-plus text-xs"></i>
+                      <i class="text-xs pi pi-plus"></i>
                       Tambah Opsi Baru
                     </button>
                   </div>
@@ -1295,10 +1311,10 @@ const onSubmit = veeHandleSubmit(
           <!-- Combinations Summary -->
           <div
             v-if="variants.length > 0"
-            class="bg-merchant-primary/5 rounded-xl p-4 border-2 border-merchant-primary/20"
+            class="p-4 border-2 bg-merchant-primary/5 rounded-xl border-merchant-primary/20"
           >
             <div
-              class="flex flex-wrap sm:flex-row items-start sm:items-center justify-between gap-3"
+              class="flex flex-wrap items-start justify-between gap-3 sm:flex-row sm:items-center"
             >
               <div>
                 <p class="text-sm font-semibold text-merchant-primary">
@@ -1319,7 +1335,7 @@ const onSubmit = veeHandleSubmit(
             </div>
             <p
               v-if="combinationsExceedLimit"
-              class="text-xs text-danger-foreground flex items-center gap-1 mt-2 font-medium"
+              class="flex items-center gap-1 mt-2 text-xs font-medium text-danger-foreground"
             >
               <i class="pi pi-exclamation-triangle"></i>
               Kombinasi melebihi batas maksimal ({{ maxOptions }})
@@ -1330,9 +1346,9 @@ const onSubmit = veeHandleSubmit(
         <!-- Harga & Stok (tanpa variasi) - PERBAIKAN dengan v-model.number -->
         <div
           v-if="!useVariants"
-          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 space-y-4 sm:rounded-xl sm:shadow-sm"
+          class="p-4 mb-2 space-y-4 bg-white sm:mb-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
         >
-          <h3 class="text-sm font-semibold text-black flex items-center gap-2">
+          <h3 class="flex items-center gap-2 text-sm font-semibold text-black">
             <i class="pi pi-tag text-merchant-primary"></i>
             Harga & Stok
           </h3>
@@ -1344,10 +1360,10 @@ const onSubmit = veeHandleSubmit(
               label="SKU (Opsional)"
               type="text"
               placeholder="Contoh: PRD-001"
-              v-model="formSku"
+              v-model="formSKU"
             />
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <TextField
                 name="price"
                 label="Harga"
@@ -1373,12 +1389,12 @@ const onSubmit = veeHandleSubmit(
 
         <!-- UPDATED: Add-on Groups Section dengan Grid Layout -->
         <div
-          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 space-y-4 sm:rounded-xl sm:shadow-sm"
+          class="p-4 mb-2 space-y-4 bg-white sm:mb-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
         >
           <div class="flex items-center justify-between">
             <div>
               <h3
-                class="text-sm font-semibold text-black flex items-center gap-2"
+                class="flex items-center gap-2 text-sm font-semibold text-black"
               >
                 <i class="pi pi-plus-circle text-merchant-primary"></i>
                 Grup Add-on (Opsional)
@@ -1386,7 +1402,7 @@ const onSubmit = veeHandleSubmit(
                   >(Maks. {{ maxAddOnGroups }})</span
                 >
               </h3>
-              <p class="text-xs text-muted-foreground mt-1">
+              <p class="mt-1 text-xs text-muted-foreground">
                 Kelompokkan add-on berdasarkan kategori (contoh: tingkat
                 kepedasan, topping)
               </p>
@@ -1395,7 +1411,7 @@ const onSubmit = veeHandleSubmit(
               v-if="canAddAddOnGroup"
               @click="addAddOnGroup"
               type="button"
-              class="text-sm text-merchant-primary hover:underline flex items-center gap-1 font-semibold"
+              class="flex items-center gap-1 text-sm font-semibold text-merchant-primary hover:underline"
             >
               <i class="pi pi-plus"></i>
               Tambah
@@ -1405,12 +1421,12 @@ const onSubmit = veeHandleSubmit(
           <!-- UPDATED: Grid Layout untuk Desktop -->
           <div
             v-if="addOnGroups.length > 0"
-            class="grid grid-cols-1 lg:grid-cols-2 gap-4"
+            class="grid grid-cols-1 gap-4 sm:grid-cols-2"
           >
             <div
               v-for="(group, gIndex) in addOnGroups"
               :key="group.id"
-              class="border-2 border-gray-200 rounded-xl overflow-hidden bg-white hover:border-merchant-primary/50 transition"
+              class="overflow-hidden transition bg-white border-2 border-gray-200 rounded-xl hover:border-merchant-primary/50"
             >
               <!-- Group Header - Always Visible -->
               <div class="p-4 space-y-4 bg-white">
@@ -1418,22 +1434,22 @@ const onSubmit = veeHandleSubmit(
                 <div
                   class="flex items-center justify-between pb-3 border-b border-gray-100"
                 >
-                  <div class="flex items-center gap-2 flex-wrap">
+                  <div class="flex flex-wrap items-center gap-2">
                     <span
-                      class="px-3 py-1 bg-merchant-primary text-white text-xs font-bold rounded-full"
+                      class="px-3 py-1 text-xs font-bold text-white rounded-full bg-merchant-primary"
                     >
                       Grup {{ gIndex + 1 }}
                     </span>
                     <span
                       v-if="group.is_required || group.min_selection > 0"
-                      class="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded-full flex items-center gap-1"
+                      class="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-700"
                     >
                       <i class="pi pi-exclamation-circle text-[10px]"></i>
                       Wajib
                     </span>
                     <span
                       v-if="group.max_selection > 0"
-                      class="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full flex items-center gap-1"
+                      class="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full"
                     >
                       <i class="pi pi-list text-[10px]"></i>
                       {{ group.min_selection }}-{{ group.max_selection }}
@@ -1443,9 +1459,9 @@ const onSubmit = veeHandleSubmit(
                   <button
                     @click="removeAddOnGroup(gIndex)"
                     type="button"
-                    class="w-8 h-8 rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100 flex items-center justify-center transition flex-shrink-0"
+                    class="flex items-center justify-center flex-shrink-0 w-8 h-8 transition rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100"
                   >
-                    <i class="pi pi-trash text-sm"></i>
+                    <i class="text-sm pi pi-trash"></i>
                   </button>
                 </div>
 
@@ -1460,9 +1476,9 @@ const onSubmit = veeHandleSubmit(
 
                 <!-- Min/Max Selection Settings -->
                 <div
-                  class="bg-gray-50 rounded-lg border border-gray-200 p-3 space-y-3"
+                  class="p-3 space-y-3 border border-gray-200 rounded-lg bg-gray-50"
                 >
-                  <label class="text-xs font-semibold text-gray-700 block">
+                  <label class="block text-xs font-semibold text-gray-700">
                     Aturan Pemilihan
                   </label>
 
@@ -1546,7 +1562,7 @@ const onSubmit = veeHandleSubmit(
                   <!-- Validation Warning -->
                   <div
                     v-if="group.min_selection > group.max_selection"
-                    class="flex items-start gap-2 p-2 bg-red-50 border border-red-200 rounded-lg"
+                    class="flex items-start gap-2 p-2 border border-red-200 rounded-lg bg-red-50"
                   >
                     <i
                       class="pi pi-exclamation-triangle text-red-600 text-xs mt-0.5"
@@ -1561,13 +1577,13 @@ const onSubmit = veeHandleSubmit(
                 <button
                   @click="toggleAddOnGroupExpand(group.id)"
                   type="button"
-                  class="w-full flex items-center justify-between py-3 px-4 bg-merchant-primary/5 rounded-lg border border-merchant-primary/20 hover:bg-merchant-primary/10 transition"
+                  class="flex items-center justify-between w-full px-4 py-3 transition border rounded-lg bg-merchant-primary/5 border-merchant-primary/20 hover:bg-merchant-primary/10"
                 >
                   <div class="flex items-center gap-2">
                     <i class="pi pi-list text-merchant-primary"></i>
                     <span class="text-sm font-semibold text-black">
                       Kelola Opsi
-                      <span class="text-muted-foreground ml-1">
+                      <span class="ml-1 text-muted-foreground">
                         ({{
                           group.options.filter((opt) => opt.name.trim()).length
                         }})
@@ -1588,23 +1604,23 @@ const onSubmit = veeHandleSubmit(
               <!-- Accordion Content - Options List -->
               <transition
                 enter-active-class="transition-all duration-300 ease-out"
-                enter-from-class="max-h-0 opacity-0"
+                enter-from-class="opacity-0 max-h-0"
                 enter-to-class="max-h-[2000px] opacity-100"
                 leave-active-class="transition-all duration-200 ease-in"
                 leave-from-class="max-h-[2000px] opacity-100"
-                leave-to-class="max-h-0 opacity-0"
+                leave-to-class="opacity-0 max-h-0"
               >
                 <div
                   v-if="isAddOnGroupExpanded(group.id)"
-                  class="border-t border-gray-200 overflow-hidden"
+                  class="overflow-hidden border-t border-gray-200"
                 >
-                  <div class="p-4 pt-3 bg-gray-50 space-y-3">
+                  <div class="p-4 pt-3 space-y-3 bg-gray-50">
                     <!-- Options Header -->
                     <div
                       class="flex items-center justify-between pb-2 border-b border-gray-300"
                     >
                       <label
-                        class="text-xs font-bold text-black uppercase tracking-wide"
+                        class="text-xs font-bold tracking-wide text-black uppercase"
                       >
                         Daftar Opsi
                       </label>
@@ -1612,7 +1628,7 @@ const onSubmit = veeHandleSubmit(
                         @click="addAddOnOption(gIndex)"
                         type="button"
                         :disabled="group.options.length >= maxAddOnOptions"
-                        class="text-xs text-merchant-primary hover:underline flex items-center gap-1 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                        class="flex items-center gap-1 text-xs font-semibold text-merchant-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <i class="pi pi-plus text-[10px]"></i>
                         Tambah
@@ -1624,7 +1640,7 @@ const onSubmit = veeHandleSubmit(
                       <div
                         v-for="(option, oIndex) in group.options"
                         :key="option.id"
-                        class="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow"
+                        class="p-3 transition-shadow bg-white border border-gray-200 rounded-lg hover:shadow-md"
                       >
                         <div class="flex items-start gap-2.5">
                           <div
@@ -1658,7 +1674,7 @@ const onSubmit = veeHandleSubmit(
                             />
                             <p
                               v-if="option.price === 0"
-                              class="text-xs text-gray-500 -mt-1 flex items-center gap-1"
+                              class="flex items-center gap-1 -mt-1 text-xs text-gray-500"
                             >
                               <i class="pi pi-info-circle text-[10px]"></i>
                               Gratis (Rp 0)
@@ -1672,7 +1688,7 @@ const onSubmit = veeHandleSubmit(
                             type="button"
                             class="w-8 h-8 rounded-lg bg-white border border-gray-300 hover:bg-red-50 hover:border-red-300 hover:text-red-600 flex items-center justify-center transition flex-shrink-0 mt-0.5"
                           >
-                            <i class="pi pi-times text-sm"></i>
+                            <i class="text-sm pi pi-times"></i>
                           </button>
                         </div>
                       </div>
@@ -1685,7 +1701,7 @@ const onSubmit = veeHandleSubmit(
                       :disabled="group.options.length >= maxAddOnOptions"
                       class="w-full py-2.5 px-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-merchant-primary font-bold hover:border-merchant-primary hover:bg-white transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <i class="pi pi-plus text-xs"></i>
+                      <i class="text-xs pi pi-plus"></i>
                       Tambah Opsi Baru
                     </button>
                   </div>
@@ -1697,16 +1713,16 @@ const onSubmit = veeHandleSubmit(
           <!-- Empty State (tetap sama) -->
           <div
             v-else
-            class="text-center py-8 px-4 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50"
+            class="px-4 py-8 text-center border-2 border-gray-300 border-dashed rounded-xl bg-gray-50"
           >
-            <i class="pi pi-plus-circle text-4xl text-gray-300 mb-3 block"></i>
-            <p class="text-sm text-gray-500 mb-3">
+            <i class="block mb-3 text-4xl text-gray-300 pi pi-plus-circle"></i>
+            <p class="mb-3 text-sm text-gray-500">
               Belum ada grup add-on ditambahkan
             </p>
             <button
               @click="addAddOnGroup"
               type="button"
-              class="inline-flex items-center gap-2 px-4 py-2 bg-merchant-primary text-white rounded-lg hover:bg-merchant-primary/90 transition text-sm font-medium"
+              class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition rounded-lg bg-merchant-primary hover:bg-merchant-primary/90"
             >
               <i class="pi pi-plus"></i>
               Tambah Grup Pertama
@@ -1716,7 +1732,7 @@ const onSubmit = veeHandleSubmit(
 
         <!-- Min Purchase -->
         <div
-          class="bg-white mb-2 sm:mb-4 p-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
+          class="p-4 mb-2 bg-white sm:mb-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
         >
           <TextField
             name="min_purchase"
@@ -1729,7 +1745,7 @@ const onSubmit = veeHandleSubmit(
         </div>
 
         <!-- ✅ FIXED: Desktop Submit Button -->
-        <div class="hidden sm:flex justify-end">
+        <div class="justify-end hidden sm:flex">
           <Button
             @click="onSubmit"
             variant="merchant"
@@ -1742,7 +1758,7 @@ const onSubmit = veeHandleSubmit(
 
         <!-- ✅ FIXED: Mobile Submit Button -->
         <div
-          class="fixed sm:hidden bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-40"
+          class="fixed bottom-0 left-0 right-0 z-40 p-4 bg-white border-t border-gray-200 sm:hidden"
         >
           <Button type="submit" :loading="loading" variant="merchant" block>
             Simpan
@@ -1765,7 +1781,7 @@ const onSubmit = veeHandleSubmit(
     >
       <!-- Bulk Edit Section -->
       <div
-        class="px-2 sm:px-0 py-4 bg-merchant-primary/5 border border-muted-background rounded-xl mb-4"
+        class="px-2 py-4 mb-4 border sm:px-0 bg-merchant-primary/5 border-muted-background rounded-xl"
       >
         <div class="px-4">
           <div class="flex items-center justify-between mb-3">
@@ -1775,7 +1791,7 @@ const onSubmit = veeHandleSubmit(
               @click="toggleAllCombinations"
             >
               <div
-                class="w-5 h-5 rounded border-2 flex items-center justify-center transition"
+                class="flex items-center justify-center w-5 h-5 transition border-2 rounded"
                 :class="
                   allCombinationsSelected
                     ? 'bg-merchant-primary border-merchant-primary'
@@ -1784,7 +1800,7 @@ const onSubmit = veeHandleSubmit(
               >
                 <i
                   v-if="allCombinationsSelected"
-                  class="pi pi-check text-white text-xs"
+                  class="text-xs text-white pi pi-check"
                 ></i>
               </div>
               <span class="text-xs font-medium text-gray-700">Pilih Semua</span>
@@ -1839,7 +1855,7 @@ const onSubmit = veeHandleSubmit(
           v-for="(combo, cIndex) in combinations"
           :key="cIndex"
           @click="toggleCombinationSelection(cIndex)"
-          class="bg-white border-2 rounded-xl p-4 transition cursor-pointer"
+          class="p-4 transition bg-white border-2 cursor-pointer rounded-xl"
           :class="
             selectedCombinations.has(cIndex)
               ? 'border-merchant-primary bg-merchant-primary/5'
@@ -1857,15 +1873,15 @@ const onSubmit = veeHandleSubmit(
             >
               <i
                 v-if="selectedCombinations.has(cIndex)"
-                class="pi pi-check text-white text-xs"
+                class="text-xs text-white pi pi-check"
               ></i>
             </div>
-            <h4 class="text-sm font-semibold text-black flex-1">
+            <h4 class="flex-1 text-sm font-semibold text-black">
               {{ combo.combination }}
             </h4>
           </div>
 
-          <div class="space-y-3 pl-8" @click.stop>
+          <div class="pl-8 space-y-3" @click.stop>
             <!-- ✅ FIXED: Unique name dengan cIndex -->
             <TextField
               :name="`combination_${cIndex}_sku`"

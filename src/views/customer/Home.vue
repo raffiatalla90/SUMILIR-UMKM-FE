@@ -84,7 +84,8 @@ function nextBanner() {
 }
 function prevBanner() {
   activeBanner.value =
-    (activeBanner.value - 1 + eventBannerList.value.length) % eventBannerList.value.length;
+    (activeBanner.value - 1 + eventBannerList.value.length) %
+    eventBannerList.value.length;
 }
 function slideTo(idx) {
   activeBanner.value = idx;
@@ -137,7 +138,9 @@ onMounted(async () => {
       params: { status: "published" },
     });
     // Ambil hanya event yang punya banner
-    eventBannerList.value = (res.data.data || []).filter((e) => e.banner_img_path);
+    eventBannerList.value = (res.data.data || []).filter(
+      (e) => e.banner_img_path
+    );
   } catch (e) {
     eventBannerList.value = [];
   }
@@ -159,45 +162,84 @@ watch(
 </script>
 
 <template>
-  <div class="app-container relative">
+  <div class="relative app-container">
+    <section class="sr-only">
+      <h1>Sumilir – Marketplace UMKM Lokal Banyuanyar</h1>
+      <p>
+        Sumilir adalah platform marketplace UMKM lokal Banyuanyar yang
+        menghubungkan penjual dan pembeli untuk produk kuliner, toko, dan jasa.
+      </p>
+    </section>
+
     <!-- Section: Hero + Event Banner Slider -->
     <section id="hero" class="relative pb-2">
       <div class="relative w-full">
-        <div class="relative h-[240px] sm:h-[370px] overflow-hidden rounded-base">
+        <div
+          class="relative h-[240px] sm:h-[370px] overflow-hidden rounded-base"
+        >
           <!-- Slider Images -->
-          <div v-for="(banner, idx) in eventBannerList" :key="banner.id"
+          <div
+            v-for="(banner, idx) in eventBannerList"
+            :key="banner.id"
             class="absolute inset-0 transition-all duration-700 ease-in-out"
-            :class="activeBanner === idx ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'">
+            :class="
+              activeBanner === idx
+                ? 'opacity-100 z-10'
+                : 'opacity-0 z-0 pointer-events-none'
+            "
+          >
             <img
               :src="getImageUrl(banner.banner_img_path)"
-              class="w-full h-full object-cover"
+              class="object-cover w-full h-full"
               :alt="banner.event_name"
             />
             <!-- Optional: Overlay title -->
-            <div class="absolute bottom-0 left-0 w-full bg-black/30 text-white p-4">
-              <h2 class="text-lg sm:text-2xl font-bold">{{ banner.event_name }}</h2>
+            <div
+              class="absolute bottom-0 left-0 w-full p-4 text-white bg-black/30"
+            >
+              <h2 class="text-lg font-bold sm:text-2xl">
+                {{ banner.event_name }}
+              </h2>
               <p class="text-sm">{{ banner.event_description }}</p>
             </div>
           </div>
           <!-- Slider Controls -->
           <button
             type="button"
-            class="absolute top-1/2 left-2 -translate-y-1/2 z-20 flex items-center justify-center h-10 w-10 rounded-base bg-white/30 hover:bg-white/50 transition"
+            class="absolute z-20 flex items-center justify-center w-10 h-10 transition -translate-y-1/2 top-1/2 left-2 rounded-base bg-white/30 hover:bg-white/50"
             @click="prevBanner"
             aria-label="Previous"
           >
-            <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m15 19-7-7 7-7"/></svg>
+            <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24">
+              <path
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="m15 19-7-7 7-7"
+              />
+            </svg>
           </button>
           <button
             type="button"
-            class="absolute top-1/2 right-2 -translate-y-1/2 z-20 flex items-center justify-center h-10 w-10 rounded-base bg-white/30 hover:bg-white/50 transition"
+            class="absolute z-20 flex items-center justify-center w-10 h-10 transition -translate-y-1/2 top-1/2 right-2 rounded-base bg-white/30 hover:bg-white/50"
             @click="nextBanner"
             aria-label="Next"
           >
-            <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m9 5 7 7-7 7"/></svg>
+            <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24">
+              <path
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="m9 5 7 7-7 7"
+              />
+            </svg>
           </button>
           <!-- Slider Indicators -->
-          <div class="absolute z-30 flex -translate-x-1/2 bottom-4 left-1/2 space-x-3">
+          <div
+            class="absolute z-30 flex space-x-3 -translate-x-1/2 bottom-4 left-1/2"
+          >
             <button
               v-for="(banner, idx) in eventBannerList"
               :key="banner.id"
@@ -212,16 +254,16 @@ watch(
         </div>
       </div>
       <div
-        class="flex justify-center -mt-10 px-4 relative z-10 max-w-7xl mx-auto"
+        class="relative z-10 flex justify-center px-4 mx-auto -mt-10 max-w-7xl"
       >
         <div class="w-full sm:w-[906px]">
           <div
-            class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            class="overflow-hidden bg-white border border-gray-100 shadow-xl rounded-2xl"
           >
             <!-- Search -->
-            <div class="p-4 sm:p-5 border-b border-gray-100">
+            <div class="p-4 border-b border-gray-100 sm:p-5">
               <Form @submit="onSearch">
-                <div class="flex w-full items-center gap-2 sm:gap-3">
+                <div class="flex items-center w-full gap-2 sm:gap-3">
                   <TextField
                     name="search"
                     ref="searchInputRef"
@@ -235,7 +277,7 @@ watch(
                   <Button
                     type="submit"
                     variant="secondary"
-                    class="text-sm sm:text-base px-3 sm:px-4"
+                    class="px-3 text-sm sm:text-base sm:px-4"
                   >
                     Search
                   </Button>
@@ -265,7 +307,7 @@ watch(
       <div class="pl-4 lg:pl-[54px]">
         <div class="inline-flex items-center gap-2.5 w-auto h-[35px] py-[5px]">
           <span
-            class="text-base sm:text-2xl lg:text-section-title font-semibold"
+            class="text-base font-semibold sm:text-2xl lg:text-section-title"
             >Cek Promo Menarik</span
           >
         </div>
@@ -300,7 +342,7 @@ watch(
       <div class="pl-4 lg:pl-[54px]">
         <div class="inline-flex items-center gap-2.5 w-auto h-[35px] py-[5px]">
           <span
-            class="text-base sm:text-2xl lg:text-section-title font-semibold"
+            class="text-base font-semibold sm:text-2xl lg:text-section-title"
             >Rekomendasi UMKM</span
           >
         </div>
@@ -308,7 +350,7 @@ watch(
 
       <div class="px-4 lg:px-[52px] mt-6 lg:mt-10">
         <div
-          class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8 gap-4 sm:gap-6"
+          class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8"
         >
           <!-- Skeleton loading -->
           <template v-if="isLoadingMerchants">

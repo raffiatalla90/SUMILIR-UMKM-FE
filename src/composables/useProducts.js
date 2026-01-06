@@ -33,7 +33,7 @@ export function useProducts() {
     minStock = null,
     maxStock = null,
     sortBy = "newest",
-    perPage = 15,
+    perPage = 10,
     page = 1,
   } = {}) => {
     if (!merchantId) {
@@ -252,7 +252,7 @@ export function useProducts() {
 
   // PUBLIC PRODUCTS (UMKM Toko & Kuliner)
 
-  const fetchProductsToko = async (limit = 15) => {
+  const fetchProductsToko = async (limit = 10) => {
     loading.value = true;
     try {
       const data = await ProductService.getPublicProducts({
@@ -268,7 +268,7 @@ export function useProducts() {
     }
   };
 
-  const fetchProductsKuliner = async (limit = 15) => {
+  const fetchProductsKuliner = async (limit = 10) => {
     loading.value = true;
     try {
       const data = await ProductService.getPublicProducts({

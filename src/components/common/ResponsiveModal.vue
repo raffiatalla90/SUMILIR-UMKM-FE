@@ -96,11 +96,11 @@ const handleBackdropClick = () => {
   <!-- ✅ UPDATED: Modal Container dengan max-height -->
   <transition
     enter-active-class="transition-all duration-300 ease-out"
-    enter-from-class="sm:opacity-0 sm:scale-95 translate-y-full sm:translate-y-0"
-    enter-to-class="sm:opacity-100 sm:scale-100 translate-y-0"
+    enter-from-class="translate-y-full sm:opacity-0 sm:scale-95 sm:translate-y-0"
+    enter-to-class="translate-y-0 sm:opacity-100 sm:scale-100"
     leave-active-class="transition-all duration-300 ease-in"
-    leave-from-class="sm:opacity-100 sm:scale-100 translate-y-0"
-    leave-to-class="sm:opacity-0 sm:scale-95 translate-y-full sm:translate-y-0"
+    leave-from-class="translate-y-0 sm:opacity-100 sm:scale-100"
+    leave-to-class="translate-y-full sm:opacity-0 sm:scale-95 sm:translate-y-0"
   >
     <div
       v-if="show"
@@ -128,13 +128,13 @@ const handleBackdropClick = () => {
           headerClass,
         ]"
       >
-        <div class="min-w-0 flex-1 pr-2">
-          <h2 class="text-base sm:text-lg font-semibold text-black truncate">
+        <div class="flex-1 min-w-0 pr-2">
+          <h2 class="text-base font-semibold text-black truncate sm:text-lg">
             {{ title }}
           </h2>
           <p
             v-if="subtitle"
-            class="text-xs sm:text-sm text-muted-foreground mt-1 truncate"
+            class="mt-1 text-xs truncate sm:text-sm text-muted-foreground"
           >
             {{ subtitle }}
           </p>
@@ -143,7 +143,7 @@ const handleBackdropClick = () => {
           v-if="showCloseButton"
           @click="handleClose"
           type="button"
-          class="w-8 h-8 rounded-full hover:bg-muted-background flex items-center justify-center transition flex-shrink-0"
+          class="flex items-center justify-center flex-shrink-0 w-8 h-8 transition rounded-full hover:bg-muted-background"
         >
           <i class="pi pi-times text-muted-foreground"></i>
         </button>
@@ -153,7 +153,7 @@ const handleBackdropClick = () => {
       <div
         :class="[
           'flex-1 overflow-y-auto overflow-x-hidden',
-          'px-4 sm:px-6 py-4',
+          'px-4 sm:px-6 py-4 mb-4 sm:mb-0',
           'custom-scrollbar', // ✅ Custom scrollbar class
           bodyClass,
         ]"

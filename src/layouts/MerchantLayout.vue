@@ -17,7 +17,9 @@ const showLogoutModal = ref(false);
 
 // ✅ Get merchantId dari route params
 const currentMerchantId = computed(() => {
-  if (!route || !route.params) return authStore.merchantId;
+  if (!route || !route.params || typeof route.params !== "object") {
+    return authStore.merchantId;
+  }
   return route.params.merchantId
     ? Number(route.params.merchantId)
     : authStore.merchantId;
@@ -51,10 +53,9 @@ const showMerchantSelector = computed(() => merchantsCount.value > 1);
 
 // ✅ Watch route changes untuk update active merchant
 watch(
-  () => route.params,
+  () => (route && route.params ? route.params : {}),
   (params) => {
     if (!params?.merchantId) return;
-
     authStore.setActiveMerchant(Number(params.merchantId));
   },
   { immediate: true }
@@ -83,9 +84,9 @@ const menuItems = computed(() => [
   //   route: `/merchant-center/${currentMerchantId.value}/community`,
   // },
   {
-    label: "Potongan Harga",
+    label: "Voucher",
     icon: "pi-tag",
-    route: `/merchant-center/${currentMerchantId.value}/discounts`,
+    route: `/merchant-center/${currentMerchantId.value}/vouchers`,
   },
 ]);
 
@@ -149,7 +150,7 @@ defineExpose({
       <div
         v-if="isOpen"
         @click="closeSidebar"
-        class="fixed inset-0 bg-black/50 z-40 sm:hidden"
+        class="fixed inset-0 z-40 bg-black/50 sm:hidden"
       ></div>
     </transition>
 
@@ -165,26 +166,30 @@ defineExpose({
       <!-- Header -->
       <div
         :class="[
-          'flex items-center  h-20 shadow-sm',
+          'flex items-center  h-23 ',
           isOpen
             ? 'justify-between px-4'
-            : 'justify-between px-4 sm:justify-center sm:px-4',
+            : 'justify-between px-4 sm:justify-center ',
         ]"
       >
         <router-link to="/">
           <img
-            v-if="isOpen"
             :src="LogoWithText"
             alt="SUMILIR"
             class=""
-            :class="['', isOpen ? 'ms-3 opacity-100 h-8' : 'opacity-0 h-0']"
+            :class="[
+              '',
+              isOpen
+                ? 'ms-3 opacity-100 h-8'
+                : 'sm:opacity-0 sm:h-0 sm:ms-0 ms-3 h-8',
+            ]"
           />
         </router-link>
 
         <!-- Hamburger Button -->
         <button
           @click="toggleSidebar"
-          class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition"
+          class="flex items-center justify-center w-8 h-8 transition rounded-full hover:bg-gray-100"
         >
           <i
             :class="[
@@ -196,7 +201,7 @@ defineExpose({
       </div>
 
       <!-- Menu Items -->
-      <nav class="flex-1 overflow-y-auto px-3 py-2">
+      <nav class="flex-1 px-3 py-2 overflow-y-auto">
         <ul class="space-y-1">
           <li v-for="item in menuItems" :key="item.route">
             <button
@@ -226,7 +231,7 @@ defineExpose({
                   'transition-all duration-300',
                   isOpen
                     ? 'opacity-100 w-auto'
-                    : 'opacity-100 w-auto sm:opacity-0 sm:w-0 sm:overflow-hidden',
+                    : 'opacity-100 w-auto sm:opacity-0 sm:w-0 sm:overflow-hidden sm:hidden',
                 ]"
               >
                 {{ item.label }}
@@ -237,7 +242,7 @@ defineExpose({
       </nav>
 
       <!-- Footer -->
-      <div class="border-t border-gray-200 p-3 space-y-2">
+      <div class="p-3 space-y-2 border-t border-gray-200">
         <!-- Notification -->
         <button
           :class="[
@@ -254,7 +259,7 @@ defineExpose({
               isOpen ? 'gap-3' : 'gap-3 sm:gap-0 sm:relative',
             ]"
           >
-            <i class="pi pi-bell text-lg text-gray-600 flex-shrink-0"></i>
+            <i class="flex-shrink-0 text-lg text-gray-600 pi pi-bell"></i>
             <span
               :class="[
                 'transition-all duration-300',
@@ -290,7 +295,7 @@ defineExpose({
           ]"
           :title="!isOpen ? 'Log Out' : ''"
         >
-          <i class="pi pi-sign-out text-lg flex-shrink-0"></i>
+          <i class="flex-shrink-0 text-lg pi pi-sign-out"></i>
           <span
             :class="[
               'transition-all duration-300',
@@ -306,11 +311,11 @@ defineExpose({
         <!-- ✅ Profile Card - Display current merchant based on route -->
         <div
           v-if="isOpen"
-          class="bg-linear-to-r from-merchant-primary to-merchant-primary/80 text-white rounded-xl p-4 mt-2 sm:block"
+          class="p-4 mt-2 text-white bg-linear-to-r from-merchant-primary to-merchant-primary/80 rounded-xl sm:block"
         >
           <div class="flex items-center gap-3">
             <div
-              class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-lg"
+              class="flex items-center justify-center flex-shrink-0 w-10 h-10 text-lg font-bold rounded-full bg-white/20"
             >
               {{ userInitial }}
             </div>
@@ -321,7 +326,7 @@ defineExpose({
                 {{ merchantName }}
               </p>
               <!-- ✅ Merchant Type dari route ID -->
-              <p class="text-xs opacity-90 truncate" :title="merchantType">
+              <p class="text-xs truncate opacity-90" :title="merchantType">
                 {{ merchantType }}
               </p>
               <!-- Badge multiple merchants -->
@@ -334,17 +339,17 @@ defineExpose({
             </div>
 
             <button
-              class="w-6 h-6 hover:bg-white/20 rounded-full flex items-center justify-center transition flex-shrink-0"
+              class="flex items-center justify-center flex-shrink-0 w-6 h-6 transition rounded-full hover:bg-white/20"
               title="Pengaturan"
             >
-              <i class="pi pi-ellipsis-v text-sm"></i>
+              <i class="text-sm pi pi-ellipsis-v"></i>
             </button>
           </div>
 
           <!-- ✅ Debug info (remove after testing) -->
           <div
             v-if="false"
-            class="mt-2 pt-2 border-t border-white/20 text-xs opacity-75"
+            class="pt-2 mt-2 text-xs border-t opacity-75 border-white/20"
           >
             <div>Route Merchant ID: {{ currentMerchantId }}</div>
             <div>Merchant Name: {{ merchantName }}</div>
@@ -355,7 +360,7 @@ defineExpose({
         <!-- Collapsed State -->
         <button
           v-else
-          class="hidden sm:flex w-full justify-center items-center p-3 bg-merchant-primary/10 rounded-lg hover:bg-merchant-primary/20 transition"
+          class="items-center justify-center hidden w-full p-3 transition rounded-lg sm:flex bg-merchant-primary/10 hover:bg-merchant-primary/20"
           :title="`${merchantName} - ${merchantType}`"
         >
           <span class="text-lg font-bold text-merchant-primary">
@@ -372,7 +377,7 @@ defineExpose({
         !isOpen ? 'sm:ml-16' : 'sm:ml-64',
       ]"
     >
-      <router-view v-slot="{ Component }">
+      <router-view :key="$route.fullPath" v-slot="{ Component }">
         <transition
           name="fade"
           mode="out-in"
@@ -393,11 +398,11 @@ defineExpose({
       title="Konfirmasi Logout"
       size="sm"
     >
-      <div class="text-center py-4">
+      <div class="py-4 text-center">
         <i
-          class="pi pi-exclamation-triangle text-5xl text-warning-foreground mb-4"
+          class="mb-4 text-5xl pi pi-exclamation-triangle text-warning-foreground"
         ></i>
-        <p class="text-base text-gray-700 mb-2">
+        <p class="mb-2 text-base text-gray-700">
           Apakah Anda yakin ingin keluar?
         </p>
         <p class="text-sm text-muted-foreground">

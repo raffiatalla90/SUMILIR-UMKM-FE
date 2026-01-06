@@ -60,7 +60,7 @@ const navigateTo = (path) => {
       <button
         v-if="crumb.path"
         @click="navigateTo(crumb.path)"
-        class="text-muted-foreground hover:text-merchant-primary transition flex items-center gap-2 text-base lg:text-2xl font-medium cursor-pointer"
+        class="flex items-center gap-2 text-base font-medium transition cursor-pointer text-muted-foreground hover:text-merchant-primary sm:text-2xl"
         :class="{ '': crumb.path }"
       >
         <i v-if="crumb.icon" :class="crumb.icon" class="text-sm"></i>
@@ -70,16 +70,16 @@ const navigateTo = (path) => {
       <!-- Current breadcrumb (no link) -->
       <span
         v-else
-        class="text-merchant-primary font-bold text-base lg:text-2xl whitespace-nowrap"
+        class="text-base font-bold text-merchant-primary sm:text-2xl whitespace-nowrap"
       >
-        <i v-if="crumb.icon" :class="crumb.icon" class="text-sm mr-1"></i>
+        <i v-if="crumb.icon" :class="crumb.icon" class="mr-1 text-sm"></i>
         {{ crumb.label }}
       </span>
 
       <!-- Separator -->
       <i
         v-if="index < processedItems.length - 1"
-        class="pi pi-chevron-right text-gray-400 text-xs"
+        class="text-xs text-gray-400 pi pi-chevron-right"
       ></i>
     </template>
   </nav>

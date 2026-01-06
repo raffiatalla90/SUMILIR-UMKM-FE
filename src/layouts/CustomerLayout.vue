@@ -1,11 +1,19 @@
 <script setup>
-import { ref, computed, nextTick, watch } from "vue";
+import {
+  ref,
+  computed,
+  nextTick,
+  watch,
+  onMounted,
+  onBeforeUnmount,
+} from "vue";
 import { useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import Button from "@/components/common/Button.vue";
 import { useRouter } from "vue-router";
 import LogoText from "@/assets/icons/LogoWithText.png";
 import LogoNoText from "@/assets/icons/LogoNoText.png";
+import Textfield from "@/components/forms/TextField.vue";
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
@@ -126,9 +134,25 @@ function toggleSearch() {
 
     nextTick(() => {
       // optional: auto focus input fixed search
-      // kamu bisa pakai ref khusus jika mau
+      searchInputRef.value?.focus();
     });
   }
+}
+
+function handleClickOutside(event) {
+  if (!showSearch.value) return;
+
+  const searchEl = searchBarRef.value;
+
+  // Jika klik DI DALAM search bar → abaikan
+  if (searchEl && searchEl.contains(event.target)) return;
+
+  // Jika klik tombol search → abaikan (biar tidak langsung nutup)
+  const searchButton = event.target.closest("[aria-label='Cari']");
+  if (searchButton) return;
+
+  // Selain itu → tutup search
+  showSearch.value = false;
 }
 
 function submitSearch() {
@@ -150,28 +174,35 @@ watch(
   },
   { immediate: true }
 );
+onMounted(() => {
+  document.addEventListener("click", handleClickOutside);
+});
+onBeforeUnmount(() => {
+  document.removeEventListener("click", handleClickOutside);
+});
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col pb-16 sm:pb-0">
+  <div class="flex flex-col min-h-screen pb-16 sm:pb-0">
     <!-- Navbar Desktop (hidden on mobile) -->
-    <div
+    <nav
       class="hidden sm:block sticky top-0 z-50 w-full h-[91px] bg-white border-b border-gray-200 shadow-sm"
     >
       <div class="max-w-[1440px] mx-auto h-full px-4">
-        <div class="h-full flex items-center">
+        <div class="flex items-center h-full">
           <!-- Brand -->
           <RouterLink
             to="/"
             class="text-[30px] font-bold leading-[100%] tracking-[0] text-black"
+            title="Sumilir – Marketplace UMKM Lokal Banyuanyar"
           >
-            <img :src="LogoText" alt="SUMILIR" class="h-10 hidden md:block" />
+            <img :src="LogoText" alt="SUMILIR" class="hidden h-10 md:block" />
             <img :src="LogoNoText" alt="SUMILIR" class="h-10 md:hidden" />
           </RouterLink>
 
           <!-- Menu Desktop (tanpa profile, karena sudah di kanan) -->
           <ul
-            class="flex absolute left-1/2 -translate-x-1/2 items-center gap-8"
+            class="absolute flex items-center gap-8 -translate-x-1/2 left-1/2"
           >
             <li
               v-for="m in menus
@@ -188,12 +219,12 @@ watch(
                 <!-- Icon dan label seperti sebelumnya -->
                 <span
                   v-html="m.icon"
-                  class="lg:hidden block w-6 h-6 transition-colors hover:text-primary duration-200"
+                  class="block w-6 h-6 transition-colors duration-200 lg:hidden hover:text-primary"
                   :class="isMenuActive(m) ? 'text-primary' : 'text-black'"
                 ></span>
                 <span class="relative hidden lg:inline-block">
                   <span
-                    class="block select-none transition-colors hover:text-primary duration-200"
+                    class="block transition-colors duration-200 select-none hover:text-primary"
                     :class="isMenuActive(m) ? 'text-primary' : 'text-black'"
                   >
                     {{ m.label }}
@@ -205,12 +236,12 @@ watch(
           <!-- ...existing code... -->
 
           <!-- Right side -->
-          <div class="ml-auto flex items-center gap-4">
+          <div class="flex items-center gap-4 ml-auto">
             <!-- Search Button -->
-            <div class="border-r border-muted-foreground px-4">
+            <div class="px-4 border-r border-muted-foreground">
               <button
                 @click="toggleSearch"
-                class="p-2 px-3 rounded-full hover:bg-gray-100 transition"
+                class="p-2 px-3 transition rounded-full hover:bg-gray-100"
                 aria-label="Cari"
               >
                 <i class="pi pi-search"></i>
@@ -220,17 +251,17 @@ watch(
             <template v-if="isAuthenticated">
               <RouterLink
                 to="/profile"
-                class="flex items-center md:gap-2 gap-4 hover:opacity-80 transition"
+                class="flex items-center gap-4 transition md:gap-2 hover:opacity-80"
               >
                 <img
                   v-if="user?.avatar"
                   :src="user?.avatar"
                   alt="Foto Profil"
-                  class="w-10 h-10 rounded-full object-cover"
+                  class="object-cover w-10 h-10 rounded-full"
                 />
                 <span
                   v-else
-                  class="w-10 h-10 rounded-full bg-muted-background flex items-center justify-center text-muted-foreground text-2xl font-bold"
+                  class="flex items-center justify-center w-10 h-10 text-2xl font-bold rounded-full bg-muted-background text-muted-foreground"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -259,48 +290,32 @@ watch(
           </div>
         </div>
       </div>
-    </div>
+    </nav>
     <!-- SEARCH BAR (Desktop) -->
     <transition
       enter-active-class="transition-all duration-300 ease-out"
-      enter-from-class="opacity-0 -translate-y-2"
-      enter-to-class="opacity-100 translate-y-0"
+      enter-from-class="-translate-y-2 opacity-0"
+      enter-to-class="translate-y-0 opacity-100"
       leave-active-class="transition-all duration-200 ease-in"
-      leave-from-class="opacity-100 translate-y-0"
-      leave-to-class="opacity-0 -translate-y-2"
+      leave-from-class="translate-y-0 opacity-100"
+      leave-to-class="-translate-y-2 opacity-0"
     >
       <div
         v-if="showSearch"
+        ref="searchBarRef"
         class="hidden sm:block bg-white border-b border-gray-200 shadow-sm fixed top-[91px] left-0 right-0 z-40"
       >
         <div class="max-w-[1440px] mx-auto px-4 py-4">
           <form @submit.prevent="submitSearch" class="relative">
-            <input
+            <Textfield
+              ref="searchInputRef"
               v-model="searchQuery"
-              type="text"
+              name="search-navbar"
               placeholder="Cari produk, jasa, atau UMKM…"
-              class="w-full h-12 rounded-xl border border-gray-300 pl-12 pr-4 text-sm focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-muted-foreground"
-              autofocus
+              :hideLabel="true"
+              variant="primary"
+              customClass=""
             />
-
-            <span
-              class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="1.5"
-                stroke="currentColor"
-                class="w-5 h-5"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="m21 21-4.35-4.35m0 0A7.5 7.5 0 1 0 10.5 18a7.5 7.5 0 0 0 6.15-3.35Z"
-                />
-              </svg>
-            </span>
           </form>
         </div>
       </div>
@@ -313,7 +328,7 @@ watch(
 
     <!-- Bottom Dock Navigation (Mobile only) - 5 items termasuk Profile -->
     <nav
-      class="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg"
+      class="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg sm:hidden"
     >
       <div class="flex items-center justify-around h-16 px-1">
         <RouterLink
@@ -332,11 +347,11 @@ watch(
               v-if="user?.avatar"
               :src="user?.avatar"
               alt="Foto Profil"
-              class="w-6 h-6 rounded-full object-cover"
+              class="object-cover w-6 h-6 rounded-full"
             />
             <span
               v-else
-              class="w-7 h-7 rounded-full bg-muted-background flex items-center justify-center text-black text-2xl font-bold"
+              class="flex items-center justify-center text-2xl font-bold text-black rounded-full w-7 h-7 bg-muted-background"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -363,7 +378,7 @@ watch(
 
     <!-- Footer Desktop -->
     <footer
-      class="hidden sm:block bg-gray-100 py-6 text-center text-sm text-muted-foreground"
+      class="hidden py-6 text-sm text-center bg-gray-100 sm:block text-muted-foreground"
     >
       <p>&copy; {{ new Date().getFullYear() }} SUMILIR. All rights reserved.</p>
     </footer>

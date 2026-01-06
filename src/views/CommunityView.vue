@@ -5,13 +5,18 @@
       class="relative w-full h-[120px] sm:h-[300px] md:h-[360px] bg-secondary overflow-hidden flex items-center"
     >
       <div
-        class="relative z-10 flex flex-col justify-center pl-4 sm:pl-8 md:pl-12 lg:pl-36 pr-2 h-full w-full"
+        class="relative z-10 flex flex-col justify-center w-full h-full pl-4 pr-2 sm:pl-8 md:pl-12 lg:pl-36"
       >
         <h1
           class="font-bold text-white text-[24px] sm:text-[36px] lg:text-[72px] tracking-widest leading-none font-inter text-left"
         >
           KOMUNITAS
         </h1>
+        <p class="sr-only">
+          Komunitas UMKM lokal Banyuanyar di Sumilir untuk berbagi informasi,
+          diskusi, dan promosi antar pelaku usaha dan masyarakat.
+        </p>
+
         <div class="flex items-center mt-2">
           <span
             class="block text-white text-[10px] sm:text-[18px] md:text-[28px] font-normal tracking-[0.3em] text-left min-h-6 sm:min-h-8 md:min-h-8 font-inter"
@@ -33,7 +38,7 @@
       </div>
       <img
         :src="bannerImg"
-        alt="Banner Komunitas"
+        alt="Komunitas UMKM Lokal Banyuanyar Sumilir"
         class="absolute inset-0 w-full h-[100px] md:top-10 md:h-60 lg:h-80 object-cover"
       />
     </header>
@@ -42,7 +47,7 @@
     <div class="relative w-full">
       <!-- Mobile/tablet menubar -->
       <div
-        class="lg:hidden bg-white border-b pt-4 border-gray-100 px-2 py-2 rounded-lg flex gap-2 items-center justify-between z-30"
+        class="z-30 flex items-center justify-between gap-2 px-2 py-2 pt-4 bg-white border-b border-gray-100 rounded-lg lg:hidden"
         :class="
           isMenubarSticky
             ? 'fixed top-0 left-0 right-0 mx-4 max-w-[calc(100%-2rem)] rounded-full shadow-md'
@@ -52,7 +57,7 @@
       >
         <button
           @click="showCreatePost = true"
-          class="flex items-center gap-1 rounded-full bg-secondary text-white px-3 py-2 text-xs font-semibold shadow transition hover:bg-secondary/90"
+          class="flex items-center gap-1 px-3 py-2 text-xs font-semibold text-white transition rounded-full shadow bg-secondary hover:bg-secondary/90"
         >
           <svg
             class="w-4 h-4"
@@ -66,10 +71,10 @@
           <span class="hidden sm:inline">Buat Post</span>
         </button>
         <div
-          class="flex-1 flex items-center bg-gray-50 rounded-full px-2 py-1 shadow border border-gray-200 mx-2"
+          class="flex items-center flex-1 px-2 py-1 mx-2 border border-gray-200 rounded-full shadow bg-gray-50"
         >
           <svg
-            class="w-4 h-4 text-gray-400 mr-1"
+            class="w-4 h-4 mr-1 text-gray-400"
             fill="none"
             stroke="currentColor"
             stroke-width="2"
@@ -82,13 +87,13 @@
             type="text"
             placeholder="Cari postingan..."
             v-model="searchQuery"
-            class="flex-1 bg-transparent outline-none text-gray-700 text-xs"
+            class="flex-1 text-xs text-gray-700 bg-transparent outline-none"
           />
         </div>
         <div class="relative">
           <button
             @click="toggleSortPopup"
-            class="rounded-full px-2 py-1 bg-secondary text-white border shadow transition text-xs flex items-center gap-1 font-semibold"
+            class="flex items-center gap-1 px-2 py-1 text-xs font-semibold text-white transition border rounded-full shadow bg-secondary"
             aria-haspopup="true"
             :aria-expanded="String(showSortPopup)"
           >
@@ -148,10 +153,10 @@
           <!-- Sort popup (mobile) -->
           <div
             v-if="showSortPopup"
-            class="absolute top-10 right-0 bg-white rounded-xl shadow-lg border border-gray-100 py-2 w-32 z-50"
+            class="absolute right-0 z-50 w-32 py-2 bg-white border border-gray-100 shadow-lg top-10 rounded-xl"
           >
             <button
-              class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+              class="block w-full px-4 py-2 text-sm text-left hover:bg-gray-100"
               :class="
                 sortActive === 'views_count'
                   ? 'bg-secondary/10 text-secondary font-bold'
@@ -176,7 +181,7 @@
               Populer
             </button>
             <button
-              class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+              class="block w-full px-4 py-2 text-sm text-left hover:bg-gray-100"
               :class="
                 sortActive === 'created_at_desc'
                   ? 'bg-secondary/10 text-secondary font-bold'
@@ -203,7 +208,7 @@
               Terbaru
             </button>
             <button
-              class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+              class="block w-full px-4 py-2 text-sm text-left hover:bg-gray-100"
               :class="
                 sortActive === 'created_at_asc'
                   ? 'bg-secondary/10 text-secondary font-bold'
@@ -235,7 +240,7 @@
 
       <!-- Content (centered) -->
       <main
-        class="max-w-3xl mx-auto py-4 px-4"
+        class="max-w-3xl px-4 py-4 mx-auto"
         :class="isMenubarSticky ? 'mt-14' : ''"
       >
         <CreatePostModal
@@ -244,12 +249,12 @@
           @created="fetchPosts"
         />
 
-        <div v-if="loading" class="text-center py-8">Loading...</div>
+        <div v-if="loading" class="py-8 text-center">Loading...</div>
 
         <div v-else class="space-y-6">
           <div
             v-if="filteredPosts.length === 0"
-            class="text-center text-gray-500 py-8"
+            class="py-8 text-center text-gray-500"
           >
             Belum ada post.
           </div>
@@ -257,7 +262,7 @@
           <article
             v-for="post in filteredPosts"
             :key="post.id"
-            class="bg-white rounded-2xl shadow-md p-5"
+            class="p-5 bg-white shadow-md rounded-2xl"
           >
             <!-- header -->
             <div class="flex items-start gap-4 mb-4">
@@ -267,7 +272,7 @@
                   '/storage/profilepicdefault.png'
                 "
                 alt="avatar"
-                class="w-12 h-12 rounded-full object-cover"
+                class="object-cover w-12 h-12 rounded-full"
                 loading="lazy"
               />
               <div class="flex-1">
@@ -281,7 +286,7 @@
                         {{ post.author?.name }}
                       </router-link>
                     </div>
-                    <div class="text-xs text-gray-500 mt-1">
+                    <div class="mt-1 text-xs text-gray-500">
                       {{ formatDateTime(post.created_at) }}
                     </div>
                   </div>
@@ -308,10 +313,13 @@
 
             <!-- Title & content -->
             <div class="mb-3">
-              <h2
-                class="font-bold text-gray-900 text-[16px] sm:text-[18px] md:text-lg"
-                v-html="highlightText(post.post_title)"
-              ></h2>
+              <h2 class="font-bold">
+                <router-link
+                  :to="`/community/${post.post_slug}`"
+                  class="hover:underline"
+                  v-html="highlightText(post.post_title)"
+                />
+              </h2>
             </div>
             <div
               class="mb-4 text-gray-800 whitespace-pre-line text-[12px] sm:text-[14px] md:text-base"
@@ -322,7 +330,7 @@
               <span
                 v-for="tag in extractHashtags(post.post_content)"
                 :key="tag"
-                class="text-xs bg-gray-100 px-2 py-1 rounded-full text-gray-600"
+                class="px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded-full"
                 >#{{ tag }}</span
               >
             </div>
@@ -334,7 +342,7 @@
                   <img
                     :src="imageUrl(post.images[0])"
                     alt=""
-                    class="w-full h-48 sm:h-56 md:h-72 lg:h-80 object-cover rounded-lg cursor-pointer"
+                    class="object-cover w-full h-48 rounded-lg cursor-pointer sm:h-56 md:h-72 lg:h-80"
                     loading="lazy"
                     @click="openLightbox(post.images, 0)"
                   />
@@ -348,7 +356,7 @@
                     v-for="(img, i) in post.images.slice(0, 2)"
                     :key="i"
                     :src="imageUrl(img)"
-                    class="w-full h-40 sm:h-48 md:h-56 object-cover rounded-lg cursor-pointer"
+                    class="object-cover w-full h-40 rounded-lg cursor-pointer sm:h-48 md:h-56"
                     loading="lazy"
                     @click="openLightbox(post.images, i)"
                   />
@@ -358,7 +366,7 @@
                   <img
                     :src="imageUrl(post.images[0])"
                     alt="hero"
-                    class="w-full h-48 sm:h-56 md:h-72 lg:h-80 object-cover rounded-lg cursor-pointer mb-2"
+                    class="object-cover w-full h-48 mb-2 rounded-lg cursor-pointer sm:h-56 md:h-72 lg:h-80"
                     loading="lazy"
                     @click="openLightbox(post.images, 0)"
                   />
@@ -367,7 +375,7 @@
                       v-for="(img, i) in post.images.slice(1, 3)"
                       :key="i"
                       :src="imageUrl(img)"
-                      class="w-full h-32 sm:h-40 md:h-44 object-cover rounded-md cursor-pointer"
+                      class="object-cover w-full h-32 rounded-md cursor-pointer sm:h-40 md:h-44"
                       loading="lazy"
                       @click="openLightbox(post.images, i + 1)"
                     />
@@ -378,7 +386,7 @@
                   <img
                     :src="imageUrl(post.images[0])"
                     alt="hero"
-                    class="w-full h-48 sm:h-56 md:h-72 lg:h-80 object-cover rounded-lg cursor-pointer mb-2"
+                    class="object-cover w-full h-48 mb-2 rounded-lg cursor-pointer sm:h-56 md:h-72 lg:h-80"
                     loading="lazy"
                     @click="openLightbox(post.images, 0)"
                   />
@@ -391,13 +399,13 @@
                       >
                         <img
                           :src="imageUrl(img)"
-                          class="w-full h-24 object-cover rounded-md cursor-pointer"
+                          class="object-cover w-full h-24 rounded-md cursor-pointer"
                           loading="lazy"
                           @click="openLightbox(post.images, i + 1)"
                         />
                         <div
                           v-if="i === 2 && post.images.length > 4"
-                          class="absolute inset-0 bg-black/45 rounded-md flex items-center justify-center text-white text-lg font-semibold cursor-pointer"
+                          class="absolute inset-0 flex items-center justify-center text-lg font-semibold text-white rounded-md cursor-pointer bg-black/45"
                           @click.stop="openLightbox(post.images, i + 1)"
                         >
                           <span>+{{ post.images.length - 4 }}</span>
@@ -405,7 +413,7 @@
                       </div>
                     </div>
 
-                    <div class="hidden md:grid md:grid-cols-3 gap-2">
+                    <div class="hidden gap-2 md:grid md:grid-cols-3">
                       <div
                         v-for="(img, i) in post.images.slice(1, 4)"
                         :key="i"
@@ -413,13 +421,13 @@
                       >
                         <img
                           :src="imageUrl(img)"
-                          class="w-full h-40 md:h-44 lg:h-48 object-cover rounded-md cursor-pointer"
+                          class="object-cover w-full h-40 rounded-md cursor-pointer md:h-44 lg:h-48"
                           loading="lazy"
                           @click="openLightbox(post.images, i + 1)"
                         />
                         <div
                           v-if="i === 2 && post.images.length > 4"
-                          class="absolute inset-0 bg-black/45 rounded-md flex items-center justify-center text-white text-lg font-semibold cursor-pointer"
+                          class="absolute inset-0 flex items-center justify-center text-lg font-semibold text-white rounded-md cursor-pointer bg-black/45"
                           @click.stop="openLightbox(post.images, i + 1)"
                         >
                           <span>+{{ post.images.length - 4 }}</span>
@@ -432,7 +440,7 @@
             </div>
 
             <!-- actions -->
-            <div class="mt-2 pt-3 border-t border-gray-100">
+            <div class="pt-3 mt-2 border-t border-gray-100">
               <div class="flex items-center justify-between gap-3">
                 <div class="flex items-center gap-4">
                   <router-link
@@ -471,7 +479,7 @@
         ref="sidebarRef"
       >
         <div
-          class="bg-white rounded-xl shadow p-3 xl:p-4 2xl:p-6 flex flex-col gap-3 xl:gap-4 2xl:gap-6"
+          class="flex flex-col gap-3 p-3 bg-white shadow rounded-xl xl:p-4 2xl:p-6 xl:gap-4 2xl:gap-6"
         >
           <!-- Buat Post Button -->
           <button
@@ -497,7 +505,7 @@
               class="flex-1 flex items-center bg-gray-50 rounded-full px-2 py-1.5 xl:py-2 shadow border border-gray-200"
             >
               <svg
-                class="w-4 h-4 text-gray-400 mr-2"
+                class="w-4 h-4 mr-2 text-gray-400"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
@@ -510,7 +518,7 @@
                 type="text"
                 placeholder="Cari postingan..."
                 v-model="searchQuery"
-                class="w-full bg-transparent outline-none text-gray-700 text-xs xl:text-sm 2xl:text-base px-0"
+                class="w-full px-0 text-xs text-gray-700 bg-transparent outline-none xl:text-sm 2xl:text-base"
               />
             </div>
 
@@ -518,7 +526,7 @@
             <div class="relative">
               <button
                 @click="toggleSortPopup"
-                class="flex items-center justify-center rounded-full bg-secondary text-white w-9 h-9 xl:w-10 xl:h-10 2xl:w-11 2xl:h-11 shadow transition text-sm xl:text-base"
+                class="flex items-center justify-center text-sm text-white transition rounded-full shadow bg-secondary w-9 h-9 xl:w-10 xl:h-10 2xl:w-11 2xl:h-11 xl:text-base"
                 aria-haspopup="true"
                 :aria-expanded="String(showSortPopup)"
               >
@@ -536,10 +544,10 @@
               <!-- Sort popup -->
               <div
                 v-if="showSortPopup"
-                class="absolute top-12 right-0 bg-white rounded-xl shadow-lg border border-gray-100 py-2 w-28 xl:w-32 2xl:w-36 z-50"
+                class="absolute right-0 z-50 py-2 bg-white border border-gray-100 shadow-lg top-12 rounded-xl w-28 xl:w-32 2xl:w-36"
               >
                 <button
-                  class="block w-full text-left px-3 xl:px-4 py-2 hover:bg-gray-100 text-xs xl:text-sm 2xl:text-base"
+                  class="block w-full px-3 py-2 text-xs text-left xl:px-4 hover:bg-gray-100 xl:text-sm 2xl:text-base"
                   :class="
                     sortActive === 'views_count'
                       ? 'bg-secondary/10 text-secondary font-bold'
@@ -550,7 +558,7 @@
                   Populer
                 </button>
                 <button
-                  class="block w-full text-left px-3 xl:px-4 py-2 hover:bg-gray-100 text-xs xl:text-sm 2xl:text-base"
+                  class="block w-full px-3 py-2 text-xs text-left xl:px-4 hover:bg-gray-100 xl:text-sm 2xl:text-base"
                   :class="
                     sortActive === 'created_at_desc'
                       ? 'bg-secondary/10 text-secondary font-bold'
@@ -561,7 +569,7 @@
                   Terbaru
                 </button>
                 <button
-                  class="block w-full text-left px-3 xl:px-4 py-2 hover:bg-gray-100 text-xs xl:text-sm 2xl:text-base"
+                  class="block w-full px-3 py-2 text-xs text-left xl:px-4 hover:bg-gray-100 xl:text-sm 2xl:text-base"
                   :class="
                     sortActive === 'created_at_asc'
                       ? 'bg-secondary/10 text-secondary font-bold'
@@ -587,7 +595,7 @@
 
       <div class="relative z-10 w-full max-w-4xl px-4">
         <button
-          class="absolute top-4 right-4 z-20 text-white bg-black/30 rounded-full p-2"
+          class="absolute z-20 p-2 text-white rounded-full top-4 right-4 bg-black/30"
           @click="closeLightbox"
           aria-label="close"
         >
@@ -596,7 +604,7 @@
 
         <button
           v-if="lightbox.index > 0"
-          class="absolute left-2 top-1/2 -translate-y-1/2 z-20 text-white bg-black/30 rounded-full p-2"
+          class="absolute z-20 p-2 text-white -translate-y-1/2 rounded-full left-2 top-1/2 bg-black/30"
           @click.stop="prevImage"
           aria-label="previous"
         >
@@ -605,7 +613,7 @@
 
         <button
           v-if="lightbox.index < lightbox.images.length - 1"
-          class="absolute right-2 top-1/2 -translate-y-1/2 z-20 text-white bg-black/30 rounded-full p-2"
+          class="absolute z-20 p-2 text-white -translate-y-1/2 rounded-full right-2 top-1/2 bg-black/30"
           @click.stop="nextImage"
           aria-label="next"
         >
@@ -621,7 +629,7 @@
           />
         </div>
 
-        <div class="text-center text-white text-sm mt-3">
+        <div class="mt-3 text-sm text-center text-white">
           {{ lightbox.index + 1 }} / {{ lightbox.images.length }}
         </div>
       </div>
@@ -630,10 +638,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick, computed } from "vue";
+import {
+  ref,
+  onMounted,
+  onBeforeUnmount,
+  nextTick,
+  computed,
+  watch,
+} from "vue";
 import CreatePostModal from "@/components/community/CreatePostModal.vue";
 import api from "@/libs/axios";
 import bannerImg from "@/assets/banner-community.png";
+import { setMeta } from "@/router/seo";
 
 /* STATE */
 const posts = ref([]);
@@ -842,7 +858,7 @@ function highlightText(text) {
   const re = new RegExp(`(${q})`, "gi");
   return text.replace(
     re,
-    '<span class="bg-secondary/20 text-secondary font-bold px-1 rounded">' +
+    '<span class="px-1 font-bold rounded bg-secondary/20 text-secondary">' +
       "$1" +
       "</span>"
   );

@@ -7,26 +7,23 @@ const data = ref(null);
 
 onMounted(async () => {
   try {
-    // const response = await api.get("/api/public/products", {
+    // const response = await api.get("/api/public/products/bakmi-jawa-0GYTK", {
+    //   // params: {
+    //   //   segments: ["UMKM Toko"],
+    //   // },
+    // });
+    // const response = await api.get("/api/cart");
+    // const response = await api.get(
+    //   "/api/products/kopi-arabica-premium-8xha9",
+    //   {}
+    // );
+    const response = await api.get(`/api/products/mie-ayam-komplit`, {});
+    // const response = await api.get("/api/public/search-merchants", {
     //   params: {
-    //     segments: ["UMKM Toko"],
+    //     q: "a",
+    //     // segment: ["UMKM Kuliner"],
     //   },
     // });
-    // const response = await getPublicProducts({
-    //   segment: ["UMKM Kuliner"],
-    //   limit: 12,
-    // });
-    // const response = await api.get("/api/public/search", {
-    //   params: {
-    //     q: "ayam",
-    //   },
-    // });
-    const response = await api.get("/api/public/search-merchants", {
-      params: {
-        q: "a",
-        segment: ["UMKM Kuliner"],
-      },
-    });
     data.value = response.data;
     console.log("API Response:", response.data);
   } catch (error) {
