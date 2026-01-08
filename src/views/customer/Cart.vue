@@ -166,8 +166,16 @@
                 v-if="item.isUnavailable"
                 class="absolute bottom-0 left-0 right-0 z-10 bg-black/70 backdrop-blur-sm text-white text-center pointer-events-none px-1 py-1"
               >
-                <p class="text-xs font-medium tracking-wide">
+                <p class="text-[9px] font-medium tracking-wide">
                   {{ item.stock === 0 ? "Habis" : "Diarsipkan" }}
+                </p>
+              </div>
+              <div
+                v-if="hasConfigurationIssue(item)"
+                class="absolute bottom-0 left-0 right-0 z-10 bg-black/70 backdrop-blur-sm text-white text-center pointer-events-none px-1 py-1"
+              >
+                <p class="text-[9px] font-medium tracking-wide">
+                  Tidak Tersedia
                 </p>
               </div>
             </div>
@@ -186,10 +194,10 @@
                 v-if="item.isUnavailable"
                 class="text-xs text-red-500 font-semibold mb-1"
               >
-                <span v-if="item.stock === 0"
+                <span v-if="item.stock === 0 && !hasConfigurationIssue(item)"
                   >Habis, coba lihat varian lain</span
                 >
-                <span v-else>Produk ini sedang tidak tersedia</span>
+                <span v-else>Produk ini tidak tersedia</span>
               </div>
 
               <!-- Variants -->
@@ -647,9 +655,8 @@ const shouldShowStockOnOption = (optionIndex) => {
   return optionIndex === 1;
 };
 const getVariantLabel = (item) => {
-  if (!item.selectedVariantId || !item.productDetails?.variants) {
-    return "";
-  }
+  const product = item.productDetails;
+  if (!product || !item.selectedVariantId || !product.variants) return "";
 
   const variant = item.productDetails.variants.find(
     (v) => v.id === item.selectedVariantId
@@ -1069,6 +1076,7 @@ const editVariantPrice = computed(() => {
 });
 const hasDeletedVariant = (item) => {
   if (!item.selectedVariantId) return false;
+  if (!item.productDetails || !item.productDetails.variants) return true;
 
   return !item.productDetails.variants.some(
     (v) => v.id === item.selectedVariantId
@@ -1077,6 +1085,7 @@ const hasDeletedVariant = (item) => {
 
 const hasDeletedAddon = (item) => {
   if (!item.selectedAddons?.length) return false;
+  if (!item.productDetails || !item.productDetails.addon_groups) return true;
 
   const validAddonIds = item.productDetails.addon_groups.flatMap((g) =>
     g.options.map((o) => o.addon_id)
@@ -1085,8 +1094,11 @@ const hasDeletedAddon = (item) => {
   return item.selectedAddons.some((a) => !validAddonIds.includes(a.addon_id));
 };
 
-const hasConfigurationIssue = (item) =>
-  hasDeletedVariant(item) || hasDeletedAddon(item);
+const hasConfigurationIssue = (item) => {
+  if (!item.productDetails) return true;
+
+  return hasDeletedVariant(item) || hasDeletedAddon(item);
+};
 
 const editAddonTotal = computed(() => {
   let total = 0;
@@ -1123,6 +1135,10 @@ const editItemVariant = (itemId, storeId) => {
   editingStoreId.value = storeId;
 
   const product = item.productDetails;
+  if (!product) {
+    toast.error("Produk sudah tidak tersedia");
+    return;
+  }
 
   /* ===============================
    * 1. OPTIONS (Size / Variant)

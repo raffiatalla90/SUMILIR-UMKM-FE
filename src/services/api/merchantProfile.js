@@ -1,7 +1,7 @@
-import axios from '@/libs/axios';
+import axios from "@/libs/axios";
 
 const getMerchantProfile = async (merchantId) => {
-  const response = await axios.get(`/merchants/${merchantId}/profile`);
+  const response = await axios.get(`api/merchants/${merchantId}/profile`);
   return response.data;
 };
 
@@ -11,7 +11,7 @@ const updateMerchantProfile = async (merchantId, payload) => {
     payload,
     {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        "Content-Type": "multipart/form-data",
       },
     }
   );

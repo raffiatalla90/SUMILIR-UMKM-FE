@@ -4,6 +4,7 @@ import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import Button from "@/components/common/Button.vue";
+import LogoWithText from "@/assets/icons/Merchant-with-Text.png";
 
 const router = useRouter();
 const route = useRoute();
@@ -137,16 +138,13 @@ defineExpose({
         ]"
       >
         <router-link to="/admin/dashboard">
-          <h2
-            :class="[
-              'text-lg font-bold text-gray-800 transition-all duration-300',
-              isOpen
-                ? 'opacity-100'
-                : 'opacity-100 sm:opacity-0 sm:w-0 sm:hidden',
-            ]"
-          >
-            Sumilir Logo
-          </h2>
+          <img
+            v-if="isOpen"
+            :src="LogoWithText"
+            alt="SUMILIR"
+            class=""
+            :class="['', isOpen ? 'opacity-100 h-8' : 'opacity-0 h-0']"
+          />
         </router-link>
 
         <!-- Hamburger Button -->

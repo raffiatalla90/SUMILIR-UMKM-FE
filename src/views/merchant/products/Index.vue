@@ -39,7 +39,9 @@ const debouncedLoadProductsByPerPage = () => {
 
 // ✅ Get merchantId from route
 const currentMerchantId = computed(() => {
-  return route.params.merchantId ? Number(route.params.merchantId) : null;
+  return route.params && route.params.merchantId
+    ? Number(route.params.merchantId)
+    : null;
 });
 
 // ✅ Breadcrumb items
@@ -60,6 +62,7 @@ const {
   products,
   loadingExport,
   loading,
+  loadingFetchProducts,
   pagination,
   fetchProducts,
   deleteProduct,
@@ -146,14 +149,12 @@ const activeFilters = ref({
 
 const currentPage = ref(1);
 const perPageOptions = [
-  { label: "1", value: 1 },
-  { label: "10", value: 10 },
   { label: "25", value: 25 },
   { label: "50", value: 50 },
   { label: "100", value: 100 },
 ];
 
-const perPage = ref(10); // default
+const perPage = ref(); // default
 
 // ✅ NEW: Build sort_by parameter untuk API
 const buildSortByParam = (filters) => {
@@ -169,11 +170,6 @@ const loadProducts = async () => {
   // ✅ Validate merchantId exists
   if (!currentMerchantId.value) {
     toast.error("Merchant ID tidak ditemukan");
-    return;
-  }
-
-  // ✅ ADD: Prevent duplicate calls
-  if (loading.value) {
     return;
   }
 
@@ -307,7 +303,6 @@ const resetFilters = () => {
   activeFilters.value = { ...defaultFilters };
   currentPage.value = 1;
   closeFilterModal();
-  toast.success("Filter berhasil direset");
   loadProducts();
 };
 
@@ -618,16 +613,8 @@ watch(currentMerchantId, (newId, oldId) => {
 
 // ✅ Watch currentPage untuk auto-load
 watch(currentPage, () => {
-  logCookies("currentPage changed"); // ✅ ADD: Log cookies on page change
   loadProducts();
 });
-
-// ✅ REMOVE: Problematic watchEffect if exists
-// watchEffect(() => {
-//   // This might cause infinite loops
-//   loadProducts();
-// });
-onMounted(() => {});
 
 watch(perPage, (val, oldVal) => {
   if (val === oldVal) return;
@@ -640,7 +627,6 @@ watch(perPage, (val, oldVal) => {
 onMounted(async () => {
   const savedPerPage = localStorage.getItem("products_per_page");
   if (savedPerPage) perPage.value = Number(savedPerPage);
-  logCookies("onMounted");
 
   // ✅ Guard di FE juga: cegah akses jika merchant belum approved
   const merchant =
@@ -660,7 +646,6 @@ onMounted(async () => {
 
 // ✅ OPTIONS: Status filter options (dikembalikan)
 const statusOptions = [
-  { label: "Semua", value: "" },
   { label: "Dipublish", value: "published" },
   { label: "Diarsipkan", value: "archived" },
   { label: "Draft", value: "draft" },
@@ -668,13 +653,12 @@ const statusOptions = [
 
 // ✅ OPTIONS: Category options dari categoriesLevel1 (dikembalikan)
 const categoryOptions = computed(() => {
-  const base = [{ label: "Semua", value: "" }];
   const items =
     (categoriesLevel1.value || []).map((c) => ({
       label: c.name || c.label,
       value: c.id || c.value,
     })) ?? [];
-  return base.concat(items);
+  return items;
 });
 
 // ✅ COUNT: Jumlah filter aktif (dikembalikan agar komponen table & mobile pagination bekerja)
@@ -709,13 +693,13 @@ const paginationInfo = computed(() => ({
 
 // Table Configuration
 const tableColumns = [
-  { key: "name", label: "Produk", sortable: true },
-  { key: "sku", label: "SKU", sortable: true, cellClass: "font-mono" },
-  // ✅ FIXED: Use sanitized key for slot name (dots are invalid in v-slot)
+  { key: "name", label: "Produk", sortable: false },
+  { key: "sku", label: "SKU", sortable: false, cellClass: "font-mono" },
   { key: "category", label: "Kategori", sortable: false },
-  { key: "total_stock", label: "Stok", sortable: true },
-  { key: "price", label: "Harga", sortable: true },
-  { key: "status", label: "Status", sortable: true },
+  { key: "total_stock", label: "Stok", sortable: false },
+  { key: "price", label: "Harga", sortable: false },
+  { key: "status", label: "Status", sortable: false },
+  { key: "actions", label: "Aksi", sortable: false },
 ];
 
 const tableActions = [
@@ -723,25 +707,25 @@ const tableActions = [
     icon: "pi-eye",
     label: "Lihat Detail",
     handler: (product) => goToDetail(product),
-    class: " hover:bg-muted-foreground/20 text-muted-foreground",
+    variant: "muted-outline",
   },
   {
     icon: "pi-pencil",
     label: "Edit Produk",
     handler: (product) => goToEdit(product),
-    class: " text-merchant-primary hover:bg-merchant-primary/20",
+    variant: "merchant-outline",
   },
   {
     icon: "pi-cog",
     label: "Ubah Status",
     handler: (product) => toggleProductVisibility(product),
-    class: "hover:bg-muted-foreground/20 text-warning-foreground",
+    variant: "primary-outline",
   },
   {
     icon: "pi-trash",
     label: "Hapus Produk",
     handler: (product) => deleteProductAction(product),
-    class: "hover:bg-danger-background text-danger-foreground",
+    variant: "danger-outline",
   },
 ];
 </script>
@@ -750,13 +734,13 @@ const tableActions = [
   <div class="">
     <!-- Header - FIXED -->
     <div
-      class="fixed sm:static top-0 left-0 right-0 flex justify-between items-center py-6 px-4 sm:px-6 bg-white z-10"
+      class="fixed top-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-6 bg-white sm:static sm:px-6"
     >
       <div class="flex items-center gap-3">
         <!-- Hamburger Button (Mobile) -->
         <button
           @click="emit('toggle-sidebar')"
-          class="w-10 h-10 rounded-full bg-white flex items-center justify-center hover:bg-muted-background transition sm:hidden"
+          class="flex items-center justify-center w-10 h-10 transition bg-white rounded-full hover:bg-muted-background sm:hidden"
         >
           <i class="pi pi-bars text-muted-foreground"></i>
         </button>
@@ -768,8 +752,8 @@ const tableActions = [
               :items="breadcrumbItems"
               :merchantId="currentMerchantId"
             />
-            <p class="text-xs sm:text-sm text-muted-foreground mt-1">
-              {{ currentMerchantName }}
+            <p class="mt-1 text-xs sm:text-sm text-muted-foreground">
+              Kelola produk {{ currentMerchantName }}
             </p>
           </div>
 
@@ -793,7 +777,7 @@ const tableActions = [
           customClass="!hidden sm:!inline"
         >
           <i class="pi pi-plus"></i>
-          <span class="hidden sm:inline ml-2">Tambah Produk</span>
+          <span class="hidden ml-2 sm:inline">Tambah Produk</span>
         </Button>
         <Button
           @click="goToCreate"
@@ -810,7 +794,7 @@ const tableActions = [
           customClass="!hidden sm:!inline"
         >
           <i class="pi pi-download"></i>
-          <span class="hidden sm:inline ml-2">Export</span>
+          <span class="hidden ml-2 sm:inline">Export</span>
         </Button>
         <Button
           @click="openExportModal"
@@ -827,9 +811,9 @@ const tableActions = [
     <div class="h-24 sm:h-0"></div>
 
     <!-- Search & Toolbar -->
-    <div class="px-4 sm:px-6 space-y-2 sm:space-y-4 mb-4 bg-white">
+    <div class="px-4 my-2 space-y-2 sm:my-4 sm:px-6 sm:space-y-4">
       <!-- Search Bar -->
-      <div class="sm:flex sm:items-center sm:gap-4 pb-1">
+      <div class="pb-1 sm:flex sm:items-center sm:gap-4">
         <div class="flex-1 mb-2 sm:mb-0">
           <TextField
             name="search"
@@ -852,7 +836,7 @@ const tableActions = [
           <span>Filter</span>
           <span
             v-if="activeFilterCount > 0"
-            class="absolute -top-2 -right-2 bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-semibold"
+            class="absolute flex items-center justify-center w-5 h-5 text-xs font-semibold text-white rounded-full -top-2 -right-2 bg-primary"
           >
             {{ activeFilterCount }}
           </span>
@@ -865,13 +849,14 @@ const tableActions = [
           v-model="perPage"
           :options="perPageOptions"
           class="hidden sm:block"
+          placeholder="10"
         />
       </div>
 
       <!-- ✅ ADD: Active Filters Display (Debug) -->
       <div v-if="activeFilterCount > 0" class="mb-4">
         <div
-          class="bg-merchant-primary/5 rounded-xl p-4 border border-merchant-primary/20"
+          class="p-4 border bg-merchant-primary/5 rounded-xl border-merchant-primary/20"
         >
           <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-2">
@@ -882,7 +867,7 @@ const tableActions = [
             </div>
             <button
               @click="resetFilters"
-              class="text-xs text-danger-foreground hover:underline font-medium flex items-center gap-1"
+              class="flex items-center gap-1 text-xs font-medium text-danger-foreground hover:underline"
             >
               <i class="pi pi-times-circle"></i>
               Reset Semua
@@ -895,7 +880,7 @@ const tableActions = [
               v-if="activeFilters.status"
               class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-merchant-primary/30 text-merchant-primary rounded-lg text-xs font-medium"
             >
-              <i class="pi pi-bookmark text-xs"></i>
+              <i class="text-xs pi pi-bookmark"></i>
               Status:
               {{
                 statusOptions.find((o) => o.value === activeFilters.status)
@@ -908,7 +893,7 @@ const tableActions = [
                 "
                 class="ml-1 hover:text-merchant-primary/80"
               >
-                <i class="pi pi-times text-xs"></i>
+                <i class="text-xs pi pi-times"></i>
               </button>
             </span>
 
@@ -916,7 +901,7 @@ const tableActions = [
               v-if="activeFilters.category"
               class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-merchant-primary/30 text-merchant-primary rounded-lg text-xs font-medium"
             >
-              <i class="pi pi-tag text-xs"></i>
+              <i class="text-xs pi pi-tag"></i>
               Kategori:
               {{
                 categoryOptions.find((o) => o.value === activeFilters.category)
@@ -929,7 +914,7 @@ const tableActions = [
                 "
                 class="ml-1 hover:text-merchant-primary/80"
               >
-                <i class="pi pi-times text-xs"></i>
+                <i class="text-xs pi pi-times"></i>
               </button>
             </span>
 
@@ -937,7 +922,7 @@ const tableActions = [
               v-if="activeFilters.minPrice || activeFilters.maxPrice"
               class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-merchant-primary/30 text-merchant-primary rounded-lg text-xs font-medium"
             >
-              <i class="pi pi-money-bill text-xs"></i>
+              <i class="text-xs pi pi-money-bill"></i>
               Harga: Rp{{ activeFilters.minPrice || 0 }} - Rp{{
                 activeFilters.maxPrice || "∞"
               }}
@@ -949,7 +934,7 @@ const tableActions = [
                 "
                 class="ml-1 hover:text-merchant-primary/80"
               >
-                <i class="pi pi-times text-xs"></i>
+                <i class="text-xs pi pi-times"></i>
               </button>
             </span>
 
@@ -960,7 +945,7 @@ const tableActions = [
               "
               class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-merchant-primary/30 text-merchant-primary rounded-lg text-xs font-medium"
             >
-              <i class="pi pi-box text-xs"></i>
+              <i class="text-xs pi pi-box"></i>
               Stok: {{ activeFilters.minStock || 0 }} -
               {{ activeFilters.maxStock || "∞" }} pcs
               <button
@@ -971,7 +956,7 @@ const tableActions = [
                 "
                 class="ml-1 hover:text-merchant-primary/80"
               >
-                <i class="pi pi-times text-xs"></i>
+                <i class="text-xs pi pi-times"></i>
               </button>
             </span>
 
@@ -980,7 +965,7 @@ const tableActions = [
               v-if="activeFilters.sortByDate"
               class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-xs font-medium"
             >
-              <i class="pi pi-calendar text-xs"></i>
+              <i class="text-xs pi pi-calendar"></i>
               {{
                 activeFilters.sortByDate === "newest" ? "Terbaru" : "Terlama"
               }}
@@ -988,7 +973,7 @@ const tableActions = [
                 @click="clearFilterGroup('sort_date')"
                 class="ml-1 hover:opacity-80"
               >
-                <i class="pi pi-times text-xs"></i>
+                <i class="text-xs pi pi-times"></i>
               </button>
             </span>
 
@@ -996,7 +981,7 @@ const tableActions = [
               v-if="activeFilters.sortByName"
               class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 border border-purple-200 text-purple-700 rounded-lg text-xs font-medium"
             >
-              <i class="pi pi-sort-alpha-down text-xs"></i>
+              <i class="text-xs pi pi-sort-alpha-down"></i>
               {{
                 activeFilters.sortByName === "name_asc"
                   ? "Nama A-Z"
@@ -1006,7 +991,7 @@ const tableActions = [
                 @click="clearFilterGroup('sort_name')"
                 class="ml-1 hover:opacity-80"
               >
-                <i class="pi pi-times text-xs"></i>
+                <i class="text-xs pi pi-times"></i>
               </button>
             </span>
 
@@ -1014,7 +999,7 @@ const tableActions = [
               v-if="activeFilters.sortByPrice"
               class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-200 text-green-700 rounded-lg text-xs font-medium"
             >
-              <i class="pi pi-dollar text-xs"></i>
+              <i class="text-xs pi pi-dollar"></i>
               {{
                 activeFilters.sortByPrice === "price_asc"
                   ? "Harga Terendah"
@@ -1024,7 +1009,7 @@ const tableActions = [
                 @click="clearFilterGroup('sort_price')"
                 class="ml-1 hover:opacity-80"
               >
-                <i class="pi pi-times text-xs"></i>
+                <i class="text-xs pi pi-times"></i>
               </button>
             </span>
 
@@ -1032,7 +1017,7 @@ const tableActions = [
               v-if="activeFilters.sortByStock"
               class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 border border-orange-200 text-orange-700 rounded-lg text-xs font-medium"
             >
-              <i class="pi pi-box text-xs"></i>
+              <i class="text-xs pi pi-box"></i>
               {{
                 activeFilters.sortByStock === "stock_asc"
                   ? "Stok Terendah"
@@ -1042,7 +1027,7 @@ const tableActions = [
                 @click="clearFilterGroup('sort_stock')"
                 class="ml-1 hover:opacity-80"
               >
-                <i class="pi pi-times text-xs"></i>
+                <i class="text-xs pi pi-times"></i>
               </button>
             </span>
           </div>
@@ -1051,7 +1036,7 @@ const tableActions = [
 
       <!-- Mobile: Toolbar (Pilih Semua + Filter) -->
       <div
-        class="flex sm:hidden flex-row justify-between items-center px-3 rounded-lg gap-4 pb-1"
+        class="flex flex-row items-center justify-between gap-4 px-3 pb-1 rounded-lg sm:hidden"
       >
         <label class="flex items-center cursor-pointer group">
           <input
@@ -1061,13 +1046,13 @@ const tableActions = [
             class="appearance-none w-5 h-5 border-2 border-muted-foreground rounded-md bg-transparent cursor-pointer transition-all duration-200 checked:bg-merchant-primary checked:border-merchant-primary focus:outline-none focus:ring-2 focus:ring-merchant-primary focus:ring-offset-2 relative before:content-[''] before:absolute before:inset-0 before:bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOSIgdmlld0JveD0iMCAwIDEyIDkiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xIDQuNUw0LjUgOEwxMSAxIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K')] before:bg-center before:bg-no-repeat before:opacity-0 checked:before:opacity-100"
           />
           <span
-            class="ml-2 text-xs text-muted-foreground group-hover:text-merchant-primary transition-colors"
+            class="ml-2 text-xs transition-colors text-muted-foreground group-hover:text-merchant-primary"
           >
             Pilih Semua
           </span>
         </label>
 
-        <div class="flex items-center gap-1 h-10">
+        <div class="flex items-center h-10 gap-1">
           <Button
             @click="openFilterModal"
             variant="muted-outline"
@@ -1078,7 +1063,7 @@ const tableActions = [
             <span>Filter</span>
             <span
               v-if="activeFilterCount > 0"
-              class="absolute -top-2 -right-2 bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-semibold"
+              class="absolute flex items-center justify-center w-5 h-5 text-xs font-semibold text-white rounded-full -top-2 -right-2 bg-primary"
             >
               {{ activeFilterCount }}
             </span>
@@ -1090,37 +1075,16 @@ const tableActions = [
             v-model="perPage"
             :options="perPageOptions"
             class="sm:hidden w-fit"
+            placeholder="10"
           />
         </div>
       </div>
     </div>
 
-    <!-- ✅ FIXED: Loading State -->
-    <div
-      v-if="loading"
-      class="flex justify-center items-center py-20 bg-white rounded-lg mx-4 sm:mx-6"
-    >
-      <div
-        class="w-10 h-10 border-4 border-muted-foreground border-t-merchant-primary rounded-full animate-spin"
-      ></div>
-    </div>
-
-    <!-- ✅ FIXED: Empty State -->
-    <div
-      v-else-if="products.length === 0 && !loading"
-      class="flex flex-col items-center justify-center py-20 bg-white rounded-lg text-center mx-4 sm:mx-6"
-    >
-      <i class="pi pi-inbox text-5xl text-muted-foreground mb-4"></i>
-      <p class="text-lg font-semibold text-black mb-2">Tidak ada produk</p>
-      <p class="text-muted-foreground mb-4">
-        Produk kosong atau tidak ditemukan
-      </p>
-    </div>
-
     <!-- ✅ FIXED: Product List -->
-    <div v-else class="px-4 sm:px-6">
+    <div class="px-4 sm:px-6">
       <!-- Mobile: Card List -->
-      <div class="flex sm:hidden flex-col gap-2 py-2">
+      <div class="flex flex-col gap-2 py-2 sm:hidden">
         <ProductCard
           v-for="product in products"
           :key="product.id"
@@ -1135,14 +1099,14 @@ const tableActions = [
       </div>
 
       <!-- Desktop: Use MerchantTable Component -->
-      <div class="hidden sm:block mb-4">
+      <div class="hidden mb-4 sm:block">
         <MerchantTable
           :items="products"
-          :loading="loading"
+          :row-key="'slug'"
+          :loading="loadingFetchProducts"
           :columns="tableColumns"
           :selected-items="selectedProducts"
           :select-all="selectAll"
-          :actions="tableActions"
           :current-page="currentPage"
           :total-pages="totalPages"
           :pagination-info="paginationInfo"
@@ -1159,28 +1123,28 @@ const tableActions = [
         >
           <!-- ✅ FIXED: Custom Product Cell dengan image URL yang benar -->
           <template #cell-name="{ item }">
-            <div class="flex items-center gap-3 cursor-pointer group">
+            <div class="flex items-center gap-3 cursor-pointer">
               <div
-                class="w-12 h-12 rounded-lg overflow-hidden bg-muted-background flex-shrink-0"
+                class="flex-shrink-0 w-12 h-12 overflow-hidden rounded-lg bg-muted-background"
               >
                 <!-- ✅ FIXED: Gunakan helper getImageUrl -->
                 <img
                   v-if="item.cover_image?.src_url"
                   :src="item.cover_image.src_url"
                   :alt="item.name"
-                  class="w-full h-full object-cover"
+                  class="object-cover w-full h-full"
                   @error="(e) => (e.target.style.display = 'none')"
                 />
                 <div
                   v-else
-                  class="w-full h-full flex items-center justify-center bg-gray-200"
+                  class="flex items-center justify-center w-full h-full bg-gray-200"
                 >
-                  <i class="pi pi-image text-gray-400"></i>
+                  <i class="text-gray-400 pi pi-image"></i>
                 </div>
               </div>
-              <div class="min-w-0 max-w-xs">
+              <div class="max-w-xs min-w-0">
                 <p
-                  class="text-sm font-semibold text-merchant-primary truncate group-hover:text-merchant-primary/80 transition"
+                  class="text-sm font-semibold truncate transition text-merchant-primary"
                   :title="item.name"
                 >
                   {{ item.name }}
@@ -1260,16 +1224,35 @@ const tableActions = [
                 +{{ item.categories.length - 1 }}
               </span>
             </div>
-            <span v-else class="text-sm text-muted-foreground italic">
+            <span v-else class="text-sm italic text-muted-foreground">
               Tidak ada kategori
             </span>
+          </template>
+
+          <template #cell-actions="{ item }">
+            <div class="flex gap-1">
+              <Button
+                v-for="action in tableActions"
+                :key="action.label"
+                :title="action.label"
+                size="sm"
+                class="!w-8 border-none"
+                :variant="action.variant || 'muted'"
+                @click.stop="action.handler(item)"
+              >
+                <i :class="['pi', action.icon, 'text-sm']"></i>
+              </Button>
+            </div>
           </template>
         </MerchantTable>
       </div>
     </div>
 
     <!-- ✅ FIXED: Mobile Pagination (Bottom) -->
-    <div v-if="!loading && products.length > 0" class="sm:hidden px-4 pb-4">
+    <div
+      v-if="!loadingFetchProducts && products.length > 0"
+      class="px-4 pb-4 sm:hidden"
+    >
       <MobilePagination
         :current-page="currentPage"
         :total-pages="totalPages"
@@ -1304,7 +1287,7 @@ const tableActions = [
       <div
         v-if="showBulkActionModal"
         @click="closeBulkActionModal"
-        class="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center sm:justify-center p-0 sm:p-4"
+        class="fixed inset-0 z-50 flex items-end p-0 bg-black/50 sm:items-center sm:justify-center sm:p-4"
       ></div>
     </transition>
 
@@ -1319,7 +1302,7 @@ const tableActions = [
         <!-- ===== FILTER SECTION ===== -->
         <div class="space-y-4">
           <h3
-            class="text-sm font-bold text-black uppercase tracking-wide flex items-center gap-2"
+            class="flex items-center gap-2 text-sm font-bold tracking-wide text-black uppercase"
           >
             <i class="pi pi-filter text-merchant-primary"></i>
             Filter Data
@@ -1332,6 +1315,7 @@ const tableActions = [
             v-model="tempFilters.status"
             label="Status Produk"
             :options="statusOptions"
+            placeholder="Semua status"
           />
 
           <!-- Category Filter -->
@@ -1342,11 +1326,12 @@ const tableActions = [
             label="Kategori"
             :options="categoryOptions"
             :disabled="loadingLevel1"
+            placeholder="Semua category"
           />
 
           <!-- Price Range -->
           <div class="w-full">
-            <label class="block text-sm font-bold text-black mb-2">
+            <label class="block mb-2 text-sm font-bold text-black">
               Rentang Harga
             </label>
             <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
@@ -1360,7 +1345,7 @@ const tableActions = [
                 :hideLabel="true"
                 label="Harga Minimum"
               />
-              <span class="text-muted-foreground font-bold px-1">-</span>
+              <span class="px-1 font-bold text-muted-foreground">-</span>
               <TextField
                 name="filter_max_price"
                 variant="merchant"
@@ -1376,7 +1361,7 @@ const tableActions = [
 
           <!-- Stock Range -->
           <div class="w-full">
-            <label class="block text-sm font-bold text-black mb-2">
+            <label class="block mb-2 text-sm font-bold text-black">
               Rentang Stok
             </label>
             <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
@@ -1390,7 +1375,7 @@ const tableActions = [
                 :hideLabel="true"
                 label="Stok Minimum"
               />
-              <span class="text-black font-bold px-1">-</span>
+              <span class="px-1 font-bold text-muted-foreground">-</span>
               <TextField
                 name="filter_max_stock"
                 variant="merchant"
@@ -1406,9 +1391,9 @@ const tableActions = [
         </div>
 
         <!-- ===== SORT SECTION ===== -->
-        <div class="border-t pt-6 space-y-4">
+        <div class="pt-6 space-y-4 border-t border-muted-foreground/30">
           <h3
-            class="text-sm font-bold text-black uppercase tracking-wide flex items-center gap-2"
+            class="flex items-center gap-2 text-sm font-bold tracking-wide text-black uppercase"
           >
             <i class="pi pi-sort-alt text-merchant-primary"></i>
             Urutkan Berdasarkan
@@ -1416,35 +1401,35 @@ const tableActions = [
 
           <!-- Sort by Date -->
           <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-2">
-              <i class="pi pi-calendar text-xs mr-1"></i>
+            <label class="block mb-2 text-sm font-semibold text-gray-700">
+              <i class="mr-1 text-xs pi pi-calendar"></i>
               Waktu Pembuatan
             </label>
             <div class="grid grid-cols-2 gap-2">
               <button
                 @click="tempFilters.sortByDate = 'newest'"
                 type="button"
-                class="px-4 py-3 rounded-lg border-2 text-sm font-medium transition"
+                class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
                 :class="
                   tempFilters.sortByDate === 'newest'
                     ? 'border-blue-500 bg-blue-50 text-blue-700'
                     : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300'
                 "
               >
-                <i class="pi pi-sort-amount-down-alt text-xs mr-1"></i>
+                <i class="mr-1 text-xs pi pi-sort-amount-down-alt"></i>
                 Terbaru
               </button>
               <button
                 @click="tempFilters.sortByDate = 'oldest'"
                 type="button"
-                class="px-4 py-3 rounded-lg border-2 text-sm font-medium transition"
+                class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
                 :class="
                   tempFilters.sortByDate === 'oldest'
                     ? 'border-blue-500 bg-blue-50 text-blue-700'
                     : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300'
                 "
               >
-                <i class="pi pi-sort-amount-up text-xs mr-1"></i>
+                <i class="mr-1 text-xs pi pi-sort-amount-up"></i>
                 Terlama
               </button>
             </div>
@@ -1454,22 +1439,22 @@ const tableActions = [
               type="button"
               class="mt-2 text-xs text-danger-foreground hover:underline"
             >
-              <i class="pi pi-times text-xs mr-1"></i>
+              <i class="mr-1 text-xs pi pi-times"></i>
               Hapus urutan waktu
             </button>
           </div>
 
           <!-- Sort by Name -->
           <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-2">
-              <i class="pi pi-sort-alpha-down text-xs mr-1"></i>
+            <label class="block mb-2 text-sm font-semibold text-gray-700">
+              <i class="mr-1 text-xs pi pi-sort-alpha-down"></i>
               Nama Produk
             </label>
             <div class="grid grid-cols-2 gap-2">
               <button
                 @click="tempFilters.sortByName = 'name_asc'"
                 type="button"
-                class="px-4 py-3 rounded-lg border-2 text-sm font-medium transition"
+                class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
                 :class="
                   tempFilters.sortByName === 'name_asc'
                     ? 'border-purple-500 bg-purple-50 text-purple-700'
@@ -1481,7 +1466,7 @@ const tableActions = [
               <button
                 @click="tempFilters.sortByName = 'name_desc'"
                 type="button"
-                class="px-4 py-3 rounded-lg border-2 text-sm font-medium transition"
+                class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
                 :class="
                   tempFilters.sortByName === 'name_desc'
                     ? 'border-purple-500 bg-purple-50 text-purple-700'
@@ -1497,42 +1482,42 @@ const tableActions = [
               type="button"
               class="mt-2 text-xs text-danger-foreground hover:underline"
             >
-              <i class="pi pi-times text-xs mr-1"></i>
+              <i class="mr-1 text-xs pi pi-times"></i>
               Hapus urutan nama
             </button>
           </div>
 
           <!-- Sort by Price -->
           <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-2">
-              <i class="pi pi-dollar text-xs mr-1"></i>
+            <label class="block mb-2 text-sm font-semibold text-gray-700">
+              <i class="mr-1 text-xs pi pi-dollar"></i>
               Harga
             </label>
             <div class="grid grid-cols-2 gap-2">
               <button
                 @click="tempFilters.sortByPrice = 'price_asc'"
                 type="button"
-                class="px-4 py-3 rounded-lg border-2 text-sm font-medium transition"
+                class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
                 :class="
                   tempFilters.sortByPrice === 'price_asc'
                     ? 'border-green-500 bg-green-50 text-green-700'
                     : 'border-gray-200 bg-white text-gray-700 hover:border-green-300'
                 "
               >
-                <i class="pi pi-arrow-down text-xs mr-1"></i>
+                <i class="mr-1 text-xs pi pi-arrow-down"></i>
                 Terendah
               </button>
               <button
                 @click="tempFilters.sortByPrice = 'price_desc'"
                 type="button"
-                class="px-4 py-3 rounded-lg border-2 text-sm font-medium transition"
+                class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
                 :class="
                   tempFilters.sortByPrice === 'price_desc'
                     ? 'border-green-500 bg-green-50 text-green-700'
                     : 'border-gray-200 bg-white text-gray-700 hover:border-green-300'
                 "
               >
-                <i class="pi pi-arrow-up text-xs mr-1"></i>
+                <i class="mr-1 text-xs pi pi-arrow-up"></i>
                 Tertinggi
               </button>
             </div>
@@ -1542,42 +1527,42 @@ const tableActions = [
               type="button"
               class="mt-2 text-xs text-danger-foreground hover:underline"
             >
-              <i class="pi pi-times text-xs mr-1"></i>
+              <i class="mr-1 text-xs pi pi-times"></i>
               Hapus urutan harga
             </button>
           </div>
 
           <!-- Sort by Stock -->
           <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-2">
-              <i class="pi pi-box text-xs mr-1"></i>
+            <label class="block mb-2 text-sm font-semibold text-gray-700">
+              <i class="mr-1 text-xs pi pi-box"></i>
               Stok
             </label>
             <div class="grid grid-cols-2 gap-2">
               <button
                 @click="tempFilters.sortByStock = 'stock_asc'"
                 type="button"
-                class="px-4 py-3 rounded-lg border-2 text-sm font-medium transition"
+                class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
                 :class="
                   tempFilters.sortByStock === 'stock_asc'
                     ? 'border-orange-500 bg-orange-50 text-orange-700'
                     : 'border-gray-200 bg-white text-gray-700 hover:border-orange-300'
                 "
               >
-                <i class="pi pi-arrow-down text-xs mr-1"></i>
+                <i class="mr-1 text-xs pi pi-arrow-down"></i>
                 Terendah
               </button>
               <button
                 @click="tempFilters.sortByStock = 'stock_desc'"
                 type="button"
-                class="px-4 py-3 rounded-lg border-2 text-sm font-medium transition"
+                class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
                 :class="
                   tempFilters.sortByStock === 'stock_desc'
                     ? 'border-orange-500 bg-orange-50 text-orange-700'
                     : 'border-gray-200 bg-white text-gray-700 hover:border-orange-300'
                 "
               >
-                <i class="pi pi-arrow-up text-xs mr-1"></i>
+                <i class="mr-1 text-xs pi pi-arrow-up"></i>
                 Tertinggi
               </button>
             </div>
@@ -1587,7 +1572,7 @@ const tableActions = [
               type="button"
               class="mt-2 text-xs text-danger-foreground hover:underline"
             >
-              <i class="pi pi-times text-xs mr-1"></i>
+              <i class="mr-1 text-xs pi pi-times"></i>
               Hapus urutan stok
             </button>
           </div>
@@ -1598,11 +1583,11 @@ const tableActions = [
       <template #footer>
         <div class="flex gap-3">
           <Button @click="resetFilters" variant="muted-outline" block>
-            <i class="pi pi-refresh mr-2"></i>
+            <i class="mr-2 pi pi-refresh"></i>
             Reset
           </Button>
           <Button @click="applyFilters" block variant="merchant">
-            <i class="pi pi-check mr-2"></i>
+            <i class="mr-2 pi pi-check"></i>
             Terapkan
           </Button>
         </div>
@@ -1622,7 +1607,7 @@ const tableActions = [
         <button
           @click="confirmExportPDF"
           :disabled="loadingExport"
-          class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary transition text-left group"
+          class="flex items-center w-full gap-4 p-4 text-left transition border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary group"
           :class="
             loadingExport
               ? 'opacity-50 cursor-not-allowed'
@@ -1630,12 +1615,12 @@ const tableActions = [
           "
         >
           <div
-            class="w-12 h-12 bg-danger-background rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform"
+            class="flex items-center justify-center flex-shrink-0 w-12 h-12 transition-transform rounded-lg bg-danger-background group-hover:scale-110"
           >
-            <i class="pi pi-file-pdf text-2xl text-danger-foreground"></i>
+            <i class="text-2xl pi pi-file-pdf text-danger-foreground"></i>
           </div>
           <div>
-            <h4 class="text-sm sm:text-base font-semibold text-black">
+            <h4 class="text-sm font-semibold text-black sm:text-base">
               Export ke PDF
             </h4>
             <p class="text-xs sm:text-sm text-muted-foreground">
@@ -1647,7 +1632,7 @@ const tableActions = [
         <button
           @click="confirmExportExcel"
           :disabled="loadingExport"
-          class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary transition text-left group"
+          class="flex items-center w-full gap-4 p-4 text-left transition border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary group"
           :class="
             loadingExport
               ? 'opacity-50 cursor-not-allowed'
@@ -1655,12 +1640,12 @@ const tableActions = [
           "
         >
           <div
-            class="w-12 h-12 bg-success-background rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform"
+            class="flex items-center justify-center flex-shrink-0 w-12 h-12 transition-transform rounded-lg bg-success-background group-hover:scale-110"
           >
-            <i class="pi pi-file-excel text-2xl text-success-foreground"></i>
+            <i class="text-2xl pi pi-file-excel text-success-foreground"></i>
           </div>
           <div>
-            <h4 class="text-sm sm:text-base font-semibold text-black">
+            <h4 class="text-sm font-semibold text-black sm:text-base">
               Export ke Excel
             </h4>
             <p class="text-xs sm:text-sm text-muted-foreground">
@@ -1692,15 +1677,15 @@ const tableActions = [
         <!-- Publish Action -->
         <button
           @click="bulkUpdateStatusAction('published')"
-          class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary transition text-left group"
+          class="flex items-center w-full gap-4 p-4 text-left transition border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary group"
         >
           <div
-            class="w-12 h-12 bg-success-background rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform"
+            class="flex items-center justify-center flex-shrink-0 w-12 h-12 transition-transform rounded-lg bg-success-background group-hover:scale-110"
           >
-            <i class="pi pi-check-circle text-2xl text-success-foreground"></i>
+            <i class="text-2xl pi pi-check-circle text-success-foreground"></i>
           </div>
           <div>
-            <h4 class="text-sm sm:text-base font-semibold text-black">
+            <h4 class="text-sm font-semibold text-black sm:text-base">
               Dipublish
             </h4>
             <p class="text-xs sm:text-sm text-muted-foreground">
@@ -1712,15 +1697,15 @@ const tableActions = [
         <!-- Archive Action -->
         <button
           @click="bulkUpdateStatusAction('archived')"
-          class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary transition text-left group"
+          class="flex items-center w-full gap-4 p-4 text-left transition border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary group"
         >
           <div
-            class="w-12 h-12 bg-danger-background rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform"
+            class="flex items-center justify-center flex-shrink-0 w-12 h-12 transition-transform rounded-lg bg-danger-background group-hover:scale-110"
           >
-            <i class="pi pi-box text-2xl text-danger-foreground"></i>
+            <i class="text-2xl pi pi-box text-danger-foreground"></i>
           </div>
           <div>
-            <h4 class="text-sm sm:text-base font-semibold text-black">
+            <h4 class="text-sm font-semibold text-black sm:text-base">
               Diarsipkan
             </h4>
             <p class="text-xs sm:text-sm text-muted-foreground">
@@ -1754,7 +1739,7 @@ const tableActions = [
           v-if="selectedProductForVisibility"
           class="p-4 bg-muted-background rounded-xl"
         >
-          <p class="text-xs text-muted-foreground mb-2">Status Saat Ini</p>
+          <p class="mb-2 text-xs text-muted-foreground">Status Saat Ini</p>
           <StatusLabel
             :status="selectedProductForVisibility.status"
             variant="product"
@@ -1766,7 +1751,7 @@ const tableActions = [
         <button
           @click="confirmVisibilityChange('published')"
           :disabled="selectedProductForVisibility?.status === 'published'"
-          class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl transition text-left group"
+          class="flex items-center w-full gap-4 p-4 text-left transition border border-muted-background rounded-xl group"
           :class="
             selectedProductForVisibility?.status === 'published'
               ? 'opacity-50 cursor-not-allowed'
@@ -1774,16 +1759,16 @@ const tableActions = [
           "
         >
           <div
-            class="w-12 h-12 bg-success-background rounded-lg flex items-center justify-center flex-shrink-0 transition-transform"
+            class="flex items-center justify-center flex-shrink-0 w-12 h-12 transition-transform rounded-lg bg-success-background"
             :class="
               selectedProductForVisibility?.status !== 'published' &&
               'group-hover:scale-110'
             "
           >
-            <i class="pi pi-check-circle text-2xl text-success-foreground"></i>
+            <i class="text-2xl pi pi-check-circle text-success-foreground"></i>
           </div>
           <div>
-            <h4 class="text-sm sm:text-base font-semibold text-black">
+            <h4 class="text-sm font-semibold text-black sm:text-base">
               Dipublish
             </h4>
             <p class="text-xs sm:text-sm text-muted-foreground">
@@ -1796,7 +1781,7 @@ const tableActions = [
         <button
           @click="confirmVisibilityChange('archived')"
           :disabled="selectedProductForVisibility?.status === 'archived'"
-          class="w-full flex items-center gap-4 p-4 border border-muted-background rounded-xl transition text-left group"
+          class="flex items-center w-full gap-4 p-4 text-left transition border border-muted-background rounded-xl group"
           :class="
             selectedProductForVisibility?.status === 'archived'
               ? 'opacity-50 cursor-not-allowed'
@@ -1804,16 +1789,16 @@ const tableActions = [
           "
         >
           <div
-            class="w-12 h-12 bg-danger-background rounded-lg flex items-center justify-center flex-shrink-0 transition-transform"
+            class="flex items-center justify-center flex-shrink-0 w-12 h-12 transition-transform rounded-lg bg-danger-background"
             :class="
               selectedProductForVisibility?.status !== 'archived' &&
               'group-hover:scale-110'
             "
           >
-            <i class="pi pi-box text-2xl text-danger-foreground"></i>
+            <i class="text-2xl pi pi-box text-danger-foreground"></i>
           </div>
           <div>
-            <h4 class="text-sm sm:text-base font-semibold text-black">
+            <h4 class="text-sm font-semibold text-black sm:text-base">
               Diarsipkan
             </h4>
             <p class="text-xs sm:text-sm text-muted-foreground">
@@ -1843,13 +1828,13 @@ const tableActions = [
       <div class="space-y-4">
         <!-- Warning Banner -->
         <div
-          class="flex items-start gap-3 p-4 bg-danger-background/10 border border-danger-foreground/20 rounded-xl"
+          class="flex items-start gap-3 p-4 border bg-danger-background/10 border-danger-foreground/20 rounded-xl"
         >
           <i
             class="pi pi-exclamation-triangle text-danger-foreground text-xl flex-shrink-0 mt-0.5"
           ></i>
           <div>
-            <h4 class="text-sm font-semibold text-danger-foreground mb-1">
+            <h4 class="mb-1 text-sm font-semibold text-danger-foreground">
               Peringatan!
             </h4>
             <p class="text-xs text-danger-foreground/80">
@@ -1865,21 +1850,21 @@ const tableActions = [
           class="flex items-center gap-3 p-4 bg-muted-background rounded-xl"
         >
           <div
-            class="w-16 h-16 rounded-lg overflow-hidden bg-white flex-shrink-0"
+            class="flex-shrink-0 w-16 h-16 overflow-hidden bg-white rounded-lg"
           >
             <!-- ✅ FIXED: Gunakan helper getImageUrl -->
             <img
               v-if="selectedProductForDelete.cover_image?.src_url"
               :src="selectedProductForDelete.cover_image.src_url"
               :alt="selectedProductForDelete.name"
-              class="w-full h-full object-cover"
+              class="object-cover w-full h-full"
               @error="(e) => (e.target.style.display = 'none')"
             />
             <div
               v-else
-              class="w-full h-full flex items-center justify-center bg-gray-200"
+              class="flex items-center justify-center w-full h-full bg-gray-200"
             >
-              <i class="pi pi-image text-gray-400 text-xl"></i>
+              <i class="text-xl text-gray-400 pi pi-image"></i>
             </div>
           </div>
           <div class="flex-1 min-w-0">
@@ -1897,7 +1882,7 @@ const tableActions = [
       <template #footer>
         <div class="flex gap-3">
           <Button @click="closeDeleteModal" variant="muted-outline" block>
-            <i class="pi pi-times mr-2"></i>
+            <i class="mr-2 pi pi-times"></i>
             Batal
           </Button>
           <Button
@@ -1906,7 +1891,7 @@ const tableActions = [
             block
             :loading="loading"
           >
-            <i class="pi pi-trash mr-2"></i>
+            <i class="mr-2 pi pi-trash"></i>
             Hapus Produk
           </Button>
         </div>
@@ -1925,13 +1910,13 @@ const tableActions = [
       <div class="space-y-4">
         <!-- Warning Banner -->
         <div
-          class="flex items-start gap-3 p-4 bg-danger-background/10 border border-danger-foreground/20 rounded-xl"
+          class="flex items-start gap-3 p-4 border bg-danger-background/10 border-danger-foreground/20 rounded-xl"
         >
           <i
             class="pi pi-exclamation-triangle text-danger-foreground text-xl flex-shrink-0 mt-0.5"
           ></i>
           <div>
-            <h4 class="text-sm font-semibold text-danger-foreground mb-1">
+            <h4 class="mb-1 text-sm font-semibold text-danger-foreground">
               Peringatan!
             </h4>
             <p class="text-xs text-danger-foreground/80">
@@ -1942,9 +1927,9 @@ const tableActions = [
         </div>
 
         <!-- Selected Products Count -->
-        <div class="p-4 bg-muted-background rounded-xl text-center">
+        <div class="p-4 text-center bg-muted-background rounded-xl">
           <div class="flex items-center justify-center gap-2 mb-2">
-            <i class="pi pi-box text-3xl text-merchant-primary"></i>
+            <i class="text-3xl pi pi-box text-merchant-primary"></i>
             <span class="text-4xl font-bold text-merchant-primary">
               {{ selectedProductsCount }}
             </span>
@@ -1955,29 +1940,29 @@ const tableActions = [
         <!-- ✅ FIXED: Product List Preview dengan image URL yang benar -->
         <div
           v-if="selectedProductsData.length > 0"
-          class="space-y-2 max-h-60 overflow-y-auto"
+          class="space-y-2 overflow-y-auto max-h-60"
         >
           <div
             v-for="product in selectedProductsData.slice(0, 5)"
             :key="product.id"
-            class="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200"
+            class="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg"
           >
             <div
-              class="w-12 h-12 rounded-lg overflow-hidden bg-muted-background flex-shrink-0"
+              class="flex-shrink-0 w-12 h-12 overflow-hidden rounded-lg bg-muted-background"
             >
               <!-- ✅ FIXED: Gunakan helper getImageUrl -->
               <img
                 v-if="product.cover_image?.src_url"
                 :src="product.cover_image.src_url"
                 :alt="product.name"
-                class="w-full h-full object-cover"
+                class="object-cover w-full h-full"
                 @error="(e) => (e.target.style.display = 'none')"
               />
               <div
                 v-else
-                class="w-full h-full flex items-center justify-center bg-gray-200"
+                class="flex items-center justify-center w-full h-full bg-gray-200"
               >
-                <i class="pi pi-image text-gray-400"></i>
+                <i class="text-gray-400 pi pi-image"></i>
               </div>
             </div>
             <div class="flex-1 min-w-0">
@@ -1991,7 +1976,7 @@ const tableActions = [
           </div>
 
           <!-- Show more indicator -->
-          <div v-if="selectedProductsData.length > 5" class="text-center py-2">
+          <div v-if="selectedProductsData.length > 5" class="py-2 text-center">
             <p class="text-xs text-muted-foreground">
               +{{ selectedProductsData.length - 5 }} produk lainnya
             </p>
@@ -2003,7 +1988,7 @@ const tableActions = [
       <template #footer>
         <div class="flex gap-3">
           <Button @click="closeBulkDeleteModal" variant="muted-outline" block>
-            <i class="pi pi-times mr-2"></i>
+            <i class="mr-2 pi pi-times"></i>
             Batal
           </Button>
           <Button
@@ -2012,7 +1997,7 @@ const tableActions = [
             block
             :loading="loading"
           >
-            <i class="pi pi-trash mr-2"></i>
+            <i class="mr-2 pi pi-trash"></i>
             Hapus {{ selectedProductsCount }} Produk
           </Button>
         </div>
@@ -2031,13 +2016,13 @@ const tableActions = [
       <div class="space-y-4">
         <!-- Warning Banner -->
         <div
-          class="flex items-start gap-3 p-4 bg-warning-background/10 border border-warning-foreground/20 rounded-xl"
+          class="flex items-start gap-3 p-4 border bg-warning-background/10 border-warning-foreground/20 rounded-xl"
         >
           <i
             class="pi pi-info-circle text-warning-foreground text-xl flex-shrink-0 mt-0.5"
           ></i>
           <div>
-            <h4 class="text-sm font-semibold text-warning-foreground mb-1">
+            <h4 class="mb-1 text-sm font-semibold text-warning-foreground">
               Perhatian!
             </h4>
             <p class="text-xs text-warning-foreground/80">
@@ -2053,21 +2038,21 @@ const tableActions = [
           class="flex items-center gap-3 p-4 bg-muted-background rounded-xl"
         >
           <div
-            class="w-16 h-16 rounded-lg overflow-hidden bg-white flex-shrink-0"
+            class="flex-shrink-0 w-16 h-16 overflow-hidden bg-white rounded-lg"
           >
             <!-- ✅ FIXED: Gunakan helper getImageUrl -->
             <img
               v-if="selectedProductForStatusChange.cover_image?.src_url"
               :src="selectedProductForStatusChange.cover_image.src_url"
               :alt="selectedProductForStatusChange.name"
-              class="w-full h-full object-cover"
+              class="object-cover w-full h-full"
               @error="(e) => (e.target.style.display = 'none')"
             />
             <div
               v-else
-              class="w-full h-full flex items-center justify-center bg-gray-200"
+              class="flex items-center justify-center w-full h-full bg-gray-200"
             >
-              <i class="pi pi-image text-gray-400 text-xl"></i>
+              <i class="text-xl text-gray-400 pi pi-image"></i>
             </div>
           </div>
           <div class="flex-1 min-w-0">
@@ -2085,7 +2070,7 @@ const tableActions = [
           class="grid grid-cols-[1fr_auto_1fr] items-center gap-3 p-4 bg-white rounded-xl border border-gray-200"
         >
           <div class="text-center">
-            <p class="text-xs text-muted-foreground mb-2">Status Saat Ini</p>
+            <p class="mb-2 text-xs text-muted-foreground">Status Saat Ini</p>
             <StatusLabel
               v-if="selectedProductForStatusChange"
               :status="selectedProductForStatusChange.status"
@@ -2095,11 +2080,11 @@ const tableActions = [
           </div>
 
           <div class="flex items-center justify-center">
-            <i class="pi pi-arrow-right text-merchant-primary text-xl"></i>
+            <i class="text-xl pi pi-arrow-right text-merchant-primary"></i>
           </div>
 
           <div class="text-center">
-            <p class="text-xs text-muted-foreground mb-2">Status Baru</p>
+            <p class="mb-2 text-xs text-muted-foreground">Status Baru</p>
             <StatusLabel
               v-if="newStatusForChange"
               :status="newStatusForChange"
@@ -2114,7 +2099,7 @@ const tableActions = [
       <template #footer>
         <div class="flex gap-3">
           <Button @click="closeStatusChangeModal" variant="muted-outline" block>
-            <i class="pi pi-times mr-2"></i>
+            <i class="mr-2 pi pi-times"></i>
             Batal
           </Button>
 
@@ -2124,7 +2109,7 @@ const tableActions = [
             block
             :loading="loading"
           >
-            <i class="pi pi-check mr-2"></i>
+            <i class="mr-2 pi pi-check"></i>
             Ubah Status
           </Button>
         </div>
@@ -2143,13 +2128,13 @@ const tableActions = [
       <div class="space-y-4">
         <!-- Warning Banner -->
         <div
-          class="flex items-start gap-3 p-4 bg-warning-background/10 border border-warning-foreground/20 rounded-xl"
+          class="flex items-start gap-3 p-4 border bg-warning-background/10 border-warning-foreground/20 rounded-xl"
         >
           <i
             class="pi pi-info-circle text-warning-foreground text-xl flex-shrink-0 mt-0.5"
           ></i>
           <div>
-            <h4 class="text-sm font-semibold text-warning-foreground mb-1">
+            <h4 class="mb-1 text-sm font-semibold text-warning-foreground">
               Perhatian!
             </h4>
             <p class="text-xs text-warning-foreground/80">
@@ -2159,9 +2144,9 @@ const tableActions = [
         </div>
 
         <!-- Selected Products Count -->
-        <div class="p-4 bg-muted-background rounded-xl text-center">
+        <div class="p-4 text-center bg-muted-background rounded-xl">
           <div class="flex items-center justify-center gap-2 mb-2">
-            <i class="pi pi-box text-3xl text-merchant-primary"></i>
+            <i class="text-3xl pi pi-box text-merchant-primary"></i>
             <span class="text-4xl font-bold text-merchant-primary">
               {{ selectedProductsCount }}
             </span>
@@ -2170,8 +2155,8 @@ const tableActions = [
         </div>
 
         <!-- New Status Preview -->
-        <div class="p-4 bg-white rounded-xl border border-gray-200">
-          <p class="text-xs text-muted-foreground mb-3 text-center">
+        <div class="p-4 bg-white border border-gray-200 rounded-xl">
+          <p class="mb-3 text-xs text-center text-muted-foreground">
             Status Baru:
           </p>
           <div class="flex justify-center">
@@ -2187,29 +2172,29 @@ const tableActions = [
         <!-- ✅ FIXED: Product List Preview dengan image URL yang benar -->
         <div
           v-if="selectedProductsData.length > 0"
-          class="space-y-2 max-h-60 overflow-y-auto"
+          class="space-y-2 overflow-y-auto max-h-60"
         >
           <div
             v-for="product in selectedProductsData.slice(0, 5)"
             :key="product.id"
-            class="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200"
+            class="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg"
           >
             <div
-              class="w-12 h-12 rounded-lg overflow-hidden bg-muted-background flex-shrink-0"
+              class="flex-shrink-0 w-12 h-12 overflow-hidden rounded-lg bg-muted-background"
             >
               <!-- ✅ FIXED: Gunakan helper getImageUrl -->
               <img
                 v-if="product.cover_image?.src_url"
                 :src="product.cover_image.src_url"
                 :alt="product.name"
-                class="w-full h-full object-cover"
+                class="object-cover w-full h-full"
                 @error="(e) => (e.target.style.display = 'none')"
               />
               <div
                 v-else
-                class="w-full h-full flex items-center justify-center bg-gray-200"
+                class="flex items-center justify-center w-full h-full bg-gray-200"
               >
-                <i class="pi pi-image text-gray-400"></i>
+                <i class="text-gray-400 pi pi-image"></i>
               </div>
             </div>
             <div class="flex-1 min-w-0">
@@ -2222,7 +2207,7 @@ const tableActions = [
                   variant="product"
                   size="xs"
                 />
-                <i class="pi pi-arrow-right text-xs text-muted-foreground"></i>
+                <i class="text-xs pi pi-arrow-right text-muted-foreground"></i>
                 <StatusLabel
                   :status="newBulkStatus"
                   variant="product"
@@ -2233,7 +2218,7 @@ const tableActions = [
           </div>
 
           <!-- Show more indicator -->
-          <div v-if="selectedProductsData.length > 5" class="text-center py-2">
+          <div v-if="selectedProductsData.length > 5" class="py-2 text-center">
             <p class="text-xs text-muted-foreground">
               +{{ selectedProductsData.length - 5 }} produk lainnya
             </p>
@@ -2249,7 +2234,7 @@ const tableActions = [
             variant="muted-outline"
             block
           >
-            <i class="pi pi-times mr-2"></i>
+            <i class="mr-2 pi pi-times"></i>
             Batal
           </Button>
           <Button
@@ -2258,7 +2243,7 @@ const tableActions = [
             block
             :loading="loading"
           >
-            <i class="pi pi-check mr-2"></i>
+            <i class="mr-2 pi pi-check"></i>
             Ubah {{ selectedProductsCount }} Produk
           </Button>
         </div>
@@ -2286,7 +2271,7 @@ const tableActions = [
           showStatusChangeModal = false; // ✅ ADD
           showBulkStatusChangeModal = false; // ✅ ADD
         "
-        class="fixed inset-0 bg-black/30 z-40"
+        class="fixed inset-0 z-40 bg-black/30"
       ></div>
     </transition>
   </div>

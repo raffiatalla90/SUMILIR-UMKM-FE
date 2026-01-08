@@ -15,7 +15,7 @@ const updateProfile = async (payload) => {
 };
 
 const changePassword = async (payload) => {
-  const response = await axios.post("/profile/change-password", payload);
+  const response = await axios.post("api/profile/change-password", payload);
   return response.data;
 };
 

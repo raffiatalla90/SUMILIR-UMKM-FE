@@ -1,5 +1,12 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import {
+  ref,
+  computed,
+  onMounted,
+  watch,
+  onBeforeUnmount,
+  nextTick,
+} from "vue";
 import ProductCard from "@/components/Card/ProductCard.vue";
 import ProductCardSkeleton from "@/components/Card/ProductCardSkeleton.vue"; // Tambahkan ini
 import MerchantCard from "@/components/Card/MerchantCard.vue";
@@ -13,14 +20,20 @@ import { useSegmentations } from "@/composables/useSegmentations";
 
 const products = ref([]);
 const merchants = ref([]); // nanti endpoint sendiri
-const isLoading = ref(false); // State loading
+const isLoading = ref(false); // loading awal
+const isLoadingMoreProducts = ref(false);
+const isLoadingMoreMerchants = ref(false);
+const loadMoreRef = ref(null); // elemen sentinel
+const observer = ref(null);
+// const loadMoreMerchantRef = ref(null);
+// const merchantObserver = ref(null);
 
 const page = ref(1);
-const perPage = 12;
+const perPage = 20;
 const hasMore = ref(false);
 
 const merchantPage = ref(1);
-const merchantPerPage = 12;
+const merchantPerPage = 20;
 const merchantHasMore = ref(false);
 
 const router = useRouter();
@@ -43,14 +56,33 @@ function goBack() {
   router.back();
 }
 const goToProductDetail = (product) => {
+  const slug = product?.slug;
+
+  if (typeof slug !== "string" || !slug.trim()) {
+    console.warn("[Search] Invalid product slug:", product);
+    return;
+  }
+
   router.push({
     name: "Product Detail",
-    params: { slug: product.slug },
+    params: { slug },
   });
 };
+const showBackToTop = ref(false);
+
+function handleScroll() {
+  showBackToTop.value = window.scrollY > 300;
+}
+
+function scrollToTop() {
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth",
+  });
+}
 
 /* ================= BASIC ================= */
-const keyword = ref("kopi");
+// const keyword = ref("");
 const activeTab = ref("products");
 
 /* ================= MODAL ================= */
@@ -61,7 +93,7 @@ const activeInstantSorts = ref([]);
 
 /* ================= DETAIL FILTER ================= */
 const detailFilters = ref({
-  minPrice: 0,
+  minPrice: null,
   maxPrice: null,
   categories: [],
   subCategories: [],
@@ -69,7 +101,6 @@ const detailFilters = ref({
 });
 
 const tempDetailFilters = ref({ ...detailFilters.value, subCategories: [] });
-const searchInput = ref(keyword.value);
 
 const isEmptyProducts = computed(
   () =>
@@ -125,6 +156,9 @@ const activeFilterCount = computed(() => {
 });
 
 const hasActiveFilters = computed(() => activeFilterCount.value > 0);
+function safeString(v) {
+  return typeof v === "string" ? v : undefined;
+}
 
 /* ================= SORT OPTIONS ================= */
 const instantSortOptions = [
@@ -152,7 +186,7 @@ const filteredInstantSorts = computed(() =>
 );
 
 async function fetchMerchants(reset = false) {
-  if (isLoading.value) return;
+  if (isLoadingMoreMerchants.value) return;
 
   if (reset) {
     merchantPage.value = 1;
@@ -160,60 +194,126 @@ async function fetchMerchants(reset = false) {
     merchantHasMore.value = true;
   }
 
-  isLoading.value = true;
+  isLoadingMoreMerchants.value = true;
 
   try {
     const res = await api.get("/api/public/search-merchants", {
-      params: buildMerchantQuery(),
+      params: {
+        ...buildMerchantQuery(),
+        page: merchantPage.value,
+        per_page: merchantPerPage,
+      },
     });
 
-    const data = res.data.data;
-    const meta = res.data.meta;
+    const data = res.data.data ?? [];
 
     merchants.value.push(...data);
-    merchantHasMore.value = meta.current_page < meta.last_page;
+
+    merchantHasMore.value =
+      res.data.meta.current_page < res.data.meta.last_page;
   } catch (err) {
     console.error("Fetch merchants error:", err);
   } finally {
-    isLoading.value = false;
+    isLoadingMoreMerchants.value = false;
   }
 }
 
+// function setupMerchantObserver() {
+//   // Bersihkan observer lama jika ada
+//   if (merchantObserver.value) merchantObserver.value.disconnect();
+
+//   merchantObserver.value = new IntersectionObserver(
+//     (entries) => {
+//       const entry = entries[0];
+
+//       // LOGIC PENTING:
+//       // Kita cek apakah sentinel terlihat (isIntersecting)
+//       // DAN kita punya data lebih (merchantHasMore)
+//       // DAN kita TIDAK sedang loading
+//       if (
+//         entry.isIntersecting &&
+//         merchantHasMore.value &&
+//         !isLoadingMoreMerchants.value &&
+//         !isLoading.value
+//       ) {
+//         merchantPage.value++;
+//         fetchMerchants();
+//       }
+//     },
+//     {
+//       root: null,
+//       rootMargin: "200px", // Preload 200px sebelum mentok bawah
+//       threshold: 0,
+//     }
+//   );
+
+//   if (loadMoreMerchantRef.value) {
+//     merchantObserver.value.observe(loadMoreMerchantRef.value);
+//   }
+// }
 async function fetchProducts(reset = false) {
-  if (isLoading.value) return;
+  if (isLoading.value || isLoadingMoreProducts.value) return;
 
   if (reset) {
     page.value = 1;
     products.value = [];
     hasMore.value = true;
+    isLoading.value = true;
+  } else {
+    isLoadingMoreProducts.value = true;
   }
-
-  isLoading.value = true;
 
   try {
     const res = await api.get("/api/public/search", {
       params: buildProductQuery(),
     });
 
-    const data = res.data.data;
-    const meta = res.data.meta;
-
-    products.value.push(...data);
-    hasMore.value = meta.current_page < meta.last_page;
+    products.value.push(...res.data.data);
+    hasMore.value = res.data.meta.current_page < res.data.meta.last_page;
   } catch (err) {
-    console.error(err);
+    toast.error("Gagal memuat produk. Silakan coba lagi.");
+    // console.error(err);
   } finally {
     isLoading.value = false;
+    isLoadingMoreProducts.value = false;
   }
 }
+function setupObserver() {
+  if (observer.value) observer.value.disconnect();
+
+  observer.value = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0];
+
+      if (
+        entry.isIntersecting &&
+        hasMore.value &&
+        !isLoadingMoreProducts.value &&
+        activeTab.value === "products"
+      ) {
+        page.value++;
+        fetchProducts();
+      }
+    },
+    {
+      root: null,
+      rootMargin: "200px", // preload sebelum mentok
+      threshold: 0,
+    }
+  );
+
+  if (loadMoreRef.value) {
+    observer.value.observe(loadMoreRef.value);
+  }
+}
+
 function buildMerchantQuery() {
   const sort = activeInstantSorts.value.find((s) =>
     ["latest", "oldest"].includes(s)
   );
 
   return {
-    q: keyword.value || undefined,
-
+    q: route.query.q || undefined,
     segments: detailFilters.value.segments.length
       ? detailFilters.value.segments
       : undefined,
@@ -234,39 +334,45 @@ function buildMerchantQuery() {
 }
 
 function buildProductQuery() {
-  const sort = activeInstantSorts.value.find((s) =>
+  const sortKey = activeInstantSorts.value.find((s) =>
     ["latest", "oldest", "cheapest", "expensive"].includes(s)
   );
 
   return {
-    q: keyword.value || undefined,
-    min_price: detailFilters.value.minPrice ?? undefined,
-    max_price: detailFilters.value.maxPrice ?? undefined,
+    q: route.query.q || undefined,
+    min_price:
+      typeof detailFilters.value.minPrice === "number"
+        ? detailFilters.value.minPrice
+        : undefined,
+    max_price:
+      typeof detailFilters.value.maxPrice === "number"
+        ? detailFilters.value.maxPrice
+        : undefined,
 
-    // 🔥 PRIORITAS SUB KATEGORI
     categories: detailFilters.value.subCategories.length
-      ? detailFilters.value.subCategories
+      ? detailFilters.value.subCategories.map(String)
       : detailFilters.value.categories.length
-      ? detailFilters.value.categories
+      ? detailFilters.value.categories.map(String)
       : undefined,
 
     segments: detailFilters.value.segments.length
-      ? detailFilters.value.segments
+      ? detailFilters.value.segments.map(String)
       : undefined,
 
-    sort: sort || undefined,
-    page: page.value,
-    per_page: perPage,
+    sort: typeof sortKey === "string" ? sortKey : undefined,
+
+    page: String(page.value),
+    per_page: String(perPage),
   };
 }
 
 function submitSearch() {
-  if (!searchInput.value.trim()) return;
+  const q = route.query.q;
+  if (!q) return;
+
   router.push({
-    path: "/search",
-    query: {
-      q: searchInput.value.trim(),
-    },
+    name: "Search Page",
+    query: { q },
   });
 }
 
@@ -292,38 +398,51 @@ watch(activeInstantSorts, () => {
   fetchProducts(true);
 });
 
-watch(activeTab, (tab) => {
-  if (tab === "products") {
-    fetchProducts(true);
-  }
+watch(
+  activeTab,
+  (tab) => {
+    resetAllFilters();
 
-  if (tab === "merchants") {
-    fetchMerchants(true);
-  }
-});
-watch(activeTab, (tab) => {
-  resetAllFilters();
+    if (tab === "products") {
+      fetchProducts(true);
+      nextTick(() => setupObserver());
+    }
 
-  if (tab === "products") {
-    fetchProducts(true);
-  }
+    if (tab === "merchants") {
+      fetchMerchants(true);
+      // nextTick(() => setupMerchantObserver());
+    }
+  },
+  { immediate: true }
+);
 
-  if (tab === "merchants") {
-    fetchMerchants(true);
+watch(
+  () => tempDetailFilters.value.maxPrice,
+  (newMax) => {
+    if (
+      newMax !== null &&
+      newMax !== "" &&
+      tempDetailFilters.value.minPrice === null
+    ) {
+      tempDetailFilters.value.minPrice = 0;
+    }
   }
-});
+);
 
 watch(
   () => route.query.q,
-  (newQ, oldQ) => {
-    if (newQ !== oldQ) {
-      keyword.value = newQ || "";
-      searchInput.value = newQ || "";
+  (q) => {
+    page.value = 1;
+    products.value = [];
+    hasMore.value = true;
 
-      fetchProducts(true);
-      if (activeTab.value === "merchants") {
-        fetchMerchants(true);
-      }
+    if (!q) return;
+
+    fetchProducts(true);
+    nextTick(setupObserver);
+
+    if (activeTab.value === "merchants") {
+      fetchMerchants(true);
     }
   },
   { immediate: true }
@@ -484,65 +603,62 @@ function applyFilters(list) {
   return filtered;
 }
 
-const finalMerchants = computed(() => applyFilters(merchants.value));
+function handleMerchantInfiniteScroll() {
+  if (
+    activeTab.value !== "merchants" ||
+    !merchantHasMore.value ||
+    isLoadingMoreMerchants.value ||
+    isLoading.value
+  )
+    return;
 
-const PAGE_SIZE = 2;
-const visibleMerchantCount = ref(PAGE_SIZE);
+  const scrollBottom =
+    window.innerHeight + window.scrollY >=
+    document.documentElement.scrollHeight - 200;
 
-function loadMoreProducts() {
-  page++;
-  fetchProducts();
+  if (scrollBottom) {
+    merchantPage.value++;
+    fetchMerchants();
+  }
 }
-function loadMoreMerchants() {
-  merchantPage.value++;
-  fetchMerchants();
-}
-
-const pagedMerchants = computed(() =>
-  finalMerchants.value.slice(0, visibleMerchantCount.value)
-);
-
-watch(
-  () => route.query.q,
-  (newQ, oldQ) => {
-    if (newQ !== oldQ) {
-      keyword.value = newQ || "";
-      searchInput.value = newQ || "";
-      fetchProducts(true);
-    }
-  },
-  { immediate: true }
-);
 
 onMounted(() => {
-  if (route.query.q) {
-    keyword.value = route.query.q;
-    searchInput.value = route.query.q;
-  }
+  window.addEventListener("scroll", handleScroll);
+  window.addEventListener("scroll", handleMerchantInfiniteScroll);
+
   fetchLevel1Categories();
   fetchSegmentations();
-  fetchProducts(true);
+  // fetchProducts(true);
+  // setupObserver();
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("scroll", handleScroll);
+  window.removeEventListener("scroll", handleMerchantInfiniteScroll);
+  if (observer.value) observer.value.disconnect();
+  // if (merchantObserver.value) merchantObserver.value.disconnect();
 });
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 pb-24">
+  <div class="min-h-screen pb-24 bg-gray-50">
     <!-- ================= MOBILE STICKY SEARCH HEADER ================= -->
-    <div class="sm:hidden sticky top-0 z-40 bg-white border-b border-gray-200">
+    <div class="sticky top-0 z-40 bg-white border-b border-gray-200 sm:hidden">
       <div class="flex items-center gap-2 px-3 py-3">
         <!-- BACK -->
         <button
           @click="goBack"
-          class="p-2 px-3 rounded-full hover:bg-gray-100 transition"
+          class="p-2 px-3 transition rounded-full hover:bg-gray-100"
         >
-          <i class="pi pi-chevron-left text-sm"></i>
+          <i class="text-sm pi pi-chevron-left"></i>
         </button>
 
         <!-- SEARCH INPUT -->
         <form @submit.prevent="submitSearch" class="flex-1">
           <div class="relative">
             <TextField
-              v-model="searchInput"
+              :modelValue="route.query.q || ''"
+              @update:modelValue="(v) => router.replace({ query: { q: v } })"
               name="search"
               placeholder="Cari produk atau UMKM…"
               variant="primary"
@@ -551,13 +667,13 @@ onMounted(() => {
         </form>
       </div>
     </div>
-    <div class="max-w-7xl mx-auto px-4 py-4 space-y-5">
+    <div class="px-4 py-4 mx-auto space-y-5 max-w-7xl">
       <div>
-        <h1 class="text-lg sm:text-xl font-semibold text-gray-900">
+        <h1 class="text-lg font-semibold text-gray-900 sm:text-xl">
           Hasil pencarian untuk
-          <span class="text-primary">"{{ keyword }}"</span>
+          <span class="text-primary">"{{ route.query.q }}"</span>
         </h1>
-        <p class="text-sm text-muted-foreground mt-1">
+        <p class="mt-1 text-sm text-muted-foreground">
           Menampilkan produk dan UMKM terkait
         </p>
       </div>
@@ -566,7 +682,7 @@ onMounted(() => {
       <div class="flex group">
         <button
           @click="activeTab = 'products'"
-          class="px-3 py-2 text-sm font-medium border-b-2 transition w-full group-hover:text-primary group-hover:border-primary cursor-pointer"
+          class="w-full px-3 py-2 text-sm font-medium transition border-b-2 cursor-pointer group-hover:text-primary group-hover:border-primary"
           :class="
             activeTab === 'products'
               ? 'border-primary text-primary'
@@ -577,7 +693,7 @@ onMounted(() => {
         </button>
         <button
           @click="activeTab = 'merchants'"
-          class="px-3 py-2 text-sm font-medium border-b-2 transition w-full group-hover:text-primary group-hover:border-primary cursor-pointer"
+          class="w-full px-3 py-2 text-sm font-medium transition border-b-2 cursor-pointer group-hover:text-primary group-hover:border-primary"
           :class="
             activeTab === 'merchants'
               ? 'border-primary text-primary'
@@ -635,82 +751,77 @@ onMounted(() => {
       <!-- PRODUCTS -->
       <section
         v-if="activeTab === 'products'"
-        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"
+        class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
       >
-        <!-- LOADING -->
-        <template v-if="isLoading">
-          <ProductCardSkeleton v-for="i in PAGE_SIZE" :key="i" />
-        </template>
-
         <!-- DATA -->
-        <template v-else-if="products.length">
-          <ProductCard
-            v-for="product in products"
-            :key="product.id"
-            :product="product"
-            @click="goToProductDetail(product)"
-          />
-        </template>
+        <ProductCard
+          v-for="product in products"
+          :key="product.id"
+          :product="product"
+          @click="goToProductDetail(product)"
+        />
+
+        <!-- SKELETON APPEND -->
+        <ProductCardSkeleton
+          v-if="isLoadingMoreProducts"
+          v-for="i in 6"
+          :key="'loading-more-' + i"
+        />
       </section>
+
+      <!-- SENTINEL -->
+      <div
+        ref="loadMoreRef"
+        v-if="hasMore && activeTab === 'products'"
+        class="h-1"
+      ></div>
 
       <!-- EMPTY PRODUCTS -->
       <div
         v-if="isEmptyProducts"
         class="flex flex-col items-center justify-center py-16 text-center"
       >
-        <p class="text-primary text-sm">Produk tidak ditemukan</p>
-        <p class="text-xs text-muted-foreground mt-1">
+        <p class="text-sm text-primary">Produk tidak ditemukan</p>
+        <p class="mt-1 text-xs text-muted-foreground">
           Coba ubah kata kunci atau filter pencarian
         </p>
-      </div>
-
-      <div
-        v-if="!isLoading && activeTab === 'products' && hasMore"
-        class="flex justify-center mt-4"
-      >
-        <Button @click="loadMoreProducts" variant="primary-outline">
-          Muat Lebih Banyak
-        </Button>
       </div>
 
       <!-- MERCHANTS -->
       <section
         v-if="activeTab === 'merchants'"
-        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"
+        class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
       >
-        <!-- LOADING -->
-        <template v-if="isLoading">
-          <ProductCardSkeleton v-for="i in PAGE_SIZE" :key="i" />
-        </template>
+        <MerchantCard
+          v-for="merchant in merchants"
+          :key="merchant.id"
+          :merchant="merchant"
+        />
 
-        <!-- DATA -->
-        <template v-else-if="pagedMerchants.length">
-          <MerchantCard
-            v-for="merchant in pagedMerchants"
-            :key="merchant.id"
-            :merchant="merchant"
-          />
-        </template>
+        <!-- skeleton append -->
+        <ProductCardSkeleton
+          v-if="isLoadingMoreMerchants"
+          v-for="i in 6"
+          :key="'merchant-loading-' + i"
+        />
       </section>
+
+      <!-- SENTINEL UMKM -->
+      <!-- <div
+        ref="loadMoreMerchantRef"
+        v-if="merchantHasMore && activeTab === 'merchants'"
+        class="h-1"
+      ></div> -->
 
       <!-- EMPTY MERCHANTS -->
       <div
         v-if="isEmptyMerchants"
         class="flex flex-col items-center justify-center py-16 text-center"
       >
-        <p class="text-primary text-sm">UMKM tidak ditemukan</p>
-        <p class="text-xs text-muted-foreground mt-1">
+        <p class="text-sm text-primary">UMKM tidak ditemukan</p>
+        <p class="mt-1 text-xs text-muted-foreground">
           Coba gunakan filter atau kata kunci lain
         </p>
-      </div>
-
-      <div
-        v-if="!isLoading && activeTab === 'merchants' && merchantHasMore"
-        class="flex justify-center mt-4"
-      >
-        <Button @click="loadMoreMerchants" variant="primary-outline">
-          Muat Lebih Banyak
-        </Button>
       </div>
     </div>
 
@@ -727,12 +838,13 @@ onMounted(() => {
           <!-- PRICE -->
           <div>
             <label class="text-sm font-medium">Rentang Harga</label>
-            <div class="flex gap-2 mt-2 items-center">
+            <div class="flex items-center gap-2 mt-2">
               <TextField
                 type="number"
                 v-model="tempDetailFilters.minPrice"
                 placeholder="Min"
                 prefix="Rp"
+                class="w-full"
               />
               -
               <TextField
@@ -740,6 +852,7 @@ onMounted(() => {
                 v-model="tempDetailFilters.maxPrice"
                 placeholder="Max"
                 prefix="Rp"
+                class="w-full"
               />
             </div>
           </div>
@@ -755,7 +868,7 @@ onMounted(() => {
                 v-for="seg in availableSegments"
                 :key="seg.key"
                 @click="toggleSegment(seg.key)"
-                class="px-3 py-2 text-xs rounded-xl border"
+                class="px-3 py-2 text-xs border rounded-xl"
                 :class="
                   tempDetailFilters.segments.includes(seg.key)
                     ? 'bg-primary text-white border-primary'
@@ -778,7 +891,7 @@ onMounted(() => {
                 v-for="cat in availableCategories"
                 :key="cat.key"
                 @click="toggleCategory(cat.key)"
-                class="px-3 py-2 text-xs rounded-xl border"
+                class="px-3 py-2 text-xs border rounded-xl"
                 :class="
                   tempDetailFilters.categories.includes(cat.key)
                     ? 'bg-primary text-white border-primary'
@@ -801,7 +914,7 @@ onMounted(() => {
                 v-for="sub in availableSubCategories"
                 :key="sub.key"
                 @click="toggleSubCategory(sub.key)"
-                class="px-3 py-2 text-xs rounded-xl border"
+                class="px-3 py-2 text-xs border rounded-xl"
                 :class="
                   tempDetailFilters.subCategories.includes(sub.key)
                     ? 'bg-primary text-white border-primary'
@@ -826,7 +939,7 @@ onMounted(() => {
                 v-for="seg in availableSegments"
                 :key="seg.key"
                 @click="toggleSegment(seg.key)"
-                class="px-3 py-2 text-xs rounded-xl border"
+                class="px-3 py-2 text-xs border rounded-xl"
                 :class="
                   tempDetailFilters.segments.includes(seg.key)
                     ? 'bg-primary text-white border-primary'
@@ -855,5 +968,15 @@ onMounted(() => {
         </div>
       </template>
     </ResponsiveModal>
+
+    <!-- BACK TO TOP BUTTON -->
+    <button
+      v-show="showBackToTop"
+      @click="scrollToTop"
+      class="fixed z-50 flex items-center justify-center transition duration-200 bg-white border-2 rounded-full shadow-sm cursor-pointer border-muted-foreground/20 hover:shadow-lg bottom-24 right-8 w-11 h-11 active:scale-90 hover:-translate-y-1"
+      aria-label="Kembali ke atas"
+    >
+      <i class="text-xl pi pi-arrow-up text-secondary"></i>
+    </button>
   </div>
 </template>
