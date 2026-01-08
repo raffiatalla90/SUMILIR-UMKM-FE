@@ -474,7 +474,7 @@ const handleRegister = async (values) => {
   errorMessage.value = "";
 
   try {
-    const { data } = await api.post("/api/auth/register", {
+	const { data } = await api.post("/api/auth/register", {
       name: values.name,
       email: values.email,
       nik: values.nik,

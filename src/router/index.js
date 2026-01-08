@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import { setMeta } from "./seo";
+// import { initializeCsrfToken } from "@/composables/useCsrfToken";
+// import { initializeCsrfToken } from "@/composables/useCsrfToken";
 import CommunityView from "@/views/CommunityView.vue";
 import CommunityDetailView from "@/views/CommunityDetailView.vue";
 import ProfileView from "@/views/ProfileView.vue";
@@ -31,6 +32,12 @@ const routes = [
     component: () => import("@/views/ApiTest.vue"),
     meta: { title: "API Test" },
   },
+  {
+    path: "/test-api",
+    name: "ApiTest",
+    component: () => import("@/views/ApiTest.vue"),
+    meta: { title: "API Test" },
+  },
   // ✅ Halaman Beranda (Public/Customer)
   {
     path: "/",
@@ -50,11 +57,7 @@ const routes = [
         path: "product-toko",
         name: "Product Toko",
         component: () => import("@/views/customer/ProductTokoHome.vue"),
-        meta: {
-          title: "Produk Toko UMKM Lokal",
-          description:
-            "Produk kebutuhan toko dari UMKM lokal Banyuanyar. Praktis, dekat, dan terpercaya.",
-        },
+        meta: { title: "Semua Produk Toko | SUMILIR" },
       },
       {
         path: "product-kuliner",
@@ -65,6 +68,13 @@ const routes = [
           description:
             "Temukan produk kuliner UMKM Banyuanyar yang enak dan terjangkau.",
         },
+        meta: { title: "Semua Produk Kuliner | SUMILIR" },
+      },
+      {
+        path: "products/:slug",
+        name: "Product Detail",
+        component: () => import("@/views/customer/ProductDetail.vue"),
+        meta: { title: "Product Detail | SUMILIR" },
       },
       {
         path: "merchant/:slug",
@@ -75,7 +85,7 @@ const routes = [
       {
         path: "/map",
         name: "map",
-        component: () => import('@/views/customer/PetaUmkm.vue')
+        component: () => import("@/views/customer/PetaUmkm.vue"),
       },
 
       // Halaman Jasa Teknisi & Pembayaran
@@ -90,6 +100,18 @@ const routes = [
         name: "JasaDetail",
         component: () => import("@/views/customer/JasaDetail.vue"),
         meta: { title: "Detail Jasa" },
+      },
+      {
+        path: "toko/:id",
+        name: "MerchantStore",
+        component: () => import("@/views/customer/MerchantStore.vue"),
+        meta: { title: "Toko | SUMILIR" },
+      },
+      {
+        path: "toko/:id",
+        name: "MerchantStore",
+        component: () => import("@/views/customer/MerchantStore.vue"),
+        meta: { title: "Toko | SUMILIR" },
       },
       {
         path: "pembayaran-jasa",
@@ -116,8 +138,20 @@ const routes = [
       },
       {
         path: "product-payment",
+        path: "product-payment",
         name: "Pembayaran Produk",
         component: () => import("@/views/customer/PembayaranProduct.vue"),
+        meta: {
+          // requiresAuth: true,
+          // roles: ["customer"],
+          title: "Pembayaran",
+        },
+      },
+      {
+        path: "search",
+        name: "Search Page",
+        component: () => import("@/views/customer/SearchPage.vue"),
+        meta: { title: "Search | SUMILIR" },
         meta: {
           // requiresAuth: true,
           // roles: ["customer"],
@@ -206,8 +240,7 @@ const routes = [
   // Halaman admin
   {
     path: "/admin",
-    name: "Admin",
-    component: () => import("@/layouts/AdminLayout.vue"),
+    component: () => import("@/views/admin/Dashboard.vue"),
     meta: {
       requiresAuth: true,
       roles: ["admin"],
@@ -216,6 +249,8 @@ const routes = [
     children: [
       {
         path: "",
+        name: "Admin",
+        name: "Admin",
         redirect: { name: "Admin Dashboard" },
       },
       {
@@ -336,7 +371,8 @@ const routes = [
     ],
   },
 
-  // Halaman merchant
+  // Halaman merchant center
+  // Halaman merchant center
   {
     path: "/merchant-center/:merchantId",
     component: () => import("@/layouts/MerchantLayout.vue"),
@@ -361,6 +397,14 @@ const routes = [
           title: "Dashboard UMKM",
         },
       },
+
+      // ===========================
+      // PRODUK UMKM TOKO/KULINER
+      // ===========================
+
+      // ===========================
+      // PRODUK UMKM TOKO/KULINER
+      // ===========================
       {
         path: "products",
         name: "Merchant - Product UMKM",
@@ -375,7 +419,10 @@ const routes = [
           title: "Buat Product UMKM",
         },
       },
+      // ✅ UPDATED: Use slug instead of id
+      // ✅ UPDATED: Use slug instead of id
       {
+        path: "products/:slug",
         path: "products/:slug",
         name: "Merchant - Product Detail",
         component: () => import("@/views/merchant/products/Detail.vue"),
@@ -383,7 +430,10 @@ const routes = [
           title: "Product Detail UMKM",
         },
       },
+      // ✅ UPDATED: Use slug instead of id
+      // ✅ UPDATED: Use slug instead of id
       {
+        path: "products/:slug/edit",
         path: "products/:slug/edit",
         name: "Merchant - Product Edit",
         component: () => import("@/views/merchant/products/Edit.vue"),
@@ -391,6 +441,167 @@ const routes = [
           title: "Edit Product UMKM",
         },
       },
+
+      // ===========================
+      // ✅ JASA (UMKM JASA)
+      // ===========================
+      {
+        path: "jasas",
+        name: "Merchant - Jasa Index",
+        component: () => import("@/views/merchant/productsjasa/Indexjasa.vue"),
+        meta: { title: "Jasa UMKM | SUMILIR" },
+      },
+      // Handle /jasas/index agar tidak dianggap sebagai :id = "index"
+      {
+        path: "jasas/index",
+        redirect: (to) => ({
+          name: "Merchant - Jasa Index",
+          params: { merchantId: to.params.merchantId },
+        }),
+      },
+      {
+        path: "jasas/create",
+        name: "Merchant - Jasa Create",
+        component: () => import("@/views/merchant/productsjasa/Createjasa.vue"),
+        meta: { title: "Buat Jasa UMKM | SUMILIR" },
+      },
+      {
+        path: "jasas/createjasa",
+        component: () => import("@/views/merchant/productsjasa/Createjasa.vue"),
+        meta: { title: "Buat Jasa UMKM | SUMILIR" },
+      },
+      {
+        path: "jasas/:id",
+        name: "Merchant - Jasa Detail",
+        component: () => import("@/views/merchant/productsjasa/Detailjasa.vue"),
+        meta: { title: "Detail Jasa UMKM | SUMILIR" },
+      },
+      {
+        path: "jasas/:id/edit",
+        name: "Merchant - Jasa Edit",
+        component: () => import("@/views/merchant/productsjasa/Editjasa.vue"),
+        meta: { title: "Edit Jasa UMKM | SUMILIR" },
+      },
+
+      // ===========================
+      // BACKWARD COMPATIBILITY: productsjasa routes
+      // ===========================
+      {
+        path: "productsjasa",
+        redirect: (to) => ({
+          name: "Merchant - Jasa Index",
+          params: { merchantId: to.params.merchantId },
+        }),
+      },
+      {
+        path: "productsjasa/create",
+        redirect: (to) => ({
+          name: "Merchant - Jasa Create",
+          params: { merchantId: to.params.merchantId },
+        }),
+      },
+      {
+        path: "productsjasa/createjasa",
+        redirect: (to) => ({
+          name: "Merchant - Jasa Create",
+          params: { merchantId: to.params.merchantId },
+        }),
+      },
+      {
+        path: "productsjasa/:id",
+        redirect: (to) => ({
+          name: "Merchant - Jasa Detail",
+          params: { merchantId: to.params.merchantId, id: to.params.id },
+        }),
+      },
+      {
+        path: "productsjasa/:id/edit",
+        redirect: (to) => ({
+          name: "Merchant - Jasa Edit",
+          params: { merchantId: to.params.merchantId, id: to.params.id },
+        }),
+      },
+
+      // ===========================
+      // ✅ JASA (UMKM JASA)
+      // ===========================
+      {
+        path: "jasas",
+        name: "Merchant - Jasa Index",
+        component: () => import("@/views/merchant/productsjasa/Indexjasa.vue"),
+        meta: { title: "Jasa UMKM | SUMILIR" },
+      },
+      // Handle /jasas/index agar tidak dianggap sebagai :id = "index"
+      {
+        path: "jasas/index",
+        redirect: (to) => ({
+          name: "Merchant - Jasa Index",
+          params: { merchantId: to.params.merchantId },
+        }),
+      },
+      {
+        path: "jasas/create",
+        name: "Merchant - Jasa Create",
+        component: () => import("@/views/merchant/productsjasa/Createjasa.vue"),
+        meta: { title: "Buat Jasa UMKM | SUMILIR" },
+      },
+      {
+        path: "jasas/createjasa",
+        component: () => import("@/views/merchant/productsjasa/Createjasa.vue"),
+        meta: { title: "Buat Jasa UMKM | SUMILIR" },
+      },
+      {
+        path: "jasas/:id",
+        name: "Merchant - Jasa Detail",
+        component: () => import("@/views/merchant/productsjasa/Detailjasa.vue"),
+        meta: { title: "Detail Jasa UMKM | SUMILIR" },
+      },
+      {
+        path: "jasas/:id/edit",
+        name: "Merchant - Jasa Edit",
+        component: () => import("@/views/merchant/productsjasa/Editjasa.vue"),
+        meta: { title: "Edit Jasa UMKM | SUMILIR" },
+      },
+
+      // ===========================
+      // BACKWARD COMPATIBILITY: productsjasa routes
+      // ===========================
+      {
+        path: "productsjasa",
+        redirect: (to) => ({
+          name: "Merchant - Jasa Index",
+          params: { merchantId: to.params.merchantId },
+        }),
+      },
+      {
+        path: "productsjasa/create",
+        redirect: (to) => ({
+          name: "Merchant - Jasa Create",
+          params: { merchantId: to.params.merchantId },
+        }),
+      },
+      {
+        path: "productsjasa/createjasa",
+        redirect: (to) => ({
+          name: "Merchant - Jasa Create",
+          params: { merchantId: to.params.merchantId },
+        }),
+      },
+      {
+        path: "productsjasa/:id",
+        redirect: (to) => ({
+          name: "Merchant - Jasa Detail",
+          params: { merchantId: to.params.merchantId, id: to.params.id },
+        }),
+      },
+      {
+        path: "productsjasa/:id/edit",
+        redirect: (to) => ({
+          name: "Merchant - Jasa Edit",
+          params: { merchantId: to.params.merchantId, id: to.params.id },
+        }),
+      },
+
       {
         path: "community",
         name: "Merchant - Community",
@@ -445,8 +656,14 @@ const routes = [
         component: () => import("@/views/merchant/profile/MerchantEdit.vue"),
         meta: {
           title: "Edit Merchant Profile | SUMILIR",
+        },
       },
-  },
+      {
+        path: "productsjasa",
+        name: "Merchant - Products Jasa",
+        component: () => import("@/views/merchant/productsjasa/Indexjasa.vue"),
+        meta: { title: "Products Jasa | SUMILIR" },
+      },
     ],
   },
 
@@ -466,7 +683,7 @@ const routes = [
         path: "",
         name: "Merchant Profile - Index",
         component: () => import("@/views/merchant/profile/MerchantInfo.vue"),
-        meta: { 
+        meta: {
           title: "Profil Toko | SUMILIR",
           // requiresAuth: true,  // ← Commented out for testing
           // roles: ["umkm-owner"]
@@ -476,7 +693,7 @@ const routes = [
         path: "edit",
         name: "Merchant Profile - Edit",
         component: () => import("@/views/merchant/profile/MerchantEdit.vue"),
-        meta: { 
+        meta: {
           title: "Edit Toko | SUMILIR",
           // requiresAuth: true,  // ← Commented out for testing
           // roles: ["umkm-owner"]
@@ -484,7 +701,6 @@ const routes = [
       },
     ],
   },
-
 
   // My Order History (dari kodemu)
   {
@@ -549,27 +765,27 @@ const routes = [
     ],
   },
 
-
   // Fallback
   { path: "/:pathMatch(.*)*", redirect: "/" },
-
-  // {
-  //   path: "/community",
-  //   name: "community",
-  //   component: CommunityView,
-  // },
-  // {
-  //   path: "/community/:slug",
-  //   name: "community-detail",
-  //   component: CommunityDetailView,
-  //   props: true,
-  // },
-  // { path: "/:pathMatch(.*)*", redirect: "/" },
 ];
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
+
+  scrollBehavior(to, from, savedPosition) {
+    // ⬅️ untuk back/forward browser
+    if (savedPosition) {
+      return savedPosition;
+    }
+
+    // ⬅️ default: selalu ke atas
+    return {
+      top: 0,
+      left: 0,
+      behavior: "smooth", // opsional
+    };
+  },
 
   scrollBehavior(to, from, savedPosition) {
     // ⬅️ untuk back/forward browser
@@ -592,22 +808,14 @@ let authInitialized = false;
 
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
-  const defaultTitle = "Sumilir – Marketplace UMKM Lokal Banyuanyar";
-
-  const defaultDesc =
-    "Sumilir adalah marketplace UMKM lokal Banyuanyar untuk produk kuliner, toko, dan jasa.";
-
-  setMeta({
-    title: to.meta.title ? `${to.meta.title} – Sumilir` : defaultTitle,
-    description: to.meta.description || defaultDesc,
-  });
+  document.title = to.meta.title || "SUMILIR";
 
   if (!authInitialized) {
     authInitialized = true;
     await authStore.initAuth();
   }
 
-  // Skip if navigating to same path
+  // ✅ ADD: Skip if navigating to same path
   if (to.path === lastNavigationPath) {
     next();
     return;
@@ -615,11 +823,18 @@ router.beforeEach(async (to, from, next) => {
 
   lastNavigationPath = to.path;
 
+  // ✅ 1. Jika route butuh auth tapi user belum login
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    console.warn("⚠️ Not authenticated, redirecting to /login");
-    return next("/login");
+    authStore.requireLoginToast();
+
+    return next({
+      path: "/login",
+      query: { redirect: to.fullPath }, // optional tapi recommended
+    });
   }
 
+  // 2. halaman guest tapi user sudah login
+  // 2. halaman guest tapi user sudah login
   if (to.meta.guest && authStore.isAuthenticated) {
     const userRoles = (authStore.user?.roles || [])
       .map((r) => (typeof r === "string" ? r : r.name))
@@ -640,6 +855,8 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
+  // 3. Role-based access control
+  // 3. Role-based access control
   const requiredRoles = to.meta.roles || [];
   if (requiredRoles.length && authStore.isAuthenticated) {
     const userRoles = (authStore.user?.roles || [])
@@ -652,37 +869,28 @@ router.beforeEach(async (to, from, next) => {
     );
 
     if (!hasRequiredRole) {
-      console.warn("⚠️ Role not allowed, redirecting to /");
       return next("/");
     }
   }
 
+  // Require approved merchant untuk /merchant-center
+  // Require approved merchant untuk /merchant-center
   if (to.path.startsWith("/merchant-center")) {
     const merchantIdParam = to.params.merchantId
       ? Number(to.params.merchantId)
       : null;
 
-    // Wajib ada merchantId di URL
     if (!merchantIdParam || Number.isNaN(merchantIdParam)) {
-      console.warn(
-        "merchantId kosong/tidak valid, redirect ke /merchant-register"
-      );
       return next("/merchant-register");
     }
 
     const merchant = authStore.getMerchantById(merchantIdParam);
 
-    // Jika tidak ditemukan di store (karena belum approved), blok akses
     if (!merchant) {
-      console.warn(
-        "Merchant tidak ditemukan/ belum approved, redirect ke /merchant-register"
-      );
       return next("/merchant-register");
     }
 
-    // Jika status bukan approved, blok akses
     if (merchant.status !== "approved") {
-      console.warn("Merchant belum approved, redirect ke /merchant-register");
       return next("/merchant-register");
     }
   }

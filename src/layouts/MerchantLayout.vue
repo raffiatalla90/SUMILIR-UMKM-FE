@@ -17,9 +17,7 @@ const showLogoutModal = ref(false);
 
 // ✅ Get merchantId dari route params
 const currentMerchantId = computed(() => {
-  if (!route || !route.params || typeof route.params !== "object") {
-    return authStore.merchantId;
-  }
+  if (!route || !route.params) return authStore.merchantId;
   return route.params.merchantId
     ? Number(route.params.merchantId)
     : authStore.merchantId;
@@ -39,7 +37,23 @@ const merchantName = computed(() => {
 });
 
 const merchantType = computed(() => {
-  return currentMerchant.value?.segmentation?.name || "UMKM";
+  const m = currentMerchant.value;
+  // Prefer backend-provided segmentation name
+  if (m?.segmentation?.name) {
+    // Normalize legacy seed value "Segmentation 3" to desired label
+    return m.segmentation.name === "Segmentation 3" ? "UMKM Jasa" : m.segmentation.name;
+  }
+  // Fallback mapping by segmentation_id when relationship missing
+  switch (m?.segmentation_id) {
+    case 3:
+      return "UMKM Jasa";
+    case 2:
+      return "UMKM Produk";
+    case 1:
+      return "UMKM";
+    default:
+      return "UMKM";
+  }
 });
 
 const merchantsCount = computed(() => authStore.merchantsCount);
@@ -53,14 +67,16 @@ const showMerchantSelector = computed(() => merchantsCount.value > 1);
 
 // ✅ Watch route changes untuk update active merchant
 watch(
-  () => (route && route.params ? route.params : {}),
+  () => route.params,
   (params) => {
     if (!params?.merchantId) return;
+
     authStore.setActiveMerchant(Number(params.merchantId));
   },
   { immediate: true }
 );
 
+<<<<<<< HEAD
 // ✅ Menu items dengan dynamic merchantId
 const menuItems = computed(() => [
   {
@@ -89,6 +105,44 @@ const menuItems = computed(() => [
     route: `/merchant-center/${currentMerchantId.value}/vouchers`,
   },
 ]);
+=======
+// ✅ Menu items dengan merchantId dinamis dan menu terpisah untuk Produk & Jasa
+const menuItems = computed(() => {
+  const base = `/merchant-center/${currentMerchantId.value}`;
+  return [
+    {
+      label: "Dashboard",
+      icon: "pi-chart-bar",
+      route: `${base}/dashboard`,
+    },
+    {
+      label: "Pesanan",
+      icon: "pi-shopping-bag",
+      route: `${base}/orders`,
+    },
+    {
+      label: "Produk",
+      icon: "pi-box",
+      route: `${base}/products`,
+    },
+    {
+      label: "Jasa",
+      icon: "pi-briefcase",
+      route: `${base}/jasas`,
+    },
+    {
+      label: "Komunitas",
+      icon: "pi-comments",
+      route: `${base}/community`,
+    },
+    {
+      label: "Potongan Harga",
+      icon: "pi-tag",
+      route: `${base}/discounts`,
+    },
+  ];
+});
+>>>>>>> origin/feat/jasa
 
 const logout = async () => {
   try {
@@ -166,23 +220,37 @@ defineExpose({
       <!-- Header -->
       <div
         :class="[
-          'flex items-center  h-23 ',
+          'flex items-center  h-20 shadow-sm',
           isOpen
             ? 'justify-between px-4'
             : 'justify-between px-4 sm:justify-center ',
         ]"
       >
         <router-link to="/">
+          <!-- <h2
+            :class="[
+              'text-lg font-bold text-gray-800 transition-all duration-300',
+              isOpen
+                ? 'opacity-100'
+                : 'opacity-100 sm:opacity-0 sm:w-0 sm:hidden',
+            ]"
+          >
+            Sumilir Logo
+          </h2> -->
           <img
             :src="LogoWithText"
             alt="SUMILIR"
             class=""
+<<<<<<< HEAD
             :class="[
               '',
               isOpen
                 ? 'ms-3 opacity-100 h-8'
                 : 'sm:opacity-0 sm:h-0 sm:ms-0 ms-3 h-8',
             ]"
+=======
+            :class="['', isOpen ? 'opacity-100 h-8' : 'opacity-0 h-0']"
+>>>>>>> origin/feat/jasa
           />
         </router-link>
 
@@ -377,7 +445,35 @@ defineExpose({
         !isOpen ? 'sm:ml-16' : 'sm:ml-64',
       ]"
     >
+<<<<<<< HEAD
       <router-view :key="$route.fullPath" v-slot="{ Component }">
+=======
+      <!-- Mobile Top Bar with Sidebar Toggle -->
+      <header
+        class="sm:hidden sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm"
+      >
+        <div class="flex items-center gap-3 px-4 py-3">
+          <button
+            @click="toggleSidebar"
+            class="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-50 active:scale-95 transition"
+            aria-label="Toggle sidebar"
+          >
+            <i class="pi pi-bars text-base"></i>
+          </button>
+
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-gray-900 truncate">
+              {{ merchantName }}
+            </p>
+            <p class="text-[11px] text-gray-500 truncate">
+              {{ merchantType }}
+            </p>
+          </div>
+        </div>
+      </header>
+
+      <router-view v-slot="{ Component }">
+>>>>>>> origin/feat/jasa
         <transition
           name="fade"
           mode="out-in"
@@ -396,7 +492,6 @@ defineExpose({
     <ResponsiveModal
       v-model:show="showLogoutModal"
       title="Konfirmasi Logout"
-      size="sm"
     >
       <div class="py-4 text-center">
         <i

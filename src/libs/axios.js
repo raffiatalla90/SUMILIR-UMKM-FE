@@ -1,4 +1,3 @@
-// src/libs/axios.js
 import axios from "axios";
 
 const api = axios.create({
@@ -37,6 +36,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Response Interceptor (Biarkan seperti kode Anda sebelumnya)
 // Response Interceptor (Biarkan seperti kode Anda sebelumnya)
 api.interceptors.response.use(
   (response) => response,

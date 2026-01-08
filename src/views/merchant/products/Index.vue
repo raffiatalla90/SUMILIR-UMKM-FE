@@ -19,6 +19,7 @@ import MobilePagination from "@/components/common/MobilePagination.vue";
 import BulkActionBar from "@/components/common/BulkActionBar.vue";
 import { useProducts } from "@/composables/useProducts";
 import { useCategories } from "@/composables/useCategories";
+import api from "@/libs/axios";
 
 const router = useRouter();
 const route = useRoute();
@@ -173,6 +174,13 @@ const loadProducts = async () => {
     return;
   }
 
+  // ✅ ADD: Prevent duplicate calls
+  if (loading.value) {
+    return;
+  }
+
+  logCookies("BEFORE fetchProducts"); // ✅ Log before
+
   try {
     const sortBy = buildSortByParam(activeFilters.value);
 
@@ -326,15 +334,59 @@ const buildExportParams = () => {
 };
 
 // Export Excel (via BE)
-const confirmExportExcel = async () => {
-  await exportExcel(buildExportParams());
-  closeExportModal();
+const exportExcel = async () => {
+  try {
+    const params = buildExportParams();
+    const res = await api.get("/api/products/export/excel", {
+      params,
+      responseType: "blob",
+    });
+
+    // Ambil nama file dari header jika ada
+    const disposition = res.headers["content-disposition"] || "";
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const filename =
+      match?.[1] ||
+      `products-${new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace(/[:T]/g, "")}.xlsx`;
+
+    saveBlob(res.data, filename);
+    toast.success("Export Excel berhasil diunduh");
+  } catch (err) {
+    toast.error(err.response?.data?.message || "Gagal export Excel");
+  } finally {
+    closeExportModal();
+  }
 };
 
 // Export PDF (via BE)
-const confirmExportPDF = async () => {
-  await exportPDF(buildExportParams());
-  closeExportModal();
+const exportPDF = async () => {
+  try {
+    const params = buildExportParams();
+    const res = await api.get("/api/products/export/pdf", {
+      params,
+      responseType: "blob",
+    });
+
+    // Ambil nama file dari header jika ada
+    const disposition = res.headers["content-disposition"] || "";
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const filename =
+      match?.[1] ||
+      `products-${new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace(/[:T]/g, "")}.pdf`;
+
+    saveBlob(res.data, filename);
+    toast.success("Export PDF berhasil diunduh");
+  } catch (err) {
+    toast.error(err.response?.data?.message || "Gagal export PDF");
+  } finally {
+    closeExportModal();
+  }
 };
 
 // ✅ UPDATED: goToCreate with merchantId
@@ -377,8 +429,13 @@ const deleteProductAction = (product) => {
 const confirmDeleteProduct = async () => {
   if (!selectedProductForDelete.value) return;
 
-  await deleteProduct(selectedProductForDelete.value.slug); // ✅ slug
-  closeDeleteModal();
+  try {
+    await deleteProduct(selectedProductForDelete.value.slug); // ✅ slug
+    toast.success("Produk berhasil dihapus");
+    closeDeleteModal();
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Gagal menghapus produk");
+  }
 };
 
 const hasSelectedProducts = computed(() => {
@@ -560,8 +617,10 @@ const confirmBulkStatusChange = async () => {
     selectedProducts.value = [];
     selectAll.value = false;
     closeBulkStatusChangeModal();
-  } catch (e) {
-    // error toast sudah di composable
+  } catch (error) {
+    toast.error(
+      error.response?.data?.message || "Gagal mengubah status produk"
+    );
   }
 };
 
@@ -616,6 +675,13 @@ watch(currentPage, () => {
   loadProducts();
 });
 
+// ✅ REMOVE: Problematic watchEffect if exists
+// watchEffect(() => {
+//   // This might cause infinite loops
+//   loadProducts();
+// });
+onMounted(() => {});
+
 watch(perPage, (val, oldVal) => {
   if (val === oldVal) return;
 
@@ -627,6 +693,7 @@ watch(perPage, (val, oldVal) => {
 onMounted(async () => {
   const savedPerPage = localStorage.getItem("products_per_page");
   if (savedPerPage) perPage.value = Number(savedPerPage);
+  logCookies("onMounted");
 
   // ✅ Guard di FE juga: cegah akses jika merchant belum approved
   const merchant =

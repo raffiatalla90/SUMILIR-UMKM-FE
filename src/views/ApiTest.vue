@@ -1,8 +1,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import api from "@/libs/axios";
-import * as SegmentationService from "@/services/api/segmentation";
-import { getPublicProducts } from "@/services/api/product";
+
 const data = ref(null);
 
 onMounted(async () => {

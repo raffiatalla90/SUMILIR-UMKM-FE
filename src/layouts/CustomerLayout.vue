@@ -1,19 +1,11 @@
 <script setup>
-import {
-  ref,
-  computed,
-  nextTick,
-  watch,
-  onMounted,
-  onBeforeUnmount,
-} from "vue";
+import { ref, computed, nextTick, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import Button from "@/components/common/Button.vue";
 import { useRouter } from "vue-router";
 import LogoText from "@/assets/icons/LogoWithText.png";
 import LogoNoText from "@/assets/icons/LogoNoText.png";
-import Textfield from "@/components/forms/TextField.vue";
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
@@ -134,25 +126,9 @@ function toggleSearch() {
 
     nextTick(() => {
       // optional: auto focus input fixed search
-      searchInputRef.value?.focus();
+      // kamu bisa pakai ref khusus jika mau
     });
   }
-}
-
-function handleClickOutside(event) {
-  if (!showSearch.value) return;
-
-  const searchEl = searchBarRef.value;
-
-  // Jika klik DI DALAM search bar → abaikan
-  if (searchEl && searchEl.contains(event.target)) return;
-
-  // Jika klik tombol search → abaikan (biar tidak langsung nutup)
-  const searchButton = event.target.closest("[aria-label='Cari']");
-  if (searchButton) return;
-
-  // Selain itu → tutup search
-  showSearch.value = false;
 }
 
 function submitSearch() {
@@ -174,18 +150,12 @@ watch(
   },
   { immediate: true }
 );
-onMounted(() => {
-  document.addEventListener("click", handleClickOutside);
-});
-onBeforeUnmount(() => {
-  document.removeEventListener("click", handleClickOutside);
-});
 </script>
 
 <template>
   <div class="flex flex-col min-h-screen pb-16 sm:pb-0">
     <!-- Navbar Desktop (hidden on mobile) -->
-    <nav
+    <div
       class="hidden sm:block sticky top-0 z-50 w-full h-[91px] bg-white border-b border-gray-200 shadow-sm"
     >
       <div class="max-w-[1440px] mx-auto h-full px-4">
@@ -196,7 +166,7 @@ onBeforeUnmount(() => {
             class="text-[30px] font-bold leading-[100%] tracking-[0] text-black"
             title="Sumilir – Marketplace UMKM Lokal Banyuanyar"
           >
-            <img :src="LogoText" alt="SUMILIR" class="hidden h-10 md:block" />
+            <img :src="LogoText" alt="SUMILIR" class="h-10 hidden md:block" />
             <img :src="LogoNoText" alt="SUMILIR" class="h-10 md:hidden" />
           </RouterLink>
 
@@ -219,12 +189,12 @@ onBeforeUnmount(() => {
                 <!-- Icon dan label seperti sebelumnya -->
                 <span
                   v-html="m.icon"
-                  class="block w-6 h-6 transition-colors duration-200 lg:hidden hover:text-primary"
+                  class="lg:hidden block w-6 h-6 transition-colors hover:text-primary duration-200"
                   :class="isMenuActive(m) ? 'text-primary' : 'text-black'"
                 ></span>
                 <span class="relative hidden lg:inline-block">
                   <span
-                    class="block transition-colors duration-200 select-none hover:text-primary"
+                    class="block select-none transition-colors hover:text-primary duration-200"
                     :class="isMenuActive(m) ? 'text-primary' : 'text-black'"
                   >
                     {{ m.label }}
@@ -236,12 +206,12 @@ onBeforeUnmount(() => {
           <!-- ...existing code... -->
 
           <!-- Right side -->
-          <div class="flex items-center gap-4 ml-auto">
+          <div class="ml-auto flex items-center gap-4">
             <!-- Search Button -->
-            <div class="px-4 border-r border-muted-foreground">
+            <div class="border-r border-muted-foreground px-4">
               <button
                 @click="toggleSearch"
-                class="p-2 px-3 transition rounded-full hover:bg-gray-100"
+                class="p-2 px-3 rounded-full hover:bg-gray-100 transition"
                 aria-label="Cari"
               >
                 <i class="pi pi-search"></i>
@@ -290,32 +260,48 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </div>
-    </nav>
+    </div>
     <!-- SEARCH BAR (Desktop) -->
     <transition
       enter-active-class="transition-all duration-300 ease-out"
-      enter-from-class="-translate-y-2 opacity-0"
-      enter-to-class="translate-y-0 opacity-100"
+      enter-from-class="opacity-0 -translate-y-2"
+      enter-to-class="opacity-100 translate-y-0"
       leave-active-class="transition-all duration-200 ease-in"
-      leave-from-class="translate-y-0 opacity-100"
-      leave-to-class="-translate-y-2 opacity-0"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 -translate-y-2"
     >
       <div
         v-if="showSearch"
-        ref="searchBarRef"
         class="hidden sm:block bg-white border-b border-gray-200 shadow-sm fixed top-[91px] left-0 right-0 z-40"
       >
         <div class="max-w-[1440px] mx-auto px-4 py-4">
           <form @submit.prevent="submitSearch" class="relative">
-            <Textfield
-              ref="searchInputRef"
+            <input
               v-model="searchQuery"
-              name="search-navbar"
+              type="text"
               placeholder="Cari produk, jasa, atau UMKM…"
-              :hideLabel="true"
-              variant="primary"
-              customClass=""
+              class="w-full h-12 rounded-xl border border-gray-300 pl-12 pr-4 text-sm focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-muted-foreground"
+              autofocus
             />
+
+            <span
+              class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="w-5 h-5"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="m21 21-4.35-4.35m0 0A7.5 7.5 0 1 0 10.5 18a7.5 7.5 0 0 0 6.15-3.35Z"
+                />
+              </svg>
+            </span>
           </form>
         </div>
       </div>
@@ -351,7 +337,7 @@ onBeforeUnmount(() => {
             />
             <span
               v-else
-              class="flex items-center justify-center text-2xl font-bold text-black rounded-full w-7 h-7 bg-muted-background"
+              class="w-7 h-7 rounded-full bg-muted-background flex items-center justify-center text-black text-2xl font-bold"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

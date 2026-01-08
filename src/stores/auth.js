@@ -26,7 +26,15 @@ export const useAuthStore = defineStore("auth", () => {
   // =========================
   // COMPUTED
   // =========================
+  // =========================
+  // COMPUTED
+  // =========================
   const isAuthenticated = computed(() => !!user.value);
+  function requireLoginToast() {
+    toast.info("Silakan login terlebih dahulu untuk melanjutkan", {
+      timeout: 2500,
+    });
+  }
   function requireLoginToast() {
     toast.info("Silakan login terlebih dahulu untuk melanjutkan", {
       timeout: 2500,
@@ -82,9 +90,13 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   function clearUser() {
+    console.log("[Auth] 🗑️ Clearing user data.");
+    console.log("[Auth] 🗑️ Clearing user data.");
     user.value = null;
     selectedMerchantId.value = null;
     localStorage.removeItem("user");
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("auth_token");
     localStorage.removeItem("selected_merchant_id");
     profileStore.$reset();
   }
@@ -184,11 +196,18 @@ export const useAuthStore = defineStore("auth", () => {
   // =========================
   // EXPORT
   // =========================
+  // =========================
+  // EXPORT
+  // =========================
   return {
+    // state
     // state
     user,
     authReady,
+    authReady,
     isAuthenticated,
+
+    // roles
 
     // roles
     userRoles,
@@ -198,9 +217,18 @@ export const useAuthStore = defineStore("auth", () => {
 
     // merchant
     allMerchants,
+
+    // merchant
+    allMerchants,
     activeMerchant,
     merchantId,
+    merchantId,
     merchantName,
+    setActiveMerchant,
+    getMerchantById,
+
+    // actions
+    requireLoginToast,
     setActiveMerchant,
     getMerchantById,
 

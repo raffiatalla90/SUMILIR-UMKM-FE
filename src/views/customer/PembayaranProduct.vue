@@ -115,6 +115,10 @@
                 </span>
               </div>
             </div>
+            <!-- subtotal add-on per quantity -->
+            <p class="text-xs text-gray-600">
+              Total tambahan: Rp {{ formatIDR(addonTotal) }}
+            </p>
           </div>
 
           <!-- Catatan Produk -->
@@ -362,6 +366,7 @@
     </main>
 
     <!-- Bottom bar (Total + Pesan button) -->
+    <!-- bottom-16 di mobile agar di atas footer global/bottom nav; di layar besar bottom-0 -->
     <footer
       class="fixed left-0 right-0 z-20 bg-white border-t border-gray-200 shadow-lg bottom-16 sm:bottom-0"
     >
@@ -612,7 +617,7 @@ const checkoutItems = computed(() => {
     },
   ];
 });
-const isGuest = computed(() => !auth.isAuthenticated);
+
 // Order view model (dari store)
 const order = computed(() => {
   if (checkout.from === "cart") {
@@ -717,7 +722,7 @@ const promos = computed(() =>
 const form = ref({
   nama: "",
   tel: "",
-  metodePengiriman: "pickup",
+  metodePengiriman: "delivery",
   catatanProduk: "",
   catatanAlamat: "",
 });
@@ -844,17 +849,9 @@ const addresses = ref([
 if (!selectedAddress.value)
   selectedAddress.value =
     addresses.value.find((a) => a.isDefault) || addresses.value[0] || null;
-const isFormValid = computed(() => {
-  if (isGuest.value) {
-    if (!form.value.nama || !form.value.tel) return false;
-  }
-
-  if (form.value.metodePengiriman === "delivery" && !selectedAddress.value) {
-    return false;
-  }
-
-  return true;
-});
+const isFormValid = computed(
+  () => !(form.value.metodePengiriman === "delivery" && !selectedAddress.value)
+);
 
 // WhatsApp text: gunakan lineSubtotal untuk ringkasan harga
 const openWhatsapp = () => {

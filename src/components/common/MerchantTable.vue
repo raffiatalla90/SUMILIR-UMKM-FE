@@ -209,6 +209,7 @@ const getNestedValue = (obj, path) => {
           </tr>
         </thead>
 
+<<<<<<< HEAD
         <tbody class="bg-white divide-y divide-gray-200">
           <tr
             v-for="item in items"
@@ -229,33 +230,82 @@ const getNestedValue = (obj, path) => {
                 class="appearance-none w-4.5 h-4.5 border-1 border-muted-foreground rounded-sm bg-transparent cursor-pointer transition-all duration-100 checked:bg-merchant-primary checked:border-merchant-primary focus:outline-none focus:ring-2 focus:ring-merchant-primary focus:ring-offset-2 relative before:content-[''] before:absolute before:inset-0 before:bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOSIgdmlld0JveD0iMCAwIDEyIDkiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xIDQuNUw0LjUgOEwxMSAxIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K')] before:bg-center before:bg-no-repeat before:opacity-0 checked:before:opacity-100"
               />
             </td>
-
-            <!-- Dynamic Columns with Slots -->
-            <td
-              v-for="column in columns"
-              :key="column.key"
-              class="px-6 py-4"
-              :class="column.cellClass"
+=======
+          <!-- Body -->
+          <tbody class="divide-y divide-muted-background">
+            <tr
+              v-for="item in items"
+              :key="item.id"
+              class="hover:bg-muted-background transition"
+              @click="handleRowClick(item)"
             >
-              <div class="flex items-center">
-                <slot
-                  v-if="hasSlot(`cell-${column.key}`)"
-                  :name="`cell-${column.key}`"
-                  :item="item"
-                  :value="getNestedValue(item, column.key)"
-                />
+              <!-- Checkbox -->
+              <td v-if="showCheckbox" class="px-6 py-4" @click.stop>
+                <label class="cursor-pointer inline-block">
+                  <input
+                    type="checkbox"
+                    :checked="isItemSelected(item.slug)"
+                    @change="toggleItemSelection(item.slug)"
+                    class="appearance-none w-5 h-5 border-2 border-muted-foreground rounded-md bg-transparent cursor-pointer transition-all duration-200 checked:bg-merchant-primary checked:border-merchant-primary focus:outline-none focus:ring-2 focus:ring-merchant-primary focus:ring-offset-2 relative before:content-[''] before:absolute before:inset-0 before:bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOSIgdmlld0JveD0iMCAwIDEyIDkiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xIDQuNUw0LjUgOEwxMSAxIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K')] before:bg-center before:bg-no-repeat before:opacity-0 checked:before:opacity-100"
+                  />
+                </label>
+              </td>
+>>>>>>> origin/feat/jasa
 
+              <!-- Dynamic Columns with Slots -->
+              <td
+                v-for="column in columns"
+                :key="column.key"
+                class="px-6 py-4"
+                :class="column.cellClass"
+              >
+                <div class="flex items-center">
+                  <slot
+                    v-if="hasSlot(`cell-${column.key}`)"
+                    :name="`cell-${column.key}`"
+                    :item="item"
+                    :value="getNestedValue(item, column.key)"
+                  />
+
+<<<<<<< HEAD
                 <span v-else class="text-sm">
                   {{ getNestedValue(item, column.key) || "-" }}
                 </span>
               </div>
             </td>
+=======
+                  <span v-else class="text-sm">
+                    {{ getNestedValue(item, column.key) || "-" }}
+                  </span>
+                </div>
+              </td>
+
+            <!-- Actions -->
+            <!-- <td v-if="actions.length > 0" class="px-6 py-4" @click.stop>
+              <div class="flex items-center justify-end gap-2">
+                <button
+                  v-for="(action, index) in actions"
+                  :key="index"
+                  @click="action.handler(item)"
+                  class="p-2 rounded-lg transition"
+                  :class="
+                    action.class ||
+                    'hover:bg-muted-background text-muted-foreground'
+                  "
+                  :title="action.label"
+                >
+                  <i :class="['pi', action.icon, 'text-sm']"></i>
+                </button>
+              </div>
+            </td> -->
+>>>>>>> origin/feat/jasa
           </tr>
         </tbody>
       </table>
     </div>
   </div>
 
+<<<<<<< HEAD
   <!-- Pagination -->
   <div v-if="!loading" class="px-6 py-4 border-t border-muted-background">
     <div class="flex flex-col items-center justify-between gap-4 sm:flex-row">
@@ -288,21 +338,21 @@ const getNestedValue = (obj, path) => {
             class="px-3 py-2 text-sm text-muted-foreground"
           >
             ...
+=======
+    <!-- Pagination -->
+    <div v-if="!loading" class="border-t border-muted-background px-6 py-4">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <!-- Pagination Info -->
+        <div class="text-sm text-muted-foreground">
+          Menampilkan
+          <span class="font-semibold text-black">
+            {{ paginationInfo.per_page }}
+>>>>>>> origin/feat/jasa
           </span>
-          <button
-            v-else
-            @click="goToPage(page)"
-            class="px-3 py-1.5 rounded-lg border transition min-w-10 text-sm"
-            :class="
-              currentPage === page
-                ? 'bg-merchant-primary text-white border-merchant-primary font-semibold'
-                : 'border-muted-background hover:bg-muted-background text-muted-foreground'
-            "
-          >
-            {{ page }}
-          </button>
-        </template>
+          items/halaman
+        </div>
 
+<<<<<<< HEAD
         <!-- Next Button -->
         <Button
           @click="nextPage"
@@ -313,6 +363,57 @@ const getNestedValue = (obj, path) => {
           <span>Next</span>
           <i class="text-xs pi pi-chevron-right"></i>
         </Button>
+=======
+        <!-- Pagination Controls -->
+        <div class="flex items-center gap-2">
+          <!-- Previous Button -->
+          <Button
+            @click="prevPage"
+            :disabled="currentPage === 1"
+            variant="merchant"
+            size="sm"
+          >
+            <i class="pi pi-chevron-left text-xs"></i>
+            <span>Prev</span>
+          </Button>
+
+          <!-- Page Numbers -->
+          <template v-for="(page, index) in visiblePages" :key="index">
+            <!-- Ellipsis -->
+            <span
+              v-if="page === '...'"
+              class="px-3 py-2 text-muted-foreground text-sm"
+            >
+              ...
+            </span>
+
+            <!-- Page Button -->
+            <button
+              v-else
+              @click="goToPage(page)"
+              class="px-3 py-1.5 rounded-lg border transition min-w-[40px] text-sm"
+              :class="
+                currentPage === page
+                  ? 'bg-merchant-primary text-white border-merchant-primary font-semibold'
+                  : 'border-muted-background hover:bg-muted-background text-muted-foreground'
+              "
+            >
+              {{ page }}
+            </button>
+          </template>
+
+          <!-- Next Button -->
+          <Button
+            @click="nextPage"
+            :disabled="currentPage === totalPages"
+            variant="merchant"
+            size="sm"
+          >
+            <span>Next</span>
+            <i class="pi pi-chevron-right text-xs"></i>
+          </Button>
+        </div>
+>>>>>>> origin/feat/jasa
       </div>
     </div>
   </div>
