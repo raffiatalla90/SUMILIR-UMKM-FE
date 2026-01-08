@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import CommunityView from "@/views/CommunityView.vue";
 import CommunityDetailView from "@/views/CommunityDetailView.vue";
+import ProfileView from "@/views/ProfileView.vue";
+import MyOrderLayout from "@/views/CustomerOrder/MyOrderLayout.vue";
 
 const adminGuard = (to, from, next) => {
   const authStore = useAuthStore();
@@ -381,6 +383,22 @@ const routes = [
           title: "Orders | SUMILIR",
         },
       },
+      {
+        path: "profile",
+        name: "Merchant - Profile",
+        component: () => import("@/views/merchant/profile/MerchantInfo.vue"),
+        meta: {
+          title: "Merchant Profile | SUMILIR",
+        },
+      },
+      {
+        path: "profile/edit",
+        name: "Merchant - Profile Edit",
+        component: () => import("@/views/merchant/profile/MerchantEdit.vue"),
+        meta: {
+          title: "Edit Merchant Profile | SUMILIR",
+      },
+  },
     ],
   },
 
@@ -391,6 +409,98 @@ const routes = [
   //   component: () => import("@/views/errors/Unauthorized.vue"),
   //   meta: { title: "Unauthorized | SUMILIR" },
   // },
+
+  // 🆕 MERCHANT PROFILE ROUTES (NO AUTH FOR TESTING)
+  {
+    path: "/merchant-profile",
+    children: [
+      {
+        path: "",
+        name: "Merchant Profile - Index",
+        component: () => import("@/views/merchant/profile/MerchantInfo.vue"),
+        meta: { 
+          title: "Profil Toko | SUMILIR",
+          // requiresAuth: true,  // ← Commented out for testing
+          // roles: ["umkm-owner"]
+        },
+      },
+      {
+        path: "edit",
+        name: "Merchant Profile - Edit",
+        component: () => import("@/views/merchant/profile/MerchantEdit.vue"),
+        meta: { 
+          title: "Edit Toko | SUMILIR",
+          // requiresAuth: true,  // ← Commented out for testing
+          // roles: ["umkm-owner"]
+        },
+      },
+    ],
+  },
+
+
+  // My Order History (dari kodemu)
+  {
+    path: "/my-order",
+    component: MyOrderLayout, // ← dari kodemu
+    meta: {
+      requiresAuth: true,
+      roles: ["customer"], // ← dari kodemu
+    },
+    children: [
+      {
+        path: "",
+        name: "MyOrder",
+        component: () => import("@/views/CustomerOrder/MyOrderView.vue"),
+        meta: { title: "My Order | SUMILIR" }, // ← dari kodemu
+      },
+      {
+        path: "give-review/:orderId?",
+        name: "GiveReview",
+        component: () => import("@/views/CustomerOrder/GiveReviewView.vue"),
+        meta: { title: "Beri Nilai | SUMILIR" }, // ← dari kodemu
+      },
+      {
+        path: "review",
+        name: "Review",
+        component: () => import("@/views/CustomerOrder/ReviewView.vue"),
+        meta: { title: "Lihat Penilaian | SUMILIR" }, // ← dari kodemu
+      },
+      {
+        path: "review/edit-review",
+        name: "EditReview",
+        component: () => import("@/views/CustomerOrder/EditReviewView.vue"),
+        meta: { title: "Edit Penilaian | SUMILIR" }, // ← dari kodemu
+      },
+    ],
+  },
+
+  // Profile management (dari kodemu)
+  {
+    path: "/profile",
+    component: () => import("@/views/ProfileLayout.vue"),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: "",
+        name: "Profile",
+        component: () => import("@/views/ProfileView.vue"),
+        meta: { title: "Profile | SUMILIR" }, // ← dari kodemu
+      },
+      {
+        path: "edit",
+        name: "EditProfile",
+        component: () => import("@/views/EditProfileView.vue"),
+        meta: { title: "Edit Profile | SUMILIR" }, // ← dari kodemu
+      },
+      {
+        path: "change-password",
+        name: "ChangePassword",
+        component: () => import("@/views/ChangePasswordView.vue"),
+        meta: { title: "Ubah Kata Sandi | SUMILIR" }, // ← dari kodemu
+      },
+    ],
+  },
+
 
   // Fallback
   { path: "/:pathMatch(.*)*", redirect: "/" },

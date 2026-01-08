@@ -3,6 +3,16 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import api from "@/libs/axios";
 import { useToast } from "vue-toastification";
+// 🆕 ADDED FROM feat/profile-management: Profile store integration
+import { useProfileStore } from "@/stores/profile";
+
+/**
+ * getCookie helper tetap tersedia di store jika diperlukan.
+ * Namun kita memakai readCookie yang diexport dari libs/axios untuk konsistensi.
+ */
+function getCookie(name) {
+  return readCookie(name);
+}
 
 export const useAuthStore = defineStore("auth", () => {
   const toast = useToast();
@@ -10,6 +20,8 @@ export const useAuthStore = defineStore("auth", () => {
   const user = ref(null);
   const authReady = ref(false);
   const selectedMerchantId = ref(null);
+  // 🆕 ADDED FROM feat/profile-management: Profile store instance
+  const profileStore = useProfileStore();
 
   // =========================
   // COMPUTED
@@ -74,6 +86,7 @@ export const useAuthStore = defineStore("auth", () => {
     selectedMerchantId.value = null;
     localStorage.removeItem("user");
     localStorage.removeItem("selected_merchant_id");
+    profileStore.$reset();
   }
 
   function loadSelectedMerchant() {
