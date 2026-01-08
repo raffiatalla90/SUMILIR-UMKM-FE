@@ -26,3 +26,12 @@ export async function registerMerchant(payload, config = {}) {
 
   return data;
 }
+export async function getMerchants() {
+  try {
+    const res = await axios.get("http://localhost:8000/api/merchants");
+    return res.data;
+  } catch (err) {
+    console.error("Gagal memuat merchants:", err);
+    return [];
+  }
+}

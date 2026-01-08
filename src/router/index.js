@@ -59,6 +59,11 @@ const routes = [
         component: () => import("@/views/customer/ProductTokoHome.vue"),
         meta: { title: "Detail Toko | SUMILIR" },
       },
+      {
+        path: "/map",
+        name: "map",
+        component: () => import('@/views/customer/PetaUmkm.vue')
+      },
 
       // Halaman Jasa Teknisi & Pembayaran
       {
