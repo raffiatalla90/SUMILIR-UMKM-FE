@@ -10,6 +10,7 @@ import { useAuthStore } from "@/stores/auth"; // import ini ditambahkan
 import ProductCard from "@/components/Card/ProductCard.vue";
 import EventCard from "@/components/Card/EventCard.vue";
 import PromoCard from "@/components/Card/PromoCard.vue";
+import 'leaflet/dist/leaflet.css'
 
 const updateSW = registerSW({
   immediate: true,
