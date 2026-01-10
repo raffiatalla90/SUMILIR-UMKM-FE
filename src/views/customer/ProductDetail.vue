@@ -1839,7 +1839,9 @@ async function doFetchProduct(slug) {
 
 onMounted(async () => {
   window.addEventListener("scroll", handleScroll);
-  await fetchCartCount();
+  if (authStore.isAuthenticated) {
+    await cartStore.fetchCartCount(true);
+  }
 });
 watch(product, (p) => {
   if (!p) return;
@@ -1856,7 +1858,7 @@ watch(
     if (!ready) return;
 
     if (authStore.isAuthenticated) {
-      fetchCartCount();
+      cartStore.fetchCartCount(true);
     } else {
       cartStore.reset();
     }
