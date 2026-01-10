@@ -244,7 +244,7 @@ defineExpose({
       <!-- Footer -->
       <div class="p-3 space-y-2 border-t border-gray-200">
         <!-- Notification -->
-        <button
+        <!-- <button
           :class="[
             'w-full flex items-center rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition',
             isOpen
@@ -282,7 +282,7 @@ defineExpose({
           >
             {{ notificationCount }}
           </span>
-        </button>
+        </button> -->
 
         <!-- Logout -->
         <button

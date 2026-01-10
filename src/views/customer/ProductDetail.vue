@@ -1902,7 +1902,8 @@ function buyNow() {
 
   const stock = getCurrentStock();
   const store = product.value?.merchant || product.value?.store || {};
-  const merchantAddress = product.value?.merchant_address ?? "";
+  const merchantAddress =
+    product.value?.merchant_address ?? store.address ?? "";
   const checkout = useCheckoutStore();
 
   // ✅ HITUNG matchedCombo DULU
@@ -1928,7 +1929,7 @@ function buyNow() {
       id: store.id ?? null,
       slug: store.slug ?? null,
       name: store.name ?? "",
-      address: merchantAddress ?? "",
+      address: merchantAddress,
       phone: store.phone ?? "",
     },
     qty,

@@ -135,7 +135,7 @@
       <section class="p-4 bg-white border border-gray-200 rounded-xl">
         <h2 class="mb-3 font-semibold text-gray-800">Metode Pengiriman</h2>
         <div class="flex items-center gap-4 text-sm">
-          <label
+          <!-- <label
             class="flex items-center gap-2"
             :class="
               isGuest ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
@@ -149,7 +149,7 @@
               class="w-4 h-4 text-[#FFA30E] focus:ring-[#FFA30E]"
             />
             <span>Diantar</span>
-          </label>
+          </label> -->
 
           <label class="flex items-center gap-2 cursor-pointer">
             <input
@@ -285,7 +285,7 @@
                 />
                 <span>COD (Cash)</span>
               </label>
-              <label class="flex items-center gap-2 cursor-pointer">
+              <!-- <label class="flex items-center gap-2 cursor-pointer">
                 <input
                   type="radio"
                   value="QRIS"
@@ -293,7 +293,7 @@
                   class="w-4 h-4 text-[#FFA30E] focus:ring-[#FFA30E]"
                 />
                 <span>QRIS</span>
-              </label>
+              </label> -->
             </div>
 
             <!-- Info message untuk delivery -->
@@ -721,7 +721,7 @@ const form = ref({
   catatanProduk: "",
   catatanAlamat: "",
 });
-const pay = ref({ method: "QRIS" });
+const pay = ref({ method: "COD" });
 
 // Promo state harus didefinisikan sebelum watcher (immediate)
 const selectedPromo = ref(null);
