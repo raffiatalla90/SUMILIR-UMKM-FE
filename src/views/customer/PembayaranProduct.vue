@@ -730,7 +730,11 @@ watch(
   () => form.value.metodePengiriman,
   (v) => {
     amounts.value.ongkir = v === "pickup" ? 0 : 10000;
-    if (v === "delivery") pay.value.method = "QRIS";
+    if (v === "delivery") {
+      pay.value.method = "QRIS";
+    } else if (v === "pickup") {
+      pay.value.method = "COD";
+    }
   },
   { immediate: true }
 );
@@ -739,7 +743,7 @@ watch(
   (guest) => {
     if (guest) {
       form.value.metodePengiriman = "pickup"; // 🔒 paksa pickup
-      pay.value.method = "QRIS"; // aman (atau COD kalau mau)
+      pay.value.method = "COD"; // aman (atau COD kalau mau)
       amounts.value.ongkir = 0;
       clearPromo();
       return;
