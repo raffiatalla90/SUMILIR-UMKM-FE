@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen mx-auto bg-gray-50 pb-28 max-w-7xl">
+  <div class="min-h-screen mx-auto pb-28 sm:pb-12 bg-gray-50 max-w-7xl">
     <!-- Mobile Header -->
     <MobileHeader title="Checkout Pesanan" variant="primary" />
 
