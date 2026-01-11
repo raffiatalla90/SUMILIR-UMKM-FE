@@ -1274,23 +1274,6 @@ const tableActions = [
       @change-status="openBulkActionModal"
     />
 
-    <!-- RESTORED: Bulk Status Action Modal (Manual Structure) -->
-    <!-- Backdrop -->
-    <transition
-      enter-active-class="transition-opacity duration-300"
-      enter-from-class="opacity-0"
-      enter-to-class="opacity-100"
-      leave-active-class="transition-opacity duration-300"
-      leave-from-class="opacity-100"
-      leave-to-class="opacity-0"
-    >
-      <div
-        v-if="showBulkActionModal"
-        @click="closeBulkActionModal"
-        class="fixed inset-0 z-50 flex items-end p-0 bg-black/50 sm:items-center sm:justify-center sm:p-4"
-      ></div>
-    </transition>
-
     <!-- UPDATED: Filter Modal - Single Footer untuk Mobile & Desktop -->
     <ResponsiveModal
       v-model:show="showFilterModal"
@@ -2249,31 +2232,6 @@ const tableActions = [
         </div>
       </template>
     </ResponsiveModal>
-
-    <!-- UPDATED: Unified Backdrop -->
-    <transition
-      enter-active-class="transition-opacity duration-300"
-      enter-from-class="opacity-0"
-      enter-to-class="opacity-100"
-      leave-active-class="transition-opacity duration-300"
-      leave-from-class="opacity-100"
-      leave-to-class="opacity-0"
-    >
-      <div
-        v-if="isAnyModalOpen"
-        @click="
-          showFilterModal = false;
-          showExportModal = false;
-          showBulkActionModal = false;
-          showVisibilityModal = false;
-          showDeleteModal = false;
-          showBulkDeleteModal = false;
-          showStatusChangeModal = false; // ✅ ADD
-          showBulkStatusChangeModal = false; // ✅ ADD
-        "
-        class="fixed inset-0 z-40 bg-black/30"
-      ></div>
-    </transition>
   </div>
 </template>
 
