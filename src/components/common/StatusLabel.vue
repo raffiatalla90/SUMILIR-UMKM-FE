@@ -23,6 +23,9 @@ const props = defineProps({
         "report",
         "event",
         "voucher",
+        "merchant",
+        "user",
+        "segmentation",
       ].includes(value),
   },
 
@@ -122,6 +125,14 @@ const statusConfigs = {
     approved: { label: "Approved", class: "bg-green-100 text-green-700" },
     pending: { label: "Pending", class: "bg-gray-100 text-gray-700" },
     rejected: { label: "Rejected", class: "bg-red-100 text-red-700" },
+  },
+
+  user: {
+    active: { label: "Active", class: "bg-green-100 text-green-700" },
+    inactive: { label: "Inactive", class: "bg-gray-100 text-gray-700" },
+    suspended: { label: "Suspended", class: "bg-red-100 text-red-700" },
+    declining: { label: "Declining", class: "bg-yellow-100 text-yellow-700" },
+    watchlist: { label: "Watchlist", class: "bg-orange-100 text-orange-700" },
   },
 
   segmentation: {

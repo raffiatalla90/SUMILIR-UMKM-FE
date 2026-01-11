@@ -22,7 +22,7 @@
                 <h2 class="text-2xl font-bold text-gray-900 mb-1">{{ user.name }}</h2>
                 <p class="text-gray-600">{{ user.email }}</p>
               </div>
-              <StatusLabel :status="user.computed_status || user.status" />
+              <StatusLabel :status="user.computed_status || user.status" variant="user" />
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -17,7 +17,12 @@ export function useUsers() {
   const fetchUsers = async (params = {}) => {
     loading.value = true;
     try {
-      const response = await api.get("/api/admin/users", { params });
+      const response = await api.get("/api/admin/users", {
+        params: {
+          ...params,
+          status: params.status, // Changed from computed_status
+        },
+      });
 
       users.value = response.data.data || [];
       pagination.value = {
@@ -130,17 +135,18 @@ export function useUsers() {
   };
 
   // Change user status
-  const changeStatus = async (userId, status, reason = null) => {
-    loading.value = true;
+  const changeStatus = async (userId, statusData) => {
     try {
-      await api.patch(`/api/admin/users/${userId}/status`, { status, reason });
-      toast.success("User status changed successfully");
+      const response = await api.patch(
+        `/api/admin/users/${userId}/status`,
+        statusData
+      );
+      toast.success("Status berhasil diubah");
+      return response.data;
     } catch (error) {
       console.error("[useUsers] Change status failed:", error);
       toast.error(error.response?.data?.message || "Failed to change status");
       throw error;
-    } finally {
-      loading.value = false;
     }
   };
 
@@ -160,21 +166,18 @@ export function useUsers() {
   };
 
   // Bulk update user status
-  const bulkUpdateStatus = async (userIds, status, reason = null) => {
-    loading.value = true;
+  const bulkUpdateStatus = async (userIds, statusData) => {
     try {
-      await api.post("/api/admin/users/bulk-status", {
+      const response = await api.post("/api/admin/users/bulk-status", {
         user_ids: userIds,
-        status,
-        reason,
+        ...statusData,
       });
-      toast.success(`${userIds.length} users updated successfully`);
+      toast.success(`${userIds.length} user berhasil diupdate`);
+      return response.data;
     } catch (error) {
       console.error("[useUsers] Bulk update failed:", error);
       toast.error(error.response?.data?.message || "Failed to update users");
       throw error;
-    } finally {
-      loading.value = false;
     }
   };
 

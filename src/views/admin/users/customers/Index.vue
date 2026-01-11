@@ -56,6 +56,15 @@ const tableColumns = [
   { key: "status", label: "Status", sortable: true },
 ];
 
+const statusOptions = [
+  { value: "", label: "Semua Status" },
+  { value: "active", label: "Active" },
+  { value: "declining", label: "Declining" },
+  { value: "watchlist", label: "Watchlist" },
+  { value: "suspended", label: "Suspended" },
+  { value: "inactive", label: "Inactive" },
+];
+
 const tableActions = [
   {
     icon: "pi-eye",
@@ -85,18 +94,11 @@ const paginationInfo = computed(() => {
   };
 });
 
-// Filter options
-const statusOptions = [
-  { value: "", label: "Semua Status" },
-  { value: "active", label: "Active" },
-  { value: "suspended", label: "Suspended" },
-  { value: "watchlist", label: "Watchlist" },
-];
 
 const roleOptions = [
   { value: "", label: "Semua Roles" },
   { value: "customer", label: "Hanya Customer" },
-  { value: "umkm-owner", label: "UM" },
+  { value: "umkm-owner", label: "UMKM" },
 ];
 
 // Active filter count
@@ -110,9 +112,9 @@ const activeFilterCount = computed(() => {
 const loadUsers = async () => {
   try {
     await fetchUsers({
-      exclude_admin: true,
+      exclude_admin: false,
       search: searchQuery.value,
-      computed_status: activeFilters.value.status,
+      status: activeFilters.value.status,
       role: activeFilters.value.role,
       page: currentPage.value,
       per_page: perPage.value,
@@ -120,6 +122,16 @@ const loadUsers = async () => {
   } catch (error) {
     console.error("Failed to load users:", error);
   }
+};
+
+const roleNameMap = {
+  'admin': 'Admin',
+  'customer': 'Pelanggan',
+  'umkm-owner': 'Pemilik UMKM',
+};
+
+const formatRoleName = (roleName) => {
+  return roleNameMap[roleName] || roleName;
 };
 
 const handleSearch = () => {
@@ -146,9 +158,20 @@ const closeExportModal = () => (showExportModal.value = false);
 
 const getMerchantSummary = (merchants) => {
   const list = Array.isArray(merchants) ? merchants : [];
-  const first = list[0]?.name || "-";
+  const firstName = list[0]?.name || "-";
+  
+  const truncatedName = firstName.length > 10 
+    ? firstName.substring(0, 15) + "..." 
+    : firstName;
+  
   const extra = Math.max(0, list.length - 1);
-  return { first, extra, extraNames: list.slice(1).map((m) => m?.name).filter(Boolean) };
+  
+  return { 
+    first: truncatedName,
+    fullName: firstName, 
+    extra, 
+    extraNames: list.slice(1).map((m) => m?.name).filter(Boolean) 
+  };
 };
 
 // Export placeholders
@@ -272,7 +295,7 @@ onMounted(() => loadUsers());
           </div>
         </template>
 
-        <!-- Username + email (email tidak jadi kolom sendiri) -->
+        <!-- Username + email -->
         <template #cell-name="{ item }">
           <div class="min-w-0">
             <p class="text-sm font-semibold text-black truncate" v-html="highlightText(item.name || '-')"></p>
@@ -287,13 +310,13 @@ onMounted(() => loadUsers());
 
         <!-- roles -->
         <template #cell-roles="{ item }">
-          <div class="flex flex-wrap gap-1">
+          <div class="flex flex-col gap-1">
             <span
               v-for="roleName in item.roles || []"
               :key="roleName"
-              class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full"
+              class="inline-flex items-center px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full whitespace-nowrap w-fit"
             >
-              {{ roleName }}
+              {{ formatRoleName(roleName) }}
             </span>
             <span
               v-if="!item.roles || item.roles.length === 0"
@@ -330,7 +353,7 @@ onMounted(() => loadUsers());
         </template>
 
         <template #cell-status="{ item }">
-          <StatusLabel :status="item.computed_status || item.status" size="sm" />
+          <StatusLabel :status="item.status" variant="user" size="sm" />
         </template>
 
         <template #cell-actions="{ item }">
@@ -372,7 +395,7 @@ onMounted(() => loadUsers());
               <p class="text-xs text-gray-500 truncate" v-html="highlightText(u.phone || '-')"></p>
             </div>
 
-            <StatusLabel :status="u.computed_status || u.status" size="sm" />
+            <StatusLabel :status="u.status" variant="user" size="sm" />
           </div>
 
           <div class="flex items-center justify-between text-xs border-t pt-2">
