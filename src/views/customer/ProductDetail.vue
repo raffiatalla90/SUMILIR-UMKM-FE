@@ -1207,18 +1207,24 @@ const touchEndX = ref(0);
 
 const DESCRIPTION_LIMIT = 300;
 
+const normalizedDescription = computed(() => {
+  const raw = product.value?.description;
+  if (raw == null) return "";
+  return String(raw).trim();
+});
+
 const isLongDescription = computed(() => {
-  return (product.value?.description?.length || 0) > DESCRIPTION_LIMIT;
+  return (normalizedDescription.value.length || 0) > DESCRIPTION_LIMIT;
 });
 
 const displayedDescription = computed(() => {
-  if (!product.value?.description) return "";
+  const desc = normalizedDescription.value;
+  if (!desc) return "";
 
-  if (showFullDescription.value) {
-    return product.value.description;
-  }
+  if (showFullDescription.value) return desc;
 
-  return product.value.description.slice(0, DESCRIPTION_LIMIT) + "...";
+  if (desc.length <= DESCRIPTION_LIMIT) return desc;
+  return desc.slice(0, DESCRIPTION_LIMIT) + "...";
 });
 
 function handleTouchStart(e) {
@@ -1731,7 +1737,12 @@ async function doFetchProduct(slug) {
       min_purchase: Number(
         mapped.min_purchase ?? mapped.product?.min_purchase ?? 1
       ),
-      merchant_address: mapped.merchant_address ?? null,
+      merchant_address:
+        mapped.product &&
+        mapped.product.merchant &&
+        mapped.product.merchant.address
+          ? mapped.product.merchant.address
+          : mapped.merchant_address ?? null,
     };
     // IMAGES: normalisasi dari berbagai sumber
     if (Array.isArray(mapped.productImages) && mapped.productImages.length) {
@@ -1828,7 +1839,9 @@ async function doFetchProduct(slug) {
 
 onMounted(async () => {
   window.addEventListener("scroll", handleScroll);
-  await fetchCartCount();
+  if (authStore.isAuthenticated) {
+    await cartStore.fetchCartCount(true);
+  }
 });
 watch(product, (p) => {
   if (!p) return;
@@ -1845,7 +1858,7 @@ watch(
     if (!ready) return;
 
     if (authStore.isAuthenticated) {
-      fetchCartCount();
+      cartStore.fetchCartCount(true);
     } else {
       cartStore.reset();
     }
@@ -1902,7 +1915,8 @@ function buyNow() {
 
   const stock = getCurrentStock();
   const store = product.value?.merchant || product.value?.store || {};
-  const merchantAddress = product.value?.merchant_address ?? "";
+  const merchantAddress =
+    product.value?.merchant_address ?? store.address ?? "";
   const checkout = useCheckoutStore();
 
   // ✅ HITUNG matchedCombo DULU
@@ -1928,7 +1942,7 @@ function buyNow() {
       id: store.id ?? null,
       slug: store.slug ?? null,
       name: store.name ?? "",
-      address: merchantAddress ?? "",
+      address: merchantAddress,
       phone: store.phone ?? "",
     },
     qty,

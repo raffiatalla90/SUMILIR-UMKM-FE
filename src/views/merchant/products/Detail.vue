@@ -87,18 +87,24 @@ const checkClamp = async () => {
 };
 const DESCRIPTION_LIMIT = 300;
 
+const normalizedDescription = computed(() => {
+  const raw = product.value?.description;
+  if (raw == null) return "";
+  return String(raw).trim();
+});
+
 const isLongDescription = computed(() => {
-  return (product.value?.description?.length || 0) > DESCRIPTION_LIMIT;
+  return (normalizedDescription.value.length || 0) > DESCRIPTION_LIMIT;
 });
 
 const displayedDescription = computed(() => {
-  if (!product.value?.description) return "";
+  const desc = normalizedDescription.value;
+  if (!desc) return "";
 
-  if (showFullDescription.value) {
-    return product.value.description;
-  }
+  if (showFullDescription.value) return desc;
 
-  return product.value.description.slice(0, DESCRIPTION_LIMIT) + "...";
+  if (desc.length <= DESCRIPTION_LIMIT) return desc;
+  return desc.slice(0, DESCRIPTION_LIMIT) + "...";
 });
 
 const mainCategory = computed(() => {
