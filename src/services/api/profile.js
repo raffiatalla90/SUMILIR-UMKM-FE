@@ -1,4 +1,4 @@
-import axios from '@/libs/axios';
+import { sanctumApi as axios } from '@/libs/axios';
 
 const getProfile = async () => {
   const response = await axios.get('/profile');
@@ -6,17 +6,13 @@ const getProfile = async () => {
 };
 
 const updateProfile = async (payload) => {
-  const response = await axios.post('/profile/update', payload, {
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    }
-  });
+  const response = await axios.post('/profile/update', payload);
   return response.data;
 };
 
 const changePassword = async (payload) => {
-    const response = await axios.post('/profile/change-password', payload);
-    return response.data;
+  const response = await axios.post('/profile/change-password', payload);
+  return response.data;
 };
 
 export default {
