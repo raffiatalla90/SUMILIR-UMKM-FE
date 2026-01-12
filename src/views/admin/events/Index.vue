@@ -11,6 +11,9 @@ const isCreateRoute = computed(() => route.name === "Admin - Create Event");
 const isEditRoute = computed(() => route.name === "Admin - Edit Event");
 const isDetailRoute = computed(() => route.name === "Admin - Event Detail");
 
+// ✅ ADD: Force key to re-render child component on route change
+const routerViewKey = computed(() => route.fullPath);
+
 const breadcrumbItems = computed(() => {
   if (isCreateRoute.value) {
     return [
@@ -89,7 +92,8 @@ const headerSubtitle = computed(() => {
 
     <div class="px-4 p-4 sm:px-6">
       <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <router-view />
+        <!-- ✅ UPDATED: Add :key to force re-render child component -->
+        <router-view :key="routerViewKey" />
       </div>
     </div>
   </div>

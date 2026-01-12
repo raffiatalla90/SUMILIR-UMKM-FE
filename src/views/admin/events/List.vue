@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import AdminTable from "@/components/common/AdminTable.vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";
@@ -11,6 +11,7 @@ import { useEvents } from "@/composables/useEvents";
 import { getImageUrl } from "@/libs/getImageUrl";
 import TextField from "@/components/forms/TextField.vue";
 import SelectField from "@/components/forms/SelectField.vue";
+const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 
@@ -156,14 +157,10 @@ watch([searchQuery, () => activeFilters.value.status], () => {
   loadEvents();
 });
 
-const onStatusChange = () => {
-  currentPage.value = 1;
-  loadEvents();
-};
-
 onMounted(() => {
   loadEvents();
 });
+
 </script>
 
 <template>
@@ -184,11 +181,12 @@ onMounted(() => {
 
         <!-- Dropdown status -->
         <SelectField
+          placeholder="Status"
           name="filter-status"
           v-model="activeFilters.status"
           :options="statusOptions"
           variant="merchant"
-          class="ml-2 w-[140px]"
+          class="ml-2 w-[100px]"
           @change="onStatusChange"
         />
       </div>

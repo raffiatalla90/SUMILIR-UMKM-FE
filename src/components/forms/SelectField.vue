@@ -43,7 +43,7 @@ const props = defineProps({
   emptyText: { type: String, default: "Tidak ada data" },
   skeleton: { type: Boolean, default: true },
   variant: { type: String, default: "primary" },
-  required: { type: Boolean, default: false }, // NEW
+  required: { type: Boolean, default: false }, 
 });
 const emit = defineEmits(["update:modelValue"]);
 
@@ -63,6 +63,7 @@ const selectClasses = (invalid) =>
   [
     "w-full px-4 py-2.5 pr-10 text-sm border rounded-xl bg-white text-black transition-all",
     "placeholder:text-muted-foreground appearance-none",
+    "text-align-last:center",
     invalid
       ? "border-danger-foreground focus:ring-2 focus:ring-danger-foreground"
       : `${borderClass.value} focus:ring-2 ${focusRingClass.value}`,

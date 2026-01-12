@@ -30,8 +30,17 @@ const activeFilters = ref({
   role: "",
 });
 
-const toggleCustomerRole = () => {
-  activeFilters.value.role = activeFilters.value.role === "customer" ? "" : "customer";
+// Cycle through role filters: "" → "customer" → "umkm-owner" → "admin" → ""
+const toggleRoleFilter = () => {
+  if (activeFilters.value.role === "") {
+    activeFilters.value.role = "customer";
+  } else if (activeFilters.value.role === "customer") {
+    activeFilters.value.role = "umkm-owner";
+  } else if (activeFilters.value.role === "umkm-owner") {
+    activeFilters.value.role = "admin";
+  } else {
+    activeFilters.value.role = "";
+  }
   currentPage.value = 1;
   loadUsers();
 };
@@ -40,6 +49,22 @@ const onStatusChange = () => {
   currentPage.value = 1;
   loadUsers();
 };
+
+// Get button label based on current role filter
+const getRoleLabel = computed(() => {
+  if (activeFilters.value.role === "customer") return "Hanya Customer";
+  if (activeFilters.value.role === "umkm-owner") return "Hanya UMKM";
+  if (activeFilters.value.role === "admin") return "Hanya Admin";
+  return "Semua Role";
+});
+
+// Get icon based on current role filter
+const getRoleIcon = computed(() => {
+  if (activeFilters.value.role === "customer") return "pi-user";
+  if (activeFilters.value.role === "umkm-owner") return "pi-building";
+  if (activeFilters.value.role === "admin") return "pi-shield";
+  return "pi-users";
+});
 
 // Combined modal state for body scroll lock
 const isAnyModalOpen = computed(() => showExportModal.value);
@@ -245,24 +270,25 @@ onMounted(() => loadUsers());
           />
         </div>
 
-        <!-- toggle "Hanya Customer" -->
+        <!-- Toggle Role Filter Button -->
         <Button
-          :variant="activeFilters.role === 'customer' ? 'merchant' : 'muted-outline'"
+          :variant="activeFilters.role ? 'merchant' : 'muted-outline'"
           size="md"
-          class="ml-2"
-          @click="toggleCustomerRole"
+          class="w-full sm:w-auto mb-2 sm:mb-0"
+          @click="toggleRoleFilter"
         >
-          <i class="pi pi-user"></i>
-          <span class="ml-1">Hanya Customer</span>
+          <i :class="['pi', getRoleIcon, 'mr-2']"></i>
+          {{ getRoleLabel }}
         </Button>
 
         <!-- Dropdown status -->
         <SelectField
           name="filter-status"
+          placeholder="Status"
           v-model="activeFilters.status"
           :options="statusOptions"
           variant="merchant"
-          class="ml-2 w-[140px]"
+          class="w-full sm:w-[120px]"
           @change="onStatusChange"
         />
       </div>

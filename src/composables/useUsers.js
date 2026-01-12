@@ -45,7 +45,7 @@ export function useUsers() {
     loading.value = true;
     try {
       const response = await api.get(`/api/admin/users/${userId}`);
-      return response.data.data;
+      return response.data;
     } catch (error) {
       console.error("[useUsers] Fetch detail failed:", error);
       toast.error("Gagal memuat detail user");

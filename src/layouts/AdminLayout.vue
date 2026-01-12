@@ -235,7 +235,7 @@ defineExpose({
           <span
             v-if="notificationCount > 0"
             :class="[
-              'bg-primary text-white text-xs font-bold rounded-full text-center transition-all duration-300',
+              'bg-merchant-primary text-white text-xs font-bold rounded-full text-center transition-all duration-300',
               isOpen
                 ? 'px-2 py-0.5 min-w-6'
                 : 'px-2 py-0.5 min-w-6 sm:absolute sm:-top-1 sm:-right-1 sm:w-5 sm:h-5 sm:p-0 sm:flex sm:items-center sm:justify-center',
@@ -272,7 +272,7 @@ defineExpose({
         <!-- Profile Card - Admin Info -->
         <div
           v-if="isOpen"
-          class="bg-linear-to-r from-primary to-primary/80 text-white rounded-xl p-4 mt-2 sm:block"
+          class="bg-linear-to-r from-merchant-primary to-merchant-primary/80 text-white rounded-xl p-4 mt-2 sm:block"
         >
           <div class="flex items-center gap-3">
             <div
