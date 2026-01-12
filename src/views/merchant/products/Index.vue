@@ -333,62 +333,6 @@ const buildExportParams = () => {
   return params;
 };
 
-// Export Excel (via BE)
-const exportExcel = async () => {
-  try {
-    const params = buildExportParams();
-    const res = await api.get("/api/products/export/excel", {
-      params,
-      responseType: "blob",
-    });
-
-    // Ambil nama file dari header jika ada
-    const disposition = res.headers["content-disposition"] || "";
-    const match = disposition.match(/filename="?([^"]+)"?/);
-    const filename =
-      match?.[1] ||
-      `products-${new Date()
-        .toISOString()
-        .slice(0, 19)
-        .replace(/[:T]/g, "")}.xlsx`;
-
-    saveBlob(res.data, filename);
-    toast.success("Export Excel berhasil diunduh");
-  } catch (err) {
-    toast.error(err.response?.data?.message || "Gagal export Excel");
-  } finally {
-    closeExportModal();
-  }
-};
-
-// Export PDF (via BE)
-const exportPDF = async () => {
-  try {
-    const params = buildExportParams();
-    const res = await api.get("/api/products/export/pdf", {
-      params,
-      responseType: "blob",
-    });
-
-    // Ambil nama file dari header jika ada
-    const disposition = res.headers["content-disposition"] || "";
-    const match = disposition.match(/filename="?([^"]+)"?/);
-    const filename =
-      match?.[1] ||
-      `products-${new Date()
-        .toISOString()
-        .slice(0, 19)
-        .replace(/[:T]/g, "")}.pdf`;
-
-    saveBlob(res.data, filename);
-    toast.success("Export PDF berhasil diunduh");
-  } catch (err) {
-    toast.error(err.response?.data?.message || "Gagal export PDF");
-  } finally {
-    closeExportModal();
-  }
-};
-
 // ✅ UPDATED: goToCreate with merchantId
 const goToCreate = () => {
   router.push({

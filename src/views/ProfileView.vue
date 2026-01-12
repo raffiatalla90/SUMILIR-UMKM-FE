@@ -37,42 +37,42 @@ const menuItems = [
   {
     icon: 'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z',
     label: 'Buka Toko',
-    action: () => router.push('/my-store')
+    action: () => router.push('/merchant-center/1')
   }
 ];
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 md:bg-white pb-20 md:pb-0">
+  <div class="min-h-screen pb-20 bg-gray-50 md:bg-white md:pb-0">
     <!-- Header -->
-    <div class="sticky top-0 z-10 bg-white border-b border-gray-100 px-4 md:px-8 py-4 md:py-6">
-      <div class="max-w-7xl mx-auto">
+    <div class="sticky top-0 z-10 px-4 py-4 bg-white border-b border-gray-100 md:px-8 md:py-6">
+      <div class="mx-auto max-w-7xl">
         <button 
           @click="router.back()"
-          class="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
+          class="flex items-center gap-2 text-gray-700 transition-colors hover:text-gray-900"
         >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
-          <span class="font-medium text-lg md:text-xl">Profile</span>
+          <span class="text-lg font-medium md:text-xl">Profile</span>
         </button>
       </div>
     </div>
 
     <!-- Content Container -->
-    <div class="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-12">
+    <div class="px-4 py-6 mx-auto max-w-7xl md:px-8 md:py-12">
       
       <!-- DESKTOP LAYOUT -->
-      <div class="hidden md:grid md:grid-cols-12 gap-8">
+      <div class="hidden gap-8 md:grid md:grid-cols-12">
         
         <!-- Left: Profile Card -->
         <div class="md:col-span-4">
-          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 sticky top-24">
+          <div class="sticky p-8 bg-white border border-gray-100 shadow-sm rounded-2xl top-24">
             <div class="flex flex-col items-center">
               <img 
                 :src="user.profile_picture" 
                 :alt="user.name"
-                class="w-40 h-40 rounded-full object-cover border-4 border-white shadow-lg"
+                class="object-cover w-40 h-40 border-4 border-white rounded-full shadow-lg"
               />
               
               <h2 class="mt-6 text-2xl font-bold text-gray-900">
@@ -98,7 +98,7 @@ const menuItems = [
 
             <button
               @click="handleLogout"
-              class="w-full mt-8 py-3 rounded-xl font-semibold text-white bg-primary hover:bg-orange-600 transition-all shadow-md hover:shadow-lg"
+              class="w-full py-3 mt-8 font-semibold text-white transition-all shadow-md rounded-xl bg-primary hover:bg-orange-600 hover:shadow-lg"
             >
               Keluar
             </button>
@@ -107,22 +107,22 @@ const menuItems = [
 
         <!-- Right: Menu List -->
         <div class="md:col-span-8">
-          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-            <h3 class="text-xl font-bold text-gray-900 mb-6">Pengaturan Akun</h3>
+          <div class="p-8 bg-white border border-gray-100 shadow-sm rounded-2xl">
+            <h3 class="mb-6 text-xl font-bold text-gray-900">Pengaturan Akun</h3>
             <div class="space-y-3">
               <button
                 v-for="item in menuItems"
                 :key="item.label"
                 @click="item.action"
-                class="w-full flex items-center gap-4 p-5 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all text-left group hover:shadow-md"
+                class="flex items-center w-full gap-4 p-5 text-left transition-all bg-gray-50 rounded-xl hover:bg-gray-100 group hover:shadow-md"
               >
-                <div class="p-3 bg-white rounded-lg group-hover:bg-primary/10 transition-colors">
-                  <svg class="w-6 h-6 text-gray-500 group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="p-3 transition-colors bg-white rounded-lg group-hover:bg-primary/10">
+                  <svg class="w-6 h-6 text-gray-500 transition-colors group-hover:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="item.icon" />
                   </svg>
                 </div>
                 <span class="flex-1 font-semibold text-gray-700 group-hover:text-gray-900">{{ item.label }}</span>
-                <svg class="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 text-gray-400 transition-colors group-hover:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                 </svg>
               </button>
@@ -137,19 +137,19 @@ const menuItems = [
           <img 
             :src="user.profile_picture" 
             :alt="user.name"
-            class="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
+            class="object-cover w-32 h-32 border-4 border-white rounded-full shadow-lg"
           />
           <h2 class="mt-4 text-xl font-semibold text-gray-900">{{ user.name }}</h2>
         </div>
 
-        <div class="space-y-3 mb-6">
+        <div class="mb-6 space-y-3">
           <button
             v-for="item in menuItems"
             :key="item.label"
             @click="item.action"
-            class="w-full flex items-center gap-4 p-4 bg-white rounded-lg hover:bg-gray-50 transition-colors text-left group shadow-sm"
+            class="flex items-center w-full gap-4 p-4 text-left transition-colors bg-white rounded-lg shadow-sm hover:bg-gray-50 group"
           >
-            <svg class="w-5 h-5 text-gray-500 group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-gray-500 transition-colors group-hover:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="item.icon" />
             </svg>
             <span class="flex-1 font-medium text-gray-700 group-hover:text-gray-900">{{ item.label }}</span>
@@ -161,7 +161,7 @@ const menuItems = [
 
         <button
           @click="handleLogout"
-          class="w-full py-4 rounded-full font-semibold text-white bg-primary hover:bg-orange-600 transition-all shadow-md hover:shadow-lg"
+          class="w-full py-4 font-semibold text-white transition-all rounded-full shadow-md bg-primary hover:bg-orange-600 hover:shadow-lg"
         >
           Keluar
         </button>
