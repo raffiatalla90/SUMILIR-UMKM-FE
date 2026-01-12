@@ -8,7 +8,14 @@
  * - Placeholder overlay (saat belum ada lokasi)
  */
 
-import { ref, watch, onMounted, onBeforeUnmount, computed, nextTick } from "vue";
+import {
+  ref,
+  watch,
+  onMounted,
+  onBeforeUnmount,
+  computed,
+  nextTick,
+} from "vue";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -34,15 +41,11 @@ const isLocating = ref(false);
 
 const isSecure = window.isSecureContext === true;
 const isGeoSupported = "geolocation" in navigator;
-const canUseGeo = computed(
-  () => isSecure && isGeoSupported && !props.readonly
-);
+const canUseGeo = computed(() => isSecure && isGeoSupported && !props.readonly);
 
 /* ================= STYLE COMPUTED ================= */
 const borderColorClass = computed(() =>
-  props.variant === "merchant"
-    ? "border-merchant-primary"
-    : "border-primary"
+  props.variant === "merchant" ? "border-merchant-primary" : "border-primary"
 );
 
 const buttonTextClass = computed(() =>
@@ -52,9 +55,7 @@ const buttonTextClass = computed(() =>
 );
 
 const buttonBorderClass = computed(() =>
-  props.variant === "merchant"
-    ? "border-merchant-primary"
-    : "border-primary"
+  props.variant === "merchant" ? "border-merchant-primary" : "border-primary"
 );
 
 /* ================= TILE CONFIG ================= */
@@ -63,8 +64,7 @@ const tileUrl =
   "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
 const attribution =
-  import.meta.env.VITE_MAP_ATTRIBUTION ||
-  "&copy; OpenStreetMap contributors";
+  import.meta.env.VITE_MAP_ATTRIBUTION || "&copy; OpenStreetMap contributors";
 
 /* ================= HELPERS ================= */
 function normalize(val) {
@@ -175,8 +175,9 @@ onMounted(async () => {
   map = L.map(mapEl.value).setView([startLat, startLng], props.zoom);
   L.tileLayer(tileUrl, { attribution }).addTo(map);
 
+  // If initial coordinates exist, center map to marker location.
   if (props.lat != null && props.lng != null) {
-    setMarker([props.lat, props.lng]);
+    updateLatLng(props.lat, props.lng, true);
   }
 
   if (!props.readonly) {
@@ -197,7 +198,11 @@ onMounted(async () => {
 watch(
   () => [props.lat, props.lng],
   ([lat, lng]) => {
-    if (lat != null && lng != null) updateLatLng(lat, lng, false);
+    if (lat != null && lng != null) {
+      // If coords arrive after mount (API load), center map on first marker.
+      const shouldSetView = marker == null;
+      updateLatLng(lat, lng, shouldSetView);
+    }
   }
 );
 
@@ -236,9 +241,7 @@ onBeforeUnmount(() => {
               d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
             />
           </svg>
-          <p class="text-sm font-medium text-gray-700">
-            Pilih lokasi di peta
-          </p>
+          <p class="text-sm font-medium text-gray-700">Pilih lokasi di peta</p>
         </div>
       </div>
     </div>

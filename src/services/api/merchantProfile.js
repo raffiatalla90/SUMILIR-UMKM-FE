@@ -7,7 +7,7 @@ const getMerchantProfile = async (merchantId) => {
 
 const updateMerchantProfile = async (merchantId, payload) => {
   const response = await axios.post(
-    `/merchants/${merchantId}/update`,
+    `api/merchants/${merchantId}/update`,
     payload,
     {
       headers: {

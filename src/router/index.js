@@ -4,7 +4,6 @@ import { useAuthStore } from "@/stores/auth";
 // import { initializeCsrfToken } from "@/composables/useCsrfToken";
 import CommunityView from "@/views/CommunityView.vue";
 import CommunityDetailView from "@/views/CommunityDetailView.vue";
-import ProfileView from "@/views/ProfileView.vue";
 import MyOrderLayout from "@/views/CustomerOrder/MyOrderLayout.vue";
 
 const adminGuard = (to, from, next) => {
@@ -747,19 +746,26 @@ const routes = [
       {
         path: "",
         name: "Profile",
-        component: () => import("@/views/ProfileView.vue"),
+        component: () => import("@/views/customer/profile/ProfileView.vue"),
         meta: { title: "Profile | SUMILIR" }, // ← dari kodemu
       },
       {
         path: "edit",
         name: "EditProfile",
-        component: () => import("@/views/EditProfileView.vue"),
+        component: () => import("@/views/customer/profile/EditProfileView.vue"),
         meta: { title: "Edit Profile | SUMILIR" }, // ← dari kodemu
+      },
+      {
+        path: "address",
+        name: "MyAddress",
+        component: () => import("@/views/customer/profile/Address.vue"),
+        meta: { title: "Address Profile | SUMILIR" }, // ← dari kodemu
       },
       {
         path: "change-password",
         name: "ChangePassword",
-        component: () => import("@/views/ChangePasswordView.vue"),
+        component: () =>
+          import("@/views/customer/profile/ChangePasswordView.vue"),
         meta: { title: "Ubah Kata Sandi | SUMILIR" }, // ← dari kodemu
       },
     ],

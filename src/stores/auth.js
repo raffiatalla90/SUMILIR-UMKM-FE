@@ -3,16 +3,6 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import api from "@/libs/axios";
 import { useToast } from "vue-toastification";
-// 🆕 ADDED FROM feat/profile-management: Profile store integration
-import { useProfileStore } from "@/stores/profile";
-
-/**
- * getCookie helper tetap tersedia di store jika diperlukan.
- * Namun kita memakai readCookie yang diexport dari libs/axios untuk konsistensi.
- */
-function getCookie(name) {
-  return readCookie(name);
-}
 
 export const useAuthStore = defineStore("auth", () => {
   const toast = useToast();
@@ -20,21 +10,11 @@ export const useAuthStore = defineStore("auth", () => {
   const user = ref(null);
   const authReady = ref(false);
   const selectedMerchantId = ref(null);
-  // 🆕 ADDED FROM feat/profile-management: Profile store instance
-  const profileStore = useProfileStore();
 
   // =========================
   // COMPUTED
   // =========================
-  // =========================
-  // COMPUTED
-  // =========================
   const isAuthenticated = computed(() => !!user.value);
-  function requireLoginToast() {
-    toast.info("Silakan login terlebih dahulu untuk melanjutkan", {
-      timeout: 2500,
-    });
-  }
   function requireLoginToast() {
     toast.info("Silakan login terlebih dahulu untuk melanjutkan", {
       timeout: 2500,
@@ -90,15 +70,10 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   function clearUser() {
-    console.log("[Auth] 🗑️ Clearing user data.");
-    console.log("[Auth] 🗑️ Clearing user data.");
     user.value = null;
     selectedMerchantId.value = null;
     localStorage.removeItem("user");
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("auth_token");
     localStorage.removeItem("selected_merchant_id");
-    profileStore.$reset();
   }
 
   function loadSelectedMerchant() {
@@ -196,18 +171,11 @@ export const useAuthStore = defineStore("auth", () => {
   // =========================
   // EXPORT
   // =========================
-  // =========================
-  // EXPORT
-  // =========================
   return {
-    // state
     // state
     user,
     authReady,
-    authReady,
     isAuthenticated,
-
-    // roles
 
     // roles
     userRoles,
@@ -217,18 +185,9 @@ export const useAuthStore = defineStore("auth", () => {
 
     // merchant
     allMerchants,
-
-    // merchant
-    allMerchants,
     activeMerchant,
     merchantId,
-    merchantId,
     merchantName,
-    setActiveMerchant,
-    getMerchantById,
-
-    // actions
-    requireLoginToast,
     setActiveMerchant,
     getMerchantById,
 

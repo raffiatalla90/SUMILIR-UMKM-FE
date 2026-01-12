@@ -26,6 +26,17 @@ export async function registerMerchant(payload, config = {}) {
 
   return data;
 }
+
+export async function getMyMerchant(config = {}) {
+  const { data } = await api.get("/api/my-merchant", config);
+  return data;
+}
+
+export async function getMyMerchants(config = {}) {
+  const { data } = await api.get("/api/my-merchants", config);
+  return data;
+}
+
 export async function getMerchants() {
   try {
     const res = await axios.get("http://localhost:8000/api/merchants");

@@ -365,12 +365,14 @@ defineExpose({
               </span>
             </div>
 
-            <button
-              class="flex items-center justify-center flex-shrink-0 w-6 h-6 transition rounded-full hover:bg-white/20"
-              title="Pengaturan"
-            >
-              <i class="text-sm pi pi-ellipsis-v"></i>
-            </button>
+            <router-link to="profile">
+              <button
+                class="flex items-center justify-center flex-shrink-0 w-6 h-6 transition rounded-full hover:bg-white/20"
+                title="Pengaturan"
+              >
+                <i class="text-sm pi pi-ellipsis-v"></i>
+              </button>
+            </router-link>
           </div>
 
           <!-- ✅ Debug info (remove after testing) -->
