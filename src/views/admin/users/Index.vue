@@ -94,13 +94,15 @@ onMounted(() => {
 
 // ✅ Trigger export using callback
 const triggerExport = () => {
-  console.log('triggerExport called', effectiveTab.value);
-  console.log('exportModalCallback.value:', exportModalCallback.value);
+  console.log('triggerExport called, tab:', effectiveTab.value);
+  console.log('exportModalCallback exists:', !!exportModalCallback.value);
   
   if (typeof exportModalCallback.value === 'function') {
+    console.log('Calling export callback');
     exportModalCallback.value();
   } else {
     console.error('Export modal callback not registered');
+    toast.error('Export tidak tersedia untuk halaman ini');
   }
 };
 

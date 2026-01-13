@@ -241,6 +241,43 @@
         </div>
       </template>
     </ResponsiveModal>
+
+    <!-- Export Modal -->
+    <ResponsiveModal
+      :show="showExportModal"
+      @close="closeExportModal"
+      title="Export Detail User"
+      subtitle="Unduh laporan detail user dalam format PDF"
+    >
+      <div class="space-y-4">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div class="flex items-start gap-3">
+            <i class="pi pi-info-circle text-blue-600 text-xl mt-0.5"></i>
+            <div class="flex-1">
+              <p class="text-sm text-blue-900 font-medium mb-1">Laporan akan mencakup:</p>
+              <ul class="text-xs text-blue-800 space-y-1 list-disc list-inside">
+                <li>Profil lengkap user (Nama, Email, Phone, NIK, Roles)</li>
+                <li>Statistik aktivitas (Merchants, Posts, Comments)</li>
+                <li>Trend login (30 hari terakhir)</li>
+                <li>Daftar merchants yang dimiliki</li>
+                <li>Informasi timestamp dan verifikasi</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <Button
+          @click="exportPDF"
+          variant="merchant"
+          size="lg"
+          custom-class="w-full justify-center"
+          :loading="exportLoading"
+        >
+          <i class="pi pi-download mr-2"></i>
+          <span>Download Laporan PDF</span>
+        </Button>
+      </div>
+    </ResponsiveModal>
   </div>
 
   <!-- Loading -->
@@ -253,7 +290,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted, nextTick, inject } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import ApexCharts from "apexcharts";
@@ -270,6 +307,9 @@ const route = useRoute();
 const toast = useToast();
 
 const { fetchUserDetail, approveMerchant, rejectMerchant, loading } = useUsers();
+
+// ✅ Inject the registration function from parent
+const registerExportModal = inject('registerExportModal', null);
 
 // =======================
 // STATE
@@ -288,6 +328,10 @@ const rejectReason = ref("");
 const loginTrend = ref([]);
 const loginChartEl = ref(null);
 const loginChartInstance = ref(null);
+
+// Export state
+const showExportModal = ref(false);
+const exportLoading = ref(false);
 
 // =======================
 // HELPERS
@@ -397,7 +441,7 @@ const fetchLoginTrend = async () => {
 };
 
 // =======================
-// CHART (IDENTIK dengan Statistic.vue style, tapi 1 series: Login)
+// CHART
 // =======================
 const renderLoginChart = async () => {
   if (!loginChartEl.value) return;
@@ -486,6 +530,35 @@ const renderLoginChart = async () => {
   }
 };
 
+// Export methods
+const openExportModal = () => (showExportModal.value = true);
+const closeExportModal = () => (showExportModal.value = false);
+
+const exportPDF = async () => {
+  exportLoading.value = true;
+  try {
+    const response = await api.get(`/api/admin/users/${route.params.id}/export-pdf`, {
+      responseType: "blob",
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `user-detail-${route.params.id}-${new Date().toISOString().split('T')[0]}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    toast.success("Laporan user detail berhasil diunduh");
+    closeExportModal();
+  } catch (error) {
+    console.error("Export PDF failed:", error);
+    toast.error(error.response?.data?.message || "Gagal mengunduh laporan");
+  } finally {
+    exportLoading.value = false;
+  }
+};
+
 // =======================
 // APPROVE / REJECT HANDLERS
 // =======================
@@ -561,7 +634,11 @@ watch(
 );
 
 onMounted(async () => {
-  // initial load handled by watcher (immediate)
+  // ✅ Register export callback with parent
+  if (typeof registerExportModal === 'function') {
+    registerExportModal(openExportModal);
+    console.log('Customer Detail: Export callback registered');
+  }
 });
 
 onUnmounted(async () => {
