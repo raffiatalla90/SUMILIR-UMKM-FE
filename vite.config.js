@@ -83,7 +83,6 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks: {
             "vendor-vue": ["vue", "vue-router", "pinia"],
-            "vendor-ui": ["@headlessui/vue"],
           },
         },
       },
