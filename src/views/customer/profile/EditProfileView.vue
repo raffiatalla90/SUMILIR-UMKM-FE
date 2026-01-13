@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { useProfileStore } from "@/stores/profile";
 import { useToast } from "vue-toastification";
 import TextField from "@/components/forms/TextField.vue";
+import MobileHeader from "@/components/customer/MobileHeader.vue";
 
 const router = useRouter();
 const profileStore = useProfileStore();
@@ -60,6 +61,10 @@ const handleCancel = () => {
   router.push("/profile");
 };
 
+const goBack = () => {
+  router.back();
+};
+
 const handlePhotoUpload = () => {
   fileInput.value.click();
 };
@@ -91,31 +96,7 @@ onMounted(() => {
     />
 
     <!-- Header -->
-    <div
-      class="sticky top-0 z-10 px-4 py-4 bg-white border-b border-gray-100 md:px-8 md:py-6"
-    >
-      <div class="mx-auto max-w-7xl">
-        <button
-          @click="handleCancel"
-          class="flex items-center gap-2 text-gray-700 transition-colors hover:text-gray-900"
-        >
-          <svg
-            class="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-          <span class="text-lg font-medium md:text-xl">Edit Profile</span>
-        </button>
-      </div>
-    </div>
+    <MobileHeader title="Edit Profil" @back="goBack" />
 
     <!-- Content Container -->
     <div class="px-4 py-6 mx-auto max-w-7xl md:px-8 md:py-12">

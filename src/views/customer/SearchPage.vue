@@ -1,27 +1,88 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import {
+  ref,
+  computed,
+  onMounted,
+  watch,
+  onBeforeUnmount,
+  nextTick,
+} from "vue";
 import ProductCard from "@/components/Card/ProductCard.vue";
 import ProductCardSkeleton from "@/components/Card/ProductCardSkeleton.vue"; // Tambahkan ini
 import MerchantCard from "@/components/Card/MerchantCard.vue";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import TextField from "@/components/forms/TextField.vue";
 import Button from "@/components/common/Button.vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
+import api from "@/libs/axios";
+import { useCategories } from "@/composables/useCategories";
+import { useSegmentations } from "@/composables/useSegmentations";
+
+const products = ref([]);
+const merchants = ref([]); // nanti endpoint sendiri
+const isLoading = ref(false); // loading awal
+const isLoadingMoreProducts = ref(false);
+const isLoadingMoreMerchants = ref(false);
+const loadMoreRef = ref(null); // elemen sentinel
+const observer = ref(null);
+// const loadMoreMerchantRef = ref(null);
+// const merchantObserver = ref(null);
+
+const page = ref(1);
+const perPage = 20;
+const hasMore = ref(false);
+
+const merchantPage = ref(1);
+const merchantPerPage = 20;
+const merchantHasMore = ref(false);
 
 const router = useRouter();
+const route = useRoute();
 
+const {
+  categoriesLevel1,
+  loadingLevel1,
+  fetchLevel1Categories,
+  categoriesLevel2Map,
+  loadingLevel2,
+  fetchMultiSubCategories,
+} = useCategories();
+const {
+  segmentations,
+  loading: loadingSegmentations,
+  fetchSegmentations,
+} = useSegmentations();
 function goBack() {
   router.back();
 }
+const goToProductDetail = (product) => {
+  const slug = product?.slug;
 
-function submitSearch() {
-  if (!searchInput.value.trim()) return;
-  keyword.value = searchInput.value.trim();
-  // nanti bisa trigger fetch API di sini
+  if (typeof slug !== "string" || !slug.trim()) {
+    console.warn("[Search] Invalid product slug:", product);
+    return;
+  }
+
+  router.push({
+    name: "Product Detail",
+    params: { slug },
+  });
+};
+const showBackToTop = ref(false);
+
+function handleScroll() {
+  showBackToTop.value = window.scrollY > 300;
+}
+
+function scrollToTop() {
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth",
+  });
 }
 
 /* ================= BASIC ================= */
-const keyword = ref("kopi");
+// const keyword = ref("");
 const activeTab = ref("products");
 
 /* ================= MODAL ================= */
@@ -34,18 +95,70 @@ const activeInstantSorts = ref([]);
 const detailFilters = ref({
   minPrice: null,
   maxPrice: null,
-  categories: [], // ✅ MULTI
+  categories: [],
+  subCategories: [],
+  segments: [],
 });
 
-const tempDetailFilters = ref({ ...detailFilters.value });
-const searchInput = ref(keyword.value);
+const tempDetailFilters = ref({ ...detailFilters.value, subCategories: [] });
+
+const isEmptyProducts = computed(
+  () =>
+    !isLoading.value &&
+    activeTab.value === "products" &&
+    products.value.length === 0
+);
+
+const isEmptyMerchants = computed(
+  () =>
+    !isLoading.value &&
+    activeTab.value === "merchants" &&
+    merchants.value.length === 0
+);
 
 /* ================= AVAILABLE CATEGORIES ================= */
-const availableCategories = [
-  { key: "kopi", label: "Kopi" },
-  { key: "teh", label: "Teh" },
-  { key: "herbal", label: "Herbal" },
-];
+const availableCategories = computed(() =>
+  categoriesLevel1.value.map((cat) => ({
+    key: cat.slug, // dipakai untuk filter & API
+    label: cat.name, // teks di UI
+    id: cat.id,
+  }))
+);
+const availableSubCategories = computed(() => {
+  return Object.values(categoriesLevel2Map.value)
+    .flat()
+    .map((cat) => ({
+      key: cat.slug,
+      label: cat.name,
+      id: cat.id,
+    }));
+});
+
+/* ================= AVAILABLE SEGMENTS ================= */
+const availableSegments = computed(() =>
+  segmentations.value.map((seg) => ({
+    key: seg.key, // dikirim ke API search
+    label: seg.label, // teks UI
+    id: seg.id,
+  }))
+);
+
+const activeFilterCount = computed(() => {
+  let count = 0;
+
+  if (detailFilters.value.minPrice !== null) count++;
+  if (detailFilters.value.maxPrice !== null) count++;
+  if (detailFilters.value.categories.length) count++;
+  if (detailFilters.value.segments.length) count++;
+  if (detailFilters.value.subCategories.length) count++;
+
+  return count;
+});
+
+const hasActiveFilters = computed(() => activeFilterCount.value > 0);
+function safeString(v) {
+  return typeof v === "string" ? v : undefined;
+}
 
 /* ================= SORT OPTIONS ================= */
 const instantSortOptions = [
@@ -72,49 +185,302 @@ const filteredInstantSorts = computed(() =>
   )
 );
 
-/* ================= DUMMY DATA ================= */
-const products = ref([
-  {
-    id: 1,
-    name: "Kopi Arabika Banyuanyar",
-    min_price: 25000,
-    max_price: 35000,
-    distance: 1.2,
-    category: "kopi",
-    created_at: "2024-01-10",
-    merchant: { name: "Toko Kopi Sumilir" },
-  },
-  {
-    id: 2,
-    name: "Kopi Robusta Premium",
-    min_price: 20000,
-    max_price: 20000,
-    distance: 2.5,
-    category: "kopi",
-    created_at: "2023-12-01",
-    merchant: { name: "Warung Kopi Pak Darto" },
-  },
-  {
-    id: 3,
-    name: "Teh Herbal Tradisional",
-    min_price: 15000,
-    max_price: 18000,
-    distance: 0.8,
-    category: "teh",
-    created_at: "2023-11-15",
-    merchant: { name: "UMKM Teh Desa" },
-  },
-]);
+async function fetchMerchants(reset = false) {
+  if (isLoadingMoreMerchants.value) return;
 
-const merchants = ref([
-  { id: 1, name: "Toko Kopi Sumilir", distance: 1.4, created_at: "2024-01-05" },
-  {
-    id: 2,
-    name: "Warung Kopi Pak Darto",
-    distance: 0.9,
-    created_at: "2023-10-10",
+  if (reset) {
+    merchantPage.value = 1;
+    merchants.value = [];
+    merchantHasMore.value = true;
+  }
+
+  isLoadingMoreMerchants.value = true;
+
+  try {
+    const res = await api.get("/api/public/search-merchants", {
+      params: {
+        ...buildMerchantQuery(),
+        page: merchantPage.value,
+        per_page: merchantPerPage,
+      },
+    });
+
+    const data = res.data.data ?? [];
+
+    merchants.value.push(...data);
+
+    merchantHasMore.value =
+      res.data.meta.current_page < res.data.meta.last_page;
+  } catch (err) {
+    console.error("Fetch merchants error:", err);
+  } finally {
+    isLoadingMoreMerchants.value = false;
+  }
+}
+
+// function setupMerchantObserver() {
+//   // Bersihkan observer lama jika ada
+//   if (merchantObserver.value) merchantObserver.value.disconnect();
+
+//   merchantObserver.value = new IntersectionObserver(
+//     (entries) => {
+//       const entry = entries[0];
+
+//       // LOGIC PENTING:
+//       // Kita cek apakah sentinel terlihat (isIntersecting)
+//       // DAN kita punya data lebih (merchantHasMore)
+//       // DAN kita TIDAK sedang loading
+//       if (
+//         entry.isIntersecting &&
+//         merchantHasMore.value &&
+//         !isLoadingMoreMerchants.value &&
+//         !isLoading.value
+//       ) {
+//         merchantPage.value++;
+//         fetchMerchants();
+//       }
+//     },
+//     {
+//       root: null,
+//       rootMargin: "200px", // Preload 200px sebelum mentok bawah
+//       threshold: 0,
+//     }
+//   );
+
+//   if (loadMoreMerchantRef.value) {
+//     merchantObserver.value.observe(loadMoreMerchantRef.value);
+//   }
+// }
+async function fetchProducts(reset = false) {
+  if (isLoading.value || isLoadingMoreProducts.value) return;
+
+  if (reset) {
+    page.value = 1;
+    products.value = [];
+    hasMore.value = true;
+    isLoading.value = true;
+  } else {
+    isLoadingMoreProducts.value = true;
+  }
+
+  try {
+    const res = await api.get("/api/public/search", {
+      params: buildProductQuery(),
+    });
+
+    products.value.push(...res.data.data);
+    hasMore.value = res.data.meta.current_page < res.data.meta.last_page;
+  } catch (err) {
+    toast.error("Gagal memuat produk. Silakan coba lagi.");
+    // console.error(err);
+  } finally {
+    isLoading.value = false;
+    isLoadingMoreProducts.value = false;
+  }
+}
+function setupObserver() {
+  if (observer.value) observer.value.disconnect();
+
+  observer.value = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0];
+
+      if (
+        entry.isIntersecting &&
+        hasMore.value &&
+        !isLoadingMoreProducts.value &&
+        activeTab.value === "products"
+      ) {
+        page.value++;
+        fetchProducts();
+      }
+    },
+    {
+      root: null,
+      rootMargin: "200px", // preload sebelum mentok
+      threshold: 0,
+    }
+  );
+
+  if (loadMoreRef.value) {
+    observer.value.observe(loadMoreRef.value);
+  }
+}
+
+function buildMerchantQuery() {
+  const sort = activeInstantSorts.value.find((s) =>
+    ["latest", "oldest"].includes(s)
+  );
+
+  return {
+    q: route.query.q || undefined,
+    segments: detailFilters.value.segments.length
+      ? detailFilters.value.segments
+      : undefined,
+
+    categories: detailFilters.value.subCategories.length
+      ? detailFilters.value.subCategories
+      : detailFilters.value.categories.length
+      ? detailFilters.value.categories
+      : undefined,
+
+    min_price: detailFilters.value.minPrice ?? undefined,
+    max_price: detailFilters.value.maxPrice ?? undefined,
+
+    sort: sort || undefined,
+    page: merchantPage.value,
+    per_page: merchantPerPage,
+  };
+}
+
+function buildProductQuery() {
+  const sortKey = activeInstantSorts.value.find((s) =>
+    ["latest", "oldest", "cheapest", "expensive"].includes(s)
+  );
+
+  return {
+    q: route.query.q || undefined,
+    min_price:
+      typeof detailFilters.value.minPrice === "number"
+        ? detailFilters.value.minPrice
+        : undefined,
+    max_price:
+      typeof detailFilters.value.maxPrice === "number"
+        ? detailFilters.value.maxPrice
+        : undefined,
+
+    categories: detailFilters.value.subCategories.length
+      ? detailFilters.value.subCategories.map(String)
+      : detailFilters.value.categories.length
+      ? detailFilters.value.categories.map(String)
+      : undefined,
+
+    segments: detailFilters.value.segments.length
+      ? detailFilters.value.segments.map(String)
+      : undefined,
+
+    sort: typeof sortKey === "string" ? sortKey : undefined,
+
+    page: String(page.value),
+    per_page: String(perPage),
+  };
+}
+
+function submitSearch() {
+  const q = route.query.q;
+  if (!q) return;
+
+  router.push({
+    name: "Search Page",
+    query: { q },
+  });
+}
+
+function applyDetailFilter() {
+  detailFilters.value = {
+    minPrice: tempDetailFilters.value.minPrice,
+    maxPrice: tempDetailFilters.value.maxPrice,
+    categories: [...tempDetailFilters.value.categories],
+    subCategories: [...tempDetailFilters.value.subCategories],
+    segments: [...tempDetailFilters.value.segments],
+  };
+
+  showFilterModal.value = false;
+  if (activeTab.value === "products") {
+    fetchProducts(true);
+  }
+  if (activeTab.value === "merchants") {
+    fetchMerchants(true);
+  }
+}
+
+watch(activeInstantSorts, () => {
+  fetchProducts(true);
+});
+
+watch(
+  activeTab,
+  (tab) => {
+    resetAllFilters();
+
+    if (tab === "products") {
+      fetchProducts(true);
+      nextTick(() => setupObserver());
+    }
+
+    if (tab === "merchants") {
+      fetchMerchants(true);
+      // nextTick(() => setupMerchantObserver());
+    }
   },
-]);
+  { immediate: true }
+);
+
+watch(
+  () => tempDetailFilters.value.maxPrice,
+  (newMax) => {
+    if (
+      newMax !== null &&
+      newMax !== "" &&
+      tempDetailFilters.value.minPrice === null
+    ) {
+      tempDetailFilters.value.minPrice = 0;
+    }
+  }
+);
+
+watch(
+  () => route.query.q,
+  (q) => {
+    page.value = 1;
+    products.value = [];
+    hasMore.value = true;
+
+    if (!q) return;
+
+    fetchProducts(true);
+    nextTick(setupObserver);
+
+    if (activeTab.value === "merchants") {
+      fetchMerchants(true);
+    }
+  },
+  { immediate: true }
+);
+
+watch(
+  () => [...tempDetailFilters.value.categories],
+  async (newCategories, oldCategories = []) => {
+    // kategori baru → fetch sub kategori
+    const added = newCategories.filter((c) => !oldCategories.includes(c));
+
+    for (const slug of added) {
+      const category = categoriesLevel1.value.find((c) => c.slug === slug);
+      if (category) {
+        await fetchMultiSubCategories(category.id);
+      }
+    }
+
+    // kategori dihapus → hapus sub kategori terkait
+    const removed = oldCategories.filter((c) => !newCategories.includes(c));
+
+    for (const slug of removed) {
+      const category = categoriesLevel1.value.find((c) => c.slug === slug);
+      if (category) {
+        delete categoriesLevel2Map.value[category.id];
+
+        // bersihkan sub kategori yang terpilih
+        tempDetailFilters.value.subCategories =
+          tempDetailFilters.value.subCategories.filter(
+            (sub) =>
+              !availableSubCategories.value.some(
+                (s) => s.key === sub && s.id === category.id
+              )
+          );
+      }
+    }
+  }
+);
 
 /* ================= INSTANT SORT HANDLER ================= */
 function toggleInstantSort(key) {
@@ -135,6 +501,14 @@ function toggleInstantSort(key) {
     activeInstantSorts.value.push(key);
   }
 }
+function toggleSegment(key) {
+  const index = tempDetailFilters.value.segments.indexOf(key);
+  if (index > -1) {
+    tempDetailFilters.value.segments.splice(index, 1);
+  } else {
+    tempDetailFilters.value.segments.push(key);
+  }
+}
 
 /* ================= DETAIL FILTER HANDLER ================= */
 function toggleCategory(key) {
@@ -145,22 +519,36 @@ function toggleCategory(key) {
     tempDetailFilters.value.categories.push(key);
   }
 }
-
-function applyDetailFilter() {
-  detailFilters.value = {
-    minPrice: tempDetailFilters.value.minPrice,
-    maxPrice: tempDetailFilters.value.maxPrice,
-    categories: [...tempDetailFilters.value.categories],
-  };
-  showFilterModal.value = false;
+function toggleSubCategory(key) {
+  const index = tempDetailFilters.value.subCategories.indexOf(key);
+  if (index > -1) {
+    tempDetailFilters.value.subCategories.splice(index, 1);
+  } else {
+    tempDetailFilters.value.subCategories.push(key);
+  }
 }
 
-function resetDetailFilter() {
+function resetAllFilters() {
+  // reset filter aktif
+  detailFilters.value = {
+    minPrice: null,
+    maxPrice: null,
+    categories: [],
+    subCategories: [],
+    segments: [],
+  };
+
+  // reset filter modal
   tempDetailFilters.value = {
     minPrice: null,
     maxPrice: null,
     categories: [],
+    subCategories: [],
+    segments: [],
   };
+
+  // reset sub category cache
+  categoriesLevel2Map.value = {};
 }
 
 /* ================= FILTER ENGINE ================= */
@@ -184,6 +572,17 @@ function applyFilters(list) {
       detailFilters.value.categories.includes(i.category)
     );
   }
+  if (detailFilters.value.segments.length) {
+    filtered = filtered.filter((item) => {
+      let segmentName = "";
+      if (activeTab.value === "products") {
+        segmentName = item.merchant?.segmentation?.name;
+      } else {
+        segmentName = item.segmentation?.name;
+      }
+      return detailFilters.value.segments.includes(segmentName);
+    });
+  }
 
   if (activeInstantSorts.value.includes("latest")) {
     filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -204,128 +603,104 @@ function applyFilters(list) {
   return filtered;
 }
 
-const finalProducts = computed(() => applyFilters(products.value));
-const finalMerchants = computed(() => applyFilters(merchants.value));
+function handleMerchantInfiniteScroll() {
+  if (
+    activeTab.value !== "merchants" ||
+    !merchantHasMore.value ||
+    isLoadingMoreMerchants.value ||
+    isLoading.value
+  )
+    return;
 
-const PAGE_SIZE = 2;
-const visibleProductCount = ref(PAGE_SIZE);
-const visibleMerchantCount = ref(PAGE_SIZE);
+  const scrollBottom =
+    window.innerHeight + window.scrollY >=
+    document.documentElement.scrollHeight - 200;
 
-function loadMoreProducts() {
-  visibleProductCount.value += PAGE_SIZE;
+  if (scrollBottom) {
+    merchantPage.value++;
+    fetchMerchants();
+  }
 }
-function loadMoreMerchants() {
-  visibleMerchantCount.value += PAGE_SIZE;
-}
-
-const pagedProducts = computed(() =>
-  finalProducts.value.slice(0, visibleProductCount.value)
-);
-const pagedMerchants = computed(() =>
-  finalMerchants.value.slice(0, visibleMerchantCount.value)
-);
-
-const isLoading = ref(true); // State loading
 
 onMounted(() => {
-  // Simulasi loading, ganti dengan fetch API asli jika sudah ada
-  setTimeout(() => {
-    isLoading.value = false;
-  }, 1200);
+  window.addEventListener("scroll", handleScroll);
+  window.addEventListener("scroll", handleMerchantInfiniteScroll);
+
+  fetchLevel1Categories();
+  fetchSegmentations();
+  // fetchProducts(true);
+  // setupObserver();
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("scroll", handleScroll);
+  window.removeEventListener("scroll", handleMerchantInfiniteScroll);
+  if (observer.value) observer.value.disconnect();
+  // if (merchantObserver.value) merchantObserver.value.disconnect();
 });
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 pb-24">
+  <div class="min-h-screen pb-24 bg-gray-50">
     <!-- ================= MOBILE STICKY SEARCH HEADER ================= -->
-    <div class="sm:hidden sticky top-0 z-40 bg-white border-b border-gray-200">
+    <div class="sticky top-0 z-40 bg-white border-b border-gray-200 sm:hidden">
       <div class="flex items-center gap-2 px-3 py-3">
         <!-- BACK -->
         <button
           @click="goBack"
-          class="p-2 rounded-full hover:bg-gray-100 transition"
+          class="p-2 px-3 transition rounded-full hover:bg-gray-100"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width="2"
-            stroke="currentColor"
-            class="w-5 h-5"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
+          <i class="text-sm pi pi-chevron-left"></i>
         </button>
 
         <!-- SEARCH INPUT -->
         <form @submit.prevent="submitSearch" class="flex-1">
           <div class="relative">
-            <input
-              v-model="searchInput"
-              type="text"
+            <TextField
+              :modelValue="route.query.q || ''"
+              @update:modelValue="(v) => router.replace({ query: { q: v } })"
+              name="search"
               placeholder="Cari produk atau UMKM…"
-              class="w-full h-10 rounded-xl border border-gray-300 pl-10 pr-3 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
+              variant="primary"
             />
-            <span
-              class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="1.5"
-                stroke="currentColor"
-                class="w-4 h-4"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="m21 21-4.35-4.35m0 0A7.5 7.5 0 1 0 10.5 18a7.5 7.5 0 0 0 6.15-3.35Z"
-                />
-              </svg>
-            </span>
           </div>
         </form>
       </div>
     </div>
-    <div class="max-w-7xl mx-auto px-4 py-4 space-y-5">
+    <div class="px-4 py-4 mx-auto space-y-5 max-w-7xl">
       <div>
-        <h1 class="text-lg sm:text-xl font-semibold text-gray-900">
+        <h1 class="text-lg font-semibold text-gray-900 sm:text-xl">
           Hasil pencarian untuk
-          <span class="text-primary">"{{ keyword }}"</span>
+          <span class="text-primary">"{{ route.query.q }}"</span>
         </h1>
-        <p class="text-sm text-muted-foreground mt-1">
-          Menampilkan produk dan toko terkait
+        <p class="mt-1 text-sm text-muted-foreground">
+          Menampilkan produk dan UMKM terkait
         </p>
       </div>
 
       <!-- TAB -->
-      <div class="flex">
+      <div class="flex group">
         <button
           @click="activeTab = 'products'"
-          class="px-3 py-2 text-sm font-medium border-b-2 transition w-full"
+          class="w-full px-3 py-2 text-sm font-medium transition border-b-2 cursor-pointer group-hover:text-primary group-hover:border-primary"
           :class="
             activeTab === 'products'
               ? 'border-primary text-primary'
-              : 'border-muted-foreground text-muted-foreground hover:text-muted-foreground/80'
+              : 'border-muted-foreground text-muted-foreground '
           "
         >
           Produk
         </button>
         <button
           @click="activeTab = 'merchants'"
-          class="px-3 py-2 text-sm font-medium border-b-2 transition w-full"
+          class="w-full px-3 py-2 text-sm font-medium transition border-b-2 cursor-pointer group-hover:text-primary group-hover:border-primary"
           :class="
             activeTab === 'merchants'
               ? 'border-primary text-primary'
-              : 'border-muted-foreground text-muted-foreground hover:text-muted-foreground/80'
+              : 'border-muted-foreground text-muted-foreground '
           "
         >
-          Toko
+          UMKM
         </button>
       </div>
 
@@ -339,11 +714,11 @@ onMounted(() => {
               v-for="item in filteredInstantSorts"
               :key="item.key"
               @click="toggleInstantSort(item.key)"
-              class="px-3 py-1.5 text-xs rounded-full border whitespace-nowrap"
+              class="px-3 py-1.5 text-xs rounded-full border whitespace-nowrap cursor-pointer transition duration-200"
               :class="
                 activeInstantSorts.includes(item.key)
                   ? 'bg-primary text-white border-primary'
-                  : 'bg-white text-gray-600 border-gray-300'
+                  : 'bg-white text-gray-600 border-gray-300 hover:border-primary hover:text-primary'
               "
             >
               {{ item.label }}
@@ -358,13 +733,15 @@ onMounted(() => {
           "
           variant="muted-outline"
           size="sm"
-          custom-class="flex items-center gap-2 whitespace-nowrap !rounded-xl !py-2"
+          custom-class="relative flex items-center gap-2 whitespace-nowrap !rounded-xl !py-2"
         >
           <i class="pi pi-filter"></i>
           <span>Filter</span>
+
+          <!-- BADGE -->
           <span
-            v-if="activeFilterCount > 0"
-            class="absolute -top-2 -right-2 bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-semibold"
+            v-if="hasActiveFilters"
+            class="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-primary text-white text-[10px] rounded-full flex items-center justify-center font-semibold"
           >
             {{ activeFilterCount }}
           </span>
@@ -374,130 +751,232 @@ onMounted(() => {
       <!-- PRODUCTS -->
       <section
         v-if="activeTab === 'products'"
-        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"
+        class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
       >
-        <template v-if="isLoading">
-          <ProductCardSkeleton v-for="i in PAGE_SIZE" :key="i" />
-        </template>
-        <template v-else>
-          <ProductCard
-            v-for="product in pagedProducts"
-            :key="product.id"
-            :product="product"
-          />
-        </template>
+        <!-- DATA -->
+        <ProductCard
+          v-for="product in products"
+          :key="product.id"
+          :product="product"
+          @click="goToProductDetail(product)"
+        />
+
+        <!-- SKELETON APPEND -->
+        <ProductCardSkeleton
+          v-if="isLoadingMoreProducts"
+          v-for="i in 6"
+          :key="'loading-more-' + i"
+        />
       </section>
+
+      <!-- SENTINEL -->
       <div
-        v-if="
-          !isLoading &&
-          activeTab === 'products' &&
-          pagedProducts.length < finalProducts.length
-        "
-        class="flex justify-center mt-4"
+        ref="loadMoreRef"
+        v-if="hasMore && activeTab === 'products'"
+        class="h-1"
+      ></div>
+
+      <!-- EMPTY PRODUCTS -->
+      <div
+        v-if="isEmptyProducts"
+        class="flex flex-col items-center justify-center py-16 text-center"
       >
-        <Button @click="loadMoreProducts" variant="primary-outline"
-          >Muat Lebih Banyak</Button
-        >
+        <p class="text-sm text-primary">Produk tidak ditemukan</p>
+        <p class="mt-1 text-xs text-muted-foreground">
+          Coba ubah kata kunci atau filter pencarian
+        </p>
       </div>
 
       <!-- MERCHANTS -->
       <section
         v-if="activeTab === 'merchants'"
-        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"
+        class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
       >
-        <template v-if="isLoading">
-          <ProductCardSkeleton v-for="i in PAGE_SIZE" :key="i" />
-        </template>
-        <template v-else>
-          <MerchantCard
-            v-for="merchant in pagedMerchants"
-            :key="merchant.id"
-            :merchant="merchant"
-          />
-        </template>
+        <MerchantCard
+          v-for="merchant in merchants"
+          :key="merchant.id"
+          :merchant="merchant"
+        />
+
+        <!-- skeleton append -->
+        <ProductCardSkeleton
+          v-if="isLoadingMoreMerchants"
+          v-for="i in 6"
+          :key="'merchant-loading-' + i"
+        />
       </section>
+
+      <!-- SENTINEL UMKM -->
+      <!-- <div
+        ref="loadMoreMerchantRef"
+        v-if="merchantHasMore && activeTab === 'merchants'"
+        class="h-1"
+      ></div> -->
+
+      <!-- EMPTY MERCHANTS -->
       <div
-        v-if="
-          activeTab === 'merchants' &&
-          pagedMerchants.length < finalMerchants.length
-        "
-        class="flex justify-center mt-4"
+        v-if="isEmptyMerchants && !isLoadingMoreMerchants"
+        class="flex flex-col items-center justify-center py-16 text-center"
       >
-        <Button @click="loadMoreMerchants" variant="muted-outline"
-          >Muat Lebih Banyak</Button
-        >
+        <p class="text-sm text-primary">UMKM tidak ditemukan</p>
+        <p class="mt-1 text-xs text-muted-foreground">
+          Coba gunakan filter atau kata kunci lain
+        </p>
       </div>
     </div>
 
     <!-- FILTER MODAL -->
     <ResponsiveModal
       v-model:show="showFilterModal"
-      title="Filter Detail"
+      title="Filter"
       subtitle="Atur lebih spesifik"
       :showFooter="true"
     >
       <div class="space-y-4">
-        <!-- PRICE -->
-        <div>
-          <label class="text-sm font-medium">Rentang Harga</label>
-          <div class="flex gap-2 mt-2 items-center">
-            <TextField
-              name="minPrice"
-              type="number"
-              v-model="tempDetailFilters.minPrice"
-              placeholder="Min"
-              prefix="Rp"
-              variant="primary"
-              class="w-full"
-            />
-            -
-            <TextField
-              name="maxPrice"
-              type="number"
-              v-model="tempDetailFilters.maxPrice"
-              placeholder="Max"
-              prefix="Rp"
-              variant="primary"
-              class="w-full"
-            />
+        <!-- ===================== PRODUCTS FILTER ===================== -->
+        <template v-if="activeTab === 'products'">
+          <!-- PRICE -->
+          <div>
+            <label class="text-sm font-medium">Rentang Harga</label>
+            <div class="flex items-center gap-2 mt-2">
+              <TextField
+                type="number"
+                v-model="tempDetailFilters.minPrice"
+                placeholder="Min"
+                prefix="Rp"
+                class="w-full"
+              />
+              -
+              <TextField
+                type="number"
+                v-model="tempDetailFilters.maxPrice"
+                placeholder="Max"
+                prefix="Rp"
+                class="w-full"
+              />
+            </div>
           </div>
-        </div>
 
-        <!-- CATEGORY MULTI -->
-        <div>
-          <label class="text-sm font-medium">Kategori</label>
-          <div class="grid grid-cols-2 gap-2 mt-2">
-            <button
-              v-for="cat in availableCategories"
-              :key="cat.key"
-              @click="toggleCategory(cat.key)"
-              class="px-3 py-2 text-xs rounded-xl border"
-              :class="
-                tempDetailFilters.categories.includes(cat.key)
-                  ? 'bg-primary text-white border-primary'
-                  : 'bg-white text-muted-foreground/80 border-gray-300'
-              "
-            >
-              {{ cat.label }}
-            </button>
+          <!-- SEGMENTASI -->
+          <div>
+            <label class="text-sm font-medium">
+              <span v-if="isLoadingSegments">Memuat Jenis Produk...</span>
+              <span v-else>Jenis Produk</span>
+            </label>
+            <div class="grid grid-cols-3 gap-2 mt-2">
+              <button
+                v-for="seg in availableSegments"
+                :key="seg.key"
+                @click="toggleSegment(seg.key)"
+                class="px-3 py-2 text-xs border rounded-xl"
+                :class="
+                  tempDetailFilters.segments.includes(seg.key)
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-white border-gray-300'
+                "
+              >
+                {{ seg.label }}
+              </button>
+            </div>
           </div>
-        </div>
+
+          <!-- CATEGORY -->
+          <div>
+            <label class="text-sm font-medium">
+              <span v-if="isLoadingCategories">Memuat Kategori...</span>
+              <span v-else>Kategori</span>
+            </label>
+            <div class="grid grid-cols-2 gap-2 mt-2">
+              <button
+                v-for="cat in availableCategories"
+                :key="cat.key"
+                @click="toggleCategory(cat.key)"
+                class="px-3 py-2 text-xs border rounded-xl"
+                :class="
+                  tempDetailFilters.categories.includes(cat.key)
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-white border-gray-300'
+                "
+              >
+                {{ cat.label }}
+              </button>
+            </div>
+          </div>
+
+          <!-- SUB CATEGORY -->
+          <div v-if="availableSubCategories.length">
+            <label class="text-sm font-medium">
+              <span v-if="isLoadingSubCategories">Memuat Sub Kategori...</span>
+              <span v-else>Sub Kategori</span>
+            </label>
+            <div class="grid grid-cols-2 gap-2 mt-2">
+              <button
+                v-for="sub in availableSubCategories"
+                :key="sub.key"
+                @click="toggleSubCategory(sub.key)"
+                class="px-3 py-2 text-xs border rounded-xl"
+                :class="
+                  tempDetailFilters.subCategories.includes(sub.key)
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-white border-gray-300'
+                "
+              >
+                {{ sub.label }}
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <!-- ===================== MERCHANT FILTER ===================== -->
+        <template v-else-if="activeTab === 'merchants'">
+          <div>
+            <label class="text-sm font-medium">
+              <span v-if="isLoadingSegments">Memuat Segmentasi UMKM...</span>
+              <span v-else>Segmentasi UMKM</span>
+            </label>
+            <div class="grid grid-cols-2 gap-2 mt-2">
+              <button
+                v-for="seg in availableSegments"
+                :key="seg.key"
+                @click="toggleSegment(seg.key)"
+                class="px-3 py-2 text-xs border rounded-xl"
+                :class="
+                  tempDetailFilters.segments.includes(seg.key)
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-white border-gray-300'
+                "
+              >
+                {{ seg.label }}
+              </button>
+            </div>
+          </div>
+        </template>
       </div>
 
       <template #footer>
         <div class="flex gap-2">
           <Button
-            @click="resetDetailFilter"
             variant="muted-outline"
             class="w-full"
+            @click="resetAllFilters"
           >
             Reset
           </Button>
-          <Button @click="applyDetailFilter" variant="primary" class="w-full">
+          <Button variant="primary" class="w-full" @click="applyDetailFilter">
             Terapkan
           </Button>
         </div>
       </template>
     </ResponsiveModal>
+
+    <!-- BACK TO TOP BUTTON -->
+    <button
+      v-show="showBackToTop"
+      @click="scrollToTop"
+      class="fixed z-50 flex items-center justify-center transition duration-200 bg-white border-2 rounded-full shadow-sm cursor-pointer border-muted-foreground/20 hover:shadow-lg bottom-24 right-8 w-11 h-11 active:scale-90 hover:-translate-y-1"
+      aria-label="Kembali ke atas"
+    >
+      <i class="text-xl pi pi-arrow-up text-secondary"></i>
+    </button>
   </div>
 </template>

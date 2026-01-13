@@ -227,7 +227,11 @@ onBeforeUnmount(() => {
   <div class="space-y-2">
     <div
       ref="mapEl"
-      :class="['w-full rounded-xl overflow-hidden border', borderColorClass]"
+      :class="[
+        'w-full rounded-xl overflow-hidden border',
+        borderColorClass,
+        'leaflet-z-fix',
+      ]"
       :style="{ height }"
     />
     <div class="flex flex-col gap-2">
@@ -269,3 +273,29 @@ onBeforeUnmount(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+/*
+  Leaflet default z-index cukup tinggi (controls sampai 1000) dan bisa
+  menutupi elemen UI lain (loading overlay, tombol fixed, modal).
+  Kita turunkan semuanya di dalam MapPicker supaya selalu berada di bawah
+  komponen lain yang pakai z-40/z-50, dll.
+*/
+.leaflet-z-fix {
+  position: relative;
+  z-index: 0;
+}
+
+.leaflet-z-fix :deep(.leaflet-pane),
+.leaflet-z-fix :deep(.leaflet-control),
+.leaflet-z-fix :deep(.leaflet-top),
+.leaflet-z-fix :deep(.leaflet-bottom) {
+  z-index: 0 !important;
+}
+
+/* Popup/tooltip juga kadang punya z-index tinggi */
+.leaflet-z-fix :deep(.leaflet-tooltip),
+.leaflet-z-fix :deep(.leaflet-popup) {
+  z-index: 0 !important;
+}
+</style>

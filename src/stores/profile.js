@@ -41,6 +41,10 @@ export const useProfileStore = defineStore("profile", {
     loading: false,
     error: null,
   }),
+  persist: {
+    key: "profile",
+    paths: ["user"],
+  },
   actions: {
     async fetchProfile() {
       this.loading = true;

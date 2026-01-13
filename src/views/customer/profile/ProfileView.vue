@@ -1,15 +1,24 @@
 <script setup>
-import { onMounted, computed, ref } from "vue";
+import { onMounted, computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useProfileStore } from "@/stores/profile";
 import { useAuthStore } from "@/stores/auth";
 import { getMyMerchants } from "@/services/api/merchant";
+import MobileHeader from "@/components/customer/MobileHeader.vue";
 
 const router = useRouter();
 const profileStore = useProfileStore();
 const authStore = useAuthStore();
 
 const myMerchants = ref([]);
+const merchantsLoading = ref(false);
+
+const isInitialProfileLoading = computed(
+  () => profileStore.loading && !profileStore.user
+);
+
+const imgLoaded = ref(!!profileStore.user?.profile_picture);
+const imgError = ref(false);
 
 // Menggunakan computed property untuk user dengan fallback
 const user = computed(
@@ -24,9 +33,21 @@ const user = computed(
     }
 );
 
+watch(
+  () => user.value?.profile_picture,
+  () => {
+    // Only show image skeleton when we actually have a URL to load.
+    imgLoaded.value = false;
+    imgError.value = false;
+  }
+);
+
 const handleLogout = async () => {
   await authStore.logout();
   router.push("/auth/login");
+};
+const goBack = () => {
+  router.back();
 };
 
 onMounted(async () => {
@@ -36,6 +57,7 @@ onMounted(async () => {
   }
 
   try {
+    merchantsLoading.value = true;
     const res = await getMyMerchants();
     myMerchants.value = Array.isArray(res?.data) ? res.data : [];
 
@@ -49,6 +71,8 @@ onMounted(async () => {
     }
   } catch {
     myMerchants.value = [];
+  } finally {
+    merchantsLoading.value = false;
   }
 });
 
@@ -81,31 +105,7 @@ const addressText = computed(() => {
 <template>
   <div class="min-h-screen pb-20 bg-gray-50 md:bg-white md:pb-0">
     <!-- Header -->
-    <div
-      class="sticky top-0 z-10 px-4 py-4 bg-white border-b border-gray-100 md:px-8 md:py-6"
-    >
-      <div class="mx-auto max-w-7xl">
-        <button
-          @click="router.back()"
-          class="flex items-center gap-2 text-gray-700 transition-colors hover:text-gray-900"
-        >
-          <svg
-            class="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-          <span class="text-lg font-medium md:text-xl">Profile</span>
-        </button>
-      </div>
-    </div>
+    <!-- <MobileHeader title="Profil" @back="goBack()" /> -->
 
     <!-- Content Container -->
     <div class="px-4 py-6 mx-auto max-w-7xl md:px-8 md:py-12">
@@ -117,13 +117,31 @@ const addressText = computed(() => {
             class="sticky p-8 bg-white border border-gray-100 shadow-sm rounded-2xl top-24"
           >
             <div class="flex flex-col items-center">
-              <img
-                :src="user.profile_picture"
-                :alt="user.name"
-                class="object-cover w-40 h-40 border-4 border-white rounded-full shadow-lg"
-              />
+              <div class="relative w-40 h-40">
+                <div
+                  v-if="isInitialProfileLoading || (!imgLoaded && !imgError)"
+                  class="w-40 h-40 bg-gray-200 border-4 border-white rounded-full shadow-lg animate-pulse"
+                />
+                <img
+                  v-show="!isInitialProfileLoading"
+                  :src="user.profile_picture"
+                  :alt="user.name"
+                  loading="lazy"
+                  class="object-cover w-40 h-40 border-4 border-white rounded-full shadow-lg"
+                  :class="imgLoaded ? '' : 'opacity-0'"
+                  @load="imgLoaded = true"
+                  @error="
+                    imgError = true;
+                    imgLoaded = true;
+                  "
+                />
+              </div>
 
-              <h2 class="mt-6 text-2xl font-bold text-gray-900">
+              <div
+                v-if="isInitialProfileLoading"
+                class="w-48 mt-6 bg-gray-200 rounded h-7 animate-pulse"
+              />
+              <h2 v-else class="mt-6 text-2xl font-bold text-gray-900">
                 {{ user.name }}
               </h2>
 
@@ -145,7 +163,13 @@ const addressText = computed(() => {
                       d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
                     />
                   </svg>
-                  <span class="min-w-0 text-sm truncate">{{ user.email }}</span>
+                  <div
+                    v-if="isInitialProfileLoading"
+                    class="w-40 h-4 bg-gray-200 rounded animate-pulse"
+                  />
+                  <span v-else class="min-w-0 text-sm truncate">{{
+                    user.email
+                  }}</span>
                 </div>
                 <div
                   class="flex items-center min-w-0 gap-3 text-gray-600 flex-nowrap"
@@ -163,7 +187,11 @@ const addressText = computed(() => {
                       d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
                     />
                   </svg>
-                  <span class="min-w-0 text-sm">{{ user.phone }}</span>
+                  <div
+                    v-if="isInitialProfileLoading"
+                    class="h-4 bg-gray-200 rounded w-28 animate-pulse"
+                  />
+                  <span v-else class="min-w-0 text-sm">{{ user.phone }}</span>
                 </div>
                 <div
                   class="flex items-start min-w-0 gap-3 text-gray-600 flex-nowrap"
@@ -187,7 +215,11 @@ const addressText = computed(() => {
                       d="M19 10c0 6-7 12-7 12S5 16 5 10a7 7 0 1114 0z"
                     />
                   </svg>
-                  <span class="min-w-0 text-sm wrap-break-word">{{
+                  <div
+                    v-if="isInitialProfileLoading"
+                    class="w-full h-4 bg-gray-200 rounded animate-pulse"
+                  />
+                  <span v-else class="min-w-0 text-sm wrap-break-word">{{
                     addressText
                   }}</span>
                 </div>
@@ -282,6 +314,16 @@ const addressText = computed(() => {
                   v-show="merchantAccordionOpen"
                   class="px-5 pt-2 pb-4 space-y-2"
                 >
+                  <template v-if="merchantsLoading">
+                    <div class="space-y-2">
+                      <div
+                        class="w-full h-12 bg-gray-200 rounded-lg animate-pulse"
+                      />
+                      <div
+                        class="w-full h-12 bg-gray-200 rounded-lg animate-pulse"
+                      />
+                    </div>
+                  </template>
                   <template v-if="myMerchants.length">
                     <div
                       v-for="m in myMerchants.filter(
@@ -357,19 +399,44 @@ const addressText = computed(() => {
       <div class="md:hidden">
         <div class="p-5 bg-white border border-gray-100 shadow-sm rounded-2xl">
           <div class="flex items-center gap-4">
-            <img
-              :src="user.profile_picture"
-              :alt="user.name"
-              class="object-cover w-20 h-20 border-4 border-white rounded-full shadow"
-            />
+            <div class="relative w-20 h-20">
+              <div
+                v-if="isInitialProfileLoading || (!imgLoaded && !imgError)"
+                class="w-20 h-20 bg-gray-200 border-4 border-white rounded-full shadow animate-pulse"
+              />
+              <img
+                v-show="!isInitialProfileLoading"
+                :src="user.profile_picture"
+                :alt="user.name"
+                loading="lazy"
+                class="object-cover w-20 h-20 border-4 border-white rounded-full shadow"
+                :class="imgLoaded ? '' : 'opacity-0'"
+                @load="imgLoaded = true"
+                @error="
+                  imgError = true;
+                  imgLoaded = true;
+                "
+              />
+            </div>
             <div class="min-w-0">
-              <h2 class="text-lg font-semibold text-gray-900">
+              <div
+                v-if="isInitialProfileLoading"
+                class="w-40 h-5 bg-gray-200 rounded animate-pulse"
+              />
+              <h2 v-else class="text-lg font-semibold text-gray-900">
                 {{ user.name }}
               </h2>
               <div class="mt-1 space-y-1">
-                <p class="text-sm text-gray-600">{{ user.email }}</p>
-                <p class="text-sm text-gray-600">{{ user.phone }}</p>
-                <p class="text-sm text-gray-600">{{ addressText }}</p>
+                <div v-if="isInitialProfileLoading" class="space-y-2">
+                  <div class="h-4 bg-gray-200 rounded w-44 animate-pulse" />
+                  <div class="w-32 h-4 bg-gray-200 rounded animate-pulse" />
+                  <div class="h-4 bg-gray-200 rounded w-52 animate-pulse" />
+                </div>
+                <template v-else>
+                  <p class="text-sm text-gray-600">{{ user.email }}</p>
+                  <p class="text-sm text-gray-600">{{ user.phone }}</p>
+                  <p class="text-sm text-gray-600">{{ addressText }}</p>
+                </template>
               </div>
             </div>
           </div>

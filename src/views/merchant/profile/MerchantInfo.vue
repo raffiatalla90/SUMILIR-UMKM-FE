@@ -108,9 +108,7 @@ onMounted(async () => {
       contact: data.phone,
       description: data.description ?? "-",
       address: formatFullAddress(primaryAddress),
-      logo: data.logo_path
-        ? data.logo_url
-        : "https://via.placeholder.com/150",
+      logo: data.logo_path ? data.logo_url : "https://via.placeholder.com/150",
       coverImage: data.cover_path
         ? data.banner_url
         : "https://images.unsplash.com/photo-1604719312566-8912e9227c6a",
@@ -164,7 +162,7 @@ const goToEdit = () => {
         </button>
 
         <!-- Loading Overlay -->
-        <div
+        <!-- <div
           v-if="isLoading"
           class="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-sm"
         >
@@ -191,14 +189,17 @@ const goToEdit = () => {
             </svg>
             <p class="text-sm font-medium text-gray-600">Memuat data UMKM...</p>
           </div>
-        </div>
+        </div> -->
 
-        <div v-else>
+        <div>
           <!-- Desktop: Show breadcrumb -->
           <div class="hidden sm:block">
             <Breadcrumb :items="breadcrumbItems" :merchantId="merchantId" />
             <p class="mt-1 text-xs sm:text-sm text-muted-foreground">
-              {{ merchantName }}
+              <span v-if="isLoading">Memuat...</span>
+              <span v-else>
+                {{ merchantName }}
+              </span>
             </p>
           </div>
 
@@ -208,7 +209,10 @@ const goToEdit = () => {
               Profil UMKM
             </h1>
             <p class="text-xs text-muted-foreground">
-              {{ merchantName }}
+              <span v-if="isLoading">Memuat...</span>
+              <span v-else>
+                {{ merchantName }}
+              </span>
             </p>
           </div>
         </div>
@@ -229,8 +233,17 @@ const goToEdit = () => {
     <!-- Spacer untuk kompensasi fixed header -->
     <div class="h-24 sm:h-0"></div>
 
+    <div
+      v-if="isLoading"
+      class="flex justify-center items-center min-h-[80dvh] w-full rounded-lg mx-0"
+    >
+      <div
+        class="w-10 h-10 border-4 rounded-full border-muted-foreground border-t-merchant-primary animate-spin"
+      ></div>
+    </div>
+
     <!-- Content -->
-    <div class="px-0 sm:px-6">
+    <div v-else class="px-0 pb-0 sm:pb-6 sm:px-6">
       <!-- Cover & Logo -->
       <div
         class="relative mb-2 overflow-visible bg-white sm:mb-4 sm:rounded-xl sm:shadow-sm"
@@ -384,7 +397,7 @@ const goToEdit = () => {
         </div>
 
         <!-- Desktop Edit Button (bawah) -->
-        <div class="justify-end hidden mt-6 sm:flex">
+        <div class="justify-end hidden mt-4 sm:flex">
           <button
             @click="goToEdit"
             class="px-6 py-2.5 bg-merchant-primary text-white font-semibold rounded-lg hover:opacity-90 transition-opacity text-sm flex items-center gap-2"

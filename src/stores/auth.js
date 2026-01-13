@@ -74,6 +74,8 @@ export const useAuthStore = defineStore("auth", () => {
     selectedMerchantId.value = null;
     localStorage.removeItem("user");
     localStorage.removeItem("selected_merchant_id");
+    // Also clear any persisted profile store so old user data doesn't leak after logout
+    localStorage.removeItem("profile");
   }
 
   function loadSelectedMerchant() {

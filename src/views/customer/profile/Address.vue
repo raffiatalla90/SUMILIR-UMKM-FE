@@ -5,6 +5,7 @@ import { useToast } from "vue-toastification";
 import { useProfileStore } from "@/stores/profile";
 import { Form, useForm } from "vee-validate";
 import * as yup from "yup";
+import MobileHeader from "@/components/customer/MobileHeader.vue";
 
 import MapPicker from "@/components/forms/MapPicker.vue";
 import SelectField from "@/components/forms/SelectField.vue";
@@ -66,6 +67,10 @@ function normalizeId(value) {
   if (value === null || value === undefined) return "";
   return String(value);
 }
+
+const goBack = () => {
+  router.back();
+};
 
 async function loadProvinces() {
   loadingProvinces.value = true;
@@ -238,32 +243,7 @@ const villageOptions = computed(() =>
 
 <template>
   <div class="min-h-screen pb-20 bg-gray-50 md:bg-white md:pb-0">
-    <!-- Header -->
-    <div
-      class="sticky top-0 z-10 px-4 py-4 bg-white border-b border-gray-100 md:px-8 md:py-6"
-    >
-      <div class="mx-auto max-w-7xl">
-        <button
-          @click="router.back()"
-          class="flex items-center gap-2 text-gray-700 transition-colors hover:text-gray-900"
-        >
-          <svg
-            class="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-          <span class="text-lg font-medium md:text-xl">Alamat Saya</span>
-        </button>
-      </div>
-    </div>
+    <MobileHeader title="Alamat Utama" @back="goBack" />
 
     <div class="px-4 py-6 mx-auto max-w-7xl md:px-8 md:py-12">
       <div class="p-6 bg-white border border-gray-100 shadow-sm rounded-2xl">

@@ -3,6 +3,7 @@ import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useProfileStore } from "@/stores/profile";
 import TextField from "@/components/forms/TextField.vue";
+import MobileHeader from "@/components/customer/MobileHeader.vue";
 
 const router = useRouter();
 const profileStore = useProfileStore();
@@ -130,26 +131,7 @@ const goBack = () => {
 <template>
   <div class="min-h-screen bg-gray-50">
     <!-- Header -->
-    <header class="sticky top-0 z-10 bg-white shadow-sm">
-      <div class="flex items-center max-w-4xl px-4 py-4 mx-auto">
-        <button @click="goBack" class="mr-3">
-          <svg
-            class="w-6 h-6 text-gray-700"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-        </button>
-        <h1 class="text-xl font-semibold text-gray-900">Ubah Kata Sandi</h1>
-      </div>
-    </header>
+    <MobileHeader title="Ubah Kata Sandi" @back="goBack" />
 
     <!-- Content -->
     <div class="max-w-4xl px-4 py-6 pb-24 mx-auto">

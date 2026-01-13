@@ -17,6 +17,7 @@ import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import MobilePagination from "@/components/common/MobilePagination.vue";
 import BulkActionBar from "@/components/common/BulkActionBar.vue";
 import { useVouchers } from "@/composables/useVouchers";
+import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import { formatPercent, formatPrice, formatDateID } from "@/libs/format";
 
 const {
@@ -56,6 +57,22 @@ const showStatusModal = ref(false);
 const showStatusChangeModal = ref(false);
 const showBulkActionModal = ref(false);
 const showBulkStatusChangeModal = ref(false);
+
+// Lock body scroll saat modal terbuka (mencegah scroll di belakang modal)
+const isAnyModalOpen = computed(() => {
+  return (
+    showDeleteModal.value ||
+    showBulkDeleteModal.value ||
+    showFilterModal.value ||
+    showDetailModal.value ||
+    showStatusModal.value ||
+    showStatusChangeModal.value ||
+    showBulkActionModal.value ||
+    showBulkStatusChangeModal.value
+  );
+});
+
+useBodyScrollLock(isAnyModalOpen);
 
 // Selected
 const selectedVoucherForStatus = ref(null);

@@ -42,7 +42,7 @@
 
     <!-- Spacer for Mobile Only -->
     <div class="h-[88px] sm:h-0"></div>
-    <div
+    <!-- <div
       v-if="isLoading"
       class="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-sm"
     >
@@ -69,9 +69,17 @@
         </svg>
         <p class="text-sm font-medium text-gray-600">Memuat data UMKM...</p>
       </div>
+    </div> -->
+    <div
+      v-if="isLoading"
+      class="flex justify-center items-center min-h-[80dvh] w-full rounded-lg mx-0"
+    >
+      <div
+        class="w-10 h-10 border-4 rounded-full border-muted-foreground border-t-merchant-primary animate-spin"
+      ></div>
     </div>
     <!-- Container Responsive -->
-    <div class="px-0 mx-auto sm:px-4 lg:px-6 sm:py-6 sm:pt-0">
+    <div v-else class="px-0 mx-auto sm:px-4 lg:px-6 sm:py-6 sm:pt-0">
       <!-- Mobile: Card with Cover & Logo -->
       <div
         class="mx-4 mb-4 overflow-hidden bg-white shadow-sm sm:hidden rounded-2xl"
@@ -243,14 +251,7 @@
               class="block mb-2 text-sm font-semibold text-merchant-primary"
               >Lokasi</label
             >
-            <!-- Instruksi -->
-            <div class="p-3 mb-4 border border-blue-200 rounded-lg bg-blue-50">
-              <p class="text-sm text-blue-800">
-                <span class="font-semibold">Cara menggunakan:</span> Klik pada
-                peta untuk menandai lokasi toko Anda, atau gunakan tombol
-                "Gunakan lokasi saya" untuk deteksi otomatis.
-              </p>
-            </div>
+
             <!-- Map Picker -->
             <div class="mb-4">
               <MapPicker
@@ -261,26 +262,8 @@
                 variant="merchant"
               />
             </div>
-            <!-- Koordinat Display -->
-            <div class="grid grid-cols-2 gap-3 mb-4">
-              <div class="p-3 rounded-lg bg-gray-50">
-                <p class="mb-1 text-xs text-gray-600">Latitude</p>
-                <p class="text-sm font-semibold text-gray-800">
-                  {{ latitude ?? "-" }}
-                </p>
-              </div>
-              <div class="p-3 rounded-lg bg-gray-50">
-                <p class="mb-1 text-xs text-gray-600">Longitude</p>
-                <p class="text-sm font-semibold text-gray-800">
-                  {{ longitude ?? "-" }}
-                </p>
-              </div>
-            </div>
             <!-- Wilayah Selection -->
-            <div class="pt-4 mb-4 border-t">
-              <h4 class="mb-3 text-sm font-semibold text-gray-700">
-                Informasi Wilayah (Opsional)
-              </h4>
+            <div class="pt-4 mb-4">
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <SelectField
                   name="form.province_id"
@@ -328,6 +311,7 @@
               <div class="mt-3">
                 <TextField
                   name="form.address"
+                  textarea="true"
                   v-model="form.address"
                   label="Alamat Lengkap"
                   placeholder="Contoh: Jl. Sudirman No. 123, RT 02/RW 05"
@@ -529,6 +513,7 @@
                 <div class="mt-3">
                   <TextField
                     name="form.address"
+                    textarea="true"
                     v-model="form.address"
                     label="Alamat Lengkap (Opsional)"
                     placeholder="Contoh: Jl. Sudirman No. 123, RT 02/RW 05"
@@ -901,9 +886,7 @@ onMounted(async () => {
     }
     form.value.village_id = data?.primary_address?.village_id ?? null;
 
-    form.value.logo = data?.logo_url
-      ? data.logo_url
-      : form.value.logo;
+    form.value.logo = data?.logo_url ? data.logo_url : form.value.logo;
 
     form.value.coverImage = data?.banner_url
       ? data.banner_url
