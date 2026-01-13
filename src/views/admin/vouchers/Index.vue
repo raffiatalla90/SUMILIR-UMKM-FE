@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from "vue";
+import { computed, ref, provide, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
 import Button from "@/components/common/Button.vue";
@@ -10,6 +10,15 @@ const router = useRouter();
 const isCreateRoute = computed(() => route.name === "Admin - Create Voucher");
 const isEditRoute = computed(() => route.name === "Admin - Edit Voucher");
 const isDetailRoute = computed(() => route.name === "Admin - Voucher Detail");
+
+// ✅ Create callback ref that child components will populate
+const exportModalCallback = ref(null);
+
+// ✅ Provide method to children to register their export function
+provide('registerExportModal', (callback) => {
+  console.log('Child registered export modal callback for vouchers');
+  exportModalCallback.value = callback;
+});
 
 const breadcrumbItems = computed(() => {
   if (isCreateRoute.value) {
@@ -30,16 +39,24 @@ const breadcrumbItems = computed(() => {
       { label: "Detail Voucher" },
     ];
   }
-  // Default: list
   return [{ label: "Vouchers" }];
 });
 
 const addLabel = "Tambah Voucher";
 
 const goToCreate = () => router.push({ name: "Admin - Create Voucher" });
+
+// ✅ Trigger export using callback
 const triggerExport = () => {
-  // Implementasi export voucher
-  alert("Fitur export voucher belum diimplementasikan.");
+  console.log('triggerExport called');
+  console.log('exportModalCallback.value:', exportModalCallback.value);
+  
+  if (typeof exportModalCallback.value === 'function') {
+    console.log('Calling export modal callback');
+    exportModalCallback.value();
+  } else {
+    console.error('Export modal callback not registered');
+  }
 };
 
 const headerSubtitle = computed(() => {
@@ -47,6 +64,14 @@ const headerSubtitle = computed(() => {
   if (isEditRoute.value) return "Edit voucher";
   if (isDetailRoute.value) return "Detail voucher";
   return "Kelola data voucher";
+});
+
+// ✅ Show buttons on list route (hide on create/edit/detail)
+const showActionButtons = computed(() => !isCreateRoute.value && !isEditRoute.value && !isDetailRoute.value);
+
+// ✅ Clear callback when route changes (to prevent stale references)
+watch(() => route.name, () => {
+  exportModalCallback.value = null;
 });
 </script>
 
@@ -64,23 +89,26 @@ const headerSubtitle = computed(() => {
           </p>
         </div>
       </div>
-      <div class="flex gap-2 sm:gap-3">
-        <template v-if="!isCreateRoute && !isEditRoute && !isDetailRoute">
-          <Button @click="goToCreate" variant="merchant" size="sm" customClass="!hidden sm:!inline">
-            <i class="pi pi-plus"></i>
-            <span class="hidden sm:inline ml-2">{{ addLabel }}</span>
-          </Button>
-          <Button @click="goToCreate" variant="merchant" size="md" customClass="sm:!hidden">
-            <i class="pi pi-plus"></i>
-          </Button>
-          <Button @click="triggerExport" variant="merchant-outline" size="sm" customClass="!hidden sm:!inline">
-            <i class="pi pi-download"></i>
-            <span class="hidden sm:inline ml-2">Export</span>
-          </Button>
-          <Button @click="triggerExport" variant="merchant-outline" size="md" customClass="sm:!hidden">
-            <i class="pi pi-download"></i>
-          </Button>
-        </template>
+      
+      <!-- ✅ Always show buttons except on create/edit/detail routes -->
+      <div v-if="showActionButtons" class="flex gap-2 sm:gap-3">
+        <!-- Create Button -->
+        <Button @click="goToCreate" variant="merchant" size="sm" customClass="!hidden sm:!inline">
+          <i class="pi pi-plus"></i>
+          <span class="hidden sm:inline ml-2">{{ addLabel }}</span>
+        </Button>
+        <Button @click="goToCreate" variant="merchant" size="md" customClass="sm:!hidden">
+          <i class="pi pi-plus"></i>
+        </Button>
+
+        <!-- Export Button -->
+        <Button @click="triggerExport" variant="merchant-outline" size="sm" customClass="!hidden sm:!inline">
+          <i class="pi pi-download"></i>
+          <span class="hidden sm:inline ml-2">Export</span>
+        </Button>
+        <Button @click="triggerExport" variant="merchant-outline" size="md" customClass="sm:!hidden">
+          <i class="pi pi-download"></i>
+        </Button>
       </div>
     </div>
 

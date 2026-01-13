@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted, inject } from "vue";
 import { useRouter } from "vue-router";
 import { useVouchers } from "@/composables/useVouchers";
 import Button from "@/components/common/Button.vue";
@@ -8,6 +8,7 @@ import SelectField from "@/components/forms/SelectField.vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";
 import MobilePagination from "@/components/common/MobilePagination.vue";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
+import api from "@/libs/axios";
 
 const router = useRouter();
 const { vouchers, loading, pagination, fetchVouchers, activateVoucher, deactivateVoucher } = useVouchers();
@@ -218,6 +219,66 @@ const handleToggleStatus = async () => {
     console.error('Failed to toggle voucher status:', error);
   }
 };
+
+// Modals
+const showExportModal = ref(false); // ✅ NEW
+const exportLoading = ref(false); // ✅ NEW
+
+// ✅ Export Modal methods
+const openExportModal = () => {
+  console.log('openExportModal called in List.vue');
+  showExportModal.value = true;
+};
+
+const closeExportModal = () => {
+  showExportModal.value = false;
+};
+
+// ✅ Export PDF method
+const exportPDF = async () => {
+  console.log('exportPDF called');
+  exportLoading.value = true;
+  try {
+    const response = await api.get("/api/admin/vouchers/export-pdf", {
+      responseType: "blob",
+      params: {
+        voucher_status: filterStatus.value,
+        voucher_type: filterType.value,
+        search: searchQuery.value,
+      },
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `vouchers-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    toast.success("Laporan vouchers berhasil diunduh");
+    closeExportModal();
+  } catch (error) {
+    console.error("Export PDF failed:", error);
+    toast.error(error.response?.data?.message || "Gagal mengunduh laporan");
+  } finally {
+    exportLoading.value = false;
+  }
+};
+
+// ✅ Inject the register function from parent
+const registerExportModal = inject('registerExportModal', null);
+
+// ✅ Expose openExportModal to parent via register callback
+onMounted(() => {
+  // Register the export modal function with parent
+  if (registerExportModal && typeof registerExportModal === 'function') {
+    console.log('Registering export modal callback for vouchers list');
+    registerExportModal(openExportModal);
+  } else {
+    console.warn('registerExportModal not provided by parent');
+  }
+});
 
 watch([searchQuery, sortBy], () => {
   currentPage.value = 1;
@@ -797,6 +858,44 @@ watch([searchQuery, sortBy], () => {
           </Button>
         </div>
       </template>
+    </ResponsiveModal>
+
+    <!-- ✅ Export Modal -->
+    <ResponsiveModal
+      :show="showExportModal"
+      @close="closeExportModal"
+      title="Export Laporan Vouchers"
+      subtitle="Unduh laporan data vouchers dalam format PDF"
+    >
+      <div class="space-y-4">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div class="flex items-start gap-3">
+            <i class="pi pi-info-circle text-blue-600 text-xl mt-0.5"></i>
+            <div class="flex-1">
+              <p class="text-sm text-blue-900 font-medium mb-1">Laporan akan mencakup:</p>
+              <ul class="text-xs text-blue-800 space-y-1 list-disc list-inside">
+                <li>Data lengkap vouchers (Kode, Deskripsi, Tipe, Nilai)</li>
+                <li>Status dan periode berlaku voucher</li>
+                <li>Minimal pembelian dan limit penggunaan</li>
+                <li>Event yang terhubung dengan voucher</li>
+                <li>Filter yang diterapkan (Status, Tipe, Pencarian)</li>
+                <li>Informasi waktu download dan admin yang mendownload</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <Button
+          @click="exportPDF"
+          variant="merchant"
+          size="lg"
+          custom-class="w-full justify-center"
+          :loading="exportLoading"
+        >
+          <i class="pi pi-download mr-2"></i>
+          <span>Download Laporan PDF</span>
+        </Button>
+      </div>
     </ResponsiveModal>
   </div>
 </template>

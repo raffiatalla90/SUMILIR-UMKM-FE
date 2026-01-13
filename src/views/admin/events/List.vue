@@ -1,8 +1,8 @@
 <script setup>
-import { ref, computed, onMounted, watch, inject } from "vue"; // ✅ ADD inject
+import { ref, computed, onMounted, watch, inject } from "vue"; 
 import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
-import api from "@/libs/axios"; // ✅ ADD missing import
+import api from "@/libs/axios"; 
 import AdminTable from "@/components/common/AdminTable.vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
@@ -26,11 +26,11 @@ const sortDesc = ref(true);
 const showFilterModal = ref(false);
 const showExportModal = ref(false);
 const showDeleteModal = ref(false);
-const exportLoading = ref(false); // ✅ ADD export loading state
+const exportLoading = ref(false);
 
 const selectedEvent = ref(null);
 
-const selectedEvents = ref([]); // array of event.id
+const selectedEvents = ref([]); 
 const selectAll = ref(false);
 
 const activeFilters = ref({

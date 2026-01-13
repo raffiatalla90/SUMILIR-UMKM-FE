@@ -18,7 +18,6 @@ const toast = useToast();
 
 const { merchants, loading, pagination, fetchMerchants } = useMerchants();
 
-// ✅ INJECT registerExportModal from parent
 const registerExportModal = inject('registerExportModal', null);
 
 // State
@@ -31,7 +30,7 @@ const showFilterModal = ref(false);
 const showExportModal = ref(false);
 const showApproveModal = ref(false);
 const showRejectModal = ref(false);
-const exportLoading = ref(false); // ✅ ADD loading state for export
+const exportLoading = ref(false); 
 
 // Selected merchant for approval/rejection
 const selectedMerchant = ref(null);
