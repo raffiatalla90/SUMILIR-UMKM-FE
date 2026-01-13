@@ -129,7 +129,7 @@ const goBack = () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="">
     <!-- Header -->
     <MobileHeader title="Ubah Kata Sandi" @back="goBack" />
 

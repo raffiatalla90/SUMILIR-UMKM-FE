@@ -242,17 +242,15 @@ const villageOptions = computed(() =>
 </script>
 
 <template>
-  <div class="min-h-screen pb-20 bg-gray-50 md:bg-white md:pb-0">
+  <div class="">
     <MobileHeader title="Alamat Utama" @back="goBack" />
 
-    <div class="px-4 py-6 mx-auto max-w-7xl md:px-8 md:py-12">
+    <div class="px-4 py-6 mx-auto max-w-7xl sm:px-8 sm:py-12">
       <div class="p-6 bg-white border border-gray-100 shadow-sm rounded-2xl">
-        <h3 class="mb-6 text-xl font-bold text-gray-900">Atur Alamat Utama</h3>
-
         <div v-if="loading" class="text-sm text-gray-500">Memuat...</div>
 
         <Form v-else @submit="handleSave" class="space-y-6">
-          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <SelectField
               name="province_id"
               label="Provinsi"
@@ -322,7 +320,7 @@ const villageOptions = computed(() =>
             <button
               type="button"
               @click="router.back()"
-              class="flex-1 py-3 font-semibold text-gray-700 transition-all bg-gray-100 rounded-xl hover:bg-gray-200"
+              class="flex-1 hidden py-3 font-semibold text-gray-700 transition-all bg-gray-100 sm:inline rounded-xl hover:bg-gray-200"
             >
               Batal
             </button>

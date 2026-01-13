@@ -103,16 +103,16 @@ const addressText = computed(() => {
 </script>
 
 <template>
-  <div class="min-h-screen pb-20 bg-gray-50 md:bg-white md:pb-0">
+  <div class="sm:pb-0">
     <!-- Header -->
     <!-- <MobileHeader title="Profil" @back="goBack()" /> -->
 
     <!-- Content Container -->
-    <div class="px-4 py-6 mx-auto max-w-7xl md:px-8 md:py-12">
+    <div class="px-4 py-6 mx-auto max-w-7xl sm:px-8 sm:py-12">
       <!-- DESKTOP LAYOUT -->
-      <div class="hidden gap-8 md:grid md:grid-cols-12">
+      <div class="hidden gap-8 lg:grid lg:grid-cols-12">
         <!-- Left: Profile Card -->
-        <div class="md:col-span-4">
+        <div class="lg:col-span-4">
           <div
             class="sticky p-8 bg-white border border-gray-100 shadow-sm rounded-2xl top-24"
           >
@@ -236,7 +236,7 @@ const addressText = computed(() => {
         </div>
 
         <!-- Right: Menu List -->
-        <div class="md:col-span-8">
+        <div class="lg:col-span-8">
           <div
             class="p-8 bg-white border border-gray-100 shadow-sm rounded-2xl"
           >
@@ -396,7 +396,7 @@ const addressText = computed(() => {
       </div>
 
       <!-- MOBILE LAYOUT -->
-      <div class="md:hidden">
+      <div class="lg:hidden">
         <div class="p-5 bg-white border border-gray-100 shadow-sm rounded-2xl">
           <div class="flex items-center gap-4">
             <div class="relative w-20 h-20">

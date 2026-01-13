@@ -85,6 +85,7 @@ const routes = [
         path: "/map",
         name: "map",
         component: () => import("@/views/customer/PetaUmkm.vue"),
+        meta: { title: "Peta UMKM Banyuanyar" },
       },
 
       // Halaman Jasa Teknisi & Pembayaran
@@ -192,27 +193,27 @@ const routes = [
             path: "",
             name: "Profile",
             component: () => import("@/views/customer/profile/ProfileView.vue"),
-            meta: { title: "Profile | SUMILIR" }, // ← dari kodemu
+            meta: { title: "Profile " }, // ← dari kodemu
           },
           {
             path: "edit",
             name: "EditProfile",
             component: () =>
               import("@/views/customer/profile/EditProfileView.vue"),
-            meta: { title: "Edit Profile | SUMILIR" }, // ← dari kodemu
+            meta: { title: "Edit Profile " }, // ← dari kodemu
           },
           {
             path: "address",
             name: "MyAddress",
             component: () => import("@/views/customer/profile/Address.vue"),
-            meta: { title: "Address Profile | SUMILIR" }, // ← dari kodemu
+            meta: { title: "Address Profile " }, // ← dari kodemu
           },
           {
             path: "change-password",
             name: "ChangePassword",
             component: () =>
               import("@/views/customer/profile/ChangePasswordView.vue"),
-            meta: { title: "Ubah Kata Sandi | SUMILIR" }, // ← dari kodemu
+            meta: { title: "Ubah Kata Sandi" }, // ← dari kodemu
           },
         ],
       },

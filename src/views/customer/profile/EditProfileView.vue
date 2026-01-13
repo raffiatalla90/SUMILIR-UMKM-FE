@@ -85,7 +85,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen pb-20 bg-gray-50 md:bg-white md:pb-0">
+  <div class="">
     <!-- Hidden file input -->
     <input
       type="file"
@@ -99,11 +99,11 @@ onMounted(() => {
     <MobileHeader title="Edit Profil" @back="goBack" />
 
     <!-- Content Container -->
-    <div class="px-4 py-6 mx-auto max-w-7xl md:px-8 md:py-12">
+    <div class="px-4 py-6 mx-auto max-w-7xl sm:px-8 sm:py-12">
       <!-- DESKTOP LAYOUT -->
-      <div class="hidden gap-8 md:grid md:grid-cols-12">
+      <div class="hidden gap-8 sm:grid sm:grid-cols-12">
         <!-- Left: Profile Picture -->
-        <div class="md:col-span-4">
+        <div class="sm:col-span-4">
           <div
             class="sticky p-8 bg-white border border-gray-100 shadow-sm rounded-2xl top-24"
           >
@@ -155,7 +155,7 @@ onMounted(() => {
         </div>
 
         <!-- Right: Form -->
-        <div class="md:col-span-8">
+        <div class="sm:col-span-8">
           <div
             class="p-8 bg-white border border-gray-100 shadow-sm rounded-2xl"
           >
@@ -268,7 +268,7 @@ onMounted(() => {
       </div>
 
       <!-- MOBILE LAYOUT -->
-      <div class="md:hidden">
+      <div class="sm:hidden">
         <div class="flex flex-col items-center mb-8">
           <div class="relative">
             <img
@@ -364,20 +364,6 @@ onMounted(() => {
               type="text"
               :maxlength="16"
               placeholder="Masukkan NIK"
-            />
-          </div>
-
-          <!-- Alamat -->
-          <div>
-            <label class="block mb-2 text-sm font-medium text-gray-700"
-              >Alamat</label
-            >
-            <TextField
-              name="full_address"
-              v-model="formData.full_address"
-              textarea
-              :rows="3"
-              placeholder="Masukkan alamat lengkap"
             />
           </div>
 
