@@ -166,7 +166,7 @@ watch(
             class="text-[30px] font-bold leading-[100%] tracking-[0] text-black"
             title="Sumilir – Marketplace UMKM Lokal Banyuanyar"
           >
-            <img :src="LogoText" alt="SUMILIR" class="h-10 hidden md:block" />
+            <img :src="LogoText" alt="SUMILIR" class="hidden h-10 md:block" />
             <img :src="LogoNoText" alt="SUMILIR" class="h-10 md:hidden" />
           </RouterLink>
 
@@ -189,12 +189,12 @@ watch(
                 <!-- Icon dan label seperti sebelumnya -->
                 <span
                   v-html="m.icon"
-                  class="lg:hidden block w-6 h-6 transition-colors hover:text-primary duration-200"
+                  class="block w-6 h-6 transition-colors duration-200 lg:hidden hover:text-primary"
                   :class="isMenuActive(m) ? 'text-primary' : 'text-black'"
                 ></span>
                 <span class="relative hidden lg:inline-block">
                   <span
-                    class="block select-none transition-colors hover:text-primary duration-200"
+                    class="block transition-colors duration-200 select-none hover:text-primary"
                     :class="isMenuActive(m) ? 'text-primary' : 'text-black'"
                   >
                     {{ m.label }}
@@ -206,12 +206,12 @@ watch(
           <!-- ...existing code... -->
 
           <!-- Right side -->
-          <div class="ml-auto flex items-center gap-4">
+          <div class="flex items-center gap-4 ml-auto">
             <!-- Search Button -->
-            <div class="border-r border-muted-foreground px-4">
+            <div class="px-4 border-r border-muted-foreground">
               <button
                 @click="toggleSearch"
-                class="p-2 px-3 rounded-full hover:bg-gray-100 transition"
+                class="p-2 px-3 transition rounded-full hover:bg-gray-100"
                 aria-label="Cari"
               >
                 <i class="pi pi-search"></i>
@@ -264,15 +264,15 @@ watch(
     <!-- SEARCH BAR (Desktop) -->
     <transition
       enter-active-class="transition-all duration-300 ease-out"
-      enter-from-class="opacity-0 -translate-y-2"
-      enter-to-class="opacity-100 translate-y-0"
+      enter-from-class="-translate-y-2 opacity-0"
+      enter-to-class="translate-y-0 opacity-100"
       leave-active-class="transition-all duration-200 ease-in"
-      leave-from-class="opacity-100 translate-y-0"
-      leave-to-class="opacity-0 -translate-y-2"
+      leave-from-class="translate-y-0 opacity-100"
+      leave-to-class="-translate-y-2 opacity-0"
     >
       <div
         v-if="showSearch"
-        class="hidden sm:block bg-white border-b border-gray-200 shadow-sm fixed top-[91px] left-0 right-0 z-40"
+        class="hidden sm:block bg-white border-b border-gray-200 shadow-sm fixed top-[91px] left-0 right-0 z-[1002]"
       >
         <div class="max-w-[1440px] mx-auto px-4 py-4">
           <form @submit.prevent="submitSearch" class="relative">
@@ -280,12 +280,12 @@ watch(
               v-model="searchQuery"
               type="text"
               placeholder="Cari produk, jasa, atau UMKM…"
-              class="w-full h-12 rounded-xl border border-gray-300 pl-12 pr-4 text-sm focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-muted-foreground"
+              class="w-full h-12 pl-12 pr-4 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-muted-foreground"
               autofocus
             />
 
             <span
-              class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+              class="absolute text-gray-400 -translate-y-1/2 left-4 top-1/2"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -337,7 +337,7 @@ watch(
             />
             <span
               v-else
-              class="w-7 h-7 rounded-full bg-muted-background flex items-center justify-center text-black text-2xl font-bold"
+              class="flex items-center justify-center text-2xl font-bold text-black rounded-full w-7 h-7 bg-muted-background"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
