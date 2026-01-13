@@ -1,0 +1,437 @@
+<script setup>
+import { ref, computed, onMounted } from "vue";
+import { useRouter, useRoute } from "vue-router";
+import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
+import LeafletMap from "@/components/LeafletMap.vue";
+import merchantProfile from "@/services/api/merchantProfile";
+
+const router = useRouter();
+const route = useRoute();
+
+// Emit untuk toggle sidebar dari parent layout
+const emit = defineEmits(["toggle-sidebar"]);
+// Get merchantId from route params
+const merchantId = computed(() => {
+  return route.params.merchantId ? Number(route.params.merchantId) : 1;
+});
+// Breadcrumb items
+const breadcrumbItems = computed(() => [
+  {
+    label: "Profil UMKM",
+  },
+]);
+const hasCoordinates = computed(() => {
+  return (
+    Number.isFinite(Number(latitude.value)) &&
+    Number.isFinite(Number(longitude.value))
+  );
+});
+
+function toNumberOrNull(val) {
+  if (val === null || val === undefined || val === "") return null;
+  const num = Number(val);
+  return Number.isFinite(num) ? num : null;
+}
+
+function unwrapApiData(payload) {
+  // Handles shapes like:
+  // - merchant
+  // - { data: merchant }
+  // - { data: { data: merchant } }
+  return payload?.data?.data ?? payload?.data ?? payload;
+}
+
+function formatFullAddress(addr) {
+  if (!addr) return "-";
+
+  const detail = addr?.detail?.trim?.() || "";
+  const village = addr?.village?.name || "";
+  const district = addr?.district?.name || "";
+  const city = addr?.city?.name || "";
+  const province = addr?.province?.name || "";
+
+  const parts = [detail, village, district, city, province].filter(
+    (p) => typeof p === "string" && p.trim() !== ""
+  );
+
+  return parts.length ? parts.join(", ") : "-";
+}
+// Mock merchant name
+const merchantName = ref("");
+
+const isLoading = ref(true);
+const latitude = ref(null);
+const longitude = ref(null);
+// Mock data
+const merchantInfo = ref({
+  name: "Sembako Sari Alam",
+  contact: "08xxxxxxxx",
+  description:
+    "Toko Sembako Rojolele menyediakan beragam kebutuhan pokok harian — beras, gula, minyak, dan produk lokal lainnya.",
+  address: "Jl. Pasar Rojolele No. 123",
+  logo: "https://via.placeholder.com/150/FF6B6B/FFFFFF?text=SEMBAKO",
+  coverImage:
+    "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=800&h=400&fit=crop",
+});
+const operationalHours = ref([]);
+
+const DAYS = [
+  { key: "monday", label: "Monday" },
+  { key: "tuesday", label: "Tuesday" },
+  { key: "wednesday", label: "Wednesday" },
+  { key: "thursday", label: "Thursday" },
+  { key: "friday", label: "Friday" },
+  { key: "saturday", label: "Saturday" },
+  { key: "sunday", label: "Sunday" },
+];
+
+onMounted(async () => {
+  isLoading.value = true;
+
+  try {
+    const res = await merchantProfile.getMerchantProfile(merchantId.value);
+    const data = unwrapApiData(res);
+
+    merchantName.value = data.name;
+
+    const primaryAddress =
+      data?.primary_address ?? data?.primaryAddress ?? null;
+
+    const latRaw = primaryAddress?.latitude ?? data?.latitude ?? null;
+    const lngRaw = primaryAddress?.longitude ?? data?.longitude ?? null;
+
+    latitude.value = toNumberOrNull(latRaw);
+    longitude.value = toNumberOrNull(lngRaw);
+
+    merchantInfo.value = {
+      name: data.name,
+      contact: data.phone,
+      description: data.description ?? "-",
+      address: formatFullAddress(primaryAddress),
+      logo: data.logo_path
+        ? data.logo_url
+        : "https://via.placeholder.com/150",
+      coverImage: data.cover_path
+        ? data.banner_url
+        : "https://images.unsplash.com/photo-1604719312566-8912e9227c6a",
+    };
+
+    const hours = data.operational_hours ?? {};
+
+    operationalHours.value = DAYS.map((day) => {
+      const item = hours[day.key];
+
+      if (!item || item.is_open === false) {
+        return {
+          name: day.label,
+          hours: "Tutup",
+        };
+      }
+
+      return {
+        name: day.label,
+        hours: `[${item.open} - ${item.close}]`,
+      };
+    });
+  } catch (error) {
+    console.error("Failed load merchant profile", error);
+  } finally {
+    isLoading.value = false;
+  }
+});
+
+const goToEdit = () => {
+  router.push({
+    name: "Merchant - Profile Edit",
+    params: { merchantId: merchantId.value },
+  });
+};
+</script>
+
+<template>
+  <div class="">
+    <!-- Header - FIXED (sama seperti halaman produk) -->
+    <div
+      class="fixed top-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-6 bg-white sm:static sm:px-6"
+    >
+      <div class="flex items-center gap-3">
+        <!-- Hamburger Button (Mobile) -->
+        <button
+          @click="emit('toggle-sidebar')"
+          class="flex items-center justify-center w-10 h-10 transition bg-white rounded-full hover:bg-muted-background sm:hidden"
+        >
+          <i class="pi pi-bars text-muted-foreground"></i>
+        </button>
+
+        <!-- Loading Overlay -->
+        <div
+          v-if="isLoading"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-sm"
+        >
+          <div class="flex flex-col items-center gap-4">
+            <svg
+              class="w-10 h-10 animate-spin text-merchant-primary"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              />
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v8H4z"
+              />
+            </svg>
+            <p class="text-sm font-medium text-gray-600">Memuat data UMKM...</p>
+          </div>
+        </div>
+
+        <div v-else>
+          <!-- Desktop: Show breadcrumb -->
+          <div class="hidden sm:block">
+            <Breadcrumb :items="breadcrumbItems" :merchantId="merchantId" />
+            <p class="mt-1 text-xs sm:text-sm text-muted-foreground">
+              {{ merchantName }}
+            </p>
+          </div>
+
+          <!-- Mobile: Show simple title -->
+          <div class="sm:hidden">
+            <h1 class="text-base font-semibold text-merchant-primary">
+              Profil UMKM
+            </h1>
+            <p class="text-xs text-muted-foreground">
+              {{ merchantName }}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Desktop Edit Button -->
+      <div class="hidden gap-3 sm:flex">
+        <button
+          @click="goToEdit"
+          class="px-6 py-2.5 bg-merchant-primary text-white font-semibold rounded-lg hover:opacity-90 transition-opacity text-sm flex items-center gap-2"
+        >
+          <i class="pi pi-pencil"></i>
+          <span>Edit UMKM</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Spacer untuk kompensasi fixed header -->
+    <div class="h-24 sm:h-0"></div>
+
+    <!-- Content -->
+    <div class="px-0 sm:px-6">
+      <!-- Cover & Logo -->
+      <div
+        class="relative mb-2 overflow-visible bg-white sm:mb-4 sm:rounded-xl sm:shadow-sm"
+      >
+        <img
+          :src="merchantInfo.coverImage"
+          alt="Cover"
+          class="object-cover w-full h-48 md:h-64 lg:h-80"
+        />
+        <div class="absolute -bottom-10 md:-bottom-12 left-6 md:left-8">
+          <img
+            :src="merchantInfo.logo"
+            alt="Logo"
+            class="object-cover w-24 h-24 border-4 border-white rounded-full shadow-lg md:w-32 md:h-32"
+          />
+        </div>
+      </div>
+
+      <!-- Info Content -->
+      <div class="pt-14 md:pt-16">
+        <div
+          class="p-4 mb-2 space-y-6 bg-white sm:mb-4 sm:p-6 md:space-y-8 sm:rounded-xl sm:shadow-sm"
+        >
+          <!-- Title tanpa background (sama seperti "Produk") -->
+          <h2 class="text-xl font-bold md:text-2xl text-merchant-primary">
+            Informasi Toko
+          </h2>
+
+          <!-- Grid Layout for Desktop -->
+          <div
+            class="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-x-8 md:gap-y-6"
+          >
+            <!-- Nama Toko -->
+            <div>
+              <label
+                class="block mb-2 text-sm font-medium md:text-base text-merchant-primary"
+              >
+                Nama Toko
+              </label>
+              <div
+                class="p-3 text-sm text-gray-700 bg-gray-100 rounded-xl md:p-4 md:text-base"
+              >
+                {{ merchantInfo.name }}
+              </div>
+            </div>
+
+            <!-- Kontak -->
+            <div>
+              <label
+                class="block mb-2 text-sm font-medium md:text-base text-merchant-primary"
+              >
+                Kontak
+              </label>
+              <div
+                class="p-3 text-sm text-gray-700 bg-gray-100 rounded-xl md:p-4 md:text-base"
+              >
+                {{ merchantInfo.contact }}
+              </div>
+            </div>
+
+            <!-- Tentang - Full Width -->
+            <div class="md:col-span-2">
+              <label
+                class="block mb-2 text-sm font-medium md:text-base text-merchant-primary"
+              >
+                Tentang
+              </label>
+              <div
+                class="p-3 text-sm leading-relaxed text-gray-700 bg-gray-100 rounded-xl md:p-4 md:text-base"
+              >
+                {{ merchantInfo.description }}
+              </div>
+            </div>
+
+            <!-- Lokasi - Full Width -->
+            <div class="md:col-span-2">
+              <label
+                class="block mb-2 text-sm font-medium md:text-base text-merchant-primary"
+              >
+                Lokasi
+              </label>
+              <div
+                class="relative h-48 overflow-hidden bg-gray-100 rounded-xl md:h-64 lg:h-80"
+              >
+                <!-- MAP -->
+                <div v-if="hasCoordinates" class="absolute inset-0">
+                  <LeafletMap
+                    :lat="latitude"
+                    :lng="longitude"
+                    :zoom="15"
+                    readonly="true"
+                  />
+                </div>
+
+                <!-- PLACEHOLDER -->
+                <div
+                  v-else
+                  class="absolute inset-0 flex items-center justify-center bg-linear-to-br from-green-200 to-green-400"
+                >
+                  <div class="text-center">
+                    <svg
+                      class="w-12 h-12 mx-auto mb-2 text-red-600 md:w-16 md:h-16"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+                      />
+                    </svg>
+                    <p class="text-sm font-medium text-gray-700 md:text-base">
+                      {{ merchantInfo.address }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Alamat (selalu tampil, termasuk saat map tampil) -->
+              <div class="p-3 mt-3 bg-gray-100 rounded-xl md:p-4">
+                <p class="text-sm text-gray-700 md:text-base">
+                  {{ merchantInfo.address }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Jam Operasional -->
+          <div class="pt-4">
+            <h3 class="mb-4 text-lg font-bold md:text-xl text-merchant-primary">
+              Jam Operasional
+            </h3>
+            <div
+              class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 md:gap-4"
+            >
+              <div
+                v-for="day in operationalHours"
+                :key="day.name"
+                class="flex items-center justify-between p-3 bg-gray-50 rounded-xl md:p-4"
+              >
+                <span
+                  class="px-4 py-2 bg-merchant-primary text-white rounded-full text-xs md:text-sm font-medium min-w-[100px] md:min-w-[110px] text-center"
+                >
+                  {{ day.name }}
+                </span>
+                <span
+                  class="ml-3 text-sm font-medium text-gray-700 md:text-base"
+                  >{{ day.hours }}</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Desktop Edit Button (bawah) -->
+        <div class="justify-end hidden mt-6 sm:flex">
+          <button
+            @click="goToEdit"
+            class="px-6 py-2.5 bg-merchant-primary text-white font-semibold rounded-lg hover:opacity-90 transition-opacity text-sm flex items-center gap-2"
+          >
+            <i class="pi pi-pencil"></i>
+            <span>Edit UMKM</span>
+          </button>
+        </div>
+
+        <!-- Mobile Edit Button - Fixed at Bottom -->
+        <div
+          class="fixed bottom-0 left-0 right-0 z-20 p-4 bg-white border-t border-gray-200 sm:hidden"
+        >
+          <button
+            @click="goToEdit"
+            class="flex items-center justify-center w-full gap-2 py-3 text-sm font-semibold text-center text-white transition-opacity bg-merchant-primary rounded-xl hover:opacity-90"
+          >
+            <i class="pi pi-pencil"></i>
+            <span>Edit UMKM</span>
+          </button>
+        </div>
+
+        <!-- Spacer for Mobile Fixed Button -->
+        <div class="h-20 sm:h-0"></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+/* Custom scrollbar for desktop */
+@media (min-width: 640px) {
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+}
+</style>

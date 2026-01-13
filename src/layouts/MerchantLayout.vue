@@ -17,9 +17,7 @@ const showLogoutModal = ref(false);
 
 // ✅ Get merchantId dari route params
 const currentMerchantId = computed(() => {
-  if (!route || !route.params || typeof route.params !== "object") {
-    return authStore.merchantId;
-  }
+  if (!route || !route.params) return authStore.merchantId;
   return route.params.merchantId
     ? Number(route.params.merchantId)
     : authStore.merchantId;
@@ -39,7 +37,25 @@ const merchantName = computed(() => {
 });
 
 const merchantType = computed(() => {
-  return currentMerchant.value?.segmentation?.name || "UMKM";
+  const m = currentMerchant.value;
+  // Prefer backend-provided segmentation name
+  if (m?.segmentation?.name) {
+    // Normalize legacy seed value "Segmentation 3" to desired label
+    return m.segmentation.name === "Segmentation 3"
+      ? "UMKM Jasa"
+      : m.segmentation.name;
+  }
+  // Fallback mapping by segmentation_id when relationship missing
+  switch (m?.segmentation_id) {
+    case 3:
+      return "UMKM Jasa";
+    case 2:
+      return "UMKM Produk";
+    case 1:
+      return "UMKM";
+    default:
+      return "UMKM";
+  }
 });
 
 const merchantsCount = computed(() => authStore.merchantsCount);
@@ -53,9 +69,10 @@ const showMerchantSelector = computed(() => merchantsCount.value > 1);
 
 // ✅ Watch route changes untuk update active merchant
 watch(
-  () => (route && route.params ? route.params : {}),
+  () => route.params,
   (params) => {
     if (!params?.merchantId) return;
+
     authStore.setActiveMerchant(Number(params.merchantId));
   },
   { immediate: true }
@@ -166,13 +183,23 @@ defineExpose({
       <!-- Header -->
       <div
         :class="[
-          'flex items-center  h-23 ',
+          'flex items-center  h-20 shadow-sm',
           isOpen
             ? 'justify-between px-4'
             : 'justify-between px-4 sm:justify-center ',
         ]"
       >
         <router-link to="/">
+          <!-- <h2
+            :class="[
+              'text-lg font-bold text-gray-800 transition-all duration-300',
+              isOpen
+                ? 'opacity-100'
+                : 'opacity-100 sm:opacity-0 sm:w-0 sm:hidden',
+            ]"
+          >
+            Sumilir Logo
+          </h2> -->
           <img
             :src="LogoWithText"
             alt="SUMILIR"
@@ -338,12 +365,14 @@ defineExpose({
               </span>
             </div>
 
-            <button
-              class="flex items-center justify-center flex-shrink-0 w-6 h-6 transition rounded-full hover:bg-white/20"
-              title="Pengaturan"
-            >
-              <i class="text-sm pi pi-ellipsis-v"></i>
-            </button>
+            <router-link to="profile">
+              <button
+                class="flex items-center justify-center flex-shrink-0 w-6 h-6 transition rounded-full hover:bg-white/20"
+                title="Pengaturan"
+              >
+                <i class="text-sm pi pi-ellipsis-v"></i>
+              </button>
+            </router-link>
           </div>
 
           <!-- ✅ Debug info (remove after testing) -->
@@ -393,11 +422,7 @@ defineExpose({
       </router-view>
     </div>
 
-    <ResponsiveModal
-      v-model:show="showLogoutModal"
-      title="Konfirmasi Logout"
-      size="sm"
-    >
+    <ResponsiveModal v-model:show="showLogoutModal" title="Konfirmasi Logout">
       <div class="py-4 text-center">
         <i
           class="mb-4 text-5xl pi pi-exclamation-triangle text-warning-foreground"

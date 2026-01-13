@@ -38,48 +38,38 @@ export function useCart() {
         phone: cart.merchant.phone,
         address: cart.merchant.address,
 
-        items: (cart.items || []).map((item) => {
-          const product = item.product_details ?? null;
+        items: (cart.items || []).map((item) => ({
+          id: item.cart_item_id,
+          quantity: item.quantity,
+          stock: item.live.max_stock,
 
-          return {
-            id: item.cart_item_id,
-            quantity: item.quantity,
-            stock: item.live.max_stock,
+          slug: item.product_details.slug,
+          name: item.snapshot.name,
 
-            slug: product?.slug ?? null,
-            name: item.snapshot.name,
+          image:
+            item.snapshot.image ??
+            item.product_details.cover_image?.src_url ??
+            "",
 
-            image:
-              item.snapshot.image?.src_url ||
-              product?.cover_image?.src_url ||
-              "",
+          unitPrice: item.changes?.price_changed
+            ? Number(item.live.unit_price)
+            : Number(item.snapshot.unit_price),
 
-            unitPrice: item.changes?.price_changed
-              ? Number(item.live.unit_price)
-              : Number(item.snapshot.unit_price),
+          addonTotalPrice: Number(item.snapshot.addon_total_price || 0),
+          addons: item.snapshot.addons || [],
 
-            addonTotalPrice: Number(item.snapshot.addon_total_price || 0),
-            addons: item.snapshot.addons || [],
+          selectedVariantId: item.selected_configuration.variant_id,
+          selectedAddons: item.selected_configuration.addon_ids || [],
 
-            selectedVariantId: item.selected_configuration.variant_id,
-            selectedAddons: item.selected_configuration.addon_ids || [],
+          isOverStock: item.changes?.is_over_stock ?? false,
+          isUnavailable:
+            item.product_details.status !== "published" ||
+            item.live.max_stock === 0,
 
-            isOverStock: item.changes?.is_over_stock ?? false,
-
-            // ✅ FIX UTAMA ADA DI SINI
-            isUnavailable:
-              !product || // produk dihapus / null
-              product?.status !== "published" ||
-              item.live.max_stock === 0,
-
-            isRemoved: !product,
-
-            productDetails: product,
-          };
-        }),
+          productDetails: item.product_details,
+        })),
       }));
     } catch (e) {
-      console.error("[fetchCart error]", e);
       toast.error("Gagal memuat keranjang");
       cartStores.value = [];
     } finally {

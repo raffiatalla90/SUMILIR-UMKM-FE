@@ -7,7 +7,7 @@
       <div class="flex items-center justify-end px-4 py-3">
         <button
           @click="goBack"
-          class="p-2 transition rounded-full hover:bg-gray-100 active:scale-95"
+          class="p-2 hover:bg-gray-100 rounded-full transition active:scale-95"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -32,24 +32,85 @@
       class="sticky top-0 left-0 right-0 z-40 transition-transform duration-300 ease-out border-b border-gray-200 shadow-md sm:hidden bg-white/95 backdrop-blur-md"
       :class="showScrollHeader ? 'translate-y-0' : '-translate-y-full'"
     >
-      <div class="flex items-center gap-2 px-3 py-3">
-        <!-- Back -->
-        <button
-          @click="goBack"
-          class="p-2 px-3 transition rounded-full hover:bg-gray-100 active:scale-95"
-        >
-          <i class="text-sm pi pi-chevron-left"></i>
-        </button>
+      <div
+        class="bg-white/95 backdrop-blur-md shadow-md border-b border-gray-200"
+      >
+        <div class="px-4 py-3 flex items-center gap-3">
+          <button
+            @click="goBack"
+            class="p-1.5 hover:bg-gray-100 rounded-full transition active:scale-95"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="2.5"
+              stroke="currentColor"
+              class="w-5 h-5 text-gray-800"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M15.75 19.5 8.25 12l7.5-7.5"
+              />
+            </svg>
+          </button>
 
-        <!-- 🔍 SEARCH BAR -->
-        <form @submit.prevent="submitSearch" class="flex-1">
-          <div class="relative">
-            <Textfield
-              v-model="searchInput"
-              name="search"
-              placeholder="Cari produk atau UMKM…"
-              variant="primary"
-            />
+          <div class="flex-1 min-w-0">
+            <h1 class="text-sm font-semibold text-gray-900 truncate">
+              {{ product?.name || "Nama Produk" }}
+            </h1>
+            <p class="text-xs text-gray-600">
+              Rp {{ formatIDR(calculateTotalPrice()) }}
+            </p>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button
+              @click="shareProduct"
+              class="p-1.5 hover:bg-gray-100 rounded-full transition active:scale-95"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+                stroke="currentColor"
+                class="w-5 h-5 text-gray-800"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z"
+                />
+              </svg>
+            </button>
+
+            <button
+              @click="goToCart"
+              class="relative p-1.5 hover:bg-gray-100 rounded-full transition active:scale-95"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+                stroke="currentColor"
+                class="w-5 h-5 text-gray-800"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"
+                />
+              </svg>
+              <span
+                v-if="authStore.isAuthenticated && cartItemsCount > 0"
+                class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center"
+              >
+                {{ cartItemsCount > 9 ? "9+" : cartItemsCount }}
+              </span>
+            </button>
           </div>
         </form>
         <!-- Share Button -->
@@ -77,8 +138,8 @@
     </div>
 
     <!-- Loading Skeleton -->
-    <div v-if="loading || !product" class="mx-auto max-w-7xl sm:px-4 sm:py-6">
-      <div class="overflow-hidden bg-white sm:rounded-2xl sm:shadow-lg">
+    <div v-if="loading || !product" class="max-w-7xl mx-auto sm:px-4 sm:py-6">
+      <div class="bg-white sm:rounded-2xl sm:shadow-lg overflow-hidden">
         <div class="sm:grid sm:grid-cols-2 sm:gap-8 sm:p-8">
           <!-- Skeleton Gambar -->
           <div class="sm:sticky sm:top-8 sm:self-start">
@@ -251,7 +312,7 @@
           <div class="sm:sticky sm:top-8 sm:self-start">
             <!-- Main Image Display with Swipe Support -->
             <div
-              class="relative flex items-center justify-center w-full mb-4 overflow-hidden aspect-square sm:rounded-2xl group"
+              class="w-full aspect-square flex items-center justify-center sm:rounded-2xl overflow-hidden mb-4 relative group"
               @touchstart="handleTouchStart"
               @touchmove="handleTouchMove"
               @touchend="handleTouchEnd"
@@ -260,16 +321,16 @@
                 v-if="selectedImage"
                 :src="selectedImage"
                 :alt="product?.name"
-                class="object-contain w-full h-full transition-transform duration-300 select-none sm:rounded-2xl group-hover:scale-105"
+                class="w-full h-full object-contain sm:rounded-2xl transition-transform duration-300 group-hover:scale-105 select-none"
                 draggable="false"
               />
               <div v-else class="text-gray-400">No Image</div>
 
               <div
                 v-if="getCurrentStock() === 0 || isArchived"
-                class="absolute inset-0 z-10 flex flex-col items-center justify-center m-auto text-center text-white rounded-full pointer-events-none bg-black/55 backdrop-blur-sm sm:w-40 sm:h-40 w-30 h-30"
+                class="absolute inset-0 z-10 bg-black/55 backdrop-blur-sm flex flex-col items-center justify-center text-white text-center pointer-events-none sm:w-40 sm:h-40 w-30 h-30 m-auto rounded-full"
               >
-                <p class="text-lg font-bold tracking-wide sm:text-2xl">
+                <p class="text-lg sm:text-2xl font-bold tracking-wide">
                   {{ isArchived ? "Diarsipkan" : "Habis" }}
                 </p>
               </div>
@@ -278,7 +339,7 @@
               <button
                 v-if="productImages.length > 1"
                 @click.stop="prevImage"
-                class="absolute items-center justify-center hidden w-12 h-12 transition-all -translate-y-1/2 rounded-full shadow-lg sm:flex left-4 top-1/2 bg-white/90 backdrop-blur-sm hover:bg-white active:scale-95"
+                class="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg items-center justify-center hover:bg-white transition-all active:scale-95"
               >
                 <svg
                   class="w-6 h-6 text-gray-800"
@@ -297,7 +358,7 @@
               <button
                 v-if="productImages.length > 1"
                 @click.stop="nextImage"
-                class="absolute items-center justify-center hidden w-12 h-12 transition-all -translate-y-1/2 rounded-full shadow-lg sm:flex right-4 top-1/2 bg-white/90 backdrop-blur-sm hover:bg-white active:scale-95"
+                class="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg items-center justify-center hover:bg-white transition-all active:scale-95"
               >
                 <svg
                   class="w-6 h-6 text-gray-800"
@@ -340,7 +401,7 @@
               ></button>
             </div>
             <!-- Thumbnail Gallery -->
-            <div v-if="productImages.length > 1" class="px-4 py-2 sm:px-2">
+            <div v-if="productImages.length > 1" class="px-4 sm:px-2 py-2">
               <div class="thumb-strip">
                 <button
                   v-for="(image, index) in productImages"
@@ -352,7 +413,7 @@
                   <img
                     :src="image"
                     :alt="`${product?.name} - ${index + 1}`"
-                    class="object-cover w-full h-full"
+                    class="w-full h-full object-cover"
                   />
                 </button>
               </div>
@@ -366,7 +427,7 @@
               <h1 class="mb-2 text-xl font-bold text-gray-900 sm:text-3xl">
                 {{ product?.name || "Nama Produk" }}
               </h1>
-              <p class="text-lg font-semibold text-gray-900 sm:text-2xl">
+              <p class="text-lg sm:text-2xl font-semibold text-gray-900">
                 Rp {{ formatIDR(getCurrentPrice()) }}
                 <!-- ✅ gunakan harga kombinasi -->
               </p>
@@ -399,7 +460,7 @@
               <!-- Banner archived -->
               <div
                 v-if="isArchived"
-                class="p-3 mt-3 text-sm text-yellow-800 border border-yellow-200 rounded-lg bg-yellow-50"
+                class="mt-3 p-3 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm"
               >
                 Produk ini telah diarsipkan dan tidak tersedia untuk dibeli.
               </div>
@@ -407,7 +468,7 @@
 
             <!-- Ukuran/Varian (Option 1) -->
             <div v-if="sizes.length > 0" class="py-4 border-b border-gray-200">
-              <h3 class="mb-3 text-sm font-semibold text-gray-900">
+              <h3 class="text-sm font-semibold text-gray-900 mb-3">
                 {{ option1Label }} <span class="text-red-500">*</span>
               </h3>
               <div class="flex flex-wrap gap-2">
@@ -430,12 +491,12 @@
                     <!-- 🖼️ Image jika ada -->
                     <div
                       v-if="getOptionValueSrcUrl(1, size.id)"
-                      class="flex items-center justify-center w-12 h-12 overflow-hidden bg-gray-100 rounded-md"
+                      class="w-12 h-12 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center"
                     >
                       <img
                         :src="getOptionValueSrcUrl(1, size.id)"
                         :alt="size.name"
-                        class="object-cover w-full h-full"
+                        class="w-full h-full object-cover"
                       />
                     </div>
 
@@ -465,7 +526,7 @@
               v-if="variants.length > 0"
               class="py-4 border-b border-gray-200"
             >
-              <h3 class="mb-3 text-sm font-semibold text-gray-900">
+              <h3 class="text-sm font-semibold text-gray-900 mb-3">
                 {{ option2Label }} <span class="text-red-500">*</span>
                 <!-- ✅ label dinamis -->
               </h3>
@@ -525,7 +586,7 @@
                 <h3 class="text-sm font-semibold text-gray-900">Tambahan</h3>
                 <button
                   @click="showAddonModal = true"
-                  class="text-sm font-medium cursor-pointer text-primary hover:underline"
+                  class="text-sm text-primary hover:underline font-medium cursor-pointer"
                 >
                   {{
                     selectedAddons.length > 0
@@ -637,7 +698,7 @@
               </h3>
 
               <p
-                class="text-sm leading-relaxed text-gray-700 whitespace-pre-line"
+                class="text-sm text-gray-700 leading-relaxed whitespace-pre-line"
               >
                 {{ displayedDescription }}
               </p>
@@ -645,7 +706,7 @@
               <button
                 v-if="isLongDescription"
                 @click="showFullDescription = !showFullDescription"
-                class="mt-2 text-sm font-semibold cursor-pointer text-primary focus:outline-none hover:underline"
+                class="mt-2 text-primary text-sm font-semibold focus:outline-none cursor-pointer hover:underline"
                 type="button"
               >
                 {{ showFullDescription ? "Sembunyikan" : "Lihat Selengkapnya" }}
@@ -653,17 +714,18 @@
             </div>
 
             <!-- Info Toko -->
+            <!-- Info Toko -->
             <div class="py-4 border-b border-gray-200">
               <div class="flex items-center justify-between">
-                <div class="flex items-center min-w-0 gap-3">
+                <div class="flex items-center gap-3 min-w-0">
                   <div
-                    class="flex-shrink-0 w-12 h-12 overflow-hidden bg-gray-200 rounded-full"
+                    class="w-12 h-12 rounded-full bg-gray-200 overflow-hidden flex-shrink-0"
                   >
                     <img
                       v-if="product?.merchant?.logo"
                       :src="product.merchant.logo"
                       alt="UMKM logo"
-                      class="object-cover w-full h-full"
+                      class="w-full h-full object-cover"
                     />
                   </div>
                   <div class="min-w-0">
@@ -693,7 +755,7 @@
               </h3>
               <div
                 v-if="relatedProducts.length > 0"
-                class="flex gap-3 pb-2 overflow-x-auto no-scrollbar"
+                class="flex gap-3 overflow-x-auto no-scrollbar pb-2"
               >
                 <ProductCard
                   v-for="item in relatedProducts"
@@ -705,7 +767,7 @@
               </div>
               <div
                 v-else
-                class="px-2 py-6 text-sm italic text-center text-gray-400"
+                class="text-gray-400 text-sm italic px-2 py-6 text-center"
               >
                 Tidak ada produk lain dari toko ini.
               </div>
@@ -718,7 +780,7 @@
 
   <!-- Bottom Action Bar (Mobile) -->
   <div
-    class="fixed left-0 right-0 z-40 px-4 py-3 bg-white border-t border-gray-200 sm:hidden bottom-16"
+    class="sm:hidden fixed bottom-16 left-0 right-0 z-40 bg-white border-t border-gray-200 px-4 py-3"
   >
     <div v-if="loading" class="flex items-center gap-3">
       <div class="w-12 h-12 bg-gray-200 rounded-xl animate-pulse"></div>
@@ -762,18 +824,18 @@
 
   <!-- Bottom Action Bar (Desktop) -->
   <div
-    class="fixed bottom-0 left-0 right-0 z-40 hidden bg-white border-t border-gray-200 shadow-lg sm:block"
+    class="hidden sm:block fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-lg"
   >
-    <div class="px-4 py-4 mx-auto max-w-7xl">
+    <div class="max-w-7xl mx-auto px-4 py-4">
       <div v-if="loading" class="flex items-center justify-between">
         <div class="space-y-2">
-          <div class="w-32 h-4 bg-gray-200 rounded animate-pulse"></div>
-          <div class="w-40 bg-gray-200 rounded h-7 animate-pulse"></div>
+          <div class="h-4 w-32 bg-gray-200 rounded animate-pulse"></div>
+          <div class="h-7 w-40 bg-gray-200 rounded animate-pulse"></div>
         </div>
         <div class="flex gap-3">
-          <div class="w-12 h-12 bg-gray-200 rounded-xl animate-pulse"></div>
-          <div class="w-32 h-12 bg-gray-200 rounded-xl animate-pulse"></div>
-          <div class="h-12 bg-gray-200 w-36 rounded-xl animate-pulse"></div>
+          <div class="h-12 w-12 bg-gray-200 rounded-xl animate-pulse"></div>
+          <div class="h-12 w-32 bg-gray-200 rounded-xl animate-pulse"></div>
+          <div class="h-12 w-36 bg-gray-200 rounded-xl animate-pulse"></div>
         </div>
       </div>
       <div v-else class="flex items-center justify-between">
@@ -862,8 +924,8 @@
           <div class="flex items-center justify-between capitalize">
             <h4 class="text-sm font-semibold text-gray-900">
               {{ group.name }}
-              <span v-if="group.required" class="ml-1 text-red-500">*</span>
-              <span v-else class="text-xs font-normal text-muted-foreground"
+              <span v-if="group.required" class="text-red-500 ml-1">*</span>
+              <span v-else class="text-muted-foreground font-normal text-xs"
                 >(Opsional)</span
               >
             </h4>
@@ -877,7 +939,7 @@
               Pilih 1
             </span>
           </div>
-          <p v-if="group.description" class="mt-1 text-xs text-gray-600">
+          <p v-if="group.description" class="text-xs text-gray-600 mt-1">
             {{ group.description }}
           </p>
         </div>
@@ -888,14 +950,14 @@
             <label
               v-for="addon in group.items"
               :key="addon.id"
-              class="flex items-start justify-between p-3 transition border rounded-lg cursor-pointer"
+              class="flex items-start justify-between p-3 rounded-lg border transition cursor-pointer"
               :class="
                 isAddonSelected(addon)
                   ? 'border-primary bg-primary/5'
                   : 'border-gray-200 hover:border-gray-300'
               "
             >
-              <div class="flex items-start flex-1 gap-3">
+              <div class="flex items-start gap-3 flex-1">
                 <!-- RADIO -->
                 <input
                   type="radio"
@@ -908,7 +970,7 @@
 
                 <!-- INFO -->
                 <div
-                  class="flex items-start justify-between w-full gap-2"
+                  class="flex items-start justify-between gap-2 w-full"
                   :class="{ 'opacity-50 cursor-not-allowed': !addon.available }"
                 >
                   <div class="flex-1 min-w-0">
@@ -947,14 +1009,14 @@
             <label
               v-for="addon in group.items"
               :key="addon.id"
-              class="flex items-start justify-between gap-3 p-3 transition border rounded-lg cursor-pointer"
+              class="flex items-start justify-between gap-3 p-3 rounded-lg border transition cursor-pointer"
               :class="
                 isAddonSelected(addon)
                   ? 'border-primary bg-primary/5'
                   : 'border-gray-200 hover:border-gray-300'
               "
             >
-              <div class="flex items-start flex-1 gap-3">
+              <div class="flex items-start gap-3 flex-1">
                 <!-- CHECKBOX -->
                 <input
                   type="checkbox"
@@ -966,7 +1028,7 @@
 
                 <!-- INFO -->
                 <div
-                  class="flex items-start justify-between w-full gap-2"
+                  class="flex items-start justify-between gap-2 w-full"
                   :class="{ 'opacity-50 cursor-not-allowed': !addon.available }"
                 >
                   <div class="flex-1 min-w-0">
@@ -1052,10 +1114,10 @@
       <!-- WhatsApp -->
       <button
         @click="shareVia('whatsapp')"
-        class="flex items-center w-full gap-3 p-4 transition border border-gray-200 cursor-pointer rounded-xl hover:border-green-500 hover:bg-green-50 active:scale-95"
+        class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-green-500 hover:bg-green-50 transition active:scale-95 cursor-pointer"
       >
         <div
-          class="flex items-center justify-center w-10 h-10 bg-green-500 rounded-full"
+          class="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center"
         >
           <svg
             class="w-6 h-6 text-white"
@@ -1076,10 +1138,10 @@
       <!-- Facebook -->
       <button
         @click="shareVia('facebook')"
-        class="flex items-center w-full gap-3 p-4 transition border border-gray-200 cursor-pointer rounded-xl hover:border-blue-600 hover:bg-blue-50 active:scale-95"
+        class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-blue-600 hover:bg-blue-50 transition active:scale-95 cursor-pointer"
       >
         <div
-          class="flex items-center justify-center w-10 h-10 bg-blue-600 rounded-full"
+          class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center"
         >
           <svg
             class="w-6 h-6 text-white"
@@ -1100,10 +1162,10 @@
       <!-- Twitter -->
       <button
         @click="shareVia('twitter')"
-        class="flex items-center w-full gap-3 p-4 transition border border-gray-200 cursor-pointer rounded-xl hover:border-blue-400 hover:bg-blue-50 active:scale-95"
+        class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition active:scale-95 cursor-pointer"
       >
         <div
-          class="flex items-center justify-center w-10 h-10 bg-blue-400 rounded-full"
+          class="w-10 h-10 rounded-full bg-blue-400 flex items-center justify-center"
         >
           <svg
             class="w-6 h-6 text-white"
@@ -1124,10 +1186,10 @@
       <!-- Copy Link -->
       <button
         @click="copyLink"
-        class="flex items-center w-full gap-3 p-4 transition border border-gray-200 cursor-pointer rounded-xl hover:border-gray-400 hover:bg-gray-50 active:scale-95"
+        class="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition active:scale-95 cursor-pointer"
       >
         <div
-          class="flex items-center justify-center w-10 h-10 bg-gray-600 rounded-full"
+          class="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center"
         >
           <svg
             class="w-5 h-5 text-white"
@@ -1153,7 +1215,7 @@
     <template #footer>
       <button
         @click="showShareModal = false"
-        class="w-full px-4 py-3 font-semibold text-gray-700 transition bg-gray-100 rounded-xl hover:bg-gray-200"
+        class="w-full px-4 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition"
       >
         Tutup
       </button>
@@ -1170,7 +1232,6 @@ import {
   onUnmounted,
   onBeforeUnmount,
 } from "vue";
-import { setMeta } from "@/router/seo";
 import { useRoute, useRouter } from "vue-router";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock.js";
@@ -1178,7 +1239,6 @@ import { getVariantImageUrl } from "@/libs/getVariantImageUrl.js";
 import Button from "@/components/common/Button.vue";
 import { useCheckoutStore } from "@/stores/checkout";
 import ProductCard from "@/components/Card/ProductCard.vue";
-import Textfield from "@/components/forms/TextField.vue";
 import { useProducts } from "@/composables/useProducts.js";
 import { useToast } from "vue-toastification";
 import { useCartStore } from "@/stores/cart";
@@ -1189,18 +1249,6 @@ const authStore = useAuthStore();
 const cartStore = useCartStore();
 const toast = useToast();
 const showFullDescription = ref(false);
-const searchInput = ref("");
-
-function submitSearch() {
-  if (!searchInput.value.trim()) return;
-
-  router.push({
-    path: "/search", // pastikan route ini ada
-    query: {
-      q: searchInput.value.trim(),
-    },
-  });
-}
 
 const touchStartX = ref(0);
 const touchEndX = ref(0);
@@ -1265,7 +1313,7 @@ function getOptionValueSrcUrl(optionIndex, valueId) {
 
 async function addToCart() {
   if (!authStore.isAuthenticated) {
-    toast.info("Silakan login terlebih dahulu untuk menambahkan ke keranjang.");
+    toast.info("Silakan login terlebih dahulu");
     router.push({
       name: "Login",
       query: { redirect: route.fullPath },
@@ -1316,7 +1364,7 @@ async function addToCart() {
     await addCart(payload);
     await cartStore.fetchCartCount(true); // force refresh
 
-    toast.success("Produk ditambahkan ke keranjang");
+    toast.success("Produk ditambahkan ke keranjang 🛒");
   } catch (e) {
     toast.error(e.response?.data?.message || "Gagal menambahkan ke keranjang");
   }
@@ -1358,7 +1406,7 @@ const tempSelectedAddons = ref([]);
 const addonGroups = ref([]);
 
 // misc
-const showScrollHeader = ref(true);
+const showScrollHeader = ref(false);
 const lastScrollY = ref(0);
 const relatedProducts = ref([]);
 const cartItemsCount = computed(() => {
@@ -1375,7 +1423,7 @@ const shareText = computed(() => {
 async function copyLink() {
   try {
     await navigator.clipboard.writeText(shareUrl.value);
-    toast.success("Link produk berhasil disalin ");
+    toast.success("Link produk berhasil disalin 📋");
   } catch (e) {
     // fallback untuk browser lama
     const input = document.createElement("input");
@@ -1385,7 +1433,7 @@ async function copyLink() {
     document.execCommand("copy");
     document.body.removeChild(input);
 
-    toast.success("Link produk berhasil disalin ");
+    toast.success("Link produk berhasil disalin 📋");
   }
 }
 
@@ -1423,7 +1471,7 @@ const isAnyModalOpen = computed(
 );
 const goToCart = () => {
   if (!authStore.isAuthenticated) {
-    toast.info("Silakan login terlebih dahulu untuk mengakses keranjang.");
+    toast.info("Silakan login terlebih dahulu untuk menambahkan ke keranjang.");
     router.push({
       name: "Login",
       query: { redirect: route.fullPath },
@@ -1562,31 +1610,9 @@ function resetStateBeforeFetch() {
   relatedProducts.value = [];
 }
 
-const shareProduct = async () => {
-  const title = product.value?.name || "Produk Menarik";
-  const text = `${title} - Rp ${formatIDR(getCurrentPrice())}`;
-  const url = window.location.href;
-
-  // ✅ Native Share API (Mobile)
-  if (navigator.share) {
-    try {
-      await navigator.share({
-        title,
-        text,
-        url,
-      });
-      return;
-    } catch (err) {
-      // user cancel share → tidak perlu error
-      console.debug("Share dibatalkan", err);
-      return;
-    }
-  }
-
-  // ❌ Fallback → buka modal custom (Desktop / browser lama)
+const shareProduct = () => {
   showShareModal.value = true;
 };
-
 function initDefaultRequiredAddons() {
   const defaults = [];
 
@@ -1843,15 +1869,6 @@ onMounted(async () => {
     await cartStore.fetchCartCount(true);
   }
 });
-watch(product, (p) => {
-  if (!p) return;
-
-  setMeta({
-    title: `${p.name} –  ${p.merchant?.name || "Lokal"}`,
-    description: p.description?.slice(0, 155),
-    image: selectedImage.value,
-  });
-});
 watch(
   () => authStore.authReady,
   (ready) => {
@@ -1865,7 +1882,6 @@ watch(
   },
   { immediate: true }
 );
-
 onBeforeUnmount(() => {
   if (abortController) {
     try {
@@ -1879,28 +1895,19 @@ onUnmounted(() => window.removeEventListener("scroll", handleScroll));
 const currentImageIndex = ref(0);
 // simple scroll handler (as in your original)
 function handleScroll() {
-  const currentY = window.scrollY || document.documentElement.scrollTop || 0;
-
-  const delta = currentY - lastScrollY.value;
-
-  // threshold agar tidak flicker
-  const THRESHOLD = 10;
-
-  if (Math.abs(delta) < THRESHOLD) return;
-
-  if (delta > 0 && currentY > 80) {
-    // 🔽 scroll ke bawah → sembunyikan navbar
-    showScrollHeader.value = false;
-  } else {
-    // 🔼 scroll ke atas → tampilkan navbar
-    showScrollHeader.value = true;
-  }
-
-  lastScrollY.value = currentY;
+  const y = window.scrollY || document.documentElement.scrollTop || 0;
+  showScrollHeader.value = y > 80;
+  lastScrollY.value = y;
 }
 
 // buyNow: keep your existing behavior, but use safe fields
 function buyNow() {
+  if (!authStore.isAuthenticated) {
+    toast.info("Silakan login terlebih dahulu untuk melanjutkan pembelian.");
+    router.push({ name: "Login", query: { redirect: route.fullPath } });
+    return;
+  }
+
   const qty = Number(quantity.value || 1);
   const unitPrice =
     Number(getCurrentPrice()) || Number(product.value?.price || 0);

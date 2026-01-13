@@ -12,13 +12,19 @@ export default defineConfig(({ mode }) => {
     // ✅ Vue di root, tidak perlu /build/
     base: "/",
 
+    // ✅ Vue di root, tidak perlu /build/
+    base: "/",
+
     plugins: [
       vue(),
       tailwindcss(),
       VitePWA({
         registerType: "autoUpdate",
         devOptions: { enabled: mode === "development" },
+        devOptions: { enabled: mode === "development" },
         manifest: {
+          name: "Sumilir",
+          short_name: "Sumilir",
           name: "Sumilir",
           short_name: "Sumilir",
           description: "UMKM App",
@@ -27,7 +33,19 @@ export default defineConfig(({ mode }) => {
           display: "standalone",
           start_url: "/", // ✅ Root
           scope: "/", // ✅ Root
+          start_url: "/", // ✅ Root
+          scope: "/", // ✅ Root
           icons: [
+            {
+              src: "/icon192.png",
+              sizes: "192x192",
+              type: "image/png",
+            },
+            {
+              src: "/icon512.png",
+              sizes: "512x512",
+              type: "image/png",
+            },
             {
               src: "/icon192.png",
               sizes: "192x192",
@@ -44,6 +62,8 @@ export default defineConfig(({ mode }) => {
           cleanupOutdatedCaches: true,
           navigateFallback: "/index.html", // ✅ Root
           navigateFallbackDenylist: [/^\/api\//], // ✅ Exclude /api/
+          navigateFallback: "/index.html", // ✅ Root
+          navigateFallbackDenylist: [/^\/api\//], // ✅ Exclude /api/
           runtimeCaching: [
             {
               urlPattern: ({ request, sameOrigin }) =>
@@ -52,6 +72,7 @@ export default defineConfig(({ mode }) => {
                   request.destination
                 ),
               handler: "StaleWhileRevalidate",
+              options: { cacheName: "assets-cache-v1" },
               options: { cacheName: "assets-cache-v1" },
             },
             {
@@ -85,6 +106,7 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks: {
             "vendor-vue": ["vue", "vue-router", "pinia"],
+            "vendor-ui": ["@headlessui/vue"],
           },
         },
       },
