@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from "vue";
+import { computed, ref, provide, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
 import Button from "@/components/common/Button.vue";
@@ -11,8 +11,14 @@ const isCreateRoute = computed(() => route.name === "Admin - Create Event");
 const isEditRoute = computed(() => route.name === "Admin - Edit Event");
 const isDetailRoute = computed(() => route.name === "Admin - Event Detail");
 
-// ✅ ADD: Force key to re-render child component on route change
-const routerViewKey = computed(() => route.fullPath);
+// ✅ Create callback ref that child components will populate
+const exportModalCallback = ref(null);
+
+// ✅ Provide method to children to register their export function
+provide('registerExportModal', (callback) => {
+  console.log('Child registered export modal callback for events');
+  exportModalCallback.value = callback;
+});
 
 const breadcrumbItems = computed(() => {
   if (isCreateRoute.value) {
@@ -33,7 +39,6 @@ const breadcrumbItems = computed(() => {
       { label: "Detail Event" },
     ];
   }
-  // Default: list
   return [{ label: "Events" }];
 });
 
@@ -41,9 +46,17 @@ const addLabel = "Tambah Event";
 
 const goToCreate = () => router.push({ name: "Admin - Create Event" });
 
+// ✅ Trigger export using callback
 const triggerExport = () => {
-  // Implementasi export event
-  alert("Fitur export event belum diimplementasikan.");
+  console.log('triggerExport called');
+  console.log('exportModalCallback.value:', exportModalCallback.value);
+  
+  if (typeof exportModalCallback.value === 'function') {
+    console.log('Calling export modal callback');
+    exportModalCallback.value();
+  } else {
+    console.error('Export modal callback not registered');
+  }
 };
 
 const headerSubtitle = computed(() => {
@@ -51,6 +64,14 @@ const headerSubtitle = computed(() => {
   if (isEditRoute.value) return "Edit event";
   if (isDetailRoute.value) return "Detail event";
   return "Kelola data event";
+});
+
+// ✅ Show buttons on list route (hide on create/edit/detail)
+const showActionButtons = computed(() => !isCreateRoute.value && !isEditRoute.value && !isDetailRoute.value);
+
+// ✅ Clear callback when route changes (to prevent stale references)
+watch(() => route.name, () => {
+  exportModalCallback.value = null;
 });
 </script>
 
@@ -68,23 +89,26 @@ const headerSubtitle = computed(() => {
           </p>
         </div>
       </div>
-      <div class="flex gap-2 sm:gap-3">
-        <template v-if="!isCreateRoute && !isEditRoute && !isDetailRoute">
-          <Button @click="goToCreate" variant="merchant" size="sm" customClass="!hidden sm:!inline">
-            <i class="pi pi-plus"></i>
-            <span class="hidden sm:inline ml-2">{{ addLabel }}</span>
-          </Button>
-          <Button @click="goToCreate" variant="merchant" size="md" customClass="sm:!hidden">
-            <i class="pi pi-plus"></i>
-          </Button>
-          <Button @click="triggerExport" variant="merchant-outline" size="sm" customClass="!hidden sm:!inline">
-            <i class="pi pi-download"></i>
-            <span class="hidden sm:inline ml-2">Export</span>
-          </Button>
-          <Button @click="triggerExport" variant="merchant-outline" size="md" customClass="sm:!hidden">
-            <i class="pi pi-download"></i>
-          </Button>
-        </template>
+      
+      <!-- ✅ Always show buttons except on create/edit/detail routes -->
+      <div v-if="showActionButtons" class="flex gap-2 sm:gap-3">
+        <!-- Create Button -->
+        <Button @click="goToCreate" variant="merchant" size="sm" customClass="!hidden sm:!inline">
+          <i class="pi pi-plus"></i>
+          <span class="hidden sm:inline ml-2">{{ addLabel }}</span>
+        </Button>
+        <Button @click="goToCreate" variant="merchant" size="md" customClass="sm:!hidden">
+          <i class="pi pi-plus"></i>
+        </Button>
+
+        <!-- Export Button -->
+        <Button @click="triggerExport" variant="merchant-outline" size="sm" customClass="!hidden sm:!inline">
+          <i class="pi pi-download"></i>
+          <span class="hidden sm:inline ml-2">Export</span>
+        </Button>
+        <Button @click="triggerExport" variant="merchant-outline" size="md" customClass="sm:!hidden">
+          <i class="pi pi-download"></i>
+        </Button>
       </div>
     </div>
 
@@ -92,8 +116,7 @@ const headerSubtitle = computed(() => {
 
     <div class="px-4 p-4 sm:px-6">
       <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <!-- ✅ UPDATED: Add :key to force re-render child component -->
-        <router-view :key="routerViewKey" />
+        <router-view />
       </div>
     </div>
   </div>

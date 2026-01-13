@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch, inject } from "vue"; 
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useMerchants } from "@/composables/useMerchants";
@@ -11,12 +11,15 @@ import StatusLabel from "@/components/common/StatusLabel.vue";
 import MobilePagination from "@/components/common/MobilePagination.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
-import api from "@/libs/axios"; // ✅ Import axios
+import api from "@/libs/axios";
 
 const router = useRouter();
 const toast = useToast();
 
 const { merchants, loading, pagination, fetchMerchants } = useMerchants();
+
+// ✅ INJECT registerExportModal from parent
+const registerExportModal = inject('registerExportModal', null);
 
 // State
 const searchQuery = ref("");
@@ -26,10 +29,11 @@ const perPage = ref(10);
 // Modals
 const showFilterModal = ref(false);
 const showExportModal = ref(false);
-const showApproveModal = ref(false); // ✅ NEW: Approve modal
-const showRejectModal = ref(false); // ✅ NEW: Reject modal
+const showApproveModal = ref(false);
+const showRejectModal = ref(false);
+const exportLoading = ref(false); // ✅ ADD loading state for export
 
-// ✅ NEW: Selected merchant for approval/rejection
+// Selected merchant for approval/rejection
 const selectedMerchant = ref(null);
 const rejectionReason = ref("");
 const processingAction = ref(false);
@@ -142,7 +146,10 @@ const openFilterModal = () => {
 };
 const closeFilterModal = () => (showFilterModal.value = false);
 
-const openExportModal = () => (showExportModal.value = true);
+const openExportModal = () => {
+  console.log('openExportModal called in merchants/Index.vue');
+  showExportModal.value = true;
+};
 const closeExportModal = () => (showExportModal.value = false);
 
 // Approve/Reject modal handlers
@@ -180,7 +187,7 @@ const approveMerchant = async () => {
 
     toast.success(`Merchant "${selectedMerchant.value.name}" berhasil di-approve`);
     closeApproveModal();
-    loadMerchants(); // Reload data
+    loadMerchants();
   } catch (error) {
     console.error("Failed to approve merchant:", error);
     toast.error(
@@ -211,7 +218,7 @@ const rejectMerchant = async () => {
 
     toast.success(`Merchant "${selectedMerchant.value.name}" berhasil ditolak`);
     closeRejectModal();
-    loadMerchants(); // Reload data
+    loadMerchants();
   } catch (error) {
     console.error("Failed to reject merchant:", error);
     toast.error(
@@ -244,9 +251,36 @@ const exportExcel = async () => {
   toast.info("Export Excel sedang dalam pengembangan");
   closeExportModal();
 };
+
+// Export methods
 const exportPDF = async () => {
-  toast.info("Export PDF sedang dalam pengembangan");
-  closeExportModal();
+  exportLoading.value = true; // ✅ Set loading to true
+  try {
+    const response = await api.get("/api/admin/merchants/export-pdf", {
+      responseType: "blob",
+      params: {
+        status: activeFilters.value.status,
+        segmentation_id: activeFilters.value.segmentation,
+        search: searchQuery.value,
+      },
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `merchants-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    toast.success("Laporan merchant berhasil diunduh");
+    closeExportModal();
+  } catch (error) {
+    console.error("Export PDF failed:", error);
+    toast.error(error.response?.data?.message || "Gagal mengunduh laporan");
+  } finally {
+    exportLoading.value = false; // ✅ Set loading to false
+  }
 };
 
 // Actions
@@ -269,11 +303,18 @@ const prevPage = () => {
 };
 
 watch(currentPage, () => loadMerchants());
-onMounted(() => loadMerchants());
 
-defineExpose({
-  openExportModal,
-  goToCreate: () => toast.info("Tambah merchant sedang dalam pengembangan"),
+// ✅ FIXED: Register callback on mount
+onMounted(() => {
+  loadMerchants();
+  
+  // Register the export modal function with parent
+  if (registerExportModal && typeof registerExportModal === 'function') {
+    console.log('Registering export modal callback for merchants');
+    registerExportModal(openExportModal);
+  } else {
+    console.warn('registerExportModal not provided by parent');
+  }
 });
 </script>
 
@@ -558,24 +599,35 @@ defineExpose({
     <ResponsiveModal
       :show="showExportModal"
       @close="closeExportModal"
-      title="Export Data"
-      subtitle="Pilih format export"
+      title="Export Laporan Merchants"
+      subtitle="Unduh laporan data merchants dalam format PDF"
     >
-      <div class="space-y-3">
-        <Button @click="exportExcel" variant="merchant" size="lg" customClass="w-full justify-start">
-          <i class="pi pi-file-excel mr-3 text-xl"></i>
-          <div class="text-left">
-            <p class="font-semibold">Export ke Excel</p>
-            <p class="text-xs opacity-80">Download .xlsx</p>
+      <div class="space-y-4">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div class="flex items-start gap-3">
+            <i class="pi pi-info-circle text-blue-600 text-xl mt-0.5"></i>
+            <div class="flex-1">
+              <p class="text-sm text-blue-900 font-medium mb-1">Laporan akan mencakup:</p>
+              <ul class="text-xs text-blue-800 space-y-1 list-disc list-inside">
+                <li>Data lengkap merchants (Nama, Owner, Email, Phone)</li>
+                <li>Segmentasi dan status merchants</li>
+                <li>Jumlah produk yang dimiliki</li>
+                <li>Filter yang diterapkan (Status, Segmentasi, Pencarian)</li>
+                <li>Informasi waktu download dan user yang mendownload</li>
+              </ul>
+            </div>
           </div>
-        </Button>
+        </div>
 
-        <Button @click="exportPDF" variant="merchant" size="lg" customClass="w-full justify-start">
-          <i class="pi pi-file-pdf mr-3 text-xl"></i>
-          <div class="text-left">
-            <p class="font-semibold">Export ke PDF</p>
-            <p class="text-xs opacity-80">Download .pdf</p>
-          </div>
+        <Button
+          @click="exportPDF"
+          variant="merchant"
+          size="lg"
+          custom-class="w-full justify-center"
+          :loading="exportLoading"
+        >
+          <i class="pi pi-download mr-2"></i>
+          <span>Download Laporan PDF</span>
         </Button>
       </div>
     </ResponsiveModal>

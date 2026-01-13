@@ -1,14 +1,21 @@
 <script setup>
-import { ref, computed, watch, onMounted } from "vue";
+import { ref, computed, watch, onMounted, provide } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
 import Button from "@/components/common/Button.vue";
+
 const route = useRoute();
 const router = useRouter();
 const emit = defineEmits(["toggle-sidebar"]);
 
-const customerListRef = ref(null);
-const merchantListRef = ref(null);
+// ✅ Create callback ref that child components will populate
+const exportModalCallback = ref(null);
+
+// ✅ Provide method to children to register their export function
+provide('registerExportModal', (callback) => {
+  console.log('Child registered export modal callback');
+  exportModalCallback.value = callback;
+});
 
 // Tabs: sync with query (?tab=customers|merchants)
 const activeTab = computed(() => {
@@ -25,7 +32,9 @@ const effectiveTab = computed(() => {
   return route.name === "Admin - Merchant Detail" ? "merchants" : "customers";
 });
 
-const isCreateRoute = computed(() => route.name === "Admin - Customer Create" || route.name === "Admin - Merchant Create");
+const isCreateRoute = computed(() => 
+  route.name === "Admin - Customer Create" || route.name === "Admin - Merchant Create"
+);
 
 const breadcrumbItems = computed(() => {
   const items = [
@@ -59,7 +68,9 @@ const headerSubtitle = computed(() => {
   return effectiveTab.value === "merchants" ? "Kelola data merchant" : "Kelola data customer";
 });
 
-const addLabel = computed(() => (effectiveTab.value === "merchants" ? "Tambah Merchant" : "Tambah Customer"));
+const addLabel = computed(() => 
+  effectiveTab.value === "merchants" ? "Tambah Merchant" : "Tambah Customer"
+);
 
 const setTab = (tab) => {
   if (tab === "merchants") {
@@ -81,14 +92,20 @@ onMounted(() => {
   if (tab === "merchants" || tab === "customers") activeTab.value = tab;
 });
 
-// trigger actions ke child sesuai tab
-const triggerCreate = () => {
-  goToCreate();
+// ✅ Trigger export using callback
+const triggerExport = () => {
+  console.log('triggerExport called', effectiveTab.value);
+  console.log('exportModalCallback.value:', exportModalCallback.value);
+  
+  if (typeof exportModalCallback.value === 'function') {
+    exportModalCallback.value();
+  } else {
+    console.error('Export modal callback not registered');
+  }
 };
 
-const triggerExport = () => {
-  if (effectiveTab.value === "merchants") merchantListRef.value?.openExportModal?.();
-  else customerListRef.value?.openExportModal?.();
+const triggerCreate = () => {
+  goToCreate();
 };
 
 const goToCreate = () => {
@@ -107,6 +124,10 @@ const isListRoute = computed(() =>
   route.name === "Admin - Customers List" || route.name === "Admin - Merchants List"
 );
 
+// ✅ Clear callback when route changes (to prevent stale references)
+watch(() => route.name, () => {
+  exportModalCallback.value = null;
+});
 </script>
 
 <template>
@@ -147,13 +168,23 @@ const isListRoute = computed(() =>
           </Button>
         </template>
 
-        <!-- Export: tetap tampil -->
-        <Button @click="triggerExport" variant="merchant-outline" size="sm" customClass="!hidden sm:!inline">
+        <!-- Export Button -->
+        <Button 
+          @click="triggerExport" 
+          variant="merchant-outline" 
+          size="sm" 
+          customClass="!hidden sm:!inline"
+        >
           <i class="pi pi-download"></i>
           <span class="hidden sm:inline ml-2">Export</span>
         </Button>
 
-        <Button @click="triggerExport" variant="merchant-outline" size="md" customClass="sm:!hidden">
+        <Button 
+          @click="triggerExport" 
+          variant="merchant-outline" 
+          size="md" 
+          customClass="sm:!hidden"
+        >
           <i class="pi pi-download"></i>
         </Button>
       </div>
@@ -161,9 +192,9 @@ const isListRoute = computed(() =>
 
     <div class="h-[92px] sm:h-0"></div>
     
-    <div class="px-4 p-4  sm:px-6">
+    <div class="px-4 p-4 sm:px-6">
       <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <!-- Tabs: hide saat detail & create -->
+        <!-- Tabs -->
         <template v-if="isListRoute">
           <div class="sm:hidden p-3">
             <select
@@ -206,11 +237,10 @@ const isListRoute = computed(() =>
             </button>
           </div>
         </template>
-        <div>
-        <router-view />
-        </div>
+
+        <!-- Router View -->
+        <router-view @create="goToCreate" />
       </div>
     </div>
-
   </div>
 </template>

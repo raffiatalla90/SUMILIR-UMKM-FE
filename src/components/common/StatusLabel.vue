@@ -194,6 +194,36 @@ const config = computed(() => {
   };
 });
 
+const variantClasses = computed(() => {
+  // Event Status Variants
+  if (props.variant === 'event') {
+    switch (props.status) {
+      case 'published':
+        return 'bg-green-100 text-green-700 border-green-200';
+      case 'draft':
+        return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+      case 'archived':
+        return 'bg-gray-100 text-gray-700 border-gray-200';
+      default:
+        return 'bg-gray-100 text-gray-600 border-gray-200';
+    }
+  }
+  
+  return ''
+});
+
+const statusLabel = computed(() => {
+  if (props.variant === 'event') {
+    switch (props.status) {
+      case 'published': return 'Published';
+      case 'draft': return 'Draft';
+      case 'archived': return 'Archived';
+      default: return props.status;
+    }
+  }
+  
+  return props.status;
+});
 
 // =======================
 // SIZE STYLES

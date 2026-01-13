@@ -189,7 +189,6 @@ export function useUsers() {
     fetchUserDetail,
     approveMerchant,
     rejectMerchant,
-    // New methods
     warnUser,
     suspendUser,
     unsuspendUser,

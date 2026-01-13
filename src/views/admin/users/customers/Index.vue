@@ -1,8 +1,9 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch, inject } from "vue"; // ✅ ADD inject
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useUsers } from "@/composables/useUsers";
+import api from "@/libs/axios";
 import TextField from "@/components/forms/TextField.vue";
 import SelectField from "@/components/forms/SelectField.vue";
 import Button from "@/components/common/Button.vue";
@@ -24,13 +25,14 @@ const perPage = ref(15);
 
 // Modals
 const showExportModal = ref(false);
+const exportLoading = ref(false); // ✅ ADD loading state for export
 
 const activeFilters = ref({
   status: "",
   role: "",
 });
 
-// Cycle through role filters: "" → "customer" → "umkm-owner" → "admin" → ""
+// Cycle through role filters
 const toggleRoleFilter = () => {
   if (activeFilters.value.role === "") {
     activeFilters.value.role = "customer";
@@ -50,7 +52,6 @@ const onStatusChange = () => {
   loadUsers();
 };
 
-// Get button label based on current role filter
 const getRoleLabel = computed(() => {
   if (activeFilters.value.role === "customer") return "Hanya Customer";
   if (activeFilters.value.role === "umkm-owner") return "Hanya UMKM";
@@ -58,7 +59,6 @@ const getRoleLabel = computed(() => {
   return "Semua Role";
 });
 
-// Get icon based on current role filter
 const getRoleIcon = computed(() => {
   if (activeFilters.value.role === "customer") return "pi-user";
   if (activeFilters.value.role === "umkm-owner") return "pi-building";
@@ -66,11 +66,9 @@ const getRoleIcon = computed(() => {
   return "pi-users";
 });
 
-// Combined modal state for body scroll lock
 const isAnyModalOpen = computed(() => showExportModal.value);
 useBodyScrollLock(isAnyModalOpen);
 
-// Table config
 const tableColumns = [
   { key: "photo", label: "Foto", sortable: false },
   { key: "name", label: "Username", sortable: true },
@@ -99,15 +97,13 @@ const tableActions = [
   },
 ];
 
-// Computed pagination helpers (IDENTIK pola products)
 const totalPages = computed(() => pagination.value?.last_page ?? 1);
 const totalItems = computed(() => pagination.value?.total ?? 0);
 const currentPageFromApi = computed(() => pagination.value?.current_page ?? currentPage.value);
 const perPageFromApi = computed(() => pagination.value?.per_page ?? perPage.value);
 
 const paginationInfo = computed(() => {
-  const start =
-    totalItems.value === 0 ? 0 : (currentPageFromApi.value - 1) * perPageFromApi.value + 1;
+  const start = totalItems.value === 0 ? 0 : (currentPageFromApi.value - 1) * perPageFromApi.value + 1;
   const end = Math.min(currentPageFromApi.value * perPageFromApi.value, totalItems.value);
 
   return {
@@ -119,14 +115,6 @@ const paginationInfo = computed(() => {
   };
 });
 
-
-const roleOptions = [
-  { value: "", label: "Semua Roles" },
-  { value: "customer", label: "Hanya Customer" },
-  { value: "umkm-owner", label: "UMKM" },
-];
-
-// Active filter count
 const activeFilterCount = computed(() => {
   let count = 0;
   if (activeFilters.value.status) count++;
@@ -164,31 +152,24 @@ const handleSearch = () => {
   loadUsers();
 };
 
-/** Highlight search text */
 function highlightText(text) {
   if (!searchQuery.value.trim() || !text) return text;
   const q = searchQuery.value.trim();
   const re = new RegExp(`(${q})`, "gi");
-  return String(text).replace(
-    re,
-    '<span class="bg-merchant-primary/20 text-merchant-primary font-bold px-1 rounded">' +
-      "$1" +
-      "</span>"
-  );
-};
+  return String(text).replace(re, '<span class="bg-merchant-primary/20 text-merchant-primary font-bold px-1 rounded">$1</span>');
+}
 
 // Modal methods
-const openExportModal = () => (showExportModal.value = true);
+const openExportModal = () => {
+  console.log('openExportModal called in customers/Index.vue');
+  showExportModal.value = true;
+};
 const closeExportModal = () => (showExportModal.value = false);
 
 const getMerchantSummary = (merchants) => {
   const list = Array.isArray(merchants) ? merchants : [];
   const firstName = list[0]?.name || "-";
-  
-  const truncatedName = firstName.length > 10 
-    ? firstName.substring(0, 15) + "..." 
-    : firstName;
-  
+  const truncatedName = firstName.length > 10 ? firstName.substring(0, 15) + "..." : firstName;
   const extra = Math.max(0, list.length - 1);
   
   return { 
@@ -199,17 +180,36 @@ const getMerchantSummary = (merchants) => {
   };
 };
 
-// Export placeholders
-const exportExcel = async () => {
-  toast.info("Export Excel sedang dalam pengembangan");
-  closeExportModal();
-};
 const exportPDF = async () => {
-  toast.info("Export PDF sedang dalam pengembangan");
-  closeExportModal();
+  exportLoading.value = true; // ✅ Set loading to true
+  try {
+    const response = await api.get("/api/admin/users/export-pdf", {
+      responseType: "blob",
+      params: {
+        status: activeFilters.value.status,
+        role: activeFilters.value.role,
+        search: searchQuery.value,
+      },
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `users-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    toast.success("Laporan users berhasil diunduh");
+    closeExportModal();
+  } catch (error) {
+    console.error("Export PDF failed:", error);
+    toast.error(error.response?.data?.message || "Gagal mengunduh laporan");
+  } finally {
+    exportLoading.value = false; // ✅ Set loading to false
+  }
 };
 
-// Actions
 const goToDetail = (user) => {
   router.push({
     name: "Admin - Customer Detail",
@@ -218,16 +218,17 @@ const goToDetail = (user) => {
   });
 };
 
-// Pagination 
 const goToPage = (page) => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page;
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 };
+
 const nextPage = () => {
   if (currentPage.value < totalPages.value) goToPage(currentPage.value + 1);
 };
+
 const prevPage = () => {
   if (currentPage.value > 1) goToPage(currentPage.value - 1);
 };
@@ -238,26 +239,34 @@ const goToCreate = () => {
   emit("create");
 };
 
-defineExpose({
-  openExportModal,
-  goToCreate,
+// ✅ Inject the register function from parent
+const registerExportModal = inject('registerExportModal', null);
+
+// ✅ Register export modal callback with parent on mount
+onMounted(() => {
+  loadUsers();
+  
+  // Register the export modal function with parent
+  if (registerExportModal) {
+    console.log('Registering export modal callback for customers');
+    registerExportModal(openExportModal);
+  } else {
+    console.warn('registerExportModal not provided by parent');
+  }
 });
 
-// Watchers (fetch saat page berubah)
 watch(currentPage, () => loadUsers());
 watch(searchQuery, () => {
   currentPage.value = 1;
   loadUsers();
 });
 
-// Initial load
-onMounted(() => loadUsers());
 </script>
 
 <template>
   <div class="p-4 sm:p-6">
-    <!-- Search & Toolbar (pakai style yang sama seperti products) -->
-    <div class="space-y-2 sm:space-y-4 mb-4  bg-white">
+    <!-- Search & Toolbar -->
+    <div class="space-y-2 sm:space-y-4 mb-4 bg-white">
       <div class="sm:flex sm:items-center sm:gap-4 pb-1">
         <div class="flex-1 mb-2 sm:mb-0">
           <TextField
@@ -270,7 +279,6 @@ onMounted(() => loadUsers());
           />
         </div>
 
-        <!-- Toggle Role Filter Button -->
         <Button
           :variant="activeFilters.role ? 'merchant' : 'muted-outline'"
           size="md"
@@ -281,7 +289,6 @@ onMounted(() => loadUsers());
           {{ getRoleLabel }}
         </Button>
 
-        <!-- Dropdown status -->
         <SelectField
           name="filter-status"
           placeholder="Status"
@@ -294,7 +301,7 @@ onMounted(() => loadUsers());
       </div>
     </div>
 
-    <!-- Desktop Table  -->
+    <!-- Desktop Table -->
     <div class="hidden sm:block">
       <AdminTable
         :items="users"
@@ -312,16 +319,13 @@ onMounted(() => loadUsers());
         @prev-page="prevPage"
       >
         <template #cell-photo="{ item }">
-          <div
-            class="w-10 h-10 rounded-full bg-merchant-primary/10 flex items-center justify-center overflow-hidden"
-          >
+          <div class="w-10 h-10 rounded-full bg-merchant-primary/10 flex items-center justify-center overflow-hidden">
             <span class="text-merchant-primary font-semibold text-sm">
               {{ item.name?.charAt(0)?.toUpperCase() || "U" }}
             </span>
           </div>
         </template>
 
-        <!-- Username + email -->
         <template #cell-name="{ item }">
           <div class="min-w-0">
             <p class="text-sm font-semibold text-black truncate" v-html="highlightText(item.name || '-')"></p>
@@ -329,12 +333,10 @@ onMounted(() => loadUsers());
           </div>
         </template>
 
-        <!-- NIK -->
         <template #cell-nik="{ item }">
           <span class="text-sm text-black" v-html="highlightText(item.nik || '-')"></span>
         </template>
 
-        <!-- roles -->
         <template #cell-roles="{ item }">
           <div class="flex flex-col gap-1">
             <span
@@ -344,16 +346,10 @@ onMounted(() => loadUsers());
             >
               {{ formatRoleName(roleName) }}
             </span>
-            <span
-              v-if="!item.roles || item.roles.length === 0"
-              class="text-xs text-muted-foreground"
-            >
-              -
-            </span>
+            <span v-if="!item.roles || item.roles.length === 0" class="text-xs text-muted-foreground">-</span>
           </div>
         </template>
  
-        <!-- merchants -->
         <template #cell-merchants="{ item }">
           <div class="min-w-0">
             <div v-if="item.merchants && item.merchants.length" class="flex items-center gap-1 min-w-0">
@@ -373,7 +369,6 @@ onMounted(() => loadUsers());
                 +{{ getMerchantSummary(item.merchants).extra }}
               </span>
             </div>
-
             <span v-else class="text-xs text-muted-foreground">-</span>
           </div>
         </template>
@@ -390,7 +385,7 @@ onMounted(() => loadUsers());
       </AdminTable>
     </div>
 
-    <!-- Mobile List + MobilePagination (IDENTIK products: MobilePagination) -->
+    <!-- Mobile List -->
     <div class="sm:hidden">
       <div v-if="loading" class="flex justify-center py-12">
         <i class="pi pi-spin pi-spinner text-4xl text-merchant-primary"></i>
@@ -431,7 +426,7 @@ onMounted(() => loadUsers());
             </span>
             <span class="text-gray-600">
               <i class="pi pi-id-card mr-1"></i>
-              {{ (u.roles && u.roles[0] && u.roles[0].name) || "-" }}
+              {{ (u.roles && u.roles[0]) || "-" }}
             </span>
           </div>
         </div>
@@ -448,42 +443,41 @@ onMounted(() => loadUsers());
       />
     </div>
 
-    <!-- Export Modal (dipanggil dari parent header) -->
+    <!-- Export Modal -->
     <ResponsiveModal
       :show="showExportModal"
       @close="closeExportModal"
-      title="Export Data"
-      subtitle="Pilih format export"
+      title="Export Laporan Users"
+      subtitle="Unduh laporan data users dalam format PDF"
     >
-      <div class="space-y-3">
-        <Button @click="exportExcel" variant="merchant" size="lg" customClass="w-full justify-start">
-          <i class="pi pi-file-excel mr-3 text-xl"></i>
-          <div class="text-left">
-            <p class="font-semibold">Export ke Excel</p>
-            <p class="text-xs opacity-80">Download .xlsx</p>
+      <div class="space-y-4">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div class="flex items-start gap-3">
+            <i class="pi pi-info-circle text-blue-600 text-xl mt-0.5"></i>
+            <div class="flex-1">
+              <p class="text-sm text-blue-900 font-medium mb-1">Laporan akan mencakup:</p>
+              <ul class="text-xs text-blue-800 space-y-1 list-disc list-inside">
+                <li>Data lengkap users (Nama, Email, Phone, NIK)</li>
+                <li>Role dan status users</li>
+                <li>Informasi merchants yang dimiliki</li>
+                <li>Filter yang diterapkan (Status, Role, Pencarian)</li>
+                <li>Informasi waktu download dan user yang mendownload</li>
+              </ul>
+            </div>
           </div>
-        </Button>
+        </div>
 
-        <Button @click="exportPDF" variant="merchant" size="lg" customClass="w-full justify-start">
-          <i class="pi pi-file-pdf mr-3 text-xl"></i>
-          <div class="text-left">
-            <p class="font-semibold">Export ke PDF</p>
-            <p class="text-xs opacity-80">Download .pdf</p>
-          </div>
+        <Button
+          @click="exportPDF"
+          variant="merchant"
+          size="lg"
+          custom-class="w-full justify-center"
+          :loading="exportLoading"
+        >
+          <i class="pi pi-download mr-2"></i>
+          <span>Download Laporan PDF</span>
         </Button>
       </div>
     </ResponsiveModal>
-
-    <!-- Add Merchant Button -->
-    <Button
-      v-if="effectiveTab === 'merchants' && !isDetailRoute"
-      @click="() => router.push({ name: 'Admin - Merchant Create' })"
-      variant="merchant"
-      size="sm"
-      customClass="!hidden sm:!inline"
-    >
-      <i class="pi pi-plus"></i>
-      <span class="hidden sm:inline ml-2">Tambah Merchant</span>
-    </Button>
   </div>
 </template>
