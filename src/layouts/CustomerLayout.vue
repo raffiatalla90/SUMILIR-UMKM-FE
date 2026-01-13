@@ -1,19 +1,11 @@
 <script setup>
-import {
-  ref,
-  computed,
-  nextTick,
-  watch,
-  onMounted,
-  onBeforeUnmount,
-} from "vue";
+import { ref, computed, nextTick, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import Button from "@/components/common/Button.vue";
 import { useRouter } from "vue-router";
 import LogoText from "@/assets/icons/LogoWithText.png";
 import LogoNoText from "@/assets/icons/LogoNoText.png";
-import Textfield from "@/components/forms/TextField.vue";
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
@@ -51,7 +43,7 @@ const baseMenus = [
   {
     key: "peta",
     label: "Peta UMKM",
-    to: "#",
+    to: "/map",
     icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
       <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z" />
     </svg>`,
@@ -134,25 +126,9 @@ function toggleSearch() {
 
     nextTick(() => {
       // optional: auto focus input fixed search
-      searchInputRef.value?.focus();
+      // kamu bisa pakai ref khusus jika mau
     });
   }
-}
-
-function handleClickOutside(event) {
-  if (!showSearch.value) return;
-
-  const searchEl = searchBarRef.value;
-
-  // Jika klik DI DALAM search bar → abaikan
-  if (searchEl && searchEl.contains(event.target)) return;
-
-  // Jika klik tombol search → abaikan (biar tidak langsung nutup)
-  const searchButton = event.target.closest("[aria-label='Cari']");
-  if (searchButton) return;
-
-  // Selain itu → tutup search
-  showSearch.value = false;
 }
 
 function submitSearch() {
@@ -174,18 +150,12 @@ watch(
   },
   { immediate: true }
 );
-onMounted(() => {
-  document.addEventListener("click", handleClickOutside);
-});
-onBeforeUnmount(() => {
-  document.removeEventListener("click", handleClickOutside);
-});
 </script>
 
 <template>
   <div class="flex flex-col min-h-screen pb-16 sm:pb-0">
     <!-- Navbar Desktop (hidden on mobile) -->
-    <nav
+    <div
       class="hidden sm:block sticky top-0 z-50 w-full h-[91px] bg-white border-b border-gray-200 shadow-sm"
     >
       <div class="max-w-[1440px] mx-auto h-full px-4">
@@ -290,7 +260,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </div>
-    </nav>
+    </div>
     <!-- SEARCH BAR (Desktop) -->
     <transition
       enter-active-class="transition-all duration-300 ease-out"
@@ -302,20 +272,36 @@ onBeforeUnmount(() => {
     >
       <div
         v-if="showSearch"
-        ref="searchBarRef"
-        class="hidden sm:block bg-white border-b border-gray-200 shadow-sm fixed top-[91px] left-0 right-0 z-40"
+        class="hidden sm:block bg-white border-b border-gray-200 shadow-sm fixed top-[91px] left-0 right-0 z-[1002]"
       >
         <div class="max-w-[1440px] mx-auto px-4 py-4">
           <form @submit.prevent="submitSearch" class="relative">
-            <Textfield
-              ref="searchInputRef"
+            <input
               v-model="searchQuery"
-              name="search-navbar"
+              type="text"
               placeholder="Cari produk, jasa, atau UMKM…"
-              :hideLabel="true"
-              variant="primary"
-              customClass=""
+              class="w-full h-12 pl-12 pr-4 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-muted-foreground"
+              autofocus
             />
+
+            <span
+              class="absolute text-gray-400 -translate-y-1/2 left-4 top-1/2"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="w-5 h-5"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="m21 21-4.35-4.35m0 0A7.5 7.5 0 1 0 10.5 18a7.5 7.5 0 0 0 6.15-3.35Z"
+                />
+              </svg>
+            </span>
           </form>
         </div>
       </div>

@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen pb-24 bg-gray-50 sm:pb-8">
+  <div class="min-h-screen pb-16 bg-gray-50 sm:pb-8">
     <!-- Header dengan tombol close (Hidden - replaced by floating button) -->
     <div
       class="sticky top-0 z-50 hidden bg-white border-b border-gray-200 sm:hidden"
@@ -660,8 +660,8 @@
                     class="flex-shrink-0 w-12 h-12 overflow-hidden bg-gray-200 rounded-full"
                   >
                     <img
-                      v-if="product?.merchant?.logo"
-                      :src="product.merchant.logo"
+                      v-if="product?.merchant?.logo_url"
+                      :src="product.merchant.logo_url"
                       alt="UMKM logo"
                       class="object-cover w-full h-full"
                     />
@@ -674,15 +674,30 @@
                       {{ product?.merchant?.name || "Sumber Rejeki" }}
                     </h4>
                     <span
+                      v-if="product?.merchant?.is_open_now"
                       class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700 mt-1"
                     >
                       Buka
                     </span>
+                    <span
+                      v-else
+                      class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 mt-1"
+                    >
+                      Tutup</span
+                    >
                   </div>
                 </div>
-                <Button variant="primary-outline" class="flex-shrink-0"
-                  >Kunjungi</Button
+                <router-link
+                  v-if="product?.merchant"
+                  :to="{
+                    name: 'Merchant Detail',
+                    params: { slug: product.merchant.slug || product.merchant.id },
+                  }"
                 >
+                  <Button variant="primary-outline" class="flex-shrink-0"
+                    >Kunjungi</Button
+                  >
+                </router-link>
               </div>
             </div>
 

@@ -56,7 +56,13 @@
             clip-rule="evenodd"
           />
         </svg>
-        <span class="line-clamp-1">
+        <span
+          class="line-clamp-1"
+          :title="`${merchant.primary_address?.detail}, ${merchant.primary_address.village?.name}, ${merchant.primary_address.district?.name}, ${merchant.primary_address.city?.name}, ${merchant.primary_address.province?.name}`"
+        >
+          {{ merchant.primary_address?.detail }},
+          {{ merchant.primary_address.village?.name }},
+          {{ merchant.primary_address.district?.name }},
           {{ merchant.primary_address.city?.name }},
           {{ merchant.primary_address.province?.name }}
         </span>

@@ -6,22 +6,11 @@ import App from "./App.vue";
 import Toast from "vue-toastification";
 import "vue-toastification/dist/index.css";
 import "./style.css";
-import { registerSW } from "virtual:pwa-register";
 import { useAuthStore } from "@/stores/auth";
 import ProductCard from "@/components/Card/ProductCard.vue";
 import EventCard from "@/components/Card/EventCard.vue";
 import PromoCard from "@/components/Card/PromoCard.vue";
-
-const updateSW = registerSW({
-  immediate: true,
-  onNeedRefresh() {
-    // aktifkan SW baru tanpa prompt
-    updateSW(true);
-  },
-  onOfflineReady() {
-    // optional: show toast “Siap offline”
-  },
-});
+import 'leaflet/dist/leaflet.css'
 
 // Minimal waktu splash (ms)
 const MIN_SPLASH_MS = Number(import.meta.env.VITE_SPLASH_MIN_MS || 1000);
@@ -30,7 +19,7 @@ function hideSplash() {
   const el = document.getElementById("splash");
   if (!el) return;
   el.classList.add("splash-hidden");
-  setTimeout(() => el.remove(), 300); // sesuai CSS transition 0.3s
+  setTimeout(() => el.remove(), 300);
 }
 
 const app = createApp(App);
@@ -45,29 +34,24 @@ app.component("ProductCard", ProductCard);
 app.component("EventCard", EventCard);
 app.component("PromoCard", PromoCard);
 
-// Init auth state (non-blocking)
-try {
-  const authStore = useAuthStore();
-  authStore.initAuth?.();
-} catch (e) {
-  console.warn("Auth init skipped:", e);
-}
+// ✅ Auth initialization moved to App.vue (synchronous from localStorage)
+// Removed async initAuth() to prevent race condition that clears user on page refresh
+// The initializeFromStorage() call in App.vue handles session restoration
 
 // Mount ASAP
 app.mount("#app");
 
-// Tampilkan splash hanya di mobile (< 640px)
-const isDesktop = window.matchMedia("(min-width: 640px)").matches;
+// Wait for router to be ready before hiding splash
+router.isReady().then(() => {
+  const isDesktop = window.matchMedia("(min-width: 640px)").matches;
 
-if (isDesktop) {
-  // Desktop: jangan tunggu, sembunyikan segera
+  if (isDesktop) {
+    hideSplash();
+  } else {
+    const minTimePromise = new Promise((r) => setTimeout(r, MIN_SPLASH_MS));
+    minTimePromise.finally(() => nextTick().then(hideSplash));
+  }
+}).catch((err) => {
+  console.error("[App] Router failed to initialize:", err);
   hideSplash();
-} else {
-  // Mobile: minimal 1 detik + tunggu router siap
-  const readyPromise =
-    typeof router.isReady === "function" ? router.isReady() : Promise.resolve();
-  const minTimePromise = new Promise((r) => setTimeout(r, MIN_SPLASH_MS));
-  Promise.all([readyPromise.catch(() => {}), minTimePromise]).finally(() =>
-    nextTick().then(hideSplash)
-  );
-}
+});

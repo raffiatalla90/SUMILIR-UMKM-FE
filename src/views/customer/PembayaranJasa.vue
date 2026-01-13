@@ -1,8 +1,15 @@
 <template>
-  <div class="min-h-screen bg-gray-50 pb-28">
+  <div class="min-h-screen bg-gray-50 pb-32 sm:pb-28">
     <!-- AppBar -->
-    <header class="sticky top-0 z-10 bg-blue-600 text-white px-4 py-3 flex items-center gap-3">
-      <router-link :to="{ name: 'JasaDetail', params: { id: order.id } }" class="text-xl">←</router-link>
+    <header
+      class="sticky top-0 z-10 bg-blue-600 text-white px-4 py-3 flex items-center gap-3"
+    >
+      <router-link
+        :to="{ name: 'JasaDetail', params: { id: order.id } }"
+        class="text-xl"
+      >
+        ←
+      </router-link>
       <h1 class="font-semibold">Pesananmu</h1>
     </header>
 
@@ -61,7 +68,9 @@
           </button>
         </div>
         <div class="text-sm text-gray-800 flex items-start gap-2">
-          <span class="mt-0.5">📍</span>
+          <span class="mt-0.5">
+            <i class="pi pi-map-marker text-gray-500"></i>
+          </span>
           <p class="leading-snug">{{ form.alamat }}</p>
         </div>
         <input
@@ -83,7 +92,7 @@
               class="w-full rounded-lg border border-gray-300 px-3 py-2 pr-10"
             />
             <span class="absolute right-3 top-1/2 -translate-y-1/2">
-              <img :src="lokasiIcon" alt="" class="w-4 h-4 opacity-70" />
+              <i class="pi pi-calendar text-gray-400"></i>
             </span>
           </div>
           <div class="relative">
@@ -93,14 +102,16 @@
               class="w-full rounded-lg border border-gray-300 px-3 py-2 pr-10"
             />
             <span class="absolute right-3 top-1/2 -translate-y-1/2">
-              <img :src="jamIcon" alt="" class="w-4 h-4 opacity-70" />
+              <i class="pi pi-clock text-gray-400"></i>
             </span>
           </div>
         </div>
       </section>
 
       <!-- Promo -->
-      <section class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <section
+        class="bg-white rounded-xl border border-gray-200 overflow-hidden"
+      >
         <div class="px-4 py-3 flex items-center justify-between bg-lime-100">
           <div class="text-sm font-semibold text-gray-800">
             {{ selectedPromo ? selectedPromo.title : 'Diskon 5%' }}
@@ -134,15 +145,18 @@
               <input type="radio" value="COD" v-model="pay.method" />
               <span>COD</span>
             </label>
-            <label class="flex items-center gap-2">
+            <label
+              v-if="order.paymentMethods.includes('qris') || order.paymentMethods.includes('QRIS')"
+              class="flex items-center gap-2"
+            >
               <input type="radio" value="QRIS" v-model="pay.method" />
-              <span>Qris</span>
+              <span>QRIS</span>
             </label>
           </div>
 
           <div class="pt-2 text-sm text-gray-700 space-y-1">
             <div class="flex justify-between">
-              <span>Harga Jasa A</span>
+              <span>Harga Jasa</span>
               <span>Rp {{ formatIDR(amounts.jasa) }}</span>
             </div>
             <div class="flex justify-between">
@@ -170,9 +184,43 @@
       </section>
     </main>
 
-    <!-- Bottom bar (Total + WA button) -->
-    <footer class="fixed left-0 right-0 bottom-0 z-20 bg-white border-t border-gray-200">
-      <div class="px-4 py-3 space-y-2">
+    <!-- Bubble Notifikasi dengan tombol OK -->
+    <transition name="fade">
+      <div
+        v-if="errorMessage || successMessage"
+        class="fixed inset-0 z-40 flex items-center justify-center bg-black/30 backdrop-blur-sm sm:backdrop-blur"
+      >
+        <!-- backdrop untuk blok semua interaksi di belakang -->
+        <div class="absolute inset-0"></div>
+
+        <div
+          class="relative max-w-sm w-[90%] sm:w-auto rounded-2xl shadow-lg px-4 py-3 flex flex-col gap-2 text-xs sm:text-sm border bg-opacity-95"
+          :class="errorMessage
+            ? 'bg-red-50 border-red-200 text-red-800'
+            : 'bg-emerald-50 border-emerald-200 text-emerald-800'"
+        >
+          <p class="leading-snug">
+            {{ errorMessage || successMessage }}
+          </p>
+          <button
+            type="button"
+            class="self-end mt-1 px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold"
+            :class="errorMessage
+              ? 'bg-red-600 text-white hover:bg-red-700'
+              : 'bg-emerald-600 text-white hover:bg-emerald-700'"
+            @click="clearNotification"
+          >
+            Oke
+          </button>
+        </div>
+      </div>
+    </transition>
+
+    <!-- Bottom bar (Total + Chat button) -->
+    <div
+      class="fixed left-0 right-0 bottom-16 sm:bottom-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-3"
+    >
+      <div class="max-w-screen-sm mx-auto space-y-2">
         <div
           class="flex items-center justify-between text-xs sm:text-sm font-semibold text-gray-900"
         >
@@ -181,15 +229,14 @@
         </div>
 
         <button
-          class="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-white font-semibold"
-          style="background:#FFA30E;"
-          @click="openWhatsapp"
+          class="w-full flex items-center justify-center gap-2 py-3 rounded-full bg-[#FFA30E] hover:bg-[#e5920d] text-white font-semibold text-center transition"
+          @click="sendToChat"
         >
-          <img :src="waIcon" alt="WhatsApp" class="w-4 h-4" />
+          <i class="pi pi-comments text-sm"></i>
           <span>Pesan Sekarang</span>
         </button>
       </div>
-    </footer>
+    </div>
 
     <!-- Bottom Sheet Promo List -->
     <transition name="fade">
@@ -257,20 +304,71 @@
         </div>
       </div>
     </transition>
+
+    <!-- Overlay Ringkasan Pemesanan (Card) -->
+    <transition name="fade">
+      <div
+        v-if="showChat"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm sm:backdrop-blur-md px-4"
+      >
+        <div
+          class="w-full max-w-md bg-white rounded-2xl shadow-xl flex flex-col max-h-[80vh] sm:max-h-[85vh]"
+        >
+          <div
+            class="flex items-center justify-between px-4 py-3 border-b border-gray-200"
+          >
+            <h2 class="text-sm font-semibold text-gray-900">
+              Ringkasan Pemesanan
+            </h2>
+            <button
+              class="text-gray-500 text-sm hover:text-gray-700"
+              @click="showChat = false"
+            >
+              ✕
+            </button>
+          </div>
+          <div class="flex-1 flex flex-col bg-gray-50 p-4 gap-4">
+            <!-- Card ringkasan utama -->
+            <div
+              class="rounded-2xl bg-merchant-primary text-white px-4 py-3 cursor-pointer hover:bg-merchant-primary/90 transition"
+              @click="showDetails = !showDetails"
+            >
+              <p class="text-xs opacity-90 mb-1">Layanan Jasa</p>
+              <p class="text-sm font-semibold truncate">
+                {{ order.title }}
+              </p>
+              <p class="text-sm mt-1 font-medium">
+                Rp {{ formatIDR(order.price) }}
+              </p>
+              <p class="text-[11px] mt-2 opacity-90 flex items-center justify-between">
+                <span>{{ form.tanggalLabel }} • {{ form.waktu }}</span>
+                <span class="underline">
+                  {{ showDetails ? 'Sembunyikan detail' : 'Lihat detail' }}
+                </span>
+              </p>
+            </div>
+
+            <!-- Detail pemesanan lengkap -->
+            <div
+              v-if="showDetails"
+              class="rounded-2xl bg-white border border-gray-200 px-4 py-3 text-xs sm:text-sm text-gray-700 whitespace-pre-line"
+            >
+              {{ summaryText }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
-
-// ikon
-import jamIcon from '@/assets/icons/Jam.png'
-import lokasiIcon from '@/assets/icons/TitikLokasi.png'
-import waIcon from '@/assets/icons/Whatsapp.png'
+import { useChat } from '@/composables/useChat'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
-
 // ===== Data dari query =====
 const order = {
   id: route.query.id || null,
@@ -279,23 +377,25 @@ const order = {
   price: Number(route.query.price || 0),
   tglISO: route.query.tgl || '',
   waktu: route.query.waktu || '',
+  paymentMethods: (route.query.payment_methods || '').split(',').map((m) => m.trim()).filter(Boolean),
 }
 
 // ===== Form =====
 const form = ref({
   nama: '',
   tel: '',
-  alamat: 'Jl. Cendrawasih No 5 Rt 1 Rw 1, Banyuan…',
-  catatan: '',
-  catatanAlamat: '',
+  alamat:
+    route.query.alamat || 'Jl. Cendrawasih No 5 Rt 1 Rw 1, Banyuan…',
+  catatan: route.query.catatan || '',
+  catatanAlamat: route.query.catatanAlamat || '',
   tanggalISO: order.tglISO,
   tanggalLabel: fmtTanggal(order.tglISO),
   waktu: order.waktu || '—',
 })
 
-// ===== Nominal (default Rp 0) =====
+// ===== Nominal (default mengikuti harga jasa) =====
 const amounts = ref({
-  jasa: 0,
+  jasa: Number(order.price || 0),
   ongkir: 0,
   diskon: 0,
 })
@@ -303,7 +403,49 @@ const amounts = ref({
 const total = computed(() =>
   Math.max(0, amounts.value.jasa + amounts.value.ongkir - amounts.value.diskon)
 )
-const pay = ref({ method: 'COD' })
+// Default metode: jika jasa hanya punya 1 metode, pakai itu; kalau tidak, COD.
+const pay = ref({
+  method:
+    order.paymentMethods.length === 1 && ['COD', 'cod', 'QRIS', 'qris'].includes(order.paymentMethods[0])
+      ? order.paymentMethods[0].toUpperCase()
+      : 'COD',
+})
+
+// Pesan error / sukses untuk ditampilkan di layar (bukan alert browser)
+const errorMessage = ref('')
+const successMessage = ref('')
+
+const clearNotification = () => {
+  errorMessage.value = ''
+  successMessage.value = ''
+}
+
+// Validasi sederhana form sebelum lanjut pembayaran
+const isFormValid = computed(() => {
+  return (
+    !!form.value.alamat &&
+    !!pay.value.method &&
+    form.value.tanggalLabel !== '—' &&
+    !!form.value.waktu &&
+    form.value.waktu !== '—'
+  )
+})
+
+// Helper validasi nama (huruf dan spasi) & telp (angka saja)
+function isValidName(value) {
+  if (!value) return false
+  const trimmed = value.trim()
+  if (!trimmed) return false
+  // Huruf (termasuk aksen sederhana), spasi, titik, koma, apostrof, dan tanda hubung
+  return /^[A-Za-zÀ-ÖØ-öø-ÿ\s'.-]+$/.test(trimmed)
+}
+
+function isValidPhone(value) {
+  if (!value) return false
+  const trimmed = String(value).trim()
+  // Hanya angka, minimal 8 digit supaya tidak terlalu pendek
+  return /^[0-9]{8,}$/.test(trimmed)
+}
 
 const formatIDR = (v) => Number(v || 0).toLocaleString('id-ID')
 function fmtTanggal(iso) {
@@ -317,7 +459,7 @@ function fmtTanggal(iso) {
   })
 }
 
-// ===== Promo Logic =====
+// ===== Promo State =====
 const openPromo = ref(false)
 const selectedPromo = ref(null)
 
@@ -363,13 +505,17 @@ function clearPromo() {
   selectedPromo.value = null
   amounts.value.diskon = 0
 }
+// ===== Chat integration =====
+const showChat = ref(false)
+const summaryText = ref('')
+const showDetails = ref(false)
+const conversationId = ref(null)
 
-// ===== Buka WhatsApp =====
-// pakai format internasional TANPA +, mis: 62821xxxxxx
-const WA_NUMBER = '6282138540196' // TODO: ganti dengan nomor kamu
+const authStore = useAuthStore()
+const { startConversation, sendMessage } = useChat()
 
-const openWhatsapp = () => {
-  const text = [
+function buildChatSummary() {
+  const lines = [
     'Halo, saya ingin pesan jasa melalui Sumilir.',
     '',
     `Jasa     : ${order.title}`,
@@ -383,19 +529,79 @@ const openWhatsapp = () => {
     `Alamat   : ${form.value.alamat || '-'}`,
     `Catatan  : ${form.value.catatan || '-'}`,
     `Catatan Alamat : ${form.value.catatanAlamat || '-'}`,
-    '',
-    selectedPromo.value
-      ? `Kode Promo : ${selectedPromo.value.code} (Diskon Rp ${formatIDR(
-          amounts.value.diskon
-        )})`
-      : '',
-    `Perkiraan Total : Rp ${formatIDR(total.value || order.price)}`,
   ]
-    .filter(Boolean)
-    .join('\n')
 
-  const url = `https://wa.me/${6285764134767}?text=${encodeURIComponent(text)}`
-  window.open(url, '_blank')
+  if (selectedPromo.value) {
+    lines.push(
+      '',
+      `Kode Promo : ${selectedPromo.value.code} (Diskon Rp ${formatIDR(
+        amounts.value.diskon
+      )})`
+    )
+  }
+
+  lines.push(
+    '',
+    `Perkiraan Total : Rp ${formatIDR(total.value || order.price)}`
+  )
+
+  return lines.join('\n')
+}
+
+const sendToChat = async () => {
+  // reset pesan
+  errorMessage.value = ''
+  successMessage.value = ''
+
+  // Validasi khusus nama & nomor telepon
+  if (!form.value.nama || !isValidName(form.value.nama)) {
+    errorMessage.value = 'Nama wajib diisi dan hanya boleh berisi huruf.'
+    return
+  }
+
+  if (!form.value.tel || !isValidPhone(form.value.tel)) {
+    errorMessage.value =
+      'Nomor telepon wajib diisi dan hanya boleh berisi angka (min. 8 digit).'
+    return
+  }
+
+  // Notif awal: pastikan form sudah terisi benar
+  if (!isFormValid.value) {
+    errorMessage.value =
+      'Mohon lengkapi data pemesan, jadwal, alamat, dan metode pembayaran terlebih dahulu.'
+    return
+  }
+
+  // Cek login, karena chat butuh user terautentikasi
+  if (!authStore.user) {
+    errorMessage.value =
+      'Silakan login terlebih dahulu untuk mengirim pesanan ke chat penjual.'
+    return
+  }
+
+  const summary = buildChatSummary()
+  if (!summary) return
+
+  try {
+    // Mulai atau ambil percakapan untuk jasa ini
+    const convo = await startConversation(order.id)
+    conversationId.value = convo?.id || null
+
+    if (conversationId.value) {
+      await sendMessage(conversationId.value, summary)
+    }
+
+    successMessage.value =
+      'Pembayaran berhasil! Detail pesanan kamu otomatis dikirim ke chat penjual.'
+
+    summaryText.value = summary
+    showDetails.value = true
+    showChat.value = true
+  } catch (e) {
+    console.error('Gagal mengirim pesan ke chat', e)
+    errorMessage.value =
+      'Pesanan berhasil dibuat, namun gagal mengirim ke chat. Silakan coba lagi dari halaman chat.'
+  }
 }
 </script>
 

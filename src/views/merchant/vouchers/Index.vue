@@ -17,6 +17,7 @@ import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import MobilePagination from "@/components/common/MobilePagination.vue";
 import BulkActionBar from "@/components/common/BulkActionBar.vue";
 import { useVouchers } from "@/composables/useVouchers";
+import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import { formatPercent, formatPrice, formatDateID } from "@/libs/format";
 
 const {
@@ -56,6 +57,22 @@ const showStatusModal = ref(false);
 const showStatusChangeModal = ref(false);
 const showBulkActionModal = ref(false);
 const showBulkStatusChangeModal = ref(false);
+
+// Lock body scroll saat modal terbuka (mencegah scroll di belakang modal)
+const isAnyModalOpen = computed(() => {
+  return (
+    showDeleteModal.value ||
+    showBulkDeleteModal.value ||
+    showFilterModal.value ||
+    showDetailModal.value ||
+    showStatusModal.value ||
+    showStatusChangeModal.value ||
+    showBulkActionModal.value ||
+    showBulkStatusChangeModal.value
+  );
+});
+
+useBodyScrollLock(isAnyModalOpen);
 
 // Selected
 const selectedVoucherForStatus = ref(null);
@@ -1197,7 +1214,7 @@ onBeforeRouteLeave(() => {
 
       <!-- Status Change Info -->
       <div
-        class="grid grid-cols-[1fr_auto_1fr] items-center gap-3 p-4 bg-white rounded-xl border border-gray-200"
+        class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 p-4 bg-white rounded-xl border border-gray-200"
       >
         <div class="text-center">
           <p class="mb-2 text-xs text-muted-foreground">Status Saat Ini</p>
@@ -1744,21 +1761,27 @@ onBeforeRouteLeave(() => {
         <label class="block mb-2 text-sm font-bold text-black">
           Rentang Tanggal Voucher
         </label>
-        <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-          <InputDateField
-            label="Mulai dari"
-            variant="merchant"
-            v-model="filters.start_date"
-            :hideLabel="true"
-          />
+        <div
+          class="grid items-center grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-2"
+        >
+          <div class="min-w-0">
+            <InputDateField
+              label="Mulai dari"
+              variant="merchant"
+              v-model="filters.start_date"
+              :hideLabel="true"
+            />
+          </div>
           <span class="px-1 font-bold text-muted-foreground">-</span>
 
-          <InputDateField
-            label="Sampai"
-            variant="merchant"
-            v-model="filters.end_date"
-            :hideLabel="true"
-          />
+          <div class="min-w-0">
+            <InputDateField
+              label="Sampai"
+              variant="merchant"
+              v-model="filters.end_date"
+              :hideLabel="true"
+            />
+          </div>
         </div>
       </div>
     </div>

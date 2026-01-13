@@ -1,4 +1,5 @@
 .env
+
 # Logs
 logs
 *.log
@@ -8,10 +9,15 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-
+# Dependencies
 node_modules
+
+# Build outputs
 dist
 dist-ssr
+dev-dist/
+
+# Local overrides
 *.local
 
 # Editor directories and files
@@ -19,9 +25,12 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 
+# Ignore specific file
+dev-dist/sw.js

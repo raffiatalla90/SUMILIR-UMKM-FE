@@ -339,6 +339,9 @@ defineExpose({
             </div>
 
             <button
+              @click="
+                navigateTo(`/merchant-center/${currentMerchantId}/profile`)
+              "
               class="flex items-center justify-center flex-shrink-0 w-6 h-6 transition rounded-full hover:bg-white/20"
               title="Pengaturan"
             >

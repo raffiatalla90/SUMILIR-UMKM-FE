@@ -373,14 +373,14 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 pb-20 sm:pb-0">
+  <div class="min-h-screen pb-20 bg-gray-50 sm:pb-0">
     <!-- Mobile Header -->
     <div
-      class="fixed sm:hidden top-0 left-0 right-0 bg-merchant-primary text-white px-4 py-6 flex items-center justify-center z-50 rounded-b-2xl shadow-lg"
+      class="fixed top-0 left-0 right-0 z-50 flex items-center justify-center px-4 py-6 text-white shadow-lg sm:hidden bg-merchant-primary rounded-b-2xl"
     >
       <button
         @click="router.back()"
-        class="absolute left-4 w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition"
+        class="absolute flex items-center justify-center w-10 h-10 transition rounded-full left-4 hover:bg-white/10"
       >
         <i class="pi pi-arrow-left"></i>
       </button>
@@ -388,9 +388,9 @@ onMounted(() => {
     </div>
 
     <!-- Desktop Header -->
-    <div class="hidden sm:block sticky top-0 left-0 right-0 z-30 py-6">
+    <div class="sticky top-0 left-0 right-0 z-30 hidden py-6 sm:block">
       <div
-        class="mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap gap-y-2 items-center justify-between gap-x-4"
+        class="flex flex-wrap items-center justify-between px-4 mx-auto sm:px-6 lg:px-8 gap-y-2 gap-x-4"
       >
         <div>
           <!-- ✅ Use Breadcrumb Component -->
@@ -398,7 +398,7 @@ onMounted(() => {
             :items="breadcrumbItems"
             :merchantId="currentMerchantId"
           />
-          <p class="text-muted-foreground text-xs lg:text-sm">
+          <p class="text-xs text-muted-foreground lg:text-sm">
             {{ product?.name || "Loading..." }}
           </p>
         </div>
@@ -418,10 +418,10 @@ onMounted(() => {
     <!-- ✅ Loading State -->
     <div
       v-if="loading"
-      class="flex flex-col justify-center items-center py-20 gap-3"
+      class="flex flex-col items-center justify-center gap-3 py-20"
     >
       <div
-        class="w-12 h-12 border-4 border-gray-300 border-t-merchant-primary rounded-full animate-spin"
+        class="w-12 h-12 border-4 border-gray-300 rounded-full border-t-merchant-primary animate-spin"
       ></div>
       <p class="text-sm text-muted-foreground">Memuat detail produk...</p>
     </div>
@@ -432,27 +432,27 @@ onMounted(() => {
       class="flex flex-col items-center justify-center py-20"
     >
       <i
-        class="pi pi-exclamation-triangle text-5xl text-danger-foreground mb-4"
+        class="mb-4 text-5xl pi pi-exclamation-triangle text-danger-foreground"
       ></i>
-      <p class="text-lg font-semibold text-black mb-2">
+      <p class="mb-2 text-lg font-semibold text-black">
         Produk Tidak Ditemukan
       </p>
       <Button @click="goBack" variant="muted-outline">
-        <i class="pi pi-arrow-left mr-2"></i>
+        <i class="mr-2 pi pi-arrow-left"></i>
         Kembali
       </Button>
     </div>
 
     <!-- ✅ Content - RESPONSIVE GRID -->
-    <div v-else class="mx-auto px-0 sm:px-4 lg:px-6 pb-6">
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div v-else class="px-0 pb-6 mx-auto sm:px-4 lg:px-6">
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <!-- Left Column (Images + Basic Info) -->
-        <div class="lg:col-span-1 space-y-2 sm:space-y-4">
+        <div class="space-y-2 lg:col-span-1 sm:space-y-4">
           <!-- Image Gallery Card -->
           <div v-if="product.images && product.images.length > 0">
             <!-- Main Image -->
             <div
-              class="relative aspect-square max-w-2xl mx-auto bg-gray-100 overflow-hidden mb-4 shadow-sm -mt-4 sm:mt-0 sm:rounded-2xl"
+              class="relative max-w-2xl mx-auto mb-4 -mt-4 overflow-hidden bg-gray-100 shadow-sm aspect-square sm:mt-0 sm:rounded-2xl"
               @touchstart="handleTouchStart"
               @touchmove="handleTouchMove"
               @touchend="handleTouchEnd"
@@ -461,28 +461,28 @@ onMounted(() => {
                 v-if="product.images[currentImageIndex]?.src_url"
                 :src="product.images[currentImageIndex].src_url"
                 :alt="product.name"
-                class="w-full h-full object-cover"
+                class="object-cover w-full h-full"
                 @error="(e) => (e.target.style.display = 'none')"
               />
               <!-- Navigation Arrows -->
               <button
                 v-if="product.images.length > 1"
                 @click="prevImage"
-                class="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white text-gray-800 rounded-full items-center justify-center transition shadow-lg backdrop-blur-sm active:scale-95 hidden sm:flex"
+                class="absolute items-center justify-center hidden w-10 h-10 text-gray-800 transition -translate-y-1/2 rounded-full shadow-lg left-3 top-1/2 bg-white/90 hover:bg-white backdrop-blur-sm active:scale-95 sm:flex"
               >
-                <i class="pi pi-chevron-left text-sm font-bold"></i>
+                <i class="text-sm font-bold pi pi-chevron-left"></i>
               </button>
               <button
                 v-if="product.images.length > 1"
                 @click="nextImage"
-                class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white text-gray-800 rounded-full items-center justify-center transition shadow-lg backdrop-blur-sm active:scale-95 hidden sm:flex"
+                class="absolute items-center justify-center hidden w-10 h-10 text-gray-800 transition -translate-y-1/2 rounded-full shadow-lg right-3 top-1/2 bg-white/90 hover:bg-white backdrop-blur-sm active:scale-95 sm:flex"
               >
-                <i class="pi pi-chevron-right text-sm font-bold"></i>
+                <i class="text-sm font-bold pi pi-chevron-right"></i>
               </button>
             </div>
 
             <!-- Thumbnails -->
-            <div class="grid grid-cols-4 sm:grid-cols-6 gap-2 px-4">
+            <div class="grid grid-cols-4 gap-2 px-4 sm:grid-cols-6">
               <button
                 v-for="(image, index) in product.images"
                 :key="image.id"
@@ -493,13 +493,13 @@ onMounted(() => {
                   'border-gray-200 hover:border-merchant-primary/50 hover:scale-105':
                     currentImageIndex !== index,
                 }"
-                class="relative border rounded-lg overflow-hidden transition aspect-square"
+                class="relative overflow-hidden transition border rounded-lg aspect-square"
               >
                 <img
                   v-if="image.src_url"
                   :src="image.src_url"
                   :alt="`${product.name} ${index + 1}`"
-                  class="w-full h-full object-cover"
+                  class="object-cover w-full h-full"
                   @error="(e) => (e.target.style.display = 'none')"
                 />
               </button>
@@ -515,13 +515,13 @@ onMounted(() => {
         </div>
 
         <!-- Right Column (Details) -->
-        <div class="lg:col-span-1 space-y-2 sm:space-y-4">
+        <div class="space-y-2 lg:col-span-1 sm:space-y-4">
           <!-- Product Name Card -->
-          <div class="bg-white p-4 sm:p-6 sm:rounded-xl sm:shadow-sm">
-            <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-2">
+          <div class="p-4 bg-white sm:p-6 sm:rounded-xl sm:shadow-sm">
+            <h2 class="mb-2 text-lg font-bold text-gray-900 sm:text-xl">
               {{ product.name }}
             </h2>
-            <p class="text-sm text-gray-500 font-mono">
+            <p class="font-mono text-sm text-gray-500">
               SKU: {{ product.variants?.[0]?.sku || "-" }}
             </p>
           </div>
@@ -529,17 +529,17 @@ onMounted(() => {
           <!-- Description Card - Desktop Only -->
           <div
             v-if="product.description"
-            class="bg-white p-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
+            class="p-4 bg-white sm:p-6 sm:rounded-xl sm:shadow-sm"
           >
             <h3
-              class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2"
+              class="flex items-center gap-2 mb-3 text-sm font-semibold text-gray-900"
             >
-              <i class="pi pi-align-left text-gray-400"></i>
+              <i class="text-gray-400 pi pi-align-left"></i>
               Deskripsi Produk
             </h3>
 
             <p
-              class="text-sm text-gray-700 leading-relaxed whitespace-pre-line"
+              class="text-sm leading-relaxed text-gray-700 whitespace-pre-line"
             >
               {{ displayedDescription }}
             </p>
@@ -547,7 +547,7 @@ onMounted(() => {
             <button
               v-if="isLongDescription"
               @click="showFullDescription = !showFullDescription"
-              class="mt-2 text-merchant-primary text-sm font-semibold hover:underline cursor-pointer"
+              class="mt-2 text-sm font-semibold cursor-pointer text-merchant-primary hover:underline"
               type="button"
             >
               {{ showFullDescription ? "Sembunyikan" : "Lihat Selengkapnya" }}
@@ -555,7 +555,7 @@ onMounted(() => {
           </div>
 
           <!-- Status & Category Card -->
-          <div class="bg-white p-4 sm:p-6 space-y-3 sm:rounded-xl sm:shadow-sm">
+          <div class="p-4 space-y-3 bg-white sm:p-6 sm:rounded-xl sm:shadow-sm">
             <!-- Status -->
             <div class="flex items-center justify-between">
               <span class="text-sm text-gray-600">Status</span>
@@ -579,9 +579,9 @@ onMounted(() => {
 
             <!-- Sub Categories -->
             <div v-if="subCategories.length > 0">
-              <div class="border-t border-gray-100 mb-3"></div>
+              <div class="mb-3 border-t border-gray-100"></div>
               <div class="flex items-start justify-between gap-3">
-                <span class="text-sm text-gray-600 flex-shrink-0"
+                <span class="flex-shrink-0 text-sm text-gray-600"
                   >Sub Kategori</span
                 >
                 <div class="flex flex-wrap gap-1.5 justify-end">
@@ -597,9 +597,9 @@ onMounted(() => {
             </div>
             <!-- Min Purchase -->
             <div v-if="product.min_purchase">
-              <div class="border-t border-gray-100 mb-3"></div>
+              <div class="mb-3 border-t border-gray-100"></div>
               <div class="flex items-start justify-between gap-3 mt-3">
-                <span class="text-sm text-gray-600 flex-shrink-0"
+                <span class="flex-shrink-0 text-sm text-gray-600"
                   >Minimal Pembelian</span
                 >
                 <span class="text-sm font-medium text-gray-900">
@@ -613,11 +613,11 @@ onMounted(() => {
           <button
             v-if="product.variants && product.variants.length > 0"
             @click="openVariantsModal"
-            class="w-full bg-white p-4 sm:p-6 flex items-center justify-between hover:bg-gray-50 active:bg-gray-100 transition sm:rounded-xl sm:shadow-sm"
+            class="flex items-center justify-between w-full p-4 transition bg-white sm:p-6 hover:bg-gray-50 active:bg-gray-100 sm:rounded-xl sm:shadow-sm"
           >
             <div class="flex items-center gap-3">
               <div
-                class="w-10 h-10 rounded-full bg-merchant-primary/10 flex items-center justify-center flex-shrink-0"
+                class="flex items-center justify-center flex-shrink-0 w-10 h-10 rounded-full bg-merchant-primary/10"
               >
                 <i class="pi pi-box text-merchant-primary"></i>
               </div>
@@ -631,18 +631,18 @@ onMounted(() => {
                 </p>
               </div>
             </div>
-            <i class="pi pi-chevron-right text-gray-400"></i>
+            <i class="text-gray-400 pi pi-chevron-right"></i>
           </button>
 
           <!-- Add-ons Card -->
           <button
             v-if="totalAddOnGroups > 0"
             @click="openAddOnsModal"
-            class="w-full bg-white p-4 sm:p-6 flex items-center justify-between hover:bg-gray-50 active:bg-gray-100 transition sm:rounded-xl sm:shadow-sm"
+            class="flex items-center justify-between w-full p-4 transition bg-white sm:p-6 hover:bg-gray-50 active:bg-gray-100 sm:rounded-xl sm:shadow-sm"
           >
             <div class="flex items-center gap-3">
               <div
-                class="w-10 h-10 rounded-full bg-merchant-primary/10 flex items-center justify-center flex-shrink-0"
+                class="flex items-center justify-center flex-shrink-0 w-10 h-10 rounded-full bg-merchant-primary/10"
               >
                 <i class="pi pi-plus-circle text-merchant-primary"></i>
               </div>
@@ -654,7 +654,7 @@ onMounted(() => {
                 </p>
               </div>
             </div>
-            <i class="pi pi-chevron-right text-gray-400"></i>
+            <i class="text-gray-400 pi pi-chevron-right"></i>
           </button>
         </div>
       </div>
@@ -671,11 +671,11 @@ onMounted(() => {
       <div v-if="product">
         <!-- Summary Card -->
         <div
-          class="bg-merchant-primary/5 rounded-xl p-4 border border-merchant-primary/20 mb-4"
+          class="p-4 mb-4 border bg-merchant-primary/5 rounded-xl border-merchant-primary/20"
         >
           <div class="mb-3">
-            <p class="text-xs text-muted-foreground mb-1">Rentang Harga</p>
-            <p class="text-base font-semibold text-merchant-primary truncate">
+            <p class="mb-1 text-xs text-muted-foreground">Rentang Harga</p>
+            <p class="text-base font-semibold truncate text-merchant-primary">
               {{ priceRange }}
             </p>
           </div>
@@ -684,13 +684,13 @@ onMounted(() => {
             class="grid grid-cols-2 gap-4 pt-3 border-t border-merchant-primary/20"
           >
             <div>
-              <p class="text-xs text-muted-foreground mb-1">Total Varian</p>
+              <p class="mb-1 text-xs text-muted-foreground">Total Varian</p>
               <p class="text-lg font-bold text-merchant-primary">
                 {{ product.variants.length }}
               </p>
             </div>
             <div>
-              <p class="text-xs text-muted-foreground mb-1">Total Stok</p>
+              <p class="mb-1 text-xs text-muted-foreground">Total Stok</p>
               <p class="text-lg font-bold text-merchant-primary">
                 {{ formatNumber(stockRange.total) }}
               </p>
@@ -699,7 +699,7 @@ onMounted(() => {
         </div>
 
         <!-- Variant Options Section -->
-        <div v-if="transformedOptions.length > 0" class="space-y-4 mb-6">
+        <div v-if="transformedOptions.length > 0" class="mb-6 space-y-4">
           <h3 class="text-sm font-semibold text-black">Opsi Variasi</h3>
 
           <div
@@ -728,7 +728,7 @@ onMounted(() => {
               <div
                 v-for="optionValue in option.values"
                 :key="optionValue.id"
-                class="bg-white border border-muted-background rounded-xl p-3 hover:border-merchant-primary/50 transition group"
+                class="p-3 transition bg-white border border-muted-background rounded-xl hover:border-merchant-primary/50 group"
               >
                 <!-- With Image -->
                 <div
@@ -736,17 +736,17 @@ onMounted(() => {
                   class="flex flex-col items-center gap-2"
                 >
                   <div
-                    class="w-full aspect-square rounded-lg overflow-hidden bg-gray-100 group-hover:ring-2 group-hover:ring-merchant-primary/30 transition"
+                    class="w-full overflow-hidden transition bg-gray-100 rounded-lg aspect-square group-hover:ring-2 group-hover:ring-merchant-primary/30"
                   >
                     <img
                       v-if="optionValue.image"
                       :src="optionValue.image"
                       :alt="optionValue.value"
-                      class="w-full h-full object-cover"
+                      class="object-cover w-full h-full"
                       @error="(e) => (e.target.style.display = 'none')"
                     />
                   </div>
-                  <div class="text-center w-full">
+                  <div class="w-full text-center">
                     <p class="text-xs font-medium text-black truncate">
                       {{ optionValue.value }}
                     </p>
@@ -773,7 +773,7 @@ onMounted(() => {
                   v-else
                   class="flex flex-col items-center justify-center py-2"
                 >
-                  <p class="text-sm font-medium text-black text-center">
+                  <p class="text-sm font-medium text-center text-black">
                     {{ optionValue.value }}
                   </p>
                   <p
@@ -797,7 +797,7 @@ onMounted(() => {
         </div>
 
         <!-- Divider -->
-        <div class="border-t border-gray-200 my-6"></div>
+        <div class="my-6 border-t border-gray-200"></div>
 
         <!-- Variant List -->
         <div class="space-y-3">
@@ -810,18 +810,18 @@ onMounted(() => {
           <div
             v-for="variant in product.variants"
             :key="variant.id"
-            class="bg-white border border-muted-background rounded-xl overflow-hidden hover:border-merchant-primary/50 transition"
+            class="overflow-hidden transition bg-white border border-muted-background rounded-xl hover:border-merchant-primary/50"
           >
-            <div class="flex gap-3 p-4 items-center">
+            <div class="flex items-center gap-3 p-4">
               <!-- Variant Info -->
               <div class="flex-1 min-w-0">
                 <!-- Header -->
-                <div class="flex justify-between items-start gap-3 mb-2">
+                <div class="flex items-start justify-between gap-3 mb-2">
                   <div class="flex-1 min-w-0">
-                    <h4 class="text-sm font-semibold text-black mb-1 truncate">
+                    <h4 class="mb-1 text-sm font-semibold text-black truncate">
                       {{ getVariantName(variant) }}
                     </h4>
-                    <p class="text-xs text-muted-foreground font-mono truncate">
+                    <p class="font-mono text-xs truncate text-muted-foreground">
                       {{ variant.sku || "-" }}
                     </p>
                   </div>
@@ -835,14 +835,14 @@ onMounted(() => {
 
                 <!-- Details Grid -->
                 <div class="grid grid-cols-2 gap-2 mb-3">
-                  <div class="bg-muted-background rounded-lg p-2">
+                  <div class="p-2 rounded-lg bg-muted-background">
                     <p class="text-xs text-muted-foreground mb-0.5">Harga</p>
-                    <p class="text-sm font-bold text-merchant-primary truncate">
+                    <p class="text-sm font-bold truncate text-merchant-primary">
                       {{ formatPrice(variant.price) }}
                     </p>
                   </div>
 
-                  <div class="bg-muted-background rounded-lg p-2">
+                  <div class="p-2 rounded-lg bg-muted-background">
                     <p class="text-xs text-muted-foreground mb-0.5">Stok</p>
                     <p
                       :class="
@@ -899,13 +899,13 @@ onMounted(() => {
       <div v-if="product && product.addonGroups">
         <!-- Summary Card -->
         <div
-          class="bg-merchant-primary/5 rounded-xl p-4 border border-merchant-primary/20 mb-4"
+          class="p-4 mb-4 border bg-merchant-primary/5 rounded-xl border-merchant-primary/20"
         >
           <div class="mb-3">
-            <p class="text-xs text-muted-foreground mb-1">
+            <p class="mb-1 text-xs text-muted-foreground">
               Rentang Harga Add-on
             </p>
-            <p class="text-base font-semibold text-merchant-primary truncate">
+            <p class="text-base font-semibold truncate text-merchant-primary">
               {{ addOnPriceRange || "Semua Gratis" }}
             </p>
           </div>
@@ -914,13 +914,13 @@ onMounted(() => {
             class="grid grid-cols-2 gap-4 pt-3 border-t border-merchant-primary/20"
           >
             <div>
-              <p class="text-xs text-muted-foreground mb-1">Total Grup</p>
+              <p class="mb-1 text-xs text-muted-foreground">Total Grup</p>
               <p class="text-lg font-bold text-merchant-primary">
                 {{ totalAddOnGroups }}
               </p>
             </div>
             <div>
-              <p class="text-xs text-muted-foreground mb-1">Total Opsi</p>
+              <p class="mb-1 text-xs text-muted-foreground">Total Opsi</p>
               <p class="text-lg font-bold text-merchant-primary">
                 {{ totalAddOnOptions }}
               </p>
@@ -933,18 +933,18 @@ onMounted(() => {
           <div
             v-for="(group, gIndex) in product.addonGroups"
             :key="group.id"
-            class="bg-white border border-muted-background rounded-xl overflow-hidden"
+            class="overflow-hidden bg-white border border-muted-background rounded-xl"
           >
             <!-- Group Header -->
             <div
-              class="bg-merchant-primary/5 border-b border-merchant-primary/20 p-4"
+              class="p-4 border-b bg-merchant-primary/5 border-merchant-primary/20"
             >
               <div class="flex items-start justify-between gap-3 mb-3">
                 <div class="flex-1">
-                  <h3 class="text-sm font-bold text-black mb-2">
+                  <h3 class="mb-2 text-sm font-bold text-black">
                     {{ gIndex + 1 }}. {{ group.addon_group_name }}
                   </h3>
-                  <div class="flex items-center gap-2 flex-wrap">
+                  <div class="flex flex-wrap items-center gap-2">
                     <!-- Required Badge -->
                     <StatusLabel
                       v-if="group.min_selection > 0"
@@ -982,15 +982,15 @@ onMounted(() => {
               <div
                 v-for="(option, oIndex) in group.options"
                 :key="option.id"
-                class="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
+                class="flex items-center justify-between px-4 py-3 transition rounded-lg bg-gray-50 hover:bg-gray-100"
               >
-                <div class="flex items-center gap-3 flex-1 min-w-0">
+                <div class="flex items-center flex-1 min-w-0 gap-3">
                   <!-- Number Badge -->
                   <StatusLabel
                     status="processing"
                     variant="custom"
                     :label="`${oIndex + 1}`"
-                    custom-class="bg-merchant-primary text-white"
+                    custom-class="text-white bg-merchant-primary"
                     size="xs"
                     :show-icon="false"
                   />

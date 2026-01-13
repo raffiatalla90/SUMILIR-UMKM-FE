@@ -9,9 +9,7 @@ export default defineConfig(({ mode }) => {
   const apiBase = env.VITE_API_BASE_URL || "/api";
 
   return {
-    // ✅ Vue di root, tidak perlu /build/
     base: "/",
-
     plugins: [
       vue(),
       tailwindcss(),

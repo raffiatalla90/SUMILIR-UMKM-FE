@@ -815,7 +815,7 @@ onBeforeUnmount(() => {
 
       <!-- EMPTY MERCHANTS -->
       <div
-        v-if="isEmptyMerchants"
+        v-if="isEmptyMerchants && !isLoadingMoreMerchants"
         class="flex flex-col items-center justify-center py-16 text-center"
       >
         <p class="text-sm text-primary">UMKM tidak ditemukan</p>

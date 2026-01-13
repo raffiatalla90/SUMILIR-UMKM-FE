@@ -1,50 +1,50 @@
 <template>
-  <div class="min-h-screen bg-gray-100 pb-32">
+  <div class="min-h-screen pb-32 bg-gray-100">
     <!-- Mobile Header -->
     <MobileHeader title="Keranjang" @back="goBack" />
 
     <!-- Skeleton Loading -->
-    <div v-if="loading" class="max-w-7xl mx-auto px-4 py-4 space-y-4">
+    <div v-if="loading" class="px-4 py-4 mx-auto space-y-4 max-w-7xl">
       <div
         v-for="n in 2"
         :key="n"
-        class="bg-white rounded-xl border border-gray-200 overflow-hidden animate-pulse"
+        class="overflow-hidden bg-white border border-gray-200 rounded-xl animate-pulse"
       >
         <div
-          class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2"
+          class="flex items-center gap-2 px-4 py-3 border-b border-gray-200 bg-gray-50"
         >
-          <div class="w-6 h-6 rounded-full bg-gray-200"></div>
-          <div class="h-4 w-32 bg-gray-200 rounded"></div>
+          <div class="w-6 h-6 bg-gray-200 rounded-full"></div>
+          <div class="w-32 h-4 bg-gray-200 rounded"></div>
         </div>
         <div class="divide-y divide-gray-100">
-          <div v-for="m in 2" :key="m" class="px-4 py-3 flex items-start gap-3">
-            <div class="w-4 h-4 rounded bg-gray-200 mt-1"></div>
-            <div class="w-20 h-20 rounded-lg bg-gray-200"></div>
+          <div v-for="m in 2" :key="m" class="flex items-start gap-3 px-4 py-3">
+            <div class="w-4 h-4 mt-1 bg-gray-200 rounded"></div>
+            <div class="w-20 h-20 bg-gray-200 rounded-lg"></div>
             <div class="flex-1 min-w-0 space-y-2">
-              <div class="h-4 w-40 bg-gray-200 rounded"></div>
-              <div class="h-3 w-24 bg-gray-200 rounded"></div>
-              <div class="h-3 w-16 bg-gray-200 rounded"></div>
+              <div class="w-40 h-4 bg-gray-200 rounded"></div>
+              <div class="w-24 h-3 bg-gray-200 rounded"></div>
+              <div class="w-16 h-3 bg-gray-200 rounded"></div>
               <div class="flex gap-2">
-                <div class="h-7 w-7 rounded-full bg-gray-200"></div>
-                <div class="h-7 w-8 bg-gray-200 rounded"></div>
-                <div class="h-7 w-7 rounded-full bg-gray-200"></div>
+                <div class="bg-gray-200 rounded-full h-7 w-7"></div>
+                <div class="w-8 bg-gray-200 rounded h-7"></div>
+                <div class="bg-gray-200 rounded-full h-7 w-7"></div>
               </div>
             </div>
-            <div class="w-5 h-5 rounded bg-gray-200"></div>
+            <div class="w-5 h-5 bg-gray-200 rounded"></div>
           </div>
         </div>
         <div
-          class="px-4 py-3 bg-gray-50 border-t border-gray-200 flex justify-between"
+          class="flex justify-between px-4 py-3 border-t border-gray-200 bg-gray-50"
         >
-          <div class="h-4 w-24 bg-gray-200 rounded"></div>
-          <div class="h-4 w-20 bg-gray-200 rounded"></div>
+          <div class="w-24 h-4 bg-gray-200 rounded"></div>
+          <div class="w-20 h-4 bg-gray-200 rounded"></div>
         </div>
       </div>
     </div>
     <!-- Empty State -->
     <div
       v-else-if="cartStores.length === 0"
-      class="flex flex-col items-center justify-center py-20 px-4 max-w-7xl mx-auto"
+      class="flex flex-col items-center justify-center px-4 py-20 mx-auto max-w-7xl"
     >
       <div class="w-32 h-32 mb-6 text-gray-300">
         <svg
@@ -61,8 +61,8 @@
           />
         </svg>
       </div>
-      <h2 class="text-xl font-semibold text-gray-900 mb-2">Keranjang Kosong</h2>
-      <p class="text-gray-600 text-center mb-6">
+      <h2 class="mb-2 text-xl font-semibold text-gray-900">Keranjang Kosong</h2>
+      <p class="mb-6 text-center text-gray-600">
         Belum ada produk di keranjang Anda.<br />Yuk, mulai belanja!
       </p>
       <button
@@ -74,16 +74,16 @@
     </div>
 
     <!-- Cart Content -->
-    <main v-else class="px-4 py-4 space-y-4 max-w-7xl mx-auto">
+    <main v-else class="px-4 py-4 mx-auto space-y-4 max-w-7xl">
       <!-- Cart Items Grouped by Store -->
       <div
         v-for="store in cartStores"
         :key="store.id"
-        class="bg-white rounded-xl border border-gray-200 overflow-hidden"
+        class="overflow-hidden bg-white border border-gray-200 rounded-xl"
       >
         <!-- Store Header -->
         <div
-          class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between"
+          class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50"
         >
           <div class="flex items-center gap-2">
             <input
@@ -113,7 +113,7 @@
                 </svg>
               </div>
               <span
-                class="font-semibold text-gray-900 cursor-pointer hover:text-primary duration-200 transition-colors"
+                class="font-semibold text-gray-900 transition-colors duration-200 cursor-pointer hover:text-primary"
                 @click="goToStorePage(store.id)"
                 >{{ store.name }}</span
               >
@@ -122,7 +122,7 @@
           <div>
             <button
               @click="confirmRemoveAllByCart(store.id)"
-              class="text-sm text-danger-foreground active:scale-95 cursor-pointer"
+              class="text-sm cursor-pointer text-danger-foreground active:scale-95"
             >
               Hapus Semua
             </button>
@@ -134,7 +134,7 @@
           <div
             v-for="item in store.items"
             :key="item.id"
-            class="px-4 py-3 flex items-start gap-3 group cursor-pointer"
+            class="flex items-start gap-3 px-4 py-3 cursor-pointer group"
             :class="item.isUnavailable ? 'opacity-60 ' : ''"
           >
             <!-- Checkbox -->
@@ -160,11 +160,11 @@
               <img
                 :src="item.image"
                 :alt="item.name"
-                class="w-full h-full object-cover"
+                class="object-cover w-full h-full"
               />
               <div
                 v-if="item.isUnavailable"
-                class="absolute bottom-0 left-0 right-0 z-10 bg-black/70 backdrop-blur-sm text-white text-center pointer-events-none px-1 py-1"
+                class="absolute bottom-0 left-0 right-0 z-10 px-1 py-1 text-center text-white pointer-events-none bg-black/70 backdrop-blur-sm"
               >
                 <p class="text-[9px] font-medium tracking-wide">
                   {{ item.stock === 0 ? "Habis" : "Diarsipkan" }}
@@ -172,7 +172,7 @@
               </div>
               <div
                 v-if="hasConfigurationIssue(item)"
-                class="absolute bottom-0 left-0 right-0 z-10 bg-black/70 backdrop-blur-sm text-white text-center pointer-events-none px-1 py-1"
+                class="absolute bottom-0 left-0 right-0 z-10 px-1 py-1 text-center text-white pointer-events-none bg-black/70 backdrop-blur-sm"
               >
                 <p class="text-[9px] font-medium tracking-wide">
                   Tidak Tersedia
@@ -183,7 +183,7 @@
             <!-- Product Info -->
             <div class="flex-1 min-w-0">
               <h3
-                class="text-sm font-semibold text-gray-900 mb-1 group-hover:text-primary duration-200 transition-colors"
+                class="mb-1 text-sm font-semibold text-gray-900 transition-colors duration-200 group-hover:text-primary"
                 @click="goToProductPage(item.slug)"
               >
                 {{ item.name }}
@@ -192,7 +192,7 @@
               <!-- Info Unavailable -->
               <div
                 v-if="item.isUnavailable"
-                class="text-xs text-red-500 font-semibold mb-1"
+                class="mb-1 text-xs font-semibold text-red-500"
               >
                 <span v-if="item.stock === 0 && !hasConfigurationIssue(item)"
                   >Habis, coba lihat varian lain</span
@@ -215,7 +215,7 @@
                   <div
                     v-for="addon in item.addons"
                     :key="addon.label"
-                    class="text-xs text-gray-600 flex justify-between"
+                    class="flex justify-between text-xs text-gray-600"
                   >
                     <span>+ {{ addon.label }}</span>
                     <span class="font-medium text-gray-700">
@@ -252,7 +252,7 @@
 
               <!-- Price & Quantity -->
               <div
-                class="flex flex-wrap gap-y-2 gap-x-6 items-center justify-between"
+                class="flex flex-wrap items-center justify-between gap-y-2 gap-x-6"
                 :class="
                   item.isUnavailable ? 'opacity-60 pointer-events-none' : ''
                 "
@@ -266,7 +266,7 @@
                   <button
                     @click="decreaseQuantity(item.id)"
                     :disabled="item.quantity <= 1"
-                    class="w-7 h-7 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="flex items-center justify-center transition border border-gray-300 rounded-full w-7 h-7 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -284,7 +284,7 @@
 
                   <input
                     type="number"
-                    class="text-center border border-gray-300 rounded-md text-sm font-semibold py-1 sm:px-2"
+                    class="py-1 text-sm font-semibold text-center border border-gray-300 rounded-md sm:px-2"
                     :min="1"
                     :max="item.stock"
                     :value="item.quantity"
@@ -295,7 +295,7 @@
                   <button
                     @click="increaseQuantity(item.id)"
                     :disabled="item.quantity >= item.stock"
-                    class="w-7 h-7 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="flex items-center justify-center transition border border-gray-300 rounded-full w-7 h-7 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -312,7 +312,7 @@
               </div>
               <p
                 v-if="item.isOverStock && item.stock > 0"
-                class="text-red-500 text-xs text-right pt-1"
+                class="pt-1 text-xs text-right text-red-500"
               >
                 Stok berubah. Maksimal {{ item.stock }}.
               </p>
@@ -326,7 +326,7 @@
               <!-- ⚠️ CONFIGURATION ISSUE -->
               <div
                 v-if="hasConfigurationIssue(item)"
-                class="mt-1 p-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-2"
+                class="flex items-start gap-2 p-2 mt-1 text-xs text-red-700 border border-red-200 rounded-lg bg-red-50"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -358,7 +358,7 @@
             <!-- Delete Button -->
             <button
               @click="confirmRemove(item.id)"
-              class="p-1 text-gray-400 hover:text-red-500 transition cursor-pointer"
+              class="p-1 text-gray-400 transition cursor-pointer hover:text-red-500"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -377,7 +377,7 @@
         </div>
 
         <!-- Store Footer: Subtotal & Checkout -->
-        <div class="px-4 py-3 bg-gray-50 border-t border-gray-200">
+        <div class="px-4 py-3 border-t border-gray-200 bg-gray-50">
           <div class="flex items-center justify-between mb-2">
             <span class="text-sm text-gray-600">
               Subtotal ({{ getStoreSelectedCount(store.id) }} item)
@@ -419,7 +419,7 @@
           :key="opt.option_id"
           class="space-y-2"
         >
-          <label class="text-sm font-semibold text-gray-900 block capitalize">
+          <label class="block text-sm font-semibold text-gray-900 capitalize">
             {{ opt.option_name }}
             <span class="text-red-500">*</span>
           </label>
@@ -430,7 +430,7 @@
               :key="val.value"
               @click="tempSelections[opt.option_name] = val.value"
               :disabled="!val.available"
-              class="px-3 py-2 rounded-lg border text-sm transition flex items-center gap-2"
+              class="flex items-center gap-2 px-3 py-2 text-sm transition border rounded-lg"
               :class="
                 tempSelections[opt.option_name] === val.value
                   ? 'border-[#FFA30E] bg-orange-50 text-[#FFA30E]'
@@ -441,7 +441,7 @@
               <img
                 v-if="opt.uses_image && val.image_url"
                 :src="val.image_url"
-                class="w-8 h-8 rounded object-cover"
+                class="object-cover w-8 h-8 rounded"
               />
 
               <div class="flex flex-col items-start">
@@ -464,13 +464,13 @@
           <div v-for="group in addonGroups" :key="group.id" class="space-y-2">
             <div class="flex items-center justify-between capitalize">
               <label
-                class="text-sm font-semibold text-gray-900 block capitalize"
+                class="block text-sm font-semibold text-gray-900 capitalize"
               >
                 {{ group.name }}
                 <span v-if="group.min_selection === 1" class="text-red-500"
                   >*</span
                 >
-                <span v-else class="text-xs text-gray-500 font-normal"
+                <span v-else class="text-xs font-normal text-gray-500"
                   >(Opsional)</span
                 >
               </label>
@@ -496,7 +496,7 @@
               <label
                 v-for="addon in group.options"
                 :key="addon.addon_id"
-                class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer text-sm"
+                class="flex items-center gap-3 p-3 text-sm border rounded-lg cursor-pointer"
                 :class="
                   isAddonSelected(addon)
                     ? 'border-[#FFA30E] bg-orange-50'
@@ -523,7 +523,7 @@
               <label
                 v-for="addon in group.options"
                 :key="addon.addon_id"
-                class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer text-sm"
+                class="flex items-center gap-3 p-3 text-sm border rounded-lg cursor-pointer"
                 :class="
                   isAddonSelected(addon)
                     ? 'border-[#FFA30E] bg-orange-50'
@@ -547,13 +547,13 @@
         </div>
 
         <!-- Info Note -->
-        <div class="p-3 bg-blue-50 rounded-lg">
+        <div class="p-3 rounded-lg bg-blue-50">
           <p class="text-xs text-blue-800">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 20 20"
               fill="currentColor"
-              class="w-4 h-4 inline mr-1"
+              class="inline w-4 h-4 mr-1"
             >
               <path
                 fill-rule="evenodd"
@@ -565,7 +565,7 @@
           </p>
         </div>
       </div>
-      <div class="p-3 rounded-lg space-y-1">
+      <div class="p-3 space-y-1 rounded-lg">
         <div class="flex justify-between text-sm">
           <span>Harga Varian</span>
           <span class="font-semibold">
