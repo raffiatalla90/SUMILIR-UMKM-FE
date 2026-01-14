@@ -329,7 +329,7 @@ const addressText = computed(() => {
                   v-show="merchantAccordionOpen"
                   class="px-5 pt-2 pb-4 space-y-2"
                 >
-                  <template v-if="merchantsLoading">
+                  <template v-if="merchantsLoading && !myMerchants.length">
                     <div class="space-y-2">
                       <div
                         class="w-full h-12 bg-gray-200 rounded-lg animate-pulse"
@@ -412,12 +412,12 @@ const addressText = computed(() => {
 
       <!-- MOBILE LAYOUT -->
       <div class="lg:hidden">
-        <div class="p-5 bg-white border border-gray-100 shadow-sm rounded-2xl">
-          <div class="flex items-center gap-4">
-            <div class="relative w-20 h-20">
+        <div class="p-4 bg-white border border-gray-100 shadow-sm rounded-2xl">
+          <div class="flex flex-col items-center">
+            <div class="relative w-32 h-32">
               <div
                 v-if="isInitialProfileLoading || (!imgLoaded && !imgError)"
-                class="w-20 h-20 bg-gray-200 border-4 border-white rounded-full shadow animate-pulse"
+                class="w-32 h-32 bg-gray-200 border-4 border-white rounded-full shadow-lg animate-pulse"
               />
               <img
                 v-if="
@@ -428,7 +428,7 @@ const addressText = computed(() => {
                 :src="user.profile_picture"
                 :alt="user.name"
                 loading="lazy"
-                class="object-cover w-20 h-20 border-4 border-white rounded-full shadow-lg"
+                class="object-cover w-32 h-32 border-4 border-white rounded-full shadow-lg"
                 :class="imgLoaded ? '' : 'opacity-0'"
                 @load="imgLoaded = true"
                 @error="
@@ -438,7 +438,7 @@ const addressText = computed(() => {
               />
               <span v-else>
                 <svg
-                  class="w-20 h-20 p-4 text-gray-300 bg-gray-100 border-4 border-white rounded-full shadow-lg"
+                  class="w-32 h-32 p-8 text-gray-300 bg-gray-100 border-4 border-white rounded-full shadow-lg"
                   fill="currentColor"
                   viewBox="0 0 24 24"
                 >
@@ -448,32 +448,99 @@ const addressText = computed(() => {
                 </svg>
               </span>
             </div>
-            <div class="min-w-0">
+
+            <div
+              v-if="isInitialProfileLoading"
+              class="w-48 mt-2 bg-gray-200 rounded h-7 animate-pulse"
+            />
+            <h2 v-else class="mt-2 text-2xl font-bold text-gray-900">
+              {{ user.name }}
+            </h2>
+
+            <!-- Quick Info -->
+            <div class="w-full mt-0 space-y-2">
               <div
-                v-if="isInitialProfileLoading"
-                class="w-40 h-5 bg-gray-200 rounded animate-pulse"
-              />
-              <h2 v-else class="text-lg font-semibold text-gray-900">
-                {{ user.name }}
-              </h2>
-              <div class="mt-1 space-y-1">
-                <div v-if="isInitialProfileLoading" class="space-y-2">
-                  <div class="h-4 bg-gray-200 rounded w-44 animate-pulse" />
-                  <div class="w-32 h-4 bg-gray-200 rounded animate-pulse" />
-                  <div class="h-4 bg-gray-200 rounded w-52 animate-pulse" />
-                </div>
-                <template v-else>
-                  <p class="text-sm text-gray-600">{{ user.email }}</p>
-                  <p class="text-sm text-gray-600">{{ user.phone }}</p>
-                  <p class="text-sm text-gray-600">{{ addressText }}</p>
-                </template>
+                class="flex items-center min-w-0 gap-3 text-gray-600 flex-nowrap"
+              >
+                <svg
+                  class="w-5 h-5 text-gray-400 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                  />
+                </svg>
+                <div
+                  v-if="isInitialProfileLoading"
+                  class="w-40 h-4 bg-gray-200 rounded animate-pulse"
+                />
+                <span v-else class="min-w-0 text-sm truncate">{{
+                  user.email
+                }}</span>
+              </div>
+              <div
+                class="flex items-center min-w-0 gap-3 text-gray-600 flex-nowrap"
+              >
+                <svg
+                  class="w-5 h-5 text-gray-400 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                  />
+                </svg>
+                <div
+                  v-if="isInitialProfileLoading"
+                  class="h-4 bg-gray-200 rounded w-28 animate-pulse"
+                />
+                <span v-else class="min-w-0 text-sm">{{ user.phone }}</span>
+              </div>
+              <div
+                class="flex items-start min-w-0 gap-3 text-gray-600 flex-nowrap"
+              >
+                <svg
+                  class="w-5 h-5 mt-0.5 text-gray-400 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 11.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"
+                  />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 10c0 6-7 12-7 12S5 16 5 10a7 7 0 1114 0z"
+                  />
+                </svg>
+                <div
+                  v-if="isInitialProfileLoading"
+                  class="w-full h-4 bg-gray-200 rounded animate-pulse"
+                />
+                <span v-else class="min-w-0 text-sm wrap-break-word">{{
+                  addressText
+                }}</span>
               </div>
             </div>
           </div>
 
           <button
             @click="handleLogout"
-            class="w-full py-3 mt-5 font-semibold text-white transition-all shadow-md rounded-xl bg-primary hover:bg-orange-600 hover:shadow-lg"
+            class="w-full py-3 mt-8 font-semibold text-white transition-all shadow-md rounded-xl bg-primary hover:bg-orange-600 hover:shadow-lg"
           >
             Keluar
           </button>
