@@ -78,7 +78,7 @@ const routes = [
       {
         path: "merchant/:slug",
         name: "Merchant Detail",
-        component: () => import("@/views/customer/ProductTokoHome.vue"),
+        component: () => import("@/views/customer/MerchantStore.vue"),
         meta: { title: "Detail Toko" },
       },
       {
@@ -100,18 +100,6 @@ const routes = [
         name: "JasaDetail",
         component: () => import("@/views/customer/JasaDetail.vue"),
         meta: { title: "Detail Jasa" },
-      },
-      {
-        path: "toko/:id",
-        name: "MerchantStore",
-        component: () => import("@/views/customer/MerchantStore.vue"),
-        meta: { title: "Toko | SUMILIR" },
-      },
-      {
-        path: "toko/:id",
-        name: "MerchantStore",
-        component: () => import("@/views/customer/MerchantStore.vue"),
-        meta: { title: "Toko | SUMILIR" },
       },
       {
         path: "pembayaran-jasa",

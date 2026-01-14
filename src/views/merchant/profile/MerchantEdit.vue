@@ -91,17 +91,19 @@
         class="mx-4 mb-4 overflow-hidden bg-white shadow-sm sm:hidden rounded-2xl"
       >
         <!-- Cover Image -->
-        <div class="relative h-40">
+        <div
+          class="relative w-full overflow-hidden aspect-[24/9] lg:aspect-[4/1]"
+        >
           <img
             v-if="hasFormCover"
             :src="form.coverImage"
             alt="Cover"
-            class="object-cover w-full h-full"
+            class="absolute inset-0 object-cover w-full h-full"
             @error="onCoverImgError"
           />
           <div
             v-else
-            class="flex items-center justify-center w-full h-full bg-linear-to-br from-muted-background to-muted-foreground"
+            class="absolute inset-0 flex items-center justify-center bg-linear-to-br from-muted-background to-muted-foreground"
             aria-hidden="true"
           >
             <svg
@@ -130,12 +132,12 @@
                 v-if="hasFormLogo"
                 :src="form.logo"
                 alt="Logo"
-                class="object-cover w-24 h-24 border-4 border-white rounded-full shadow-lg"
+                class="object-cover w-24 h-24 border-4 border-white shadow-lg rounded-2xl"
                 @error="onLogoImgError"
               />
               <span
                 v-else
-                class="flex items-center justify-center w-24 h-24 bg-gray-100 border-4 border-white rounded-full shadow-lg"
+                class="flex items-center justify-center w-24 h-24 bg-gray-100 border-4 border-white shadow-lg rounded-2xl"
                 aria-hidden="true"
               >
                 <svg
@@ -164,27 +166,31 @@
         class="relative hidden mb-4 overflow-visible bg-white shadow-sm sm:block rounded-xl"
       >
         <div class="overflow-hidden rounded-xl">
-          <img
-            v-if="hasFormCover"
-            :src="form.coverImage"
-            alt="Cover"
-            class="object-cover w-full h-64 lg:h-80"
-            @error="onCoverImgError"
-          />
           <div
-            v-else
-            class="flex items-center justify-center w-full h-64 lg:h-80 bg-linear-to-br from-muted-background to-muted-foreground"
-            aria-hidden="true"
+            class="relative w-full overflow-hidden aspect-[24/9] lg:aspect-[4/1]"
           >
-            <svg
-              class="w-12 h-12 text-white lg:w-16 lg:h-16"
-              fill="currentColor"
-              viewBox="0 0 24 24"
+            <img
+              v-if="hasFormCover"
+              :src="form.coverImage"
+              alt="Cover"
+              class="absolute inset-0 object-cover w-full h-full"
+              @error="onCoverImgError"
+            />
+            <div
+              v-else
+              class="absolute inset-0 flex items-center justify-center bg-linear-to-br from-muted-background to-muted-foreground"
+              aria-hidden="true"
             >
-              <path
-                d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM5 19V5h14v14H5zm8-7a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm-6 7l3-4 2.5 3 3.5-5 4 6H7z"
-              />
-            </svg>
+              <svg
+                class="w-12 h-12 text-white lg:w-16 lg:h-16"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM5 19V5h14v14H5zm8-7a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm-6 7l3-4 2.5 3 3.5-5 4 6H7z"
+                />
+              </svg>
+            </div>
           </div>
         </div>
         <button
@@ -218,12 +224,12 @@
               v-if="hasFormLogo"
               :src="form.logo"
               alt="Logo"
-              class="object-cover w-32 h-32 border-4 border-white rounded-full shadow-lg"
+              class="object-cover w-32 h-32 border-4 border-white shadow-lg rounded-2xl"
               @error="onLogoImgError"
             />
             <span
               v-else
-              class="flex items-center justify-center w-32 h-32 bg-gray-100 border-4 border-white rounded-full shadow-lg"
+              class="flex items-center justify-center w-32 h-32 bg-gray-100 border-4 border-white shadow-lg rounded-2xl"
               aria-hidden="true"
             >
               <svg

@@ -273,31 +273,33 @@ const goToEdit = () => {
     <!-- Content -->
     <div v-else class="px-0 pb-0 sm:pb-6 sm:px-6">
       <!-- Cover & Logo -->
-      <div
-        class="relative mb-2 overflow-visible bg-white sm:mb-4 sm:rounded-xl sm:shadow-sm"
-      >
-        <img
-          v-if="hasCover"
-          :src="merchantInfo.coverImage"
-          alt="Cover"
-          class="object-cover w-full h-48 sm:h-64 lg:h-80"
-        />
+      <div class="relative mb-2 overflow-visible bg-white sm:mb-4 sm:shadow-sm">
         <div
-          v-else
-          class="relative flex items-center justify-center w-full h-48 sm:h-64 lg:h-80 bg-linear-to-br from-muted-background to-muted-foreground sm:rounded-2xl"
-          aria-hidden="true"
+          class="relative w-full overflow-hidden sm:rounded-2xl aspect-[24/9] lg:aspect-[4/1]"
         >
-          <span>
-            <svg
-              class="w-12 h-12 text-white sm:w-16 sm:h-16"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM5 19V5h14v14H5zm8-7a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm-6 7l3-4 2.5 3 3.5-5 4 6H7z"
-              />
-            </svg>
-          </span>
+          <img
+            v-if="hasCover"
+            :src="merchantInfo.coverImage"
+            alt="Cover"
+            class="absolute inset-0 object-cover w-full h-full"
+          />
+          <div
+            v-else
+            class="absolute inset-0 flex items-center justify-center bg-linear-to-br from-muted-background to-muted-foreground"
+            aria-hidden="true"
+          >
+            <span>
+              <svg
+                class="w-12 h-12 text-white sm:w-16 sm:h-16"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM5 19V5h14v14H5zm8-7a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm-6 7l3-4 2.5 3 3.5-5 4 6H7z"
+                />
+              </svg>
+            </span>
+          </div>
         </div>
 
         <div class="absolute -bottom-10 sm:-bottom-12 left-6 sm:left-8">
@@ -305,11 +307,11 @@ const goToEdit = () => {
             v-if="hasLogo"
             :src="merchantInfo.logo"
             alt="Logo"
-            class="object-cover w-24 h-24 border-4 border-white rounded-full shadow-lg sm:w-32 sm:h-32"
+            class="object-cover w-24 h-24 border-4 border-white shadow-lg rounded-2xl sm:w-32 sm:h-32"
           />
           <span v-else>
             <svg
-              class="w-24 h-24 p-4 text-gray-300 bg-gray-100 border-4 border-white rounded-full shadow-lg sm:w-32 sm:h-32 sm:p-6"
+              class="w-24 h-24 p-4 text-gray-300 bg-gray-100 border-4 border-white shadow-lg rounded-2xl sm:w-32 sm:h-32 sm:p-6"
               fill="currentColor"
               viewBox="0 0 24 24"
             >

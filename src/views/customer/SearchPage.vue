@@ -17,6 +17,8 @@ import { useRouter, useRoute } from "vue-router";
 import { useSearch } from "@/composables/useSearch";
 import { useCategories } from "@/composables/useCategories";
 import { useSegmentations } from "@/composables/useSegmentations";
+import api from "@/libs/axios";
+import { useToast } from "vue-toastification";
 
 const isLoadingMoreProducts = ref(false);
 const isLoadingMoreMerchants = ref(false);
@@ -35,6 +37,32 @@ const merchantHasMore = ref(false);
 
 const router = useRouter();
 const route = useRoute();
+const toast = useToast();
+
+const myLatitude = ref(null);
+const myLongitude = ref(null);
+
+const hasMyCoordinates = computed(() => {
+  return (
+    Number.isFinite(Number(myLatitude.value)) &&
+    Number.isFinite(Number(myLongitude.value))
+  );
+});
+
+async function loadMyCoordinates() {
+  try {
+    const res = await api.get("api/profile/address");
+    const addr = res?.data?.data;
+    const lat = parseFloat(addr?.latitude);
+    const lng = parseFloat(addr?.longitude);
+    myLatitude.value = Number.isFinite(lat) ? lat : null;
+    myLongitude.value = Number.isFinite(lng) ? lng : null;
+  } catch (e) {
+    // ignore (likely 401 if not logged in)
+    myLatitude.value = null;
+    myLongitude.value = null;
+  }
+}
 
 const {
   categoriesLevel1,
@@ -105,6 +133,7 @@ const detailFilters = ref({
   categories: [],
   subCategories: [],
   segments: [],
+  isOpen: false,
 });
 
 const tempDetailFilters = ref({ ...detailFilters.value, subCategories: [] });
@@ -158,6 +187,7 @@ const activeFilterCount = computed(() => {
   if (detailFilters.value.categories.length) count++;
   if (detailFilters.value.segments.length) count++;
   if (detailFilters.value.subCategories.length) count++;
+  if (detailFilters.value.isOpen) count++;
 
   return count;
 });
@@ -169,20 +199,24 @@ function safeString(v) {
 
 /* ================= SORT OPTIONS ================= */
 const instantSortOptions = [
-  { key: "latest", label: "Terbaru", conflict: ["oldest"] },
-  { key: "oldest", label: "Terlama", conflict: ["latest"] },
-  { key: "nearest", label: "Terdekat" },
+  { key: "latest", label: "Terbaru", conflict: ["oldest", "nearest"] },
+  { key: "oldest", label: "Terlama", conflict: ["latest", "nearest"] },
+  {
+    key: "nearest",
+    label: "Terdekat",
+    conflict: ["latest", "oldest", "cheapest", "expensive"],
+  },
   {
     key: "cheapest",
     label: "Termurah",
     productOnly: true,
-    conflict: ["expensive"],
+    conflict: ["expensive", "nearest"],
   },
   {
     key: "expensive",
     label: "Termahal",
     productOnly: true,
-    conflict: ["cheapest"],
+    conflict: ["cheapest", "nearest"],
   },
 ];
 
@@ -278,7 +312,7 @@ function setupObserver() {
 
 function buildMerchantQuery() {
   const sort = activeInstantSorts.value.find((s) =>
-    ["latest", "oldest"].includes(s)
+    ["latest", "oldest", "nearest"].includes(s)
   );
 
   return {
@@ -286,6 +320,8 @@ function buildMerchantQuery() {
     segments: detailFilters.value.segments.length
       ? detailFilters.value.segments
       : undefined,
+
+    is_open: detailFilters.value.isOpen ? 1 : undefined,
 
     categories: detailFilters.value.subCategories.length
       ? detailFilters.value.subCategories
@@ -297,6 +333,8 @@ function buildMerchantQuery() {
     max_price: detailFilters.value.maxPrice ?? undefined,
 
     sort: sort || undefined,
+    lat: sort === "nearest" ? myLatitude.value : undefined,
+    lng: sort === "nearest" ? myLongitude.value : undefined,
     page: merchantPage.value,
     per_page: merchantPerPage,
   };
@@ -304,7 +342,7 @@ function buildMerchantQuery() {
 
 function buildProductQuery() {
   const sortKey = activeInstantSorts.value.find((s) =>
-    ["latest", "oldest", "cheapest", "expensive"].includes(s)
+    ["latest", "oldest", "cheapest", "expensive", "nearest"].includes(s)
   );
 
   return {
@@ -329,6 +367,8 @@ function buildProductQuery() {
       : undefined,
 
     sort: typeof sortKey === "string" ? sortKey : undefined,
+    lat: sortKey === "nearest" ? myLatitude.value : undefined,
+    lng: sortKey === "nearest" ? myLongitude.value : undefined,
 
     page: String(page.value),
     per_page: String(perPage),
@@ -352,6 +392,7 @@ function applyDetailFilter() {
     categories: [...tempDetailFilters.value.categories],
     subCategories: [...tempDetailFilters.value.subCategories],
     segments: [...tempDetailFilters.value.segments],
+    isOpen: !!tempDetailFilters.value.isOpen,
   };
 
   showFilterModal.value = false;
@@ -363,9 +404,26 @@ function applyDetailFilter() {
   }
 }
 
-watch(activeInstantSorts, () => {
-  fetchProducts(true);
-});
+watch(
+  () => [...activeInstantSorts.value],
+  () => {
+    if (activeTab.value === "products") {
+      page.value = 1;
+      products.value = [];
+      hasMore.value = true;
+      fetchProducts(true);
+      nextTick(() => setupObserver());
+      return;
+    }
+
+    if (activeTab.value === "merchants") {
+      merchantPage.value = 1;
+      merchants.value = [];
+      merchantHasMore.value = true;
+      fetchMerchants(true);
+    }
+  }
+);
 
 watch(
   activeTab,
@@ -456,6 +514,11 @@ function toggleInstantSort(key) {
   const option = instantSortOptions.find((o) => o.key === key);
   if (!option) return;
 
+  if (key === "nearest" && !hasMyCoordinates.value) {
+    toast.error("Lengkapi alamat (koordinat) untuk sort terdekat.");
+    return;
+  }
+
   if (option.conflict) {
     activeInstantSorts.value = activeInstantSorts.value.filter(
       (k) => !option.conflict.includes(k)
@@ -505,6 +568,7 @@ function resetAllFilters() {
     categories: [],
     subCategories: [],
     segments: [],
+    isOpen: false,
   };
 
   // reset filter modal
@@ -514,6 +578,7 @@ function resetAllFilters() {
     categories: [],
     subCategories: [],
     segments: [],
+    isOpen: false,
   };
 
   // reset sub category cache
@@ -594,6 +659,8 @@ function handleMerchantInfiniteScroll() {
 onMounted(() => {
   window.addEventListener("scroll", handleScroll);
   window.addEventListener("scroll", handleMerchantInfiniteScroll);
+
+  loadMyCoordinates();
 
   fetchLevel1Categories();
   fetchSegmentations();
@@ -912,6 +979,24 @@ onBeforeUnmount(() => {
                 "
               >
                 {{ seg.label }}
+              </button>
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <label class="text-sm font-medium">Status</label>
+            <div class="mt-2">
+              <button
+                type="button"
+                @click="tempDetailFilters.isOpen = !tempDetailFilters.isOpen"
+                class="px-3 py-2 text-xs border rounded-xl"
+                :class="
+                  tempDetailFilters.isOpen
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-white border-gray-300'
+                "
+              >
+                Buka
               </button>
             </div>
           </div>

@@ -5,6 +5,7 @@ import { useProfileStore } from "@/stores/profile";
 import { useAuthStore } from "@/stores/auth";
 import { getMyMerchants } from "@/services/api/merchant";
 import MobileHeader from "@/components/customer/MobileHeader.vue";
+import Button from "@/components/common/Button.vue";
 
 const router = useRouter();
 const profileStore = useProfileStore();
@@ -241,12 +242,9 @@ const addressText = computed(() => {
               </div>
             </div>
 
-            <button
-              @click="handleLogout"
-              class="w-full py-3 mt-8 font-semibold text-white transition-all shadow-md rounded-xl bg-primary hover:bg-orange-600 hover:shadow-lg"
-            >
-              Keluar
-            </button>
+            <Button @click="handleLogout" class="w-full mt-4" variant="danger">
+              Logout
+            </Button>
           </div>
         </div>
 
@@ -453,7 +451,7 @@ const addressText = computed(() => {
               v-if="isInitialProfileLoading"
               class="w-48 mt-2 bg-gray-200 rounded h-7 animate-pulse"
             />
-            <h2 v-else class="mt-2 text-2xl font-bold text-gray-900">
+            <h2 v-else class="my-2 text-2xl font-bold text-gray-900">
               {{ user.name }}
             </h2>
 
@@ -538,12 +536,9 @@ const addressText = computed(() => {
             </div>
           </div>
 
-          <button
-            @click="handleLogout"
-            class="w-full py-3 mt-8 font-semibold text-white transition-all shadow-md rounded-xl bg-primary hover:bg-orange-600 hover:shadow-lg"
-          >
-            Keluar
-          </button>
+          <Button @click="handleLogout" variant="danger" class="w-full mt-4">
+            Logout
+          </Button>
         </div>
 
         <div

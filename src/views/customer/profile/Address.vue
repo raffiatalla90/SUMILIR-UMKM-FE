@@ -6,6 +6,7 @@ import { useProfileStore } from "@/stores/profile";
 import { Form, useForm } from "vee-validate";
 import * as yup from "yup";
 import MobileHeader from "@/components/customer/MobileHeader.vue";
+import AppButton from "@/components/common/Button.vue";
 
 import MapPicker from "@/components/forms/MapPicker.vue";
 import SelectField from "@/components/forms/SelectField.vue";
@@ -355,41 +356,26 @@ const villageOptions = computed(() =>
           </div>
 
           <div class="flex gap-4">
-            <button
-              type="button"
-              @click="router.back()"
-              class="flex-1 hidden py-3 font-semibold text-gray-700 transition-all bg-gray-100 sm:inline rounded-xl hover:bg-gray-200"
-            >
-              Batal
-            </button>
-            <button
-              type="submit"
-              :disabled="saving"
-              class="flex items-center justify-center flex-1 gap-2 py-3 font-semibold text-white transition-all shadow-md rounded-xl bg-primary hover:bg-orange-600 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg
-                v-if="saving"
-                class="w-5 h-5 text-white animate-spin"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
+            <div class="hidden w-full sm:inline">
+              <AppButton
+                type="button"
+                variant="muted-outline"
+                class="w-full"
+                @click="router.back()"
               >
-                <circle
-                  class="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  stroke-width="4"
-                ></circle>
-                <path
-                  class="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
+                Batal
+              </AppButton>
+            </div>
+
+            <AppButton
+              type="submit"
+              variant="primary"
+              class="w-full"
+              :loading="saving"
+              :disabled="saving"
+            >
               {{ saving ? "Menyimpan..." : "Simpan" }}
-            </button>
+            </AppButton>
           </div>
         </Form>
       </div>

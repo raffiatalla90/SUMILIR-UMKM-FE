@@ -571,6 +571,26 @@ export function useProducts() {
     }
   };
 
+  const fetchPublicMerchantProducts = async (merchantSlug, limit = 10) => {
+    loading.value = true;
+    try {
+      if (!merchantSlug) throw new Error("merchantSlug diperlukan");
+      const data = await ProductService.getPublicMerchantProducts(
+        merchantSlug,
+        { limit }
+      );
+      return data.data || [];
+    } catch (error) {
+      if (isDev) {
+        console.error(error);
+      }
+      toast.error("Gagal memuat produk merchant");
+      throw error;
+    } finally {
+      loading.value = false;
+    }
+  };
+
   return {
     products,
     loadingExport,
@@ -580,6 +600,7 @@ export function useProducts() {
     fetchProducts,
     fetchProductDetail,
     fetchPublicProductDetail,
+    fetchPublicMerchantProducts,
     updateProductStatus,
     deleteProduct,
     bulkDeleteProducts,
