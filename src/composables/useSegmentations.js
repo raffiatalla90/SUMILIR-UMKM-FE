@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import api from "@/libs/axios";
+import { getSegmentations } from "@/services/api/segmentation";
 import { useToast } from "vue-toastification";
 
 export function useSegmentations() {
@@ -22,9 +22,9 @@ export function useSegmentations() {
   const fetchSegmentations = async () => {
     loading.value = true;
     try {
-      const res = await api.get("/api/segmentations");
+      const data = await getSegmentations();
 
-      segmentations.value = (res.data || [])
+      segmentations.value = (data || [])
         .map(normalizeSegmentation)
         .filter(Boolean);
     } catch (err) {

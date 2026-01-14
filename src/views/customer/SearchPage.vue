@@ -14,13 +14,10 @@ import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import TextField from "@/components/forms/TextField.vue";
 import Button from "@/components/common/Button.vue";
 import { useRouter, useRoute } from "vue-router";
-import api from "@/libs/axios";
+import { useSearch } from "@/composables/useSearch";
 import { useCategories } from "@/composables/useCategories";
 import { useSegmentations } from "@/composables/useSegmentations";
 
-const products = ref([]);
-const merchants = ref([]); // nanti endpoint sendiri
-const isLoading = ref(false); // loading awal
 const isLoadingMoreProducts = ref(false);
 const isLoadingMoreMerchants = ref(false);
 const loadMoreRef = ref(null); // elemen sentinel
@@ -52,6 +49,16 @@ const {
   loading: loadingSegmentations,
   fetchSegmentations,
 } = useSegmentations();
+const {
+  products,
+  productsMeta,
+  loadingProducts,
+  fetchProducts: fetchProductsApi,
+  merchants,
+  merchantsMeta,
+  loadingMerchants,
+  fetchMerchants: fetchMerchantsApi,
+} = useSearch();
 function goBack() {
   router.back();
 }
@@ -104,14 +111,14 @@ const tempDetailFilters = ref({ ...detailFilters.value, subCategories: [] });
 
 const isEmptyProducts = computed(
   () =>
-    !isLoading.value &&
+    !loadingProducts.value &&
     activeTab.value === "products" &&
     products.value.length === 0
 );
 
 const isEmptyMerchants = computed(
   () =>
-    !isLoading.value &&
+    !loadingMerchants.value &&
     activeTab.value === "merchants" &&
     merchants.value.length === 0
 );
@@ -197,84 +204,46 @@ async function fetchMerchants(reset = false) {
   isLoadingMoreMerchants.value = true;
 
   try {
-    const res = await api.get("/api/public/search-merchants", {
-      params: {
-        ...buildMerchantQuery(),
-        page: merchantPage.value,
-        per_page: merchantPerPage,
-      },
-    });
+    const params = {
+      ...buildMerchantQuery(),
+      page: merchantPage.value,
+      per_page: merchantPerPage,
+    };
 
-    const data = res.data.data ?? [];
+    await fetchMerchantsApi(params, !reset);
 
-    merchants.value.push(...data);
-
-    merchantHasMore.value =
-      res.data.meta.current_page < res.data.meta.last_page;
-  } catch (err) {
-    console.error("Fetch merchants error:", err);
+    const current = Number(merchantsMeta.value?.current_page ?? 1);
+    const last = Number(merchantsMeta.value?.last_page ?? 1);
+    merchantHasMore.value = current < last;
   } finally {
     isLoadingMoreMerchants.value = false;
   }
 }
 
-// function setupMerchantObserver() {
-//   // Bersihkan observer lama jika ada
-//   if (merchantObserver.value) merchantObserver.value.disconnect();
-
-//   merchantObserver.value = new IntersectionObserver(
-//     (entries) => {
-//       const entry = entries[0];
-
-//       // LOGIC PENTING:
-//       // Kita cek apakah sentinel terlihat (isIntersecting)
-//       // DAN kita punya data lebih (merchantHasMore)
-//       // DAN kita TIDAK sedang loading
-//       if (
-//         entry.isIntersecting &&
-//         merchantHasMore.value &&
-//         !isLoadingMoreMerchants.value &&
-//         !isLoading.value
-//       ) {
-//         merchantPage.value++;
-//         fetchMerchants();
-//       }
-//     },
-//     {
-//       root: null,
-//       rootMargin: "200px", // Preload 200px sebelum mentok bawah
-//       threshold: 0,
-//     }
-//   );
-
-//   if (loadMoreMerchantRef.value) {
-//     merchantObserver.value.observe(loadMoreMerchantRef.value);
-//   }
-// }
 async function fetchProducts(reset = false) {
-  if (isLoading.value || isLoadingMoreProducts.value) return;
+  if (isLoadingMoreProducts.value) return;
 
   if (reset) {
     page.value = 1;
     products.value = [];
     hasMore.value = true;
-    isLoading.value = true;
-  } else {
-    isLoadingMoreProducts.value = true;
   }
 
-  try {
-    const res = await api.get("/api/public/search", {
-      params: buildProductQuery(),
-    });
+  isLoadingMoreProducts.value = true;
 
-    products.value.push(...res.data.data);
-    hasMore.value = res.data.meta.current_page < res.data.meta.last_page;
-  } catch (err) {
-    toast.error("Gagal memuat produk. Silakan coba lagi.");
-    // console.error(err);
+  try {
+    const params = {
+      ...buildProductQuery(),
+      page: String(page.value),
+      per_page: String(perPage),
+    };
+
+    await fetchProductsApi(params, !reset);
+
+    const current = Number(productsMeta.value?.current_page ?? 1);
+    const last = Number(productsMeta.value?.last_page ?? 1);
+    hasMore.value = current < last;
   } finally {
-    isLoading.value = false;
     isLoadingMoreProducts.value = false;
   }
 }
@@ -608,7 +577,7 @@ function handleMerchantInfiniteScroll() {
     activeTab.value !== "merchants" ||
     !merchantHasMore.value ||
     isLoadingMoreMerchants.value ||
-    isLoading.value
+    loadingMerchants.value
   )
     return;
 
@@ -762,11 +731,9 @@ onBeforeUnmount(() => {
         />
 
         <!-- SKELETON APPEND -->
-        <ProductCardSkeleton
-          v-if="isLoadingMoreProducts"
-          v-for="i in 6"
-          :key="'loading-more-' + i"
-        />
+        <template v-if="isLoadingMoreProducts">
+          <ProductCardSkeleton v-for="i in 6" :key="'loading-more-' + i" />
+        </template>
       </section>
 
       <!-- SENTINEL -->
@@ -799,11 +766,9 @@ onBeforeUnmount(() => {
         />
 
         <!-- skeleton append -->
-        <ProductCardSkeleton
-          v-if="isLoadingMoreMerchants"
-          v-for="i in 6"
-          :key="'merchant-loading-' + i"
-        />
+        <template v-if="isLoadingMoreMerchants">
+          <ProductCardSkeleton v-for="i in 6" :key="'merchant-loading-' + i" />
+        </template>
       </section>
 
       <!-- SENTINEL UMKM -->
