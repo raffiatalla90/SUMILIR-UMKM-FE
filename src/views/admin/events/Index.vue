@@ -11,12 +11,9 @@ const isCreateRoute = computed(() => route.name === "Admin - Create Event");
 const isEditRoute = computed(() => route.name === "Admin - Edit Event");
 const isDetailRoute = computed(() => route.name === "Admin - Event Detail");
 
-// ✅ Create callback ref that child components will populate
 const exportModalCallback = ref(null);
 
-// ✅ Provide method to children to register their export function
 provide('registerExportModal', (callback) => {
-  console.log('Child registered export modal callback for events');
   exportModalCallback.value = callback;
 });
 
@@ -46,13 +43,9 @@ const addLabel = "Tambah Event";
 
 const goToCreate = () => router.push({ name: "Admin - Create Event" });
 
-// ✅ Trigger export using callback
 const triggerExport = () => {
-  console.log('triggerExport called');
-  console.log('exportModalCallback.value:', exportModalCallback.value);
   
   if (typeof exportModalCallback.value === 'function') {
-    console.log('Calling export modal callback');
     exportModalCallback.value();
   } else {
     console.error('Export modal callback not registered');
@@ -66,10 +59,8 @@ const headerSubtitle = computed(() => {
   return "Kelola data event";
 });
 
-// ✅ Show buttons on list route (hide on create/edit/detail)
-const showActionButtons = computed(() => !isCreateRoute.value && !isEditRoute.value && !isDetailRoute.value);
+const showActionButtons = computed(() => !isCreateRoute.value && !isEditRoute.value );
 
-// ✅ Clear callback when route changes (to prevent stale references)
 watch(() => route.name, () => {
   exportModalCallback.value = null;
 });
@@ -90,7 +81,6 @@ watch(() => route.name, () => {
         </div>
       </div>
       
-      <!-- ✅ Always show buttons except on create/edit/detail routes -->
       <div v-if="showActionButtons" class="flex gap-2 sm:gap-3">
         <!-- Create Button -->
         <Button @click="goToCreate" variant="merchant" size="sm" customClass="!hidden sm:!inline">

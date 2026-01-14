@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, inject } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
@@ -10,7 +10,7 @@ import TextField from "@/components/forms/TextField.vue";
 import { useEvents } from "@/composables/useEvents";
 import { useEventVouchers } from "@/composables/useEventVouchers";
 import { useEventMerchants } from "@/composables/useEventMerchants";
-import { getImageUrl } from "@/libs/getImageUrl";
+import { getEventBannerUrl } from "@/libs/getImageUrl";
 import api from "@/libs/axios";
 
 const router = useRouter();
@@ -60,8 +60,10 @@ const breadcrumbItems = computed(() => [
 ]);
 
 const eventBannerUrl = computed(() => {
-  if (!event.value?.banner_img_path) return "/placeholder.png";
-  return getImageUrl(event.value.banner_img_path);
+  if (!event.value?.id || !event.value?.banner_img_path) {
+    return "/placeholder.png";
+  }
+  return getEventBannerUrl(event.value);
 });
 
 const availableMerchants = computed(() => {
@@ -378,9 +380,56 @@ const openInviteModal = () => {
   showInviteModal.value = true;
 };
 
+// ✅ Add export modal state
+const showExportModal = ref(false);
+const exportLoading = ref(false);
+
+// ✅ Export PDF method for detail (move from template area)
+const exportDetailPDF = async () => {
+  exportLoading.value = true;
+  try {
+    const response = await api.get(`/api/admin/events/${event.value.id}/export-pdf`, {
+      responseType: "blob",
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `event-detail-${event.value.id}-${new Date().toISOString().split('T')[0]}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    toast.success("Laporan detail event berhasil diunduh");
+    showExportModal.value = false;
+  } catch (error) {
+    console.error("Export PDF failed:", error);
+    toast.error(error.response?.data?.message || "Gagal mengunduh laporan");
+  } finally {
+    exportLoading.value = false;
+  }
+};
+
+// ✅ Open export modal method
+const openExportModal = () => {
+  console.log('openExportModal called in Detail.vue');
+  showExportModal.value = true;
+};
+
+// ✅ Inject the register function from parent
+const registerExportModal = inject('registerExportModal', null);
+
 onMounted(async () => {
   await loadEvent();
   await loadMerchants();
+  
+  // ✅ Register the export modal function with parent
+  if (registerExportModal && typeof registerExportModal === 'function') {
+    console.log('Registering export modal callback for event detail');
+    registerExportModal(openExportModal);
+  } else {
+    console.warn('registerExportModal not provided by parent');
+  }
 });
 </script>
 
@@ -404,7 +453,10 @@ onMounted(async () => {
                 </h2>
                 <p class="text-gray-600">{{ event.event_description }}</p>
               </div>
-              <StatusLabel :status="event.status" variant="event"/>
+              <div class="flex items-center gap-2">
+                <StatusLabel :status="event.status" variant="event"/>
+                <!-- ✅ REMOVED: Individual export button - now handled by parent header -->
+              </div>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
@@ -1277,6 +1329,44 @@ onMounted(async () => {
           Tutup
         </Button>
       </template>
+    </ResponsiveModal>
+
+    <!-- ✅ Export Modal -->
+    <ResponsiveModal
+      :show="showExportModal"
+      @close="showExportModal = false"
+      title="Export Detail Event"
+      subtitle="Unduh detail lengkap event dalam format PDF"
+    >
+      <div class="space-y-4">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div class="flex items-start gap-3">
+            <i class="pi pi-info-circle text-blue-600 text-xl mt-0.5"></i>
+            <div class="flex-1">
+              <p class="text-sm text-blue-900 font-medium mb-1">Laporan akan mencakup:</p>
+              <ul class="text-xs text-blue-800 space-y-1 list-disc list-inside">
+                <li>Informasi lengkap event (Nama, Deskripsi, Periode)</li>
+                <li>Daftar merchant yang berpartisipasi</li>
+                <li>Daftar voucher yang terhubung dengan event</li>
+                <li>Status event dan jumlah merchants aktif</li>
+                <li>Informasi pembuat event dan waktu pembuatan</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <Button
+          @click="exportDetailPDF"
+          variant="merchant"
+          size="lg"
+          custom-class="w-full justify-center"
+          :disabled="exportLoading"
+        >
+          <i v-if="exportLoading" class="pi pi-spin pi-spinner mr-2"></i>
+          <i v-else class="pi pi-download mr-2"></i>
+          <span>{{ exportLoading ? 'Mengunduh...' : 'Download Laporan PDF' }}</span>
+        </Button>
+      </div>
     </ResponsiveModal>
   </div>
 </template>

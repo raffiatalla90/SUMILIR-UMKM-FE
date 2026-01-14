@@ -1,163 +1,230 @@
 <script setup>
-import { ref } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { useToast } from "vue-toastification";
-import { useForm } from "vee-validate";
-import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
+import { Form } from "vee-validate";
+import * as yup from "yup";
+import api from "@/libs/axios";
 import TextField from "@/components/forms/TextField.vue";
+import SelectField from "@/components/forms/SelectField.vue";
+import ErrorAlert from "@/components/forms/ErrorAlert.vue";
+import { useToast } from "vue-toastification";
 import Button from "@/components/common/Button.vue";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
-import api from "@/libs/axios";
 
 const router = useRouter();
 const toast = useToast();
 
-const emit = defineEmits(["close", "created"]);
-const { setErrors } = useForm();
-const loading = ref(false);
+const isLoading = ref(false);
+const errorMessage = ref("");
 const showSuccessModal = ref(false);
+const createdUserId = ref(null);
+const createdUserName = ref("");
 
-// Form state
-const name = ref("");
-const email = ref("");
-const phone = ref("");
-const nik = ref("");
-const password = ref("");
-const passwordConfirmation = ref("");
+const schema = yup.object({
+  name: yup.string().required("Nama wajib diisi").min(3, "Minimal 3 karakter"),
+  email: yup
+    .string()
+    .required("Email wajib diisi")
+    .email("Format email tidak valid"),
+  phone: yup
+    .string()
+    .matches(/^[0-9+\-()\s]{8,20}$/, "Nomor telepon tidak valid")
+    .required("Nomor telepon wajib diisi"),
+  nik: yup
+    .string()
+    .matches(/^[0-9]{16}$/, "NIK harus 16 digit")
+    .required("NIK wajib diisi"),
+  password: yup
+    .string()
+    .required("Password wajib diisi")
+    .min(8, "Password minimal 8 karakter"),
+  password_confirmation: yup
+    .string()
+    .required("Konfirmasi password wajib diisi")
+    .oneOf([yup.ref("password")], "Password tidak cocok"),
+});
 
-// Validation errors
-const errors = ref({});
+const handleRegister = async (values) => {
+  isLoading.value = true;
+  errorMessage.value = "";
 
-const resetForm = () => {
-  name.value = "";
-  email.value = "";
-  phone.value = "";
-  nik.value = "";
-  password.value = "";
-  passwordConfirmation.value = "";
-  errors.value = {};
-};
-
-const handleSubmit = async () => {
-  loading.value = true;
-  errors.value = {};
   try {
-    const response = await api.post("/api/admin/users", {
-      name: name.value,
-      email: email.value,
-      phone: phone.value,
-      nik: nik.value,
-      password: password.value,
-      password_confirmation: passwordConfirmation.value,
-    });
+    const payload = {
+      name: values.name,
+      email: values.email,
+      phone: values.phone,
+      nik: values.nik,
+      password: values.password,
+      password_confirmation: values.password_confirmation,
+    };
 
-    toast.success("Customer berhasil dibuat!");
+    const response = await api.post("/api/admin/users", payload);
+    
+    // Store created user info
+    createdUserId.value = response.data.data?.id || response.data.id;
+    createdUserName.value = values.name;
+    
+    toast.success("Customer berhasil dibuat", { timeout: 3000 });
     showSuccessModal.value = true;
-    resetForm();
-    emit("created"); // emit event created
   } catch (error) {
-    if (error.response?.status === 422) {
-      setErrors(error.response.data.errors);
-    }
-
-    toast.error(error.response?.data?.message || "Gagal membuat customer");
+    console.error("Create customer error:", error);
+    errorMessage.value =
+      error.response?.data?.message || "Gagal membuat customer";
   } finally {
-    loading.value = false;
+    isLoading.value = false;
   }
 };
 
 const goToList = () => {
-  emit("close"); 
+  showSuccessModal.value = false;
+  router.push({ name: "Admin - Customers List" });
+};
+
+const goToCreateMerchant = () => {
+  showSuccessModal.value = false;
+  router.push({
+    name: "Admin - Merchant Create",
+    query: { userId: createdUserId.value }
+  });
 };
 </script>
 
 <template>
   <div class="min-h-screen bg-gray-50 pb-10">
-    <!-- Form -->
-    <div class="max-w-2xl mx-auto mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <form @submit.prevent="handleSubmit" class="space-y-5">
-        <TextField
-          variant="merchant"
-          label="Nama Lengkap"
-          v-model="name"
-          name="name"
-          required
-          :error="errors.name?.join(' ')"
-          placeholder="Nama lengkap customer"
-        />
-
-        <TextField
-          variant="merchant"
-          label="Email"
-          v-model="email"
-          name="email"
-          type="email"
-          required
-          :error="errors.email?.join(' ')"
-          placeholder="Email customer"
-        />
-
-        <TextField
-          variant="merchant"
-          label="No. HP"
-          v-model="phone"
-          name="phone"
-          type="tel"
-          :error="errors.phone?.join(' ')"
-          placeholder="08xxxxxxxxxx"
-        />
-
-        <TextField
-          variant="merchant"
-          label="NIK"
-          v-model="nik"
-          name="nik"
-          :error="errors.nik?.join(' ')"
-          placeholder="Nomor Induk Kependudukan"
-        />
-
-        <TextField
-          variant="merchant"
-          label="Password"
-          v-model="password"
-          name="password"
-          type="password"
-          required
-          :error="errors.password?.join(' ')"
-          placeholder="Minimal 8 karakter"
-        />
-
-        <TextField
-          variant="merchant"
-          label="Konfirmasi Password"
-          v-model="passwordConfirmation"
-          name="password_confirmation"
-          type="password"
-          required
-          :error="errors.password_confirmation?.join(' ')"
-          placeholder="Ulangi password"
-        />
-
-        <div class="flex gap-3 justify-end pt-2">
-          <Button type="button" variant="secondary" @click="goToList">Batal</Button>
-          <Button type="submit" variant="merchant" :disabled="loading">
-            <i v-if="loading" class="pi pi-spin pi-spinner mr-2"></i>
-            Simpan
-          </Button>
+    <div class="px-4 sm:px-6 py-6">
+      <div class="bg-white rounded-lg shadow-sm p-6 max-w-4xl mx-auto">
+        <div class="mb-6">
+          <h2 class="text-2xl font-bold text-gray-900">Tambah Customer Baru</h2>
+          <p class="text-sm text-gray-600 mt-1">
+            Isi formulir di bawah untuk menambahkan customer baru
+          </p>
         </div>
-      </form>
+
+        <Form @submit="handleRegister" :validation-schema="schema">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <!-- Name -->
+            <TextField
+              variant="merchant"
+              name="name"
+              label="Nama Lengkap"
+              placeholder="Masukkan nama lengkap"
+              class="sm:col-span-2"
+              required
+            />
+
+            <!-- Email -->
+            <TextField
+              variant="merchant"
+              name="email"
+              label="Email"
+              type="email"
+              placeholder="contoh@email.com"
+              required
+            />
+
+            <!-- Phone -->
+            <TextField
+              variant="merchant"
+              name="phone"
+              label="Nomor Telepon"
+              placeholder="081234567890"
+              required
+            />
+
+            <!-- NIK -->
+            <TextField
+              variant="merchant"
+              name="nik"
+              label="NIK (16 Digit)"
+              placeholder="1234567890123456"
+              maxlength="16"
+              class="sm:col-span-2"
+              required
+            />
+
+            <!-- Password -->
+            <TextField
+              variant="merchant"
+              name="password"
+              label="Password"
+              type="password"
+              placeholder="Minimal 8 karakter"
+              required
+            />
+
+            <!-- Password Confirmation -->
+            <TextField
+              variant="merchant"
+              name="password_confirmation"
+              label="Konfirmasi Password"
+              type="password"
+              placeholder="Masukkan ulang password"
+              required
+            />
+
+            <!-- Error Alert -->
+            <ErrorAlert :message="errorMessage" class="sm:col-span-2" />
+
+            <!-- Submit Button -->
+            <div class="sm:col-span-2 flex gap-3 justify-end pt-4 border-t">
+              <Button
+                @click="router.push({ name: 'Admin - Customers List' })"
+                variant="secondary"
+                type="button"
+              >
+                Batal
+              </Button>
+              <Button
+                variant="merchant"
+                type="submit"
+                :loading="isLoading"
+                size="md"
+              >
+                <i class="pi pi-check mr-2"></i>
+                Simpan Customer
+              </Button>
+            </div>
+          </div>
+        </Form>
+      </div>
     </div>
 
-    <!-- Success Modal -->
-    <ResponsiveModal :show="showSuccessModal" @close="showSuccessModal = false" title="Customer Ditambahkan">
+    <!-- Success Modal with Actions -->
+    <ResponsiveModal 
+      :show="showSuccessModal" 
+      @close="goToList"
+      title="Customer Berhasil Ditambahkan"
+    >
       <div class="text-center py-4">
-        <i class="pi pi-check-circle text-4xl text-green-500 mb-3"></i>
-        <p class="text-lg font-semibold mb-2">Customer berhasil dibuat!</p>
-        <p class="text-gray-500">Customer baru telah ditambahkan ke sistem.</p>
+        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <i class="pi pi-check text-3xl text-green-600"></i>
+        </div>
+        <p class="text-lg font-semibold text-gray-900 mb-2">
+          Customer <strong>{{ createdUserName }}</strong> berhasil dibuat!
+        </p>
+        <p class="text-sm text-gray-600">
+          Anda dapat langsung menambahkan merchant untuk customer ini atau kembali ke daftar
+        </p>
       </div>
+
       <template #footer>
-        <div class="flex gap-3 justify-end">
-          <Button @click="goToList" variant="merchant">Kembali ke Daftar</Button>
+        <div class="flex flex-col sm:flex-row gap-3">
+          <Button 
+            @click="goToList" 
+            variant="secondary"
+            block
+          >
+            <i class="pi pi-list mr-2"></i>
+            Kembali ke Daftar
+          </Button>
+          <Button 
+            @click="goToCreateMerchant" 
+            variant="merchant"
+            block
+          >
+            <i class="pi pi-building mr-2"></i>
+            Tambah Merchant untuk User Ini
+          </Button>
         </div>
       </template>
     </ResponsiveModal>

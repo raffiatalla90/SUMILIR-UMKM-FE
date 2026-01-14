@@ -9,7 +9,7 @@ import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import Button from "@/components/common/Button.vue";
 import MobilePagination from "@/components/common/MobilePagination.vue";
 import { useEvents } from "@/composables/useEvents";
-import { getImageUrl } from "@/libs/getImageUrl";
+import { getEventBannerUrl } from "@/libs/getImageUrl";
 import TextField from "@/components/forms/TextField.vue";
 import SelectField from "@/components/forms/SelectField.vue";
 const route = useRoute();
@@ -280,7 +280,7 @@ onMounted(() => {
           <div class="w-16 h-10 rounded bg-gray-100 flex items-center justify-center overflow-hidden">
             <img
               v-if="item.banner_img_path"
-              :src="getImageUrl(item.banner_img_path)"
+              :src="getEventBannerUrl(item)"
               :alt="item.event_name"
               class="w-full h-full object-cover"
               @error="(e) => (e.target.style.display = 'none')"
@@ -354,14 +354,14 @@ onMounted(() => {
         <div
           v-for="event in events"
           :key="event.id"
-          @click="goToDetail(event)"
-          class="bg-white rounded-lg shadow p-4 active:bg-gray-50 transition"
+          class="bg-white rounded-lg shadow p-4"
         >
           <div class="flex gap-3">
             <img
               v-if="event.banner_img_path"
-              :src="getImageUrl(event.banner_img_path)"
+              :src="getEventBannerUrl(event)"
               class="w-20 h-20 object-cover rounded-lg shrink-0"
+              @error="(e) => (e.target.style.display = 'none')"
             />
             <div class="flex-1 min-w-0">
               <h3 class="font-semibold text-gray-900 line-clamp-2 mb-1">
