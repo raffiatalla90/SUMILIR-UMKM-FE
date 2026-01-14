@@ -29,9 +29,19 @@ const route = useRoute();
 const toast = useToast();
 const authStore = useAuthStore();
 
-// ✅ Get merchantId from route
+const currentMerchantSlug = computed(() => {
+  return route.params.merchantSlug
+    ? String(route.params.merchantSlug)
+    : authStore.merchantSlug || null;
+});
+
+// ✅ Get merchantId (numeric) for APIs by mapping slug -> id
 const currentMerchantId = computed(() => {
-  return route.params.merchantId ? Number(route.params.merchantId) : null;
+  const merchant = currentMerchantSlug.value
+    ? authStore.getMerchantBySlug(currentMerchantSlug.value)
+    : authStore.activeMerchant;
+
+  return merchant?.id ?? null;
 });
 
 // ✅ Breadcrumb items
@@ -43,12 +53,16 @@ const breadcrumbItems = computed(() => [
 
 // ✅ ADD: Get merchant name for display
 const currentMerchantName = computed(() => {
-  const merchant = authStore.getMerchantById(currentMerchantId.value);
+  const merchant = currentMerchantSlug.value
+    ? authStore.getMerchantBySlug(currentMerchantSlug.value)
+    : authStore.activeMerchant;
   return merchant?.name || "UMKM";
 });
 
 // Pagination / totals
-const totalItems = computed(() => pagination.value?.total ?? jasas.value.length);
+const totalItems = computed(
+  () => pagination.value?.total ?? jasas.value.length
+);
 const totalPages = computed(() => pagination.value?.last_page ?? 1);
 const paginationInfo = computed(() => ({
   from: pagination.value?.from ?? 0,
@@ -188,7 +202,11 @@ onMounted(async () => {
   // Validate merchant ID
   if (!currentMerchantId.value) {
     toast.error("Merchant ID tidak ditemukan");
-    router.push("/merchant-center");
+    const fallbackSlug =
+      authStore.merchantSlug ?? authStore.activeMerchant?.slug;
+    router.push(
+      fallbackSlug ? `/merchant-center/${fallbackSlug}` : "/merchant-register"
+    );
     return;
   }
 
@@ -200,12 +218,15 @@ onMounted(async () => {
 });
 
 // Watch for route query changes to trigger reload (e.g., after edit)
-watch(() => route.query.t, (newVal, oldVal) => {
-  if (newVal && newVal !== oldVal) {
-    console.log('[Indexjasa] Route query changed, reloading...');
-    loadJasas();
+watch(
+  () => route.query.t,
+  (newVal, oldVal) => {
+    if (newVal && newVal !== oldVal) {
+      console.log("[Indexjasa] Route query changed, reloading...");
+      loadJasas();
+    }
   }
-});
+);
 
 // ✅ UPDATED: Load jasas dengan merchantId dari route
 const loadJasas = async () => {
@@ -243,11 +264,20 @@ const loadJasas = async () => {
       perPage: perPage.value,
       page: currentPage.value,
     });
-
   } catch (error) {
     const serverMsg = error.response?.data?.message || "";
-    if (error.response?.status === 403 && serverMsg && (serverMsg.includes("Segment") || serverMsg.includes("UMKM"))) {
-      router.push(`/merchant-center/${currentMerchantId.value}`);
+    if (
+      error.response?.status === 403 &&
+      serverMsg &&
+      (serverMsg.includes("Segment") || serverMsg.includes("UMKM"))
+    ) {
+      const fallbackSlug =
+        currentMerchantSlug.value ??
+        authStore.merchantSlug ??
+        authStore.activeMerchant?.slug;
+      router.push(
+        fallbackSlug ? `/merchant-center/${fallbackSlug}` : "/merchant-register"
+      );
     } else {
       toast.error(serverMsg || "Gagal memuat jasa");
     }
@@ -260,7 +290,8 @@ const handleSearch = () => {
 };
 
 // ✅ ADD: Missing method for toggling jasa selection
-const toggleJasaSelection = (jasaId) => { // ✅ GANTI: toggleProductSelection menjadi toggleJasaSelection
+const toggleJasaSelection = (jasaId) => {
+  // ✅ GANTI: toggleProductSelection menjadi toggleJasaSelection
   const index = selectedJasas.value.indexOf(jasaId);
 
   if (index > -1) {
@@ -403,7 +434,8 @@ const saveBlob = (blob, fallbackName) => {
 const exportExcel = async () => {
   try {
     const params = buildExportParams();
-    const res = await api.get("/jasas/export/excel", { // ✅ GANTI: products/export/excel menjadi jasas/export/excel
+    const res = await api.get("/jasas/export/excel", {
+      // ✅ GANTI: products/export/excel menjadi jasas/export/excel
       params,
       responseType: "blob",
     });
@@ -431,7 +463,8 @@ const exportExcel = async () => {
 const exportPDF = async () => {
   try {
     const params = buildExportParams();
-    const res = await api.get("/jasas/export/pdf", { // ✅ GANTI: products/export/pdf menjadi jasas/export/pdf
+    const res = await api.get("/jasas/export/pdf", {
+      // ✅ GANTI: products/export/pdf menjadi jasas/export/pdf
       params,
       responseType: "blob",
     });
@@ -441,10 +474,7 @@ const exportPDF = async () => {
     const match = disposition.match(/filename="?([^"]+)"?/);
     const filename =
       match?.[1] ||
-      `jasas-${new Date()
-        .toISOString()
-        .slice(0, 19)
-        .replace(/[:T]/g, "")}.pdf`;
+      `jasas-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "")}.pdf`;
 
     saveBlob(res.data, filename);
     toast.success("Export PDF berhasil diunduh");
@@ -463,43 +493,47 @@ const goToCreate = () => {
     console.error("[Indexjasa] No merchant ID - cannot create");
     return;
   }
-  // Route parent sudah punya merchantId di params, jadi pass ke child route
+  // Route parent sudah punya merchantSlug di params
   router.push({
     name: "Merchant - Jasa Create",
-    params: { merchantId: currentMerchantId.value },
+    params: { merchantSlug: currentMerchantSlug.value },
   });
 };
 
 // ✅ UPDATED: goToEdit with merchantId
-const goToEdit = (jasa) => { // ✅ GANTI: goToEdit(product) menjadi goToEdit(jasa)
+const goToEdit = (jasa) => {
+  // ✅ GANTI: goToEdit(product) menjadi goToEdit(jasa)
   router.push({
     name: "Merchant - Jasa Edit", // ✅ GANTI: Merchant - Product Edit menjadi Merchant - Jasa Edit
     params: {
-      merchantId: currentMerchantId.value,
+      merchantSlug: currentMerchantSlug.value,
       id: jasa.id,
     },
   });
 };
 
 // ✅ UPDATED: goToDetail with merchantId
-const goToDetail = (jasa) => { // ✅ GANTI: goToDetail(product) menjadi goToDetail(jasa)
+const goToDetail = (jasa) => {
+  // ✅ GANTI: goToDetail(product) menjadi goToDetail(jasa)
   router.push({
     name: "Merchant - Jasa Detail", // ✅ GANTI: Merchant - Product Detail menjadi Merchant - Jasa Detail
     params: {
-      merchantId: currentMerchantId.value,
+      merchantSlug: currentMerchantSlug.value,
       id: jasa.id,
     },
   });
 };
 
 // ✅ Delete jasa - Use real API
-const deleteJasaAction = (jasa) => { // ✅ GANTI: deleteProductAction menjadi deleteJasaAction
+const deleteJasaAction = (jasa) => {
+  // ✅ GANTI: deleteProductAction menjadi deleteJasaAction
   selectedJasaForDelete.value = jasa;
   showDeleteModal.value = true;
 };
 
 // ✅ NEW: Confirm single delete
-const confirmDeleteJasa = async () => { // ✅ GANTI: confirmDeleteProduct menjadi confirmDeleteJasa
+const confirmDeleteJasa = async () => {
+  // ✅ GANTI: confirmDeleteProduct menjadi confirmDeleteJasa
   if (!selectedJasaForDelete.value) return;
 
   try {
@@ -511,16 +545,19 @@ const confirmDeleteJasa = async () => { // ✅ GANTI: confirmDeleteProduct menja
   }
 };
 
-const hasSelectedJasas = computed(() => { // ✅ GANTI: hasSelectedProducts menjadi hasSelectedJasas
+const hasSelectedJasas = computed(() => {
+  // ✅ GANTI: hasSelectedProducts menjadi hasSelectedJasas
   return selectedJasas.value.length > 0;
 });
 
-const selectedJasasCount = computed(() => { // ✅ GANTI: selectedProductsCount menjadi selectedJasasCount
+const selectedJasasCount = computed(() => {
+  // ✅ GANTI: selectedProductsCount menjadi selectedJasasCount
   return selectedJasas.value.length;
 });
 
 // ✅ ADD: Computed untuk mendapatkan data jasa yang dipilih (untuk modal preview)
-const selectedJasasData = computed(() => { // ✅ GANTI: selectedProductsData menjadi selectedJasasData
+const selectedJasasData = computed(() => {
+  // ✅ GANTI: selectedProductsData menjadi selectedJasasData
   return jasas.value.filter((j) => selectedJasas.value.includes(j.id));
 });
 
@@ -597,15 +634,24 @@ const formatPrice = (min, max) => {
 
 // Format operating days
 const dayLabels = {
-  1: 'Sen', 2: 'Sel', 3: 'Rab', 4: 'Kam', 5: 'Jum', 6: 'Sab', 7: 'Min'
+  1: "Sen",
+  2: "Sel",
+  3: "Rab",
+  4: "Kam",
+  5: "Jum",
+  6: "Sab",
+  7: "Min",
 };
 
 const formatOperatingDays = (operatingDays) => {
-  if (!operatingDays) return '-';
-  const days = operatingDays.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
-  if (days.length === 0) return '-';
-  if (days.length === 7) return 'Setiap Hari';
-  return days.map(d => dayLabels[d] || d).join(', ');
+  if (!operatingDays) return "-";
+  const days = operatingDays
+    .split(",")
+    .map((d) => parseInt(d.trim()))
+    .filter((d) => !isNaN(d));
+  if (days.length === 0) return "-";
+  if (days.length === 7) return "Setiap Hari";
+  return days.map((d) => dayLabels[d] || d).join(", ");
 };
 
 // Format single price (IDR)
@@ -651,7 +697,8 @@ const getStatusLabel = (status) => {
 };
 
 // Toggle visibility method
-const toggleJasaVisibility = (jasa) => { // ✅ GANTI: toggleProductVisibility menjadi toggleJasaVisibility
+const toggleJasaVisibility = (jasa) => {
+  // ✅ GANTI: toggleProductVisibility menjadi toggleJasaVisibility
   selectedJasaForVisibility.value = jasa;
   showVisibilityModal.value = true;
 };
@@ -668,8 +715,7 @@ const confirmVisibilityChange = (newStatus) => {
 
 // ✅ NEW: Confirm single status change (final step)
 const confirmSingleStatusChange = async () => {
-  if (!selectedJasaForStatusChange.value || !newStatusForChange.value)
-    return;
+  if (!selectedJasaForStatusChange.value || !newStatusForChange.value) return;
 
   try {
     await updateJasaStatus(
@@ -775,25 +821,28 @@ const selectConversation = (conversation) => {
 <template>
   <div class="p-6">
     <h1 class="text-2xl font-bold mb-4">Daftar Jasa</h1>
-    
+
     <!-- Loading State -->
     <div v-if="loading" class="flex justify-center items-center py-20">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-merchant-primary"></div>
+      <div
+        class="animate-spin rounded-full h-12 w-12 border-b-2 border-merchant-primary"
+      ></div>
     </div>
-    
+
     <!-- Empty State -->
     <div v-else-if="jasas.length === 0" class="text-center py-20">
       <p class="text-gray-500 mb-4">Belum ada jasa</p>
-      <button @click="goToCreate" class="px-4 py-2 bg-merchant-primary text-white rounded">
+      <button
+        @click="goToCreate"
+        class="px-4 py-2 bg-merchant-primary text-white rounded"
+      >
         Tambah Jasa
       </button>
     </div>
-    
+
     <!-- Data Table -->
     <div v-else>
-      <div
-        class="mb-4 flex flex-wrap items-center gap-2 justify-between"
-      >
+      <div class="mb-4 flex flex-wrap items-center gap-2 justify-between">
         <button
           @click="goToCreate"
           class="px-4 py-2 bg-merchant-primary text-white rounded"
@@ -808,7 +857,7 @@ const selectConversation = (conversation) => {
           <span class="text-sm font-medium">Chat Pembeli</span>
         </button>
       </div>
-      
+
       <div class="bg-white rounded-lg shadow overflow-x-auto">
         <table class="w-full min-w-[700px]">
           <thead>
@@ -858,24 +907,34 @@ const selectConversation = (conversation) => {
             </tr>
           </thead>
           <tbody>
-            <tr 
-              v-for="jasa in jasas" 
-              :key="jasa.id" 
+            <tr
+              v-for="jasa in jasas"
+              :key="jasa.id"
               :class="[
                 'border-b hover:bg-gray-50',
-                (!jasa.is_active || jasa.status === 'draft') ? 'opacity-50' : ''
+                !jasa.is_active || jasa.status === 'draft' ? 'opacity-50' : '',
               ]"
             >
               <td class="p-4">
-                <div v-if="(jasa.images && jasa.images.length > 0) || jasa.image" class="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                <div
+                  v-if="(jasa.images && jasa.images.length > 0) || jasa.image"
+                  class="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center"
+                >
                   <img
                     :src="getPrimaryImageSrc(jasa)"
                     :alt="jasa.title"
                     class="max-w-full max-h-full object-contain"
-                    @error="(e) => e.target.src = 'data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Crect fill=%27%23f3f4f6%27 width=%27100%27 height=%27100%27/%3E%3Ctext x=%2750%27 y=%2750%27 font-size=%2714%27 text-anchor=%27middle%27 dy=%27.3em%27 fill=%27%239ca3af%27%3ENo Image%3C/text%3E%3C/svg%3E'"
+                    @error="
+                      (e) =>
+                        (e.target.src =
+                          'data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Crect fill=%27%23f3f4f6%27 width=%27100%27 height=%27100%27/%3E%3Ctext x=%2750%27 y=%2750%27 font-size=%2714%27 text-anchor=%27middle%27 dy=%27.3em%27 fill=%27%239ca3af%27%3ENo Image%3C/text%3E%3C/svg%3E')
+                    "
                   />
                 </div>
-                <div v-else class="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-lg bg-gray-100 flex items-center justify-center">
+                <div
+                  v-else
+                  class="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-lg bg-gray-100 flex items-center justify-center"
+                >
                   <i class="pi pi-image text-gray-400 text-xl"></i>
                 </div>
               </td>
@@ -883,9 +942,12 @@ const selectConversation = (conversation) => {
               <td class="p-4">
                 <div class="text-sm">
                   <div class="font-medium text-gray-900">
-                    {{ jasa.category?.name || '-' }}
+                    {{ jasa.category?.name || "-" }}
                   </div>
-                  <div v-if="jasa.subcategory?.name" class="text-xs text-gray-500 mt-0.5">
+                  <div
+                    v-if="jasa.subcategory?.name"
+                    class="text-xs text-gray-500 mt-0.5"
+                  >
                     {{ jasa.subcategory.name }}
                   </div>
                 </div>
@@ -898,9 +960,7 @@ const selectConversation = (conversation) => {
                   {{ formatPriceId(jasa.base_price) }}
                   <span class="text-xs text-gray-500">(Mulai dari)</span>
                 </template>
-                <template v-else>
-                  -
-                </template>
+                <template v-else> - </template>
               </td>
               <td class="p-4">
                 <span class="text-sm text-gray-700">
@@ -908,8 +968,18 @@ const selectConversation = (conversation) => {
                 </span>
               </td>
               <td class="p-4">
-                <span :class="(jasa.status === 'active' && jasa.is_active) ? 'text-green-600' : 'text-gray-400'">
-                  {{ (jasa.status === 'active' && jasa.is_active) ? 'Aktif' : 'Tidak Aktif' }}
+                <span
+                  :class="
+                    jasa.status === 'active' && jasa.is_active
+                      ? 'text-green-600'
+                      : 'text-gray-400'
+                  "
+                >
+                  {{
+                    jasa.status === "active" && jasa.is_active
+                      ? "Aktif"
+                      : "Tidak Aktif"
+                  }}
                 </span>
               </td>
               <td class="p-4">
@@ -954,8 +1024,8 @@ const selectConversation = (conversation) => {
       >
         <p class="text-sm text-gray-600">
           Apakah Anda yakin ingin menghapus jasa
-          <span class="font-semibold">{{ selectedJasaForDelete?.title }}</span>?
-          Tindakan ini tidak dapat dibatalkan.
+          <span class="font-semibold">{{ selectedJasaForDelete?.title }}</span
+          >? Tindakan ini tidak dapat dibatalkan.
         </p>
         <template #footer>
           <div class="flex gap-2 w-full">
@@ -966,11 +1036,7 @@ const selectConversation = (conversation) => {
             >
               Batal
             </Button>
-            <Button
-              variant="danger"
-              class="flex-1"
-              @click="confirmDeleteJasa"
-            >
+            <Button variant="danger" class="flex-1" @click="confirmDeleteJasa">
               Hapus
             </Button>
           </div>
@@ -1017,22 +1083,26 @@ const selectConversation = (conversation) => {
 
             <!-- Body -->
             <div class="p-2 sm:p-4 flex-1 flex flex-col overflow-hidden">
-              <div class="flex flex-col md:flex-row gap-2 sm:gap-4 flex-1 min-h-0 overflow-hidden">
+              <div
+                class="flex flex-col md:flex-row gap-2 sm:gap-4 flex-1 min-h-0 overflow-hidden"
+              >
                 <!-- Daftar percakapan -->
                 <div
                   class="w-full h-28 sm:h-auto md:w-1/3 border border-gray-200 rounded-lg sm:rounded-xl bg-white overflow-hidden flex flex-col shrink-0 md:shrink"
                 >
-                  <div class="px-2 sm:px-3 py-1.5 sm:py-2 border-b border-gray-200 bg-gray-50">
+                  <div
+                    class="px-2 sm:px-3 py-1.5 sm:py-2 border-b border-gray-200 bg-gray-50"
+                  >
                     <p
                       class="text-[10px] sm:text-xs font-semibold text-gray-700 flex items-center gap-1 sm:gap-2"
                     >
-                      <i class="pi pi-inbox text-gray-500 text-[10px] sm:text-xs"></i>
+                      <i
+                        class="pi pi-inbox text-gray-500 text-[10px] sm:text-xs"
+                      ></i>
                       Daftar Percakapan
                     </p>
                   </div>
-                  <div
-                    class="flex-1 overflow-y-auto divide-y divide-gray-100"
-                  >
+                  <div class="flex-1 overflow-y-auto divide-y divide-gray-100">
                     <div
                       v-if="!hasConversations"
                       class="px-2 sm:px-3 py-2 sm:py-4 text-[10px] sm:text-xs text-gray-500 text-center"
@@ -1055,17 +1125,19 @@ const selectConversation = (conversation) => {
                       <p
                         class="text-[10px] sm:text-xs font-semibold text-gray-900 truncate"
                       >
-                        {{ convo?.buyer?.name || 'Pembeli' }}
+                        {{ convo?.buyer?.name || "Pembeli" }}
                       </p>
-                      <p class="text-[9px] sm:text-[11px] text-gray-500 truncate hidden sm:block">
+                      <p
+                        class="text-[9px] sm:text-[11px] text-gray-500 truncate hidden sm:block"
+                      >
                         Jasa:
-                        {{ convo?.jasa?.title || convo?.jasa?.name || '-' }}
+                        {{ convo?.jasa?.title || convo?.jasa?.name || "-" }}
                       </p>
                       <p
                         v-if="convo?.last_message"
                         class="text-[9px] sm:text-[11px] text-gray-400 truncate hidden sm:block"
                       >
-                        {{ convo.last_message.body || 'Pesan terbaru' }}
+                        {{ convo.last_message.body || "Pesan terbaru" }}
                       </p>
                     </button>
                   </div>
@@ -1080,7 +1152,10 @@ const selectConversation = (conversation) => {
                     <span>
                       Belum ada percakapan.
                       <br class="hidden sm:block" />
-                      <span class="hidden sm:inline">Saat ada pembeli yang menghubungi Anda, percakapan akan muncul di sini.</span>
+                      <span class="hidden sm:inline"
+                        >Saat ada pembeli yang menghubungi Anda, percakapan akan
+                        muncul di sini.</span
+                      >
                     </span>
                   </div>
                   <div
@@ -1088,7 +1163,9 @@ const selectConversation = (conversation) => {
                     class="h-full text-[10px] sm:text-xs text-gray-500 text-center border border-dashed border-gray-300 rounded-lg sm:rounded-xl bg-gray-50/60 px-2 sm:px-4 py-4 sm:py-6 flex items-center justify-center"
                   >
                     <span>
-                      Pilih percakapan <span class="hidden sm:inline">di sebelah kiri</span> untuk membalas pesan.
+                      Pilih percakapan
+                      <span class="hidden sm:inline">di sebelah kiri</span>
+                      untuk membalas pesan.
                     </span>
                   </div>
                   <div v-else class="h-full">
@@ -1103,14 +1180,22 @@ const selectConversation = (conversation) => {
           </div>
         </div>
       </transition>
-      
+
       <!-- Pagination -->
       <div v-if="totalPages > 1" class="mt-4 flex justify-center gap-2">
         <button
           v-for="page in totalPages"
           :key="page"
-          @click="currentPage = page; loadJasas()"
-          :class="['px-3 py-1 rounded', page === currentPage ? 'bg-merchant-primary text-white' : 'bg-gray-200']"
+          @click="
+            currentPage = page;
+            loadJasas();
+          "
+          :class="[
+            'px-3 py-1 rounded',
+            page === currentPage
+              ? 'bg-merchant-primary text-white'
+              : 'bg-gray-200',
+          ]"
         >
           {{ page }}
         </button>

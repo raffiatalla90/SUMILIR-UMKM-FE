@@ -123,7 +123,11 @@ const addressText = computed(() => {
                   class="w-40 h-40 bg-gray-200 border-4 border-white rounded-full shadow-lg animate-pulse"
                 />
                 <img
-                  v-show="!isInitialProfileLoading"
+                  v-if="
+                    !isInitialProfileLoading &&
+                    !imgError &&
+                    typeof user.profile_picture === 'string'
+                  "
                   :src="user.profile_picture"
                   :alt="user.name"
                   loading="lazy"
@@ -135,6 +139,17 @@ const addressText = computed(() => {
                     imgLoaded = true;
                   "
                 />
+                <span v-else>
+                  <svg
+                    class="w-40 h-40 p-8 text-gray-300 bg-gray-100 border-4 border-white rounded-full shadow-lg"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                    />
+                  </svg>
+                </span>
               </div>
 
               <div
@@ -151,7 +166,7 @@ const addressText = computed(() => {
                   class="flex items-center min-w-0 gap-3 text-gray-600 flex-nowrap"
                 >
                   <svg
-                    class="flex-shrink-0 w-5 h-5 text-gray-400"
+                    class="w-5 h-5 text-gray-400 shrink-0"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -175,7 +190,7 @@ const addressText = computed(() => {
                   class="flex items-center min-w-0 gap-3 text-gray-600 flex-nowrap"
                 >
                   <svg
-                    class="flex-shrink-0 w-5 h-5 text-gray-400"
+                    class="w-5 h-5 text-gray-400 shrink-0"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -197,7 +212,7 @@ const addressText = computed(() => {
                   class="flex items-start min-w-0 gap-3 text-gray-600 flex-nowrap"
                 >
                   <svg
-                    class="w-5 h-5 mt-0.5 text-gray-400 flex-shrink-0"
+                    class="w-5 h-5 mt-0.5 text-gray-400 shrink-0"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -333,7 +348,7 @@ const addressText = computed(() => {
                     >
                       <button
                         class="flex items-center w-full gap-3 px-4 py-3 mb-1 text-left transition-all bg-white rounded-lg hover:bg-primary/10 group hover:shadow"
-                        @click="router.push(`/merchant-center/${m.id}`)"
+                        @click="router.push(`/merchant-center/${m.slug}`)"
                       >
                         <svg
                           class="w-5 h-5 text-primary"
@@ -405,11 +420,15 @@ const addressText = computed(() => {
                 class="w-20 h-20 bg-gray-200 border-4 border-white rounded-full shadow animate-pulse"
               />
               <img
-                v-show="!isInitialProfileLoading"
+                v-if="
+                  !isInitialProfileLoading &&
+                  !imgError &&
+                  typeof user.profile_picture === 'string'
+                "
                 :src="user.profile_picture"
                 :alt="user.name"
                 loading="lazy"
-                class="object-cover w-20 h-20 border-4 border-white rounded-full shadow"
+                class="object-cover w-20 h-20 border-4 border-white rounded-full shadow-lg"
                 :class="imgLoaded ? '' : 'opacity-0'"
                 @load="imgLoaded = true"
                 @error="
@@ -417,6 +436,17 @@ const addressText = computed(() => {
                   imgLoaded = true;
                 "
               />
+              <span v-else>
+                <svg
+                  class="w-20 h-20 p-4 text-gray-300 bg-gray-100 border-4 border-white rounded-full shadow-lg"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                  />
+                </svg>
+              </span>
             </div>
             <div class="min-w-0">
               <div
@@ -535,7 +565,7 @@ const addressText = computed(() => {
                   >
                     <button
                       class="flex items-center w-full gap-3 px-4 py-3 text-left transition-all bg-white rounded-lg hover:bg-primary/10 group"
-                      @click="router.push(`/merchant-center/${m.id}`)"
+                      @click="router.push(`/merchant-center/${m.slug}`)"
                     >
                       <svg
                         class="w-5 h-5 text-primary"

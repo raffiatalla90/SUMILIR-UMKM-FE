@@ -1,5 +1,20 @@
 import api from "@/libs/axios";
 
+function withMethodOverride(payload, method) {
+  if (payload instanceof FormData) {
+    if (!payload.has("_method")) payload.append("_method", method);
+    return payload;
+  }
+
+  const formData = new FormData();
+  Object.entries(payload || {}).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    formData.append(key, value);
+  });
+  formData.append("_method", method);
+  return formData;
+}
+
 /* =====================================================
  * PUBLIC PRODUCTS
  * ===================================================== */
@@ -21,69 +36,90 @@ export async function getPublicProducts(params = {}) {
 /* =====================================================
  * ADMIN / MERCHANT PRODUCTS
  * ===================================================== */
-export async function getProducts(params = {}) {
-  const { data } = await api.get(`/api/products/`, {
+export async function getProducts(merchantSlug, params = {}) {
+  const { data } = await api.get(`/api/merchant/${merchantSlug}/products/`, {
     params,
   });
   return data;
 }
 
-export async function getProductDetail(slug) {
-  const { data } = await api.get(`/api/products/${slug}`);
+export async function getProductDetail(merchantSlug, slug) {
+  const { data } = await api.get(
+    `/api/merchant/${merchantSlug}/products/${slug}`
+  );
   return data;
 }
 
-export async function createProduct(payload) {
-  const { data } = await api.post(`/api/products`, payload, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+export async function createProduct(merchantSlug, payload) {
+  const { data } = await api.post(
+    `/api/merchant/${merchantSlug}/products/`,
+    payload,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
   return data;
 }
 
-export async function editProduct(slug, payload) {
-  const { data } = await api.post(`/api/products/${slug}`, payload, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+export async function editProduct(merchantSlug, slug, payload) {
+  const { data } = await api.post(
+    `/api/merchant/${merchantSlug}/products/${slug}`,
+    withMethodOverride(payload, "PUT"),
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
   return data;
 }
 
-export async function editStatus(slug, status) {
-  const { data } = await api.patch(`/api/products/${slug}/status`, { status });
+export async function editStatus(merchantSlug, slug, status) {
+  const { data } = await api.patch(
+    `/api/merchant/${merchantSlug}/products/${slug}/status`,
+    { status }
+  );
   return data;
 }
-export async function deleteProduct(slug) {
-  const { data } = await api.delete(`/api/products/${slug}`);
-  return data;
-}
-
-export async function deleteBulk(productSlugs = []) {
-  const { data } = await api.post(`/api/products/bulk-delete`, {
-    product_slugs: productSlugs,
-  });
-  return data;
-}
-
-export async function editBulkStatus(productSlugs = [], status) {
-  const { data } = await api.post(`/api/products/bulk-update-status`, {
-    product_slugs: productSlugs,
-    status,
-  });
+export async function deleteProduct(merchantSlug, slug) {
+  const { data } = await api.delete(
+    `/api/merchant/${merchantSlug}/products/${slug}`
+  );
   return data;
 }
 
-export async function exportPDF(params = {}) {
-  return api.get(`/api/products/export/pdf`, {
+export async function deleteBulk(merchantSlug, productSlugs = []) {
+  const { data } = await api.post(
+    `/api/merchant/${merchantSlug}/products/bulk-delete`,
+    {
+      product_slugs: productSlugs,
+    }
+  );
+  return data;
+}
+
+export async function editBulkStatus(merchantSlug, productSlugs = [], status) {
+  const { data } = await api.post(
+    `/api/merchant/${merchantSlug}/products/bulk-update-status`,
+    {
+      product_slugs: productSlugs,
+      status,
+    }
+  );
+  return data;
+}
+
+export async function exportPDF(merchantSlug, params = {}) {
+  return api.get(`/api/merchant/${merchantSlug}/products/export/pdf`, {
     params,
     responseType: "blob",
   });
 }
 
-export async function exportExcel(params = {}) {
-  return api.get(`/api/products/export/excel`, {
+export async function exportExcel(merchantSlug, params = {}) {
+  return api.get(`/api/merchant/${merchantSlug}/products/export/excel`, {
     params,
     responseType: "blob",
   });

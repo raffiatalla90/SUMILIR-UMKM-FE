@@ -406,21 +406,20 @@ const routes = [
   },
 
   // Halaman merchant center
-  // Halaman merchant center
   {
-    path: "/merchant-center/:merchantId",
+    path: "/merchant-center/:merchantSlug",
     component: () => import("@/layouts/MerchantLayout.vue"),
     meta: {
       requiresAuth: true,
       roles: ["umkm-owner"],
-      requiresMerchantId: true,
+      requiresMerchantSlug: true,
     },
     children: [
       {
         path: "",
         redirect: (to) => ({
           name: "Merchant - Dashboard",
-          params: { merchantId: to.params.merchantId },
+          params: { merchantSlug: to.params.merchantSlug },
         }),
       },
       {
@@ -436,9 +435,6 @@ const routes = [
       // PRODUK UMKM TOKO/KULINER
       // ===========================
 
-      // ===========================
-      // PRODUK UMKM TOKO/KULINER
-      // ===========================
       {
         path: "products",
         name: "Merchant - Product UMKM",
@@ -454,9 +450,7 @@ const routes = [
         },
       },
       // ✅ UPDATED: Use slug instead of id
-      // ✅ UPDATED: Use slug instead of id
       {
-        path: "products/:slug",
         path: "products/:slug",
         name: "Merchant - Product Detail",
         component: () => import("@/views/merchant/products/Detail.vue"),
@@ -467,7 +461,6 @@ const routes = [
       // ✅ UPDATED: Use slug instead of id
       // ✅ UPDATED: Use slug instead of id
       {
-        path: "products/:slug/edit",
         path: "products/:slug/edit",
         name: "Merchant - Product Edit",
         component: () => import("@/views/merchant/products/Edit.vue"),
@@ -490,7 +483,7 @@ const routes = [
         path: "jasas/index",
         redirect: (to) => ({
           name: "Merchant - Jasa Index",
-          params: { merchantId: to.params.merchantId },
+          params: { merchantSlug: to.params.merchantSlug },
         }),
       },
       {
@@ -524,35 +517,35 @@ const routes = [
         path: "productsjasa",
         redirect: (to) => ({
           name: "Merchant - Jasa Index",
-          params: { merchantId: to.params.merchantId },
+          params: { merchantSlug: to.params.merchantSlug },
         }),
       },
       {
         path: "productsjasa/create",
         redirect: (to) => ({
           name: "Merchant - Jasa Create",
-          params: { merchantId: to.params.merchantId },
+          params: { merchantSlug: to.params.merchantSlug },
         }),
       },
       {
         path: "productsjasa/createjasa",
         redirect: (to) => ({
           name: "Merchant - Jasa Create",
-          params: { merchantId: to.params.merchantId },
+          params: { merchantSlug: to.params.merchantSlug },
         }),
       },
       {
         path: "productsjasa/:id",
         redirect: (to) => ({
           name: "Merchant - Jasa Detail",
-          params: { merchantId: to.params.merchantId, id: to.params.id },
+          params: { merchantSlug: to.params.merchantSlug, id: to.params.id },
         }),
       },
       {
         path: "productsjasa/:id/edit",
         redirect: (to) => ({
           name: "Merchant - Jasa Edit",
-          params: { merchantId: to.params.merchantId, id: to.params.id },
+          params: { merchantSlug: to.params.merchantSlug, id: to.params.id },
         }),
       },
 
@@ -570,7 +563,7 @@ const routes = [
         path: "jasas/index",
         redirect: (to) => ({
           name: "Merchant - Jasa Index",
-          params: { merchantId: to.params.merchantId },
+          params: { merchantSlug: to.params.merchantSlug },
         }),
       },
       {
@@ -604,35 +597,35 @@ const routes = [
         path: "productsjasa",
         redirect: (to) => ({
           name: "Merchant - Jasa Index",
-          params: { merchantId: to.params.merchantId },
+          params: { merchantSlug: to.params.merchantSlug },
         }),
       },
       {
         path: "productsjasa/create",
         redirect: (to) => ({
           name: "Merchant - Jasa Create",
-          params: { merchantId: to.params.merchantId },
+          params: { merchantSlug: to.params.merchantSlug },
         }),
       },
       {
         path: "productsjasa/createjasa",
         redirect: (to) => ({
           name: "Merchant - Jasa Create",
-          params: { merchantId: to.params.merchantId },
+          params: { merchantSlug: to.params.merchantSlug },
         }),
       },
       {
         path: "productsjasa/:id",
         redirect: (to) => ({
           name: "Merchant - Jasa Detail",
-          params: { merchantId: to.params.merchantId, id: to.params.id },
+          params: { merchantSlug: to.params.merchantSlug, id: to.params.id },
         }),
       },
       {
         path: "productsjasa/:id/edit",
         redirect: (to) => ({
           name: "Merchant - Jasa Edit",
-          params: { merchantId: to.params.merchantId, id: to.params.id },
+          params: { merchantSlug: to.params.merchantSlug, id: to.params.id },
         }),
       },
 
@@ -854,7 +847,7 @@ router.beforeEach(async (to, from, next) => {
       const merchant = authStore.activeMerchant;
 
       if (merchant) {
-        return next(`/merchant-center/${merchant.id}`);
+        return next(`/merchant-center/${merchant.slug}`);
       }
       return next("/");
     } else if (userRoles.includes("customer")) {
@@ -885,15 +878,15 @@ router.beforeEach(async (to, from, next) => {
   // Require approved merchant untuk /merchant-center
   // Require approved merchant untuk /merchant-center
   if (to.path.startsWith("/merchant-center")) {
-    const merchantIdParam = to.params.merchantId
-      ? Number(to.params.merchantId)
+    const merchantSlugParam = to.params.merchantSlug
+      ? String(to.params.merchantSlug)
       : null;
 
-    if (!merchantIdParam || Number.isNaN(merchantIdParam)) {
+    if (!merchantSlugParam) {
       return next("/merchant-register");
     }
 
-    const merchant = authStore.getMerchantById(merchantIdParam);
+    const merchant = authStore.getMerchantBySlug(merchantSlugParam);
 
     if (!merchant) {
       return next("/merchant-register");

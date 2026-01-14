@@ -39,9 +39,9 @@ const voucher_end_date = ref("");
 
 const voucher_type = ref("percent");
 
-// ✅ FIXED: Get merchantId from route params
-const currentMerchantId = computed(() => {
-  return route?.params?.merchantId ? Number(route.params.merchantId) : null;
+// ✅ Merchant slug from route params
+const currentMerchantSlug = computed(() => {
+  return route?.params?.merchantSlug ? String(route.params.merchantSlug) : null;
 });
 const voucherId = computed(() => {
   return route?.params?.id ? Number(route.params.id) : null;
@@ -49,10 +49,10 @@ const voucherId = computed(() => {
 
 // ✅ ADD: Validate merchant ownership
 const isValidMerchant = computed(() => {
-  if (!currentMerchantId.value) return false;
+  if (!currentMerchantSlug.value) return false;
 
   // Check if user owns this merchant
-  const merchant = authStore.getMerchantById(currentMerchantId.value);
+  const merchant = authStore.getMerchantBySlug(currentMerchantSlug.value);
   return !!merchant;
 });
 
@@ -60,7 +60,7 @@ const isValidMerchant = computed(() => {
 const breadcrumbItems = computed(() => [
   {
     label: "Voucher",
-    path: `/merchant-center/${currentMerchantId.value}/vouchers`,
+    path: `/merchant-center/${currentMerchantSlug.value}/vouchers`,
   },
   {
     label: "Edit Voucher",
@@ -126,7 +126,7 @@ const {
 // LIFECYCLE HOOKS
 // ============================================================
 onMounted(async () => {
-  if (!currentMerchantId.value || !voucherId.value) {
+  if (!currentMerchantSlug.value || !voucherId.value) {
     toast.error("ID merchant / voucher tidak valid");
     router.push("/merchant-center");
     return;
@@ -134,7 +134,7 @@ onMounted(async () => {
 
   try {
     const res = await fetchMerchantVoucherDetail(
-      currentMerchantId.value,
+      currentMerchantSlug.value,
       voucherId.value
     );
 
@@ -182,7 +182,7 @@ onMounted(async () => {
     console.log(values.max_discount_amount);
   } catch (e) {
     toast.error("Gagal memuat detail voucher");
-    router.push(`/merchant-center/${currentMerchantId.value}/vouchers`);
+    router.push(`/merchant-center/${currentMerchantSlug.value}/vouchers`);
   }
 });
 
@@ -245,12 +245,12 @@ const onSubmit = veeHandleSubmit(async () => {
 
   try {
     await editMerchantVoucher(
-      currentMerchantId.value,
+      currentMerchantSlug.value,
       voucherId.value,
       payload
     );
 
-    router.push(`/merchant-center/${currentMerchantId.value}/vouchers`);
+    router.push(`/merchant-center/${currentMerchantSlug.value}/vouchers`);
   } catch (err) {
     // toast sudah ditangani di composable
   }
@@ -266,7 +266,7 @@ const onSubmit = veeHandleSubmit(async () => {
     >
       <!-- ✅ FIXED: Back button dengan dynamic route -->
       <button
-        @click="router.push(`/merchant-center/${currentMerchantId}/vouchers`)"
+        @click="router.push(`/merchant-center/${currentMerchantSlug}/vouchers`)"
         class="absolute flex items-center justify-center w-10 h-10 transition rounded-full left-4 hover:bg-white/10"
       >
         <i class="pi pi-arrow-left"></i>
@@ -277,13 +277,13 @@ const onSubmit = veeHandleSubmit(async () => {
     <!-- Desktop Header -->
     <div class="sticky top-0 left-0 right-0 z-50 hidden py-6 sm:block">
       <div
-        class="flex flex-wrap items-center justify-between px-4 mx-auto sm:px-6 sm:px-8 gap-y-2 gap-x-4"
+        class="flex flex-wrap items-center justify-between px-4 mx-auto sm:px-8 gap-y-2 gap-x-4"
       >
         <div>
           <!-- ✅ Use Breadcrumb Component -->
           <Breadcrumb
             :items="breadcrumbItems"
-            :merchantId="currentMerchantId"
+            :merchantId="currentMerchantSlug"
           />
           <p class="text-xs text-muted-foreground sm:text-sm">
             {{
@@ -321,7 +321,7 @@ const onSubmit = veeHandleSubmit(async () => {
     </div>
 
     <!-- Container Responsive -->
-    <div v-else class="px-0 mx-auto sm:px-4 sm:px-6 sm:py-6 sm:pt-0">
+    <div v-else class="px-0 mx-auto sm:px-6 sm:py-6 sm:pt-0">
       <Form @submit="onSubmit">
         <!-- Info Dasar -->
         <div

@@ -26,7 +26,11 @@ const processedItems = computed(() => {
       return item;
     }
 
-    if (item.path.startsWith("http") || item.path.includes("/:merchantId")) {
+    if (
+      item.path.startsWith("http") ||
+      item.path.includes("/:merchantId") ||
+      item.path.includes("/:merchantSlug")
+    ) {
       return item;
     }
 

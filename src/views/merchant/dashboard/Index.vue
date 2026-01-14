@@ -1,12 +1,11 @@
 <script setup>
-import { useRouter, useRoute } from "vue-router";
+import { useRoute } from "vue-router";
 import { onMounted, ref, computed, nextTick } from "vue";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
 import api from "@/libs/axios";
 import Chart from "chart.js/auto";
 import { useAuthStore } from "@/stores/auth";
 
-const router = useRouter();
 const route = useRoute();
 const emit = defineEmits(["toggle-sidebar"]);
 const loading = ref(true);
@@ -15,14 +14,15 @@ const authStore = useAuthStore();
 // ======================
 // STATE
 // ======================
-const currentMerchantName = computed(() => {
-  const merchant = authStore.getMerchantById(currentMerchantId.value);
-  return merchant?.name || "UMKM";
-});
-const currentMerchantId = computed(() => {
-  return route.params && route.params.merchantId
-    ? Number(route.params.merchantId)
+const currentMerchantSlug = computed(() => {
+  return route.params && route.params.merchantSlug
+    ? String(route.params.merchantSlug)
     : null;
+});
+
+const currentMerchantName = computed(() => {
+  const merchant = authStore.getMerchantBySlug(currentMerchantSlug.value);
+  return merchant?.name || "UMKM";
 });
 
 const breadcrumbItems = computed(() => [
@@ -50,11 +50,6 @@ const CATEGORY_COLORS = [
 // ======================
 const statusChartRef = ref(null);
 const categoryChartRef = ref(null);
-
-// ======================
-// MERCHANT ID
-// ======================
-const merchantId = computed(() => route.params.merchantId);
 
 // ======================
 // CARD GROUPING
@@ -135,8 +130,12 @@ const fetchDashboard = async () => {
   try {
     loading.value = true;
 
+    if (!currentMerchantSlug.value) {
+      throw new Error("merchantSlug tidak ditemukan di route params");
+    }
+
     const { data } = await api.get(
-      `/api/merchants/${merchantId.value}/dashboard`
+      `/api/merchant/${currentMerchantSlug.value}/dashboard`
     );
 
     const voucherStats = data?.voucher_stats || {};
@@ -265,7 +264,7 @@ onMounted(fetchDashboard);
         <div>
           <Breadcrumb
             :items="breadcrumbItems"
-            :merchantId="currentMerchantId"
+            :merchantId="currentMerchantSlug"
           />
           <p class="mt-1 text-xs sm:text-sm text-muted-foreground">
             Ringkasan kondisi katalog {{ currentMerchantName }}
@@ -317,7 +316,7 @@ onMounted(fetchDashboard);
           <div
             v-for="(stat, i) in secondaryStats"
             :key="i"
-            class="min-w-[160px] bg-white rounded-2xl p-4 shadow-sm border border-gray-100"
+            class="p-4 bg-white border border-gray-100 shadow-sm min-w-40 rounded-2xl"
           >
             <div
               class="flex items-center justify-center mb-2 w-9 h-9 rounded-xl"

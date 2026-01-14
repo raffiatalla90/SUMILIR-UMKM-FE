@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useProfileStore } from "@/stores/profile";
 import { useToast } from "vue-toastification";
@@ -22,12 +22,47 @@ const formData = ref({
 const profilePictureFile = ref(null);
 const fileInput = ref(null);
 
+const isInitialProfileLoading = computed(
+  () => profileStore.loading && !profileStore.user
+);
+
+const imgLoaded = ref(false);
+const imgError = ref(false);
+
+const hasProfilePicture = computed(() => {
+  const val = formData.value?.profile_picture;
+  return typeof val === "string" && val.trim().length > 0;
+});
+
+watch(
+  () => formData.value?.profile_picture,
+  () => {
+    imgLoaded.value = false;
+    imgError.value = false;
+  }
+);
+
+const onImgLoad = () => {
+  imgLoaded.value = true;
+};
+
+const onImgError = () => {
+  imgError.value = true;
+  imgLoaded.value = true;
+};
+
 // Watch for changes in store user data
 watch(
   () => profileStore.user,
   (newUser) => {
     if (newUser) {
-      formData.value = { ...newUser };
+      formData.value = {
+        ...newUser,
+        profile_picture:
+          typeof newUser?.profile_picture === "string"
+            ? newUser.profile_picture
+            : "",
+      };
     }
   },
   { immediate: true }
@@ -108,12 +143,37 @@ onMounted(() => {
             class="sticky p-8 bg-white border border-gray-100 shadow-sm rounded-2xl top-24"
           >
             <div class="flex flex-col items-center">
-              <div class="relative">
+              <div class="relative w-40 h-40">
+                <div
+                  v-if="
+                    isInitialProfileLoading ||
+                    (hasProfilePicture && !imgLoaded && !imgError)
+                  "
+                  class="w-40 h-40 bg-gray-200 border-4 border-white rounded-full shadow-lg animate-pulse"
+                />
                 <img
+                  v-if="
+                    !isInitialProfileLoading && hasProfilePicture && !imgError
+                  "
                   :src="formData.profile_picture"
                   :alt="formData.name"
+                  loading="lazy"
                   class="object-cover w-40 h-40 border-4 border-white rounded-full shadow-lg"
+                  :class="imgLoaded ? '' : 'opacity-0'"
+                  @load="onImgLoad"
+                  @error="onImgError"
                 />
+                <span v-else>
+                  <svg
+                    class="w-40 h-40 p-8 text-gray-300 bg-gray-100 border-4 border-white rounded-full shadow-lg"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                    />
+                  </svg>
+                </span>
                 <button
                   @click="handlePhotoUpload"
                   class="absolute p-3 text-white transition-all rounded-full shadow-lg bottom-2 right-2 bg-primary hover:bg-orange-600 hover:scale-110"
@@ -270,12 +330,35 @@ onMounted(() => {
       <!-- MOBILE LAYOUT -->
       <div class="sm:hidden">
         <div class="flex flex-col items-center mb-8">
-          <div class="relative">
+          <div class="relative w-32 h-32">
+            <div
+              v-if="
+                isInitialProfileLoading ||
+                (hasProfilePicture && !imgLoaded && !imgError)
+              "
+              class="w-32 h-32 bg-gray-200 border-4 border-white rounded-full shadow-lg animate-pulse"
+            />
             <img
+              v-if="!isInitialProfileLoading && hasProfilePicture && !imgError"
               :src="formData.profile_picture"
               :alt="formData.name"
+              loading="lazy"
               class="object-cover w-32 h-32 border-4 border-white rounded-full shadow-lg"
+              :class="imgLoaded ? '' : 'opacity-0'"
+              @load="onImgLoad"
+              @error="onImgError"
             />
+            <span v-else>
+              <svg
+                class="w-32 h-32 p-6 text-gray-300 bg-gray-100 border-4 border-white rounded-full shadow-lg"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                />
+              </svg>
+            </span>
             <button
               @click="handlePhotoUpload"
               class="absolute bottom-0 right-0 p-2 text-white transition-colors rounded-full shadow-lg bg-primary hover:bg-orange-600"

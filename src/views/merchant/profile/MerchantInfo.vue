@@ -1,18 +1,24 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
 import LeafletMap from "@/components/LeafletMap.vue";
 import merchantProfile from "@/services/api/merchantProfile";
 
 const router = useRouter();
 const route = useRoute();
+const authStore = useAuthStore();
 
 // Emit untuk toggle sidebar dari parent layout
 const emit = defineEmits(["toggle-sidebar"]);
-// Get merchantId from route params
-const merchantId = computed(() => {
-  return route.params.merchantId ? Number(route.params.merchantId) : 1;
+const merchantSlug = computed(() => {
+  const slug =
+    route.params.merchantSlug ??
+    authStore.merchantSlug ??
+    authStore.activeMerchant?.slug ??
+    null;
+  return slug ? String(slug) : null;
 });
 // Breadcrumb items
 const breadcrumbItems = computed(() => [
@@ -69,11 +75,20 @@ const merchantInfo = ref({
   description:
     "Toko Sembako Rojolele menyediakan beragam kebutuhan pokok harian — beras, gula, minyak, dan produk lokal lainnya.",
   address: "Jl. Pasar Rojolele No. 123",
-  logo: "https://via.placeholder.com/150/FF6B6B/FFFFFF?text=SEMBAKO",
-  coverImage:
-    "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=800&h=400&fit=crop",
+  logo: "",
+  coverImage: "",
 });
 const operationalHours = ref([]);
+
+const hasLogo = computed(() => {
+  const val = merchantInfo.value?.logo;
+  return typeof val === "string" && val.trim().length > 0;
+});
+
+const hasCover = computed(() => {
+  const val = merchantInfo.value?.coverImage;
+  return typeof val === "string" && val.trim().length > 0;
+});
 
 const DAYS = [
   { key: "monday", label: "Monday" },
@@ -89,7 +104,11 @@ onMounted(async () => {
   isLoading.value = true;
 
   try {
-    const res = await merchantProfile.getMerchantProfile(merchantId.value);
+    if (!merchantSlug.value) {
+      throw new Error("Missing merchantSlug");
+    }
+
+    const res = await merchantProfile.getMerchantProfile(merchantSlug.value);
     const data = unwrapApiData(res);
 
     merchantName.value = data.name;
@@ -108,10 +127,14 @@ onMounted(async () => {
       contact: data.phone,
       description: data.description ?? "-",
       address: formatFullAddress(primaryAddress),
-      logo: data.logo_path ? data.logo_url : "https://via.placeholder.com/150",
-      coverImage: data.cover_path
-        ? data.banner_url
-        : "https://images.unsplash.com/photo-1604719312566-8912e9227c6a",
+      logo:
+        typeof data?.logo_url === "string" && data.logo_url.trim()
+          ? data.logo_url
+          : "",
+      coverImage:
+        typeof data?.banner_url === "string" && data.banner_url.trim()
+          ? data.banner_url
+          : "",
     };
 
     const hours = data.operational_hours ?? {};
@@ -139,10 +162,15 @@ onMounted(async () => {
 });
 
 const goToEdit = () => {
-  router.push({
-    name: "Merchant - Profile Edit",
-    params: { merchantId: merchantId.value },
-  });
+  if (merchantSlug.value) {
+    router.push({
+      name: "Merchant - Profile Edit",
+      params: { merchantSlug: merchantSlug.value },
+    });
+    return;
+  }
+
+  router.push({ name: "Merchant Profile - Edit" });
 };
 </script>
 
@@ -194,7 +222,7 @@ const goToEdit = () => {
         <div>
           <!-- Desktop: Show breadcrumb -->
           <div class="hidden sm:block">
-            <Breadcrumb :items="breadcrumbItems" :merchantId="merchantId" />
+            <Breadcrumb :items="breadcrumbItems" :merchantId="merchantSlug" />
             <p class="mt-1 text-xs sm:text-sm text-muted-foreground">
               <span v-if="isLoading">Memuat...</span>
               <span v-else>
@@ -249,42 +277,73 @@ const goToEdit = () => {
         class="relative mb-2 overflow-visible bg-white sm:mb-4 sm:rounded-xl sm:shadow-sm"
       >
         <img
+          v-if="hasCover"
           :src="merchantInfo.coverImage"
           alt="Cover"
-          class="object-cover w-full h-48 md:h-64 lg:h-80"
+          class="object-cover w-full h-48 sm:h-64 lg:h-80"
         />
-        <div class="absolute -bottom-10 md:-bottom-12 left-6 md:left-8">
+        <div
+          v-else
+          class="relative flex items-center justify-center w-full h-48 sm:h-64 lg:h-80 bg-linear-to-br from-muted-background to-muted-foreground sm:rounded-2xl"
+          aria-hidden="true"
+        >
+          <span>
+            <svg
+              class="w-12 h-12 text-white sm:w-16 sm:h-16"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM5 19V5h14v14H5zm8-7a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm-6 7l3-4 2.5 3 3.5-5 4 6H7z"
+              />
+            </svg>
+          </span>
+        </div>
+
+        <div class="absolute -bottom-10 sm:-bottom-12 left-6 sm:left-8">
           <img
+            v-if="hasLogo"
             :src="merchantInfo.logo"
             alt="Logo"
-            class="object-cover w-24 h-24 border-4 border-white rounded-full shadow-lg md:w-32 md:h-32"
+            class="object-cover w-24 h-24 border-4 border-white rounded-full shadow-lg sm:w-32 sm:h-32"
           />
+          <span v-else>
+            <svg
+              class="w-24 h-24 p-4 text-gray-300 bg-gray-100 border-4 border-white rounded-full shadow-lg sm:w-32 sm:h-32 sm:p-6"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M20 4H4v2h16V4zm1 10v-2l-1-5H4l-1 5v2h1v6h10v-6h4v6h2v-6h1zm-9 6H6v-6h6v6z"
+              />
+            </svg>
+          </span>
         </div>
       </div>
 
       <!-- Info Content -->
-      <div class="pt-14 md:pt-16">
+      <div class="pt-14 sm:pt-16">
         <div
-          class="p-4 mb-2 space-y-6 bg-white sm:mb-4 sm:p-6 md:space-y-8 sm:rounded-xl sm:shadow-sm"
+          class="p-4 mb-2 space-y-6 bg-white sm:mb-4 sm:p-6 sm:space-y-8 sm:rounded-xl sm:shadow-sm"
         >
           <!-- Title tanpa background (sama seperti "Produk") -->
-          <h2 class="text-xl font-bold md:text-2xl text-merchant-primary">
+          <h2 class="text-xl font-bold sm:text-2xl text-merchant-primary">
             Informasi Toko
           </h2>
 
           <!-- Grid Layout for Desktop -->
           <div
-            class="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-x-8 md:gap-y-6"
+            class="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-x-8 sm:gap-y-6"
           >
             <!-- Nama Toko -->
             <div>
               <label
-                class="block mb-2 text-sm font-medium md:text-base text-merchant-primary"
+                class="block mb-2 text-sm font-medium sm:text-base text-merchant-primary"
               >
                 Nama Toko
               </label>
               <div
-                class="p-3 text-sm text-gray-700 bg-gray-100 rounded-xl md:p-4 md:text-base"
+                class="p-3 text-sm text-gray-700 bg-gray-100 rounded-xl sm:p-4 sm:text-base"
               >
                 {{ merchantInfo.name }}
               </div>
@@ -293,40 +352,40 @@ const goToEdit = () => {
             <!-- Kontak -->
             <div>
               <label
-                class="block mb-2 text-sm font-medium md:text-base text-merchant-primary"
+                class="block mb-2 text-sm font-medium sm:text-base text-merchant-primary"
               >
                 Kontak
               </label>
               <div
-                class="p-3 text-sm text-gray-700 bg-gray-100 rounded-xl md:p-4 md:text-base"
+                class="p-3 text-sm text-gray-700 bg-gray-100 rounded-xl sm:p-4 sm:text-base"
               >
                 {{ merchantInfo.contact }}
               </div>
             </div>
 
             <!-- Tentang - Full Width -->
-            <div class="md:col-span-2">
+            <div class="sm:col-span-2">
               <label
-                class="block mb-2 text-sm font-medium md:text-base text-merchant-primary"
+                class="block mb-2 text-sm font-medium sm:text-base text-merchant-primary"
               >
                 Tentang
               </label>
               <div
-                class="p-3 text-sm leading-relaxed text-gray-700 bg-gray-100 rounded-xl md:p-4 md:text-base"
+                class="p-3 text-sm leading-relaxed text-gray-700 bg-gray-100 rounded-xl sm:p-4 sm:text-base"
               >
                 {{ merchantInfo.description }}
               </div>
             </div>
 
             <!-- Lokasi - Full Width -->
-            <div class="md:col-span-2">
+            <div class="sm:col-span-2">
               <label
-                class="block mb-2 text-sm font-medium md:text-base text-merchant-primary"
+                class="block mb-2 text-sm font-medium sm:text-base text-merchant-primary"
               >
                 Lokasi
               </label>
               <div
-                class="relative h-48 overflow-hidden bg-gray-100 rounded-xl md:h-64 lg:h-80"
+                class="relative h-48 overflow-hidden bg-gray-100 rounded-xl sm:h-64 lg:h-80"
               >
                 <!-- MAP -->
                 <div v-if="hasCoordinates" class="absolute inset-0">
@@ -345,7 +404,7 @@ const goToEdit = () => {
                 >
                   <div class="text-center">
                     <svg
-                      class="w-12 h-12 mx-auto mb-2 text-red-600 md:w-16 md:h-16"
+                      class="w-12 h-12 mx-auto mb-2 text-red-600 sm:w-16 sm:h-16"
                       fill="currentColor"
                       viewBox="0 0 24 24"
                     >
@@ -353,7 +412,7 @@ const goToEdit = () => {
                         d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
                       />
                     </svg>
-                    <p class="text-sm font-medium text-gray-700 md:text-base">
+                    <p class="text-sm font-medium text-gray-700 sm:text-base">
                       {{ merchantInfo.address }}
                     </p>
                   </div>
@@ -361,8 +420,8 @@ const goToEdit = () => {
               </div>
 
               <!-- Alamat (selalu tampil, termasuk saat map tampil) -->
-              <div class="p-3 mt-3 bg-gray-100 rounded-xl md:p-4">
-                <p class="text-sm text-gray-700 md:text-base">
+              <div class="p-3 mt-3 bg-gray-100 rounded-xl sm:p-4">
+                <p class="text-sm text-gray-700 sm:text-base">
                   {{ merchantInfo.address }}
                 </p>
               </div>
@@ -371,24 +430,24 @@ const goToEdit = () => {
 
           <!-- Jam Operasional -->
           <div class="pt-4">
-            <h3 class="mb-4 text-lg font-bold md:text-xl text-merchant-primary">
+            <h3 class="mb-4 text-lg font-bold sm:text-xl text-merchant-primary">
               Jam Operasional
             </h3>
             <div
-              class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 md:gap-4"
+              class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:gap-4"
             >
               <div
                 v-for="day in operationalHours"
                 :key="day.name"
-                class="flex items-center justify-between p-3 bg-gray-50 rounded-xl md:p-4"
+                class="flex items-center justify-between p-3 bg-gray-50 rounded-xl sm:p-4"
               >
                 <span
-                  class="px-4 py-2 bg-merchant-primary text-white rounded-full text-xs md:text-sm font-medium min-w-[100px] md:min-w-[110px] text-center"
+                  class="px-4 py-2 bg-merchant-primary text-white rounded-full text-xs sm:text-sm font-medium min-w-[100px] sm:min-w-[110px] text-center"
                 >
                   {{ day.name }}
                 </span>
                 <span
-                  class="ml-3 text-sm font-medium text-gray-700 md:text-base"
+                  class="ml-3 text-sm font-medium text-gray-700 sm:text-base"
                   >{{ day.hours }}</span
                 >
               </div>

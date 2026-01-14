@@ -247,7 +247,45 @@ const villageOptions = computed(() =>
 
     <div class="px-4 py-6 mx-auto max-w-7xl sm:px-8 sm:py-12">
       <div class="p-6 bg-white border border-gray-100 shadow-sm rounded-2xl">
-        <div v-if="loading" class="text-sm text-gray-500">Memuat...</div>
+        <div v-if="loading" class="space-y-6 animate-pulse">
+          <!-- Select Fields Skeleton -->
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div class="space-y-2">
+              <div class="w-24 h-4 bg-gray-200 rounded" />
+              <div class="w-full bg-gray-200 h-11 rounded-xl" />
+            </div>
+            <div class="space-y-2">
+              <div class="w-32 h-4 bg-gray-200 rounded" />
+              <div class="w-full bg-gray-200 h-11 rounded-xl" />
+            </div>
+            <div class="space-y-2">
+              <div class="h-4 bg-gray-200 rounded w-28" />
+              <div class="w-full bg-gray-200 h-11 rounded-xl" />
+            </div>
+            <div class="space-y-2">
+              <div class="w-32 h-4 bg-gray-200 rounded" />
+              <div class="w-full bg-gray-200 h-11 rounded-xl" />
+            </div>
+          </div>
+
+          <!-- Detail Address Skeleton -->
+          <div class="space-y-2">
+            <div class="h-4 bg-gray-200 rounded w-28" />
+            <div class="w-full bg-gray-200 rounded-xl h-[92px]" />
+          </div>
+
+          <!-- Map Skeleton -->
+          <div class="space-y-2">
+            <div class="h-4 bg-gray-200 rounded w-28" />
+            <div class="w-full bg-gray-200 rounded-xl h-80" />
+          </div>
+
+          <!-- Buttons Skeleton -->
+          <div class="flex gap-4">
+            <div class="flex-1 hidden h-12 bg-gray-200 sm:block rounded-xl" />
+            <div class="flex-1 h-12 bg-gray-200 rounded-xl" />
+          </div>
+        </div>
 
         <Form v-else @submit="handleSave" class="space-y-6">
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">

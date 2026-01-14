@@ -1,13 +1,13 @@
 import axios from "@/libs/axios";
 
-const getMerchantProfile = async (merchantId) => {
-  const response = await axios.get(`api/merchants/${merchantId}/profile`);
+const getMerchantProfile = async (merchantSlug) => {
+  const response = await axios.get(`/api/merchant/${merchantSlug}/profile`);
   return response.data;
 };
 
-const updateMerchantProfile = async (merchantId, payload) => {
+const updateMerchantProfile = async (merchantSlug, payload) => {
   const response = await axios.post(
-    `api/merchants/${merchantId}/update`,
+    `/api/merchant/${merchantSlug}/update`,
     payload,
     {
       headers: {

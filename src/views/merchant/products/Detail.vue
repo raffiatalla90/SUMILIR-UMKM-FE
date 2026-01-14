@@ -4,6 +4,7 @@
 import { ref, computed, onMounted, nextTick, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
+import { useAuthStore } from "@/stores/auth";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue"; // ✅ ADD
 import Button from "@/components/common/Button.vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";
@@ -15,14 +16,24 @@ const { fetchProductDetail } = useProducts();
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
+const authStore = useAuthStore();
 const showFullDescription = ref(false);
 const descriptionRef = ref(null);
 const isClamped = ref(false);
-// ✅ Get merchantId from route
+
+const currentMerchantSlug = computed(() => {
+  return route.params.merchantSlug
+    ? String(route.params.merchantSlug)
+    : authStore.merchantSlug || null;
+});
+
+// ✅ Get merchantId (numeric) for APIs by mapping slug -> id
 const currentMerchantId = computed(() => {
-  return route.params && route.params.merchantId
-    ? Number(route.params.merchantId)
-    : null;
+  const merchant = currentMerchantSlug.value
+    ? authStore.getMerchantBySlug(currentMerchantSlug.value)
+    : authStore.activeMerchant;
+
+  return merchant?.id ?? null;
 });
 // ===== Swipe state (mobile) =====
 const touchStartX = ref(0);
@@ -60,7 +71,7 @@ const handleTouchEnd = () => {
 const breadcrumbItems = computed(() => [
   {
     label: "Produk",
-    path: `/merchant-center/${currentMerchantId.value}/products`,
+    path: `/merchant-center/${currentMerchantSlug.value}/products`,
   },
   {
     label: "Detail Produk",
@@ -302,7 +313,7 @@ const goBack = () => {
 
 const editProduct = () => {
   router.push(
-    `/merchant-center/${currentMerchantId.value}/products/${route.params.slug}/edit`
+    `/merchant-center/${currentMerchantSlug.value}/products/${route.params.slug}/edit`
   );
 };
 
@@ -329,7 +340,11 @@ const loadDetail = async () => {
   try {
     const slug = route.params.slug; // ✅ gunakan slug
 
-    const data = await fetchProductDetail(slug); // ✅ composable akan pakai slug
+    if (!currentMerchantSlug.value) {
+      throw new Error("merchantSlug tidak ditemukan");
+    }
+
+    const data = await fetchProductDetail(currentMerchantSlug.value, slug);
     product.value = data;
 
     // reset index jika ada images
@@ -342,10 +357,10 @@ const loadDetail = async () => {
     const status = err?.response?.status;
     if (status === 404) {
       toast.error("Produk tidak ditemukan");
-      router.push("/merchant-center/products");
+      router.push(`/merchant-center/${currentMerchantSlug.value}/products`);
     } else if (status === 403) {
       toast.error("Anda tidak memiliki akses ke produk ini");
-      router.push("/merchant-center/products");
+      router.push(`/merchant-center/${currentMerchantSlug.value}/products`);
     } else {
       toast.error(err?.response?.data?.message || "Gagal memuat detail produk");
     }
@@ -396,7 +411,7 @@ onMounted(() => {
           <!-- ✅ Use Breadcrumb Component -->
           <Breadcrumb
             :items="breadcrumbItems"
-            :merchantId="currentMerchantId"
+            :merchantId="currentMerchantSlug"
           />
           <p class="text-xs text-muted-foreground lg:text-sm">
             {{ product?.name || "Loading..." }}
@@ -581,9 +596,7 @@ onMounted(() => {
             <div v-if="subCategories.length > 0">
               <div class="mb-3 border-t border-gray-100"></div>
               <div class="flex items-start justify-between gap-3">
-                <span class="flex-shrink-0 text-sm text-gray-600"
-                  >Sub Kategori</span
-                >
+                <span class="shrink-0 text-sm text-gray-600">Sub Kategori</span>
                 <div class="flex flex-wrap gap-1.5 justify-end">
                   <span
                     v-for="cat in subCategories"
@@ -599,7 +612,7 @@ onMounted(() => {
             <div v-if="product.min_purchase">
               <div class="mb-3 border-t border-gray-100"></div>
               <div class="flex items-start justify-between gap-3 mt-3">
-                <span class="flex-shrink-0 text-sm text-gray-600"
+                <span class="shrink-0 text-sm text-gray-600"
                   >Minimal Pembelian</span
                 >
                 <span class="text-sm font-medium text-gray-900">
@@ -617,7 +630,7 @@ onMounted(() => {
           >
             <div class="flex items-center gap-3">
               <div
-                class="flex items-center justify-center flex-shrink-0 w-10 h-10 rounded-full bg-merchant-primary/10"
+                class="flex items-center justify-center shrink-0 w-10 h-10 rounded-full bg-merchant-primary/10"
               >
                 <i class="pi pi-box text-merchant-primary"></i>
               </div>
@@ -642,7 +655,7 @@ onMounted(() => {
           >
             <div class="flex items-center gap-3">
               <div
-                class="flex items-center justify-center flex-shrink-0 w-10 h-10 rounded-full bg-merchant-primary/10"
+                class="flex items-center justify-center shrink-0 w-10 h-10 rounded-full bg-merchant-primary/10"
               >
                 <i class="pi pi-plus-circle text-merchant-primary"></i>
               </div>
@@ -802,7 +815,7 @@ onMounted(() => {
         <!-- Variant List -->
         <div class="space-y-3">
           <h3
-            class="text-sm font-semibold text-black sticky -top-4 bg-white py-2 -mt-2 z-[5]"
+            class="text-sm font-semibold text-black sticky -top-4 bg-white py-2 -mt-2 z-5"
           >
             Daftar Kombinasi Varian
           </h3>
@@ -1000,7 +1013,7 @@ onMounted(() => {
                     </p>
                   </div>
                 </div>
-                <div class="flex-shrink-0">
+                <div class="shrink-0">
                   <!-- Price Badge -->
                   <StatusLabel
                     v-if="option.addon_price > 0"

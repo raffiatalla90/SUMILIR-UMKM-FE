@@ -665,6 +665,17 @@
                       alt="UMKM logo"
                       class="object-cover w-full h-full"
                     />
+                    <span v-else>
+                      <svg
+                        class="w-12 h-12 p-2 text-gray-300 bg-gray-100 border-4 border-white rounded-full shadow-lg"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          d="M20 4H4v2h16V4zm1 10v-2l-1-5H4l-1 5v2h1v6h10v-6h4v6h2v-6h1zm-9 6H6v-6h6v6z"
+                        />
+                      </svg>
+                    </span>
                   </div>
                   <div class="min-w-0">
                     <h4
@@ -691,7 +702,9 @@
                   v-if="product?.merchant"
                   :to="{
                     name: 'Merchant Detail',
-                    params: { slug: product.merchant.slug || product.merchant.id },
+                    params: {
+                      slug: product.merchant.slug || product.merchant.id,
+                    },
                   }"
                 >
                   <Button variant="primary-outline" class="flex-shrink-0"

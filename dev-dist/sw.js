@@ -21,22 +21,20 @@ if (!self.define) {
 
   const singleRequire = (uri, parentUri) => {
     uri = new URL(uri + ".js", parentUri).href;
-    return registry[uri] || (
-      
-        new Promise(resolve => {
-          if ("document" in self) {
-            const script = document.createElement("script");
-            script.src = uri;
-            script.onload = resolve;
-            document.head.appendChild(script);
-          } else {
-            nextDefineUri = uri;
-            importScripts(uri);
-            resolve();
-          }
-        })
-      
-      .then(() => {
+    return (
+      registry[uri] ||
+      new Promise((resolve) => {
+        if ("document" in self) {
+          const script = document.createElement("script");
+          script.src = uri;
+          script.onload = resolve;
+          document.head.appendChild(script);
+        } else {
+          nextDefineUri = uri;
+          importScripts(uri);
+          resolve();
+        }
+      }).then(() => {
         let promise = registry[uri];
         if (!promise) {
           throw new Error(`Module ${uri} didn’t register its module`);
@@ -47,27 +45,31 @@ if (!self.define) {
   };
 
   self.define = (depsNames, factory) => {
-    const uri = nextDefineUri || ("document" in self ? document.currentScript.src : "") || location.href;
+    const uri =
+      nextDefineUri ||
+      ("document" in self ? document.currentScript.src : "") ||
+      location.href;
     if (registry[uri]) {
       // Module is already loading or loaded.
       return;
     }
     let exports = {};
-    const require = depUri => singleRequire(depUri, uri);
+    const require = (depUri) => singleRequire(depUri, uri);
     const specialDeps = {
       module: { uri },
       exports,
-      require
+      require,
     };
-    registry[uri] = Promise.all(depsNames.map(
-      depName => specialDeps[depName] || require(depName)
-    )).then(deps => {
+    registry[uri] = Promise.all(
+      depsNames.map((depName) => specialDeps[depName] || require(depName))
+    ).then((deps) => {
       factory(...deps);
       return exports;
     });
   };
 }
-define(['./workbox-14ef65e8'], (function (workbox) { 'use strict';
+define(["./workbox-14ef65e8"], function (workbox) {
+  "use strict";
 
   self.skipWaiting();
   workbox.clientsClaim();
@@ -77,33 +79,53 @@ define(['./workbox-14ef65e8'], (function (workbox) { 'use strict';
    * requests for URLs in the manifest.
    * See https://goo.gl/S9QRab
    */
-  workbox.precacheAndRoute([{
-    "url": "registerSW.js",
-    "revision": "3ca0b8505b4bec776b69afdba2768812"
-  }, {
-    "url": "/index.html",
-    "revision": "0.o3p5sr5ja1s"
-  }], {});
+  workbox.precacheAndRoute(
+    [
+      {
+        url: "registerSW.js",
+        revision: "3ca0b8505b4bec776b69afdba2768812",
+      },
+      {
+        url: "/index.html",
+        revision: "0.o3p5sr5ja1s",
+      },
+    ],
+    {}
+  );
   workbox.cleanupOutdatedCaches();
-  workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("/index.html"), {
-    allowlist: [/^\/$/],
-    denylist: [/^\/api\//]
-  }));
-  workbox.registerRoute(({
-    request,
-    sameOrigin
-  }) => sameOrigin && ["style", "script", "image", "font"].includes(request.destination), new workbox.StaleWhileRevalidate({
-    "cacheName": "assets-cache-v1",
-    plugins: []
-  }), 'GET');
-  workbox.registerRoute(/^http:\/\/localhost:8000\/.*/, new workbox.NetworkFirst({
-    "cacheName": "api-cache-v1",
-    plugins: [new workbox.CacheableResponsePlugin({
-      statuses: [0, 200]
-    }), new workbox.ExpirationPlugin({
-      maxEntries: 200,
-      maxAgeSeconds: 3600
-    })]
-  }), 'GET');
-
-}));
+  workbox.registerRoute(
+    new workbox.NavigationRoute(
+      workbox.createHandlerBoundToURL("/index.html"),
+      {
+        allowlist: [/^\/$/],
+        denylist: [/^\/api\//],
+      }
+    )
+  );
+  workbox.registerRoute(
+    ({ request, sameOrigin }) =>
+      sameOrigin &&
+      ["style", "script", "image", "font"].includes(request.destination),
+    new workbox.StaleWhileRevalidate({
+      cacheName: "assets-cache-v1",
+      plugins: [],
+    }),
+    "GET"
+  );
+  workbox.registerRoute(
+    /^http:\/\/localhost:8000\/.*/,
+    new workbox.NetworkFirst({
+      cacheName: "api-cache-v1",
+      plugins: [
+        new workbox.CacheableResponsePlugin({
+          statuses: [0, 200],
+        }),
+        new workbox.ExpirationPlugin({
+          maxEntries: 200,
+          maxAgeSeconds: 3600,
+        }),
+      ],
+    }),
+    "GET"
+  );
+});
