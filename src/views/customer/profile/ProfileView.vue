@@ -129,7 +129,7 @@ const needsProfileCompletion = computed(
     <!-- <MobileHeader title="Profil" @back="goBack()" /> -->
 
     <!-- Content Container -->
-    <div class="px-4 py-6 mx-auto max-w-7xl sm:px-8 sm:py-12">
+    <div class="px-4 py-4 mx-auto max-w-7xl">
       <!-- DESKTOP LAYOUT -->
       <div class="hidden gap-8 lg:grid lg:grid-cols-12">
         <!-- Left: Profile Card -->

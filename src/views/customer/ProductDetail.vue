@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen pb-16 bg-gray-50 sm:pb-8">
+  <div class="pb-16 bg-gray-50 sm:pb-4">
     <!-- Header dengan tombol close (Hidden - replaced by floating button) -->
     <div
       class="sticky top-0 z-50 hidden bg-white border-b border-gray-200 sm:hidden"
@@ -77,7 +77,7 @@
     </div>
 
     <!-- Loading Skeleton -->
-    <div v-if="loading || !product" class="mx-auto max-w-7xl sm:px-4 sm:py-6">
+    <div v-if="loading || !product" class="mx-auto max-w-7xl sm:px-4 sm:py-4">
       <div class="overflow-hidden bg-white sm:rounded-2xl sm:shadow-lg">
         <div class="sm:grid sm:grid-cols-2 sm:gap-8 sm:p-8">
           <!-- Skeleton Gambar -->
@@ -243,7 +243,7 @@
     </div>
 
     <!-- Content (existing template) -->
-    <div v-else class="mx-auto max-w-7xl sm:px-4 sm:py-6">
+    <div v-else class="mx-auto max-w-7xl sm:px-4 sm:py-4">
       <div class="overflow-hidden bg-white sm:rounded-2xl sm:shadow-lg">
         <!-- Layout Desktop: Grid 2 kolom -->
         <div class="sm:grid sm:grid-cols-2 sm:gap-8 sm:p-8">

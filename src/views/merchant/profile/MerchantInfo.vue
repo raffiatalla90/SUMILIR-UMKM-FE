@@ -443,6 +443,7 @@ const goToEdit = () => {
                     :lat="latitude"
                     :lng="longitude"
                     :zoom="15"
+                    variant="merchant"
                     readonly="true"
                   />
                 </div>

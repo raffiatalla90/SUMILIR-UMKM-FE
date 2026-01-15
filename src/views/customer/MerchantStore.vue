@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen">
+  <div class="">
     <!-- Loading State -->
     <div v-if="loading" class="w-full">
       <!-- Header Skeleton -->
@@ -156,15 +156,6 @@
                     ></i>
                     {{ formattedDistanceKm }}
                   </span>
-
-                  <button
-                    v-else-if="hasMerchantCoordinates"
-                    type="button"
-                    @click="requestMyLocation"
-                    class="text-xs font-semibold text-gray-500 underline hover:text-gray-700"
-                  >
-                    Aktifkan lokasi
-                  </button>
                 </div>
               </div>
             </div>
@@ -370,6 +361,7 @@
               :lng="longitude"
               :zoom="12"
               :showMyLocation="true"
+              variant="merchant"
               readonly="true"
               class="absolute inset-0"
             />
@@ -381,9 +373,20 @@
             </div>
           </div>
 
-          <p class="text-sm leading-relaxed text-gray-600">
+          <p class="mb-4 text-sm leading-relaxed text-gray-600">
             {{ merchantInfo.address }}
           </p>
+
+          <!-- Rute Button -->
+          <AppButton
+            v-if="hasCoordinates"
+            @click="openRouteToMerchant"
+            type="button"
+            variant="primary"
+            class="w-full"
+          >
+            <span>Rute</span>
+          </AppButton>
         </div>
       </div>
     </template>
@@ -468,6 +471,9 @@ import ChatWindow from "@/components/common/ChatWindow.vue";
 import LeafletMap from "@/components/LeafletMap.vue";
 import ProductCard from "@/components/Card/ProductCard.vue";
 import ProductCardSkeleton from "@/components/Card/ProductCardSkeleton.vue";
+import AppButton from "@/components/common/Button.vue";
+import { useToast } from "vue-toastification";
+const toast = useToast();
 
 // Format phone number for wa.me (remove non-digits, add country code if needed)
 function formatPhoneForWa(phone) {
@@ -545,6 +551,44 @@ async function requestMyLocation() {
   if (!coords) return false;
   setMyCoordinates(coords.lat, coords.lng);
   return hasMyCoordinates.value;
+}
+
+function openRouteToMerchant() {
+  if (!hasMyCoordinates.value) {
+    // Try to get location first
+    requestMyLocation().then((success) => {
+      if (success) {
+        openGoogleMapsRoute();
+      } else {
+        toast.info(
+          "Lokasi Anda belum tersedia. Silakan aktifkan akses lokasi."
+        );
+      }
+    });
+    return;
+  }
+  openGoogleMapsRoute();
+}
+
+function openGoogleMapsRoute() {
+  const originLat = myLatitude.value;
+  const originLng = myLongitude.value;
+
+  const destLat = parseFloat(latitude.value);
+  const destLng = parseFloat(longitude.value);
+
+  if (isNaN(destLat) || isNaN(destLng)) {
+    toast.info("Lokasi toko tidak valid");
+    return;
+  }
+
+  const url =
+    `https://www.google.com/maps/dir/?api=1` +
+    `&origin=${originLat},${originLng}` +
+    `&destination=${destLat},${destLng}` +
+    `&travelmode=driving`;
+
+  window.open(url, "_blank");
 }
 
 const DAYS = [

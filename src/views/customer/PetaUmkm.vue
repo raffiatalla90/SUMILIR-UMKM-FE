@@ -1,9 +1,8 @@
 <template>
-  <div class="relative">
+  <div class="relative z-0">
     <!-- SEARCH + FILTER (DESKTOP) -->
     <div
-      class="fixed justify-center hidden w-full p-3 -translate-x-1/2 sm:flex top-24 left-1/2"
-      style="z-index: 1000"
+      class="fixed z-40 justify-center hidden w-full p-3 -translate-x-1/2 sm:flex top-24 left-1/2"
     >
       <div class="flex items-center w-full max-w-2xl gap-3">
         <!-- SEARCH BAR -->
@@ -14,29 +13,60 @@
             name="search-desktop"
             placeholder="Cari UMKM..."
             hideLabel
+            autocomplete="off"
           />
 
           <!-- HASIL PENCARIAN DESKTOP -->
           <ul
             v-if="results.length"
-            class="absolute left-0 right-0 mt-1 overflow-y-auto bg-white rounded shadow-md max-h-60"
-            style="z-index: 1001"
+            class="absolute left-0 right-0 z-50 mt-1 overflow-y-auto bg-white rounded-lg shadow-lg max-h-60 search-results-desktop"
           >
             <li
               v-for="item in results"
               :key="item.id"
               @click="goTo(item)"
-              class="flex items-center gap-3 p-2 border-b cursor-pointer hover:bg-gray-100"
+              class="flex items-center justify-between gap-3 p-3 transition-colors border-b border-gray-100 cursor-pointer hover:bg-linear-to-r hover:from-primary/5 hover:to-primary/10 last:border-b-0"
             >
-              <!-- IMAGE -->
-              <img
-                :src="item.logo_url"
-                class="object-cover w-12 h-12 bg-gray-200 rounded-lg"
-                alt="Foto UMKM"
-              />
+              <div class="flex items-center min-w-0 gap-3">
+                <!-- IMAGE -->
+                <img
+                  v-if="item.logo_url"
+                  :src="item.logo_url"
+                  class="object-cover w-12 h-12 bg-gray-200 rounded-lg shrink-0"
+                  alt="Foto UMKM"
+                />
+                <svg
+                  v-else
+                  class="w-12 h-12 p-2 text-gray-300 bg-gray-100 rounded-lg shrink-0"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M20 4H4v2h16V4zm1 10v-2l-1-5H4l-1 5v2h1v6h10v-6h4v6h2v-6h1zm-9 6H6v-6h6v6z"
+                  />
+                </svg>
 
-              <!-- NAME -->
-              <span class="font-medium">{{ item.name }}</span>
+                <!-- INFO -->
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-medium text-gray-900 truncate">
+                    {{ item.name }}
+                  </div>
+                  <div
+                    class="flex items-center gap-2 mt-1 text-xs text-gray-600"
+                  >
+                    <span class="font-bold text-merchant-primary">{{
+                      item.segmentation?.name || "UMKM"
+                    }}</span>
+                    <span
+                      v-if="calculateDistance(item)"
+                      class="flex items-center gap-1"
+                    >
+                      <i class="text-red-500 pi pi-map-marker"></i>
+                      {{ calculateDistance(item) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </li>
           </ul>
         </div>
@@ -78,7 +108,7 @@
     </div>
 
     <!-- SEARCH + FILTER (MOBILE) -->
-    <div class="fixed left-0 w-full px-3 sm:hidden top-8" style="z-index: 1000">
+    <div class="fixed left-0 z-40 w-full px-3 sm:hidden top-8">
       <div class="flex flex-col w-full gap-2 mx-auto">
         <!-- SEARCH BAR -->
         <div class="w-full">
@@ -88,6 +118,7 @@
             name="search-mobile"
             placeholder="Cari UMKM..."
             hideLabel
+            autocomplete="off"
           />
         </div>
 
@@ -131,8 +162,7 @@
     <transition name="slide-up">
       <div
         v-if="results.length"
-        class="sm:hidden fixed bottom-0 left-0 w-full max-h-[50vh] overflow-y-auto p-3 space-y-1 bg-white rounded-t-2xl shadow-[0_-4px_15px_rgba(0,0,0,0.2)]"
-        style="z-index: 1001"
+        class="sm:hidden fixed bottom-16 left-0 z-40 w-full max-h-[50vh] overflow-y-auto p-3 space-y-1 bg-white rounded-t-2xl shadow-[0_-4px_15px_rgba(0,0,0,0.2)]"
       >
         <div
           v-for="item in results"
@@ -141,23 +171,43 @@
           class="flex gap-3 p-3 bg-white shadow rounded-xl active:bg-gray-100"
         >
           <img
+            v-if="item.logo_url"
             :src="item.logo_url"
-            class="object-cover w-20 h-20 bg-gray-200 rounded-lg"
+            class="object-cover w-20 h-20 bg-gray-200 rounded-2xl shrink-0"
             alt="Foto UMKM"
           />
+          <svg
+            v-else
+            class="w-20 h-20 p-2 text-gray-300 bg-gray-100 rounded-2xl shrink-0"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M20 4H4v2h16V4zm1 10v-2l-1-5H4l-1 5v2h1v6h10v-6h4v6h2v-6h1zm-9 6H6v-6h6v6z"
+            />
+          </svg>
 
-          <div class="flex flex-col justify-center">
+          <div class="flex flex-col justify-center flex-1 gap-2">
             <h3 class="text-base font-semibold">{{ item.name }}</h3>
+            <div class="flex items-center gap-2 text-xs text-gray-600">
+              <span class="font-bold text-merchant-primary">{{
+                item.segmentation?.name || "UMKM"
+              }}</span>
+              <span
+                v-if="calculateDistance(item)"
+                class="flex items-center gap-1"
+              >
+                <i class="text-red-500 pi pi-map-marker"></i>
+                {{ calculateDistance(item) }}
+              </span>
+            </div>
           </div>
         </div>
       </div>
     </transition>
 
     <!-- MAP FULLSCREEN RESPONSIVE -->
-    <div
-      id="map"
-      class="w-full h-[calc(100vh-75px)] sm:h-[calc(100vh-95px)]"
-    ></div>
+    <div id="map" class="relative z-0 w-full h-[95dvh] sm:h-[92dvh]"></div>
   </div>
 </template>
 
@@ -165,8 +215,10 @@
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import api from "@/libs/axios";
+import { useToast } from "vue-toastification";
 import TextField from "@/components/forms/TextField.vue";
 
+const toast = useToast();
 export default {
   name: "MapComponent",
   components: { TextField },
@@ -196,11 +248,45 @@ export default {
       this.map
     );
 
-    this.loadMerchants();
     this.loadMyLocationMarker();
+    this.loadMerchants();
   },
 
   methods: {
+    toRad(deg) {
+      return (deg * Math.PI) / 180;
+    },
+
+    haversineKm(lat1, lng1, lat2, lng2) {
+      const R = 6371;
+      const dLat = this.toRad(lat2 - lat1);
+      const dLng = this.toRad(lng2 - lng1);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(this.toRad(lat1)) *
+          Math.cos(this.toRad(lat2)) *
+          Math.sin(dLng / 2) *
+          Math.sin(dLng / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    },
+
+    calculateDistance(item) {
+      if (!this.myLocation) return null;
+      const itemLat = parseFloat(item.latitude);
+      const itemLng = parseFloat(item.longitude);
+      if (!Number.isFinite(itemLat) || !Number.isFinite(itemLng)) return null;
+      const distKm = this.haversineKm(
+        this.myLocation.lat,
+        this.myLocation.lng,
+        itemLat,
+        itemLng
+      );
+      return distKm < 1
+        ? `${(distKm * 1000).toFixed(0)}m`
+        : `${distKm.toFixed(1)}km`;
+    },
+
     getMerchantMarkerIcon(segmentationId) {
       const key = String(segmentationId ?? "default");
       if (this.merchantIconCache[key]) return this.merchantIconCache[key];
@@ -354,12 +440,33 @@ export default {
 
         const logoTag = item.logo_url
           ? `<div class="popup-gmaps__img"><img src="${item.logo_url}" alt="${item.name}" /></div>`
+          : `<div class="popup-gmaps__img" style="background: #f3f4f6; display: flex; align-items: center; justify-content: center;">
+              <svg class="w-12 h-12 p-2 text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M20 4H4v2h16V4zm1 10v-2l-1-5H4l-1 5v2h1v6h10v-6h4v6h2v-6h1zm-9 6H6v-6h6v6z" />
+              </svg>
+            </div>`;
+        const segmentation = item.segmentation?.name || "UMKM";
+        const distance = this.calculateDistance(item);
+        const distanceInfo = distance
+          ? `<div class="popup-gmaps__distance">
+              <i class="pi pi-map-marker" style="color: #f87171; margin-right: 2px;"></i>
+             ${distance}</div>`
           : "";
         const popup = `
           <div class="popup-card">
             <div class="popup-card__body">
               ${logoTag}
               <div class="popup-gmaps__title">${item.name}</div>
+              <div class="popup-gmaps__meta">
+                <span class="popup-gmaps__badge">${segmentation}</span>
+              ${distanceInfo}
+
+              </div>
+            </div>
+            <div class="popup-card__footer">
+              <button class="popup-route-btn">
+                <span>Rute</span>
+              </button>
             </div>
           </div>`;
 
@@ -370,6 +477,15 @@ export default {
           const popupEl = marker.getPopup()?.getElement();
           const card = popupEl?.querySelector(".popup-card");
           if (!card) return;
+
+          const routeBtn = popupEl?.querySelector(".popup-route-btn");
+          if (routeBtn) {
+            routeBtn.onclick = (e) => {
+              e?.preventDefault?.();
+              e?.stopPropagation?.();
+              this.openRouteToMerchant(item);
+            };
+          }
 
           const slugOrId = item.slug || item.id;
           card.onclick = () => {
@@ -413,6 +529,32 @@ export default {
 
       this.query = item.name;
       this.results = [];
+    },
+
+    openRouteToMerchant(item) {
+      if (!this.myLocation) {
+        toast.info("Lokasi Anda belum tersedia");
+        return;
+      }
+
+      const originLat = this.myLocation.lat;
+      const originLng = this.myLocation.lng;
+
+      const destLat = parseFloat(item.latitude);
+      const destLng = parseFloat(item.longitude);
+
+      if (isNaN(destLat) || isNaN(destLng)) {
+        alert("Lokasi UMKM tidak valid");
+        return;
+      }
+
+      const url =
+        `https://www.google.com/maps/dir/?api=1` +
+        `&origin=${originLat},${originLng}` +
+        `&destination=${destLat},${destLng}` +
+        `&travelmode=driving`;
+
+      window.open(url, "_blank");
     },
   },
 };
@@ -477,21 +619,14 @@ export default {
   position: absolute !important;
   top: 8px !important;
   right: 8px !important;
-  width: 30px !important;
-  height: 30px !important;
-  line-height: 30px !important;
-  font-size: 22px !important;
-  background: rgba(255, 255, 255, 0.92) !important;
-  border-radius: 9999px !important;
-  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  font-size: 20px !important;
   color: rgba(0, 0, 0, 0.6) !important;
   opacity: 1 !important;
   z-index: 10 !important;
   transition: background 0.15s, color 0.15s, transform 0.15s;
 }
 .leaflet-popup-close-button:hover {
-  background: var(--color-primary) !important;
-  color: #fff !important;
+  color: var(--color-primary) !important;
   transform: scale(1.04);
 }
 
@@ -506,10 +641,6 @@ export default {
   transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 
-.popup-card:hover {
-  transform: translateY(-1px);
-}
-
 .popup-card__body {
   padding: 14px 14px 12px 14px;
   text-align: center;
@@ -520,7 +651,7 @@ export default {
   width: 72px;
   height: 72px;
   margin: 2px auto 10px auto;
-  border-radius: 9999px;
+  border-radius: 16px;
   overflow: hidden;
   border: 3px solid rgba(255, 255, 255, 0.9);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
@@ -536,9 +667,29 @@ export default {
 .popup-gmaps__title {
   font-size: 14px;
   font-weight: 700;
-  color: rgba(0, 0, 0, 0.85);
+  color: rgba(0, 0, 0, 1);
   line-height: 1.25;
   word-break: break-word;
+  margin-bottom: 6px;
+}
+
+.popup-gmaps__meta {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.popup-gmaps__badge {
+  color: var(--color-merchant-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.popup-gmaps__distance {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.7);
 }
 
 /* My location popup */
@@ -562,6 +713,52 @@ export default {
   font-weight: 800;
   color: var(--color-primary);
 }
+
+/* Popup card footer */
+.popup-card__footer {
+  padding: 12px 14px 14px 14px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  display: flex;
+  justify-content: center;
+}
+
+/* Rute button: large, easy to tap */
+.popup-route-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 24px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #ffb300 0%, #ffa000 100%);
+  color: #fff;
+  border: none;
+  border-radius: 9999px;
+  box-shadow: 0 2px 8px rgba(255, 163, 0, 0.2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.popup-route-btn:hover {
+  background: linear-gradient(135deg, #ffa000 0%, #ff8c00 100%);
+  box-shadow: 0 4px 12px rgba(255, 163, 0, 0.3);
+  transform: translateY(-1px);
+}
+
+.popup-route-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(255, 163, 0, 0.2);
+}
+
+.popup-route-btn__icon {
+  font-size: 16px;
+  display: inline-block;
+}
+
 /* Mobile slide-up animation */
 .slide-up-enter-active,
 .slide-up-leave-active {
@@ -570,5 +767,42 @@ export default {
 .slide-up-enter-from,
 .slide-up-leave-to {
   transform: translateY(100%);
+}
+
+/* Custom scrollbar untuk hasil pencarian desktop */
+.search-results-desktop {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(5, 136, 149, 0.3) transparent;
+}
+
+.search-results-desktop::-webkit-scrollbar {
+  width: 6px;
+}
+
+.search-results-desktop::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 10px;
+}
+
+.search-results-desktop::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(5, 136, 149, 0.4) 0%,
+    rgba(5, 136, 149, 0.6) 100%
+  );
+  border-radius: 10px;
+  transition: background 0.2s ease;
+}
+
+.search-results-desktop::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(5, 136, 149, 0.6) 0%,
+    rgba(5, 136, 149, 0.8) 100%
+  );
+}
+
+.search-results-desktop::-webkit-scrollbar-thumb:active {
+  background: rgba(5, 136, 149, 0.9);
 }
 </style>

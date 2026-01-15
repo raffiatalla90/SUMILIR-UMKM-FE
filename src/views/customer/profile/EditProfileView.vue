@@ -135,13 +135,13 @@ onMounted(() => {
     <MobileHeader title="Edit Profil" @back="goBack" />
 
     <!-- Content Container -->
-    <div class="px-4 py-6 mx-auto max-w-7xl sm:px-8 sm:py-12">
+    <div class="px-4 py-4 mx-auto max-w-7xl">
       <!-- DESKTOP LAYOUT -->
       <div class="hidden gap-8 sm:grid sm:grid-cols-12">
         <!-- Left: Profile Picture -->
         <div class="sm:col-span-4">
           <div
-            class="sticky p-8 bg-white border border-gray-100 shadow-sm rounded-2xl top-24"
+            class="sticky p-8 bg-white border border-gray-100 shadow-sm rounded-2xl top-12"
           >
             <div class="flex flex-col items-center">
               <div class="relative w-40 h-40">
