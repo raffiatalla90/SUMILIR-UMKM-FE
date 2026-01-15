@@ -1,35 +1,98 @@
 <template>
-  <div class="min-h-screen bg-gray-50 pb-32 sm:pb-28">
+  <div
+    class="min-h-screen pb-32 bg-gradient-to-b from-gray-50 via-white to-gray-100 sm:pb-28"
+  >
     <!-- Gambar header -->
-    <div class="w-full h-48 sm:h-60 bg-gray-200 overflow-hidden">
-      <img :src="jasaImage" @error="onImgError($event, 'header')" class="w-full h-full object-cover" />
+    <div class="relative w-full h-48 overflow-hidden bg-gray-200 sm:h-60">
+      <img
+        :src="jasaImage"
+        @error="onImgError($event, 'header')"
+        class="object-cover w-full h-full"
+      />
+      <div
+        class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent"
+      ></div>
+      <!-- Tombol kembali -->
+      <button
+        type="button"
+        class="absolute z-20 flex items-center justify-center text-white transition rounded-full shadow-md top-3 left-3 w-9 h-9 bg-black/35 backdrop-blur-sm hover:bg-black/50"
+        @click="goBack"
+        aria-label="Kembali"
+      >
+        <i class="text-sm pi pi-arrow-left"></i>
+      </button>
     </div>
 
+    <!-- Preview galeri di bawah cover -->
+    <section
+      v-if="jasa?.images && jasa.images.length > 1"
+      class="px-4 pt-3 pb-2 bg-white border-b border-gray-100"
+    >
+      <div class="max-w-screen-sm mx-auto">
+        <h2 class="mb-2 text-xs font-semibold text-gray-700">Galeri Layanan</h2>
+        <div class="flex gap-2 pb-1 overflow-x-auto">
+          <button
+            v-for="img in jasa.images"
+            :key="img.id || img.path || img.image"
+            type="button"
+            class="relative flex-shrink-0 w-14 h-14 rounded-md overflow-hidden border text-[10px] bg-gray-50 focus:outline-none focus:ring-1 focus:ring-[#FFA30E] focus:ring-offset-1"
+            :class="[
+              getImageUrlJasa(img.path || img.url || img.image) ===
+                selectedImagePath ||
+              (!selectedImagePath && img.is_cover)
+                ? 'border-[#FFA30E]'
+                : 'border-gray-200',
+            ]"
+            @click="onSelectGalleryImage(img)"
+          >
+            <img
+              :src="getImageUrlJasa(img.path || img.url || img.image)"
+              class="object-cover w-full h-full"
+              @error="onImgError($event, 'gallery')"
+            />
+            <span
+              v-if="img.is_cover"
+              class="absolute bottom-0 left-0 right-0 bg-black/45 text-white text-[9px] py-0.5 text-center"
+            >
+              Cover
+            </span>
+          </button>
+        </div>
+      </div>
+    </section>
+
     <!-- Info utama -->
-    <div class="bg-white px-4 py-4 shadow-sm">
+    <div class="px-4 py-4 border-b border-gray-100 shadow-sm bg-white/95">
       <!-- Info Toko -->
-      <div class="flex items-center gap-3 mb-3 pb-3 border-b border-gray-100">
-        <div class="w-12 h-12 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center shrink-0">
-          <img 
-            v-if="jasa?.merchant?.logo_path" 
-            :src="getMerchantLogo(jasa.merchant.logo_path)" 
-            alt="Logo Toko" 
-            class="w-full h-full object-cover"
+      <div
+        class="flex items-center max-w-screen-sm gap-3 pb-3 mx-auto mb-3 border-b border-gray-100"
+      >
+        <div
+          class="flex items-center justify-center w-12 h-12 overflow-hidden bg-gray-100 rounded-full shrink-0"
+        >
+          <img
+            v-if="jasa?.merchant?.logo_path"
+            :src="getMerchantLogo(jasa.merchant.logo_path)"
+            alt="Logo Toko"
+            class="object-cover w-full h-full"
             @error="onImgError($event, 'logo')"
           />
-          <i v-else class="pi pi-shop text-gray-400 text-xl"></i>
+          <i v-else class="text-xl text-gray-400 pi pi-shop"></i>
         </div>
         <div class="flex-1 min-w-0">
           <h2 class="text-sm font-semibold text-gray-900 truncate">
-            {{ jasa?.merchant?.name || 'Nama Toko' }}
+            {{ jasa?.merchant?.name || "Nama Toko" }}
           </h2>
           <p class="text-xs text-gray-500">
-            {{ jasa?.merchant?.segmentation?.name || 'UMKM Jasa' }}
+            {{ jasa?.merchant?.segmentation?.name || "UMKM Jasa" }}
           </p>
         </div>
         <router-link
-          v-if="jasa?.merchant?.id"
-          :to="{ name: 'MerchantStore', params: { id: jasa.merchant.id } }"
+          v-if="jasa?.merchant?.slug"
+          :to="{
+            name: 'Merchant Detail',
+            params: { slug: jasa.merchant.slug },
+          }"
           class="px-3 py-1.5 rounded-lg bg-[#FFA30E] text-white text-xs font-semibold shrink-0 hover:bg-[#e5920d] transition"
         >
           Kunjungi
@@ -43,173 +106,291 @@
       </div>
 
       <!-- Info Jasa -->
-      <div>
-        <h1 class="text-lg font-semibold text-gray-900">
+      <div class="max-w-screen-sm mx-auto mt-3">
+        <h1 class="text-lg font-semibold leading-snug text-gray-900 sm:text-xl">
           {{ jasa?.title || "Jasa Servis & Perawatan AC" }}
         </h1>
-      </div>
 
-      <div class="mt-2 text-gray-900 font-semibold">
-        {{ priceDisplay }}
-      </div>
+        <div class="flex items-baseline gap-2 mt-2">
+          <span class="text-xl font-semibold text-merchant-primary">
+            {{ priceDisplayMain }}
+          </span>
+          <span
+            v-if="priceTypeLabel"
+            class="px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide"
+            :class="
+              priceTypeLabel === 'Harga Tetap'
+                ? 'bg-emerald-50 text-emerald-700'
+                : 'bg-gray-100 text-gray-700'
+            "
+          >
+            {{ priceTypeLabel }}
+          </span>
+        </div>
 
-      <!-- badge & info -->
-      <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-600">
-        <span class="px-2 py-1 rounded-md bg-green-100 text-green-700">
-          Available
-        </span>
+        <!-- badge & info -->
+        <div
+          class="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-gray-600"
+        >
+          <span
+            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-100"
+          >
+            <span
+              class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"
+            ></span>
+            <span>Available</span>
+          </span>
 
-        <span v-if="jasa?.estimated_duration" class="flex items-center gap-1">
-          <img :src="jamIcon" alt="durasi" class="w-3.5 h-3.5" />
-          <span>{{ jasa.estimated_duration }}</span>
-        </span>
+          <span
+            v-if="jasa?.estimated_duration"
+            class="flex items-center gap-1.5"
+          >
+            <img :src="jamIcon" alt="durasi" class="w-3.5 h-3.5" />
+            <span>Perkiraan durasi {{ jasa.estimated_duration }}</span>
+          </span>
+        </div>
       </div>
     </div>
 
     <!-- Deskripsi Jasa -->
-    <section class="bg-white mt-3 px-4 py-4">
-      <h2 class="text-sm font-semibold text-gray-800 mb-2">Deskripsi Jasa</h2>
-      <p class="text-[15px] leading-relaxed text-gray-700">
-        {{ jasaDesc }}
-      </p>
+    <section class="px-4 py-4 mt-3 border-gray-100 bg-white/95 border-y">
+      <div class="max-w-screen-sm mx-auto">
+        <h2
+          class="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-900"
+        >
+          <i class="pi pi-info-circle text-merchant-primary"></i>
+          Deskripsi Jasa
+        </h2>
+        <p class="text-[14px] leading-relaxed text-gray-700">
+          {{ jasaDesc }}
+        </p>
+      </div>
     </section>
 
-
-
     <!-- Jam Operasional -->
-    <section class="bg-white mt-3 px-4 py-4">
-      <h2 class="text-sm font-semibold text-gray-800 mb-3">Jam & Hari Operasional</h2>
-      <div class="space-y-2 text-sm">
-        <div v-if="jasa?.operating_hours_start" class="flex justify-between">
-          <span class="text-gray-600 flex items-center gap-1.5"><i class="pi pi-clock text-gray-500"></i> Jam Operasional</span>
-          <span class="font-medium text-gray-900">
-            {{ formatTime(jasa.operating_hours_start) }} - {{ formatTime(jasa.operating_hours_end) }}
-          </span>
-        </div>
-        <div v-if="jasa?.operating_days" class="flex justify-between">
-          <span class="text-gray-600 flex items-center gap-1.5"><i class="pi pi-calendar text-gray-500"></i> Hari Kerja</span>
-          <span class="font-medium text-gray-900">{{ formatOperatingDays(jasa.operating_days) }}</span>
+    <!-- Jam Operasional -->
+    <section class="px-4 py-4 mt-3 bg-white/95">
+      <div class="max-w-screen-sm mx-auto">
+        <h2
+          class="flex items-center gap-2 mb-3 text-sm font-semibold text-gray-900"
+        >
+          <i class="pi pi-clock text-merchant-primary"></i>
+          Jam & Hari Operasional
+        </h2>
+        <div class="space-y-2 text-sm">
+          <div
+            v-if="displayOperatingHours"
+            class="flex items-center justify-between"
+          >
+            <span class="text-gray-600 flex items-center gap-1.5"
+              ><i class="text-gray-500 pi pi-clock"></i> Jam Operasional</span
+            >
+            <span class="font-medium text-gray-900">
+              {{ displayOperatingHours }}
+            </span>
+          </div>
+          <div
+            v-if="jasa?.operating_days"
+            class="flex items-center justify-between"
+          >
+            <span class="text-gray-600 flex items-center gap-1.5"
+              ><i class="text-gray-500 pi pi-calendar"></i> Hari Kerja</span
+            >
+            <span class="font-medium text-gray-900">{{
+              formatOperatingDays(jasa.operating_days)
+            }}</span>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- Lokasi Layanan -->
-    <section v-if="jasa?.location_address" class="bg-white mt-3 px-4 py-4">
-      <h2 class="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1.5"><i class="pi pi-map-marker text-gray-500"></i> Lokasi Layanan</h2>
-      <p class="text-sm text-gray-700">{{ jasa.location_address }}</p>
+    <!-- Lokasi & Tipe Layanan -->
+    <section
+      v-if="jasa?.service_type || jasa?.location_address"
+      class="px-4 py-4 mt-3 bg-white/95"
+    >
+      <div class="max-w-screen-sm mx-auto">
+        <h2
+          class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-1.5"
+        >
+          <i class="pi pi-map-marker text-merchant-primary"></i>
+          Lokasi & Layanan
+        </h2>
+
+        <div class="space-y-2 text-sm">
+          <div
+            v-if="jasa?.service_type"
+            class="flex items-center justify-between"
+          >
+            <span class="text-gray-600 flex items-center gap-1.5">
+              <i class="text-gray-500 pi pi-briefcase"></i>
+              Tipe Layanan
+            </span>
+            <span class="font-medium text-gray-900">
+              {{ serviceTypeLabel }}
+            </span>
+          </div>
+
+          <div
+            v-if="jasa?.location_address && jasa?.service_type !== 'online'"
+            class="flex items-start gap-2"
+          >
+            <span class="mt-0.5">
+              <i class="text-gray-500 pi pi-map-marker"></i>
+            </span>
+            <p class="text-sm leading-snug text-gray-700">
+              {{ jasa.location_address }}
+            </p>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- Pembayaran & Kontak -->
-    <section class="bg-white mt-3 px-4 py-4">
-      <h2 class="text-sm font-semibold text-gray-800 mb-3">Pembayaran & Kontak</h2>
-      <div class="space-y-3 text-sm">
-        <div v-if="jasa?.payment_methods">
-          <span class="text-gray-600 flex items-center gap-1.5"><i class="pi pi-wallet text-gray-500"></i> Metode Pembayaran</span>
-          <p class="font-medium text-gray-900 mt-1">{{ formatPaymentMethods(jasa.payment_methods) }}</p>
-        </div>
-        <div v-if="jasa?.whatsapp_link">
-          <span class="text-gray-600 flex items-center gap-1.5"><i class="pi pi-whatsapp text-gray-500"></i> WhatsApp</span>
-          <a :href="jasa.whatsapp_link" target="_blank" class="text-[#FFA30E] font-medium hover:underline mt-1 block">
-            Hubungi via WhatsApp →
-          </a>
+    <section class="px-4 py-4 mt-3 bg-white/95">
+      <div class="max-w-screen-sm mx-auto">
+        <h2
+          class="flex items-center gap-2 mb-3 text-sm font-semibold text-gray-900"
+        >
+          <i class="pi pi-wallet text-merchant-primary"></i>
+          Pembayaran & Kontak
+        </h2>
+        <div class="space-y-3 text-sm">
+          <div v-if="jasa?.payment_methods">
+            <span class="text-gray-600 flex items-center gap-1.5"
+              ><i class="text-gray-500 pi pi-wallet"></i> Metode
+              Pembayaran</span
+            >
+            <p class="mt-1 font-medium text-gray-900">
+              {{ formatPaymentMethods(jasa.payment_methods) }}
+            </p>
+          </div>
+          <div v-if="jasa?.whatsapp_link">
+            <span class="text-gray-600 flex items-center gap-1.5"
+              ><i class="text-gray-500 pi pi-whatsapp"></i> WhatsApp</span
+            >
+            <a
+              :href="jasa.whatsapp_link"
+              target="_blank"
+              class="inline-flex items-center gap-1.5 text-[#25D366] font-medium hover:underline mt-1"
+            >
+              <span>Hubungi via WhatsApp</span>
+              <i class="text-xs pi pi-external-link"></i>
+            </a>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- Pilih Jadwal -->
-    <section class="bg-white mt-3 px-4 py-4">
-      <h3 class="text-sm font-semibold mb-3">Pilih Jadwal</h3>
-      <div class="flex items-center gap-2">
-        <button
-          v-for="(d, i) in quickDays"
-          :key="i"
-          @click="selectQuick(d.date, d.available)"
-          class="w-28 h-14 px-3 py-2 rounded-xl border flex flex-col items-center justify-center text-center transition-all duration-200"
-          :class="[
-            !d.available 
-              ? 'bg-red-50 text-red-400 border-red-200 cursor-not-allowed opacity-70'
-              : isSameDay(selectedDate, d.date)
+    <section class="px-4 py-4 mt-3 bg-white/95">
+      <div class="max-w-screen-sm mx-auto">
+        <h3 class="flex items-center gap-2 mb-3 text-sm font-semibold">
+          <i class="pi pi-calendar text-merchant-primary"></i>
+          Pilih Jadwal
+        </h3>
+        <div class="flex items-center gap-2">
+          <button
+            v-for="(d, i) in quickDays"
+            :key="i"
+            @click="selectQuick(d.date, d.available)"
+            class="flex flex-col items-center justify-center px-3 py-2 text-center transition-all duration-200 border w-28 h-14 rounded-xl"
+            :class="[
+              !d.available
+                ? 'bg-red-50 text-red-400 border-red-200 cursor-not-allowed opacity-70'
+                : isSameDay(selectedDate, d.date)
                 ? 'bg-[#FFA30E] text-white border-[#FFA30E] scale-[1.03]'
-                : 'bg-white text-gray-700 border-gray-200 hover:border-[#FFA30E]'
-          ]"
-          :disabled="!d.available"
-        >
-          <div class="text-[11px] leading-3">{{ d.label }}</div>
-          <div class="text-sm font-semibold">{{ d.day }}</div>
-          <div v-if="!d.available" class="text-[9px] text-red-400">Tidak tersedia</div>
-        </button>
+                : 'bg-white text-gray-700 border-gray-200 hover:border-[#FFA30E]',
+            ]"
+            :disabled="!d.available"
+          >
+            <div class="text-[11px] leading-3">{{ d.label }}</div>
+            <div class="text-sm font-semibold">{{ d.day }}</div>
+            <div v-if="!d.available" class="text-[9px] text-red-400">
+              Tidak tersedia
+            </div>
+          </button>
 
-        <button
-          class="ml-auto px-3 py-2 rounded-xl border border-gray-200 text-gray-700 w-20 flex flex-col items-center"
-          @click="calendarOpen = true"
-        >
-          <span class="text-sm font-semibold">{{ monthShort }}</span>
-          <i class="pi pi-calendar text-xl text-[#FFA30E]"></i>
-        </button>
+          <button
+            class="flex flex-col items-center w-20 px-3 py-2 ml-auto text-gray-700 transition border border-gray-200 rounded-xl hover:border-merchant-primary/80 hover:bg-merchant-primary/5"
+            @click="calendarOpen = true"
+          >
+            <span class="text-sm font-semibold">{{ monthShort }}</span>
+            <i class="pi pi-calendar text-xl text-[#FFA30E]"></i>
+          </button>
+        </div>
       </div>
     </section>
 
     <!-- Pilih Waktu -->
-    <section class="bg-white mt-3 px-4 py-4">
-      <h3 class="text-sm font-semibold mb-2">Pilih Waktu</h3>
-      <div class="rounded-2xl border border-gray-300/70 p-4">
-        <!-- Pagi -->
-        <div v-if="times.morning && times.morning.length > 0" class="mb-3">
-          <div class="text-sm text-gray-700 mb-2">Pagi</div>
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="(t, i) in times.morning"
-              :key="'m' + i"
-              @click="activeTime = t"
-              class="px-4 py-2 rounded-lg border text-sm transition-all duration-200"
-              :class="
-                t === activeTime
-                  ? 'bg-[#FFA30E] text-white border-[#FFA30E] scale-[1.03]'
-                  : 'bg-gray-100 text-gray-700 border-gray-200'
-              "
-            >
-              {{ t }}
-            </button>
+    <section class="px-4 py-4 mt-3 mb-2 bg-white/95">
+      <div class="max-w-screen-sm mx-auto">
+        <h3 class="flex items-center gap-2 mb-2 text-sm font-semibold">
+          <i class="pi pi-clock text-merchant-primary"></i>
+          Pilih Waktu
+        </h3>
+        <div class="p-4 border border-gray-200 rounded-2xl bg-gray-50/60">
+          <!-- Pagi -->
+          <div v-if="times.morning && times.morning.length > 0" class="mb-3">
+            <div class="mb-2 text-sm text-gray-700">Pagi</div>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="(t, i) in times.morning"
+                :key="'m' + i"
+                @click="activeTime = t"
+                class="px-4 py-2 text-sm transition-all duration-200 border rounded-lg"
+                :class="
+                  t === activeTime
+                    ? 'bg-[#FFA30E] text-white border-[#FFA30E] scale-[1.03]'
+                    : 'bg-gray-100 text-gray-700 border-gray-200'
+                "
+              >
+                {{ t }}
+              </button>
+            </div>
           </div>
-        </div>
-        
-        <!-- Siang -->
-        <div v-if="times.afternoon && times.afternoon.length > 0" class="mb-3">
-          <div class="text-sm text-gray-700 mb-2">Siang</div>
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="(t, i) in times.afternoon"
-              :key="'a' + i"
-              @click="activeTime = t"
-              class="px-4 py-2 rounded-lg border text-sm transition-all duration-200"
-              :class="
-                t === activeTime
-                  ? 'bg-[#FFA30E] text-white border-[#FFA30E] scale-[1.03]'
-                  : 'bg-gray-100 text-gray-700 border-gray-200'
-              "
-            >
-              {{ t }}
-            </button>
+
+          <!-- Siang -->
+          <div
+            v-if="times.afternoon && times.afternoon.length > 0"
+            class="mb-3"
+          >
+            <div class="mb-2 text-sm text-gray-700">Siang</div>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="(t, i) in times.afternoon"
+                :key="'a' + i"
+                @click="activeTime = t"
+                class="px-4 py-2 text-sm transition-all duration-200 border rounded-lg"
+                :class="
+                  t === activeTime
+                    ? 'bg-[#FFA30E] text-white border-[#FFA30E] scale-[1.03]'
+                    : 'bg-gray-100 text-gray-700 border-gray-200'
+                "
+              >
+                {{ t }}
+              </button>
+            </div>
           </div>
-        </div>
-        
-        <!-- Malam -->
-        <div v-if="times.evening && times.evening.length > 0">
-          <div class="text-sm text-gray-700 mb-2">Malam</div>
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="(t, i) in times.evening"
-              :key="'e' + i"
-              @click="activeTime = t"
-              class="px-4 py-2 rounded-lg border text-sm transition-all duration-200"
-              :class="
-                t === activeTime
-                  ? 'bg-[#FFA30E] text-white border-[#FFA30E] scale-[1.03]'
-                  : 'bg-gray-100 text-gray-700 border-gray-200'
-              "
-            >
-              {{ t }}
-            </button>
+
+          <!-- Malam -->
+          <div v-if="times.evening && times.evening.length > 0">
+            <div class="mb-2 text-sm text-gray-700">Malam</div>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="(t, i) in times.evening"
+                :key="'e' + i"
+                @click="activeTime = t"
+                class="px-4 py-2 text-sm transition-all duration-200 border rounded-lg"
+                :class="
+                  t === activeTime
+                    ? 'bg-[#FFA30E] text-white border-[#FFA30E] scale-[1.03]'
+                    : 'bg-gray-100 text-gray-700 border-gray-200'
+                "
+              >
+                {{ t }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -217,17 +398,20 @@
 
     <!-- Bottom bar -->
     <div
-      class="fixed left-0 right-0 bottom-16 sm:bottom-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-3"
+      class="fixed left-0 right-0 bottom-16 sm:bottom-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200/80 shadow-[0_-4px_12px_rgba(0,0,0,0.04)] px-4 py-3"
     >
-      <div class="max-w-screen-sm mx-auto flex items-center gap-4">
+      <div class="flex items-center max-w-screen-sm gap-4 mx-auto">
+        <!-- Chat sementara dinonaktifkan -->
+        <!--
         <button
           type="button"
-          class="flex items-center justify-center w-11 h-11 rounded-xl bg-[#FFA30E] hover:bg-[#e5920d] transition"
+          class="flex items-center justify-center w-11 h-11 rounded-xl bg-white border border-gray-200 text-[#FFA30E] hover:bg-[#FFF2D9] hover:border-[#FFA30E] transition shadow-sm"
           @click="showChat = true"
           title="Chat dengan Penjual"
         >
-          <i class="pi pi-comments text-white text-lg"></i>
+          <i class="text-lg pi pi-comments"></i>
         </button>
+        -->
 
         <router-link
           :to="{
@@ -240,9 +424,17 @@
               tgl: selectedDate.toISOString(),
               waktu: activeTime,
               payment_methods: jasa?.payment_methods || '',
+              service_type: jasa?.service_type || '',
+              alamat: jasa?.location_address || '',
+              price_type:
+                jasa?.fixed_price && jasa.fixed_price > 0
+                  ? 'fixed'
+                  : jasa?.base_price && jasa.base_price > 0
+                  ? 'base'
+                  : '',
             },
           }"
-          class="flex-1 py-3 rounded-full bg-[#FFA30E] hover:bg-[#e5920d] text-white font-semibold text-center transition"
+          class="flex-1 py-3 rounded-full bg-gradient-to-r from-[#FFA30E] to-[#ffba3d] hover:from-[#e5920d] hover:to-[#ffb024] text-white font-semibold text-center transition shadow-md"
         >
           Booking Sekarang
         </router-link>
@@ -257,75 +449,25 @@
       @close="calendarOpen = false"
     />
 
-    <!-- Chat Pembeli: bottom sheet sederhana -->
-    <transition
-      enter-active-class="transition duration-200 ease-out"
-      enter-from-class="opacity-0 translate-y-full"
-      enter-to-class="opacity-100 translate-y-0"
-      leave-active-class="transition duration-200 ease-in"
-      leave-from-class="opacity-100 translate-y-0"
-      leave-to-class="opacity-0 translate-y-full"
-    >
-      <div
-        v-if="showChat"
-        class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40"
-        @click.self="showChat = false"
-      >
-        <div
-          class="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl h-[70vh] sm:h-[520px] flex flex-col"
-        >
-          <div
-            class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-2xl"
-          >
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center shrink-0">
-                <img 
-                  v-if="jasa?.merchant?.logo_path" 
-                  :src="getMerchantLogo(jasa.merchant.logo_path)" 
-                  alt="Logo Toko" 
-                  class="w-full h-full object-cover"
-                  @error="onImgError($event, 'logo')"
-                />
-                <i v-else class="pi pi-shop text-gray-400"></i>
-              </div>
-              <div>
-                <p class="text-sm font-semibold text-gray-900">
-                  {{ jasa?.merchant?.name || 'Penjual' }}
-                </p>
-                <p class="text-xs text-gray-500">
-                  {{ jasa?.title || 'Konsultasi Jasa' }}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500"
-              @click="showChat = false"
-            >
-              <i class="pi pi-times text-sm"></i>
-            </button>
-          </div>
-
-          <div class="flex-1 p-3">
-            <ChatWindow :jasa-id="route.params.id" mode="buyer" />
-          </div>
-        </div>
-      </div>
-    </transition>
+    <!-- Chat Pembeli sementara dinonaktifkan -->
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import api from "@/libs/axios.js";
-import { getImageUrl } from "@/libs/getImageUrl.js";
+import { getImageUrl, getImageUrlJasa } from "@/libs/getImageUrl.js";
 import CalendarModal from "@/components/CalendarModal.vue";
-import ChatWindow from "@/components/common/ChatWindow.vue";
 
 const route = useRoute();
+const router = useRouter();
 const jasa = ref(null);
-const showChat = ref(false);
+const selectedImagePath = ref(null);
+
+const goBack = () => {
+  router.back();
+};
 
 // Helper untuk mendapatkan URL logo merchant
 const getMerchantLogo = (logo) => {
@@ -353,7 +495,9 @@ const jsToDbDay = (jsDay) => (jsDay === 0 ? 7 : jsDay);
 // Cek apakah hari tersedia berdasarkan operating_days
 const isDayAvailable = (date) => {
   if (!jasa.value?.operating_days) return true; // Jika tidak ada data, anggap semua tersedia
-  const operatingDays = jasa.value.operating_days.split(',').map(d => parseInt(d.trim()));
+  const operatingDays = jasa.value.operating_days
+    .split(",")
+    .map((d) => parseInt(d.trim()));
   const dbDay = jsToDbDay(date.getDay());
   return operatingDays.includes(dbDay);
 };
@@ -368,7 +512,7 @@ const quickDays = computed(() => {
       label: i === 0 ? "Hari Ini" : dayName(date),
       date: date,
       day: two(date.getDate()),
-      available: available
+      available: available,
     });
   }
   return days;
@@ -382,40 +526,37 @@ const selectQuick = (d, available) => {
 };
 
 // ----- waktu -----
-// Default times jika tidak ada operating_times
-const defaultTimes = {
-  morning: ["06.00", "08.30", "10.00"],
-  afternoon: ["13.00", "15.00", "17.00"],
-  evening: ["18.00", "19.00", "20.00"],
-};
-
-// Parse operating_times dari jasa
+// Parse operating_times dari jasa. Jika tidak ada data, tidak tampilkan jam default
 const times = computed(() => {
   if (!jasa.value?.operating_times) {
-    return defaultTimes;
+    return { morning: [], afternoon: [], evening: [] };
   }
-  
-  const operatingTimes = jasa.value.operating_times.split(',').map(t => t.trim()).filter(t => t);
+
+  const operatingTimes = jasa.value.operating_times
+    .split(",")
+    .map((t) => t.trim())
+    .filter((t) => t);
+
   if (operatingTimes.length === 0) {
-    return defaultTimes;
+    return { morning: [], afternoon: [], evening: [] };
   }
-  
+
   // Kategorikan waktu berdasarkan periode
-  const morning = operatingTimes.filter(t => {
-    const hour = parseInt(t.split('.')[0]);
+  const morning = operatingTimes.filter((t) => {
+    const hour = parseInt(t.split(".")[0]);
     return hour >= 6 && hour < 12;
   });
-  
-  const afternoon = operatingTimes.filter(t => {
-    const hour = parseInt(t.split('.')[0]);
+
+  const afternoon = operatingTimes.filter((t) => {
+    const hour = parseInt(t.split(".")[0]);
     return hour >= 12 && hour < 18;
   });
-  
-  const evening = operatingTimes.filter(t => {
-    const hour = parseInt(t.split('.')[0]);
+
+  const evening = operatingTimes.filter((t) => {
+    const hour = parseInt(t.split(".")[0]);
     return hour >= 18;
   });
-  
+
   return { morning, afternoon, evening };
 });
 
@@ -424,7 +565,11 @@ const activeTime = ref("");
 
 // Set active time ketika times berubah
 const initActiveTime = () => {
-  const allTimes = [...times.value.morning, ...times.value.afternoon, ...(times.value.evening || [])];
+  const allTimes = [
+    ...times.value.morning,
+    ...times.value.afternoon,
+    ...(times.value.evening || []),
+  ];
   if (allTimes.length > 0 && !activeTime.value) {
     activeTime.value = allTimes[0];
   }
@@ -432,21 +577,32 @@ const initActiveTime = () => {
 
 // ----- gambar jasa -----
 const jasaImage = computed(() => {
-  if (!jasa.value) return 'https://picsum.photos/seed/jasa/1200/600';
-  
+  if (selectedImagePath.value) return selectedImagePath.value;
+
+  if (!jasa.value) return "https://picsum.photos/seed/jasa/1200/600";
+
   // Cek dari array images (prioritas cover image)
   if (jasa.value.images && jasa.value.images.length > 0) {
-    const coverImg = jasa.value.images.find(img => img.is_cover) || jasa.value.images[0];
-    return getImageUrl(coverImg?.path || jasa.value.image);
+    const coverImg =
+      jasa.value.images.find((img) => img.is_cover) || jasa.value.images[0];
+    return getImageUrlJasa(coverImg?.path || coverImg?.url || coverImg?.image);
   }
-  
-  // Fallback ke field image lama
+
+  // Fallback ke field image lama (string path atau nama file)
   if (jasa.value.image) {
-    return getImageUrl(jasa.value.image);
+    return getImageUrlJasa(jasa.value.image);
   }
-  
-  return 'https://picsum.photos/seed/jasa/1200/600';
+
+  return "https://picsum.photos/seed/jasa/1200/600";
 });
+
+const onSelectGalleryImage = (img) => {
+  if (!img) return;
+  const src = getImageUrlJasa(img.path || img.url || img.image);
+  if (src) {
+    selectedImagePath.value = src;
+  }
+};
 
 // ----- deskripsi -----
 const jasaDesc = computed(
@@ -455,44 +611,84 @@ const jasaDesc = computed(
     "Layanan servis dan perawatan AC untuk menjaga udara tetap sejuk dan bersih. Termasuk cuci unit indoor/outdoor, pemeriksaan sistem pendingin, pengisian freon (jika dibutuhkan), dan pengecekan kelistrikan. Dikerjakan teknisi berpengalaman dengan garansi hasil kerja."
 );
 
+// ----- tipe layanan (online / di tempat / ke alamat pelanggan) -----
+const serviceTypeLabel = computed(() => {
+  const t = jasa.value?.service_type;
+  if (!t) return "-";
+  if (t === "at_location") return "Di Tempat Saya";
+  if (t === "on_site") return "Ke Rumah/Lokasi Pelanggan";
+  if (t === "online") return "Online";
+  return t;
+});
+
 // ----- harga display -----
-const priceDisplay = computed(() => {
+const priceTypeLabel = computed(() => {
+  if (!jasa.value) return "";
+  if (jasa.value.fixed_price && jasa.value.fixed_price > 0)
+    return "Harga Tetap";
+  if (jasa.value.base_price && jasa.value.base_price > 0) return "Mulai dari";
+  return "";
+});
+
+const priceDisplayMain = computed(() => {
   if (!jasa.value) return "Rp 0";
-  
-  // Prioritas: fixed_price > base_price
+
   if (jasa.value.fixed_price && jasa.value.fixed_price > 0) {
     return `Rp ${formatIDR(jasa.value.fixed_price)}`;
   }
-  
+
   if (jasa.value.base_price && jasa.value.base_price > 0) {
-    return `Mulai Rp ${formatIDR(jasa.value.base_price)}`;
+    return `Rp ${formatIDR(jasa.value.base_price)}`;
   }
-  
+
   return "Rp 0";
 });
 
 const formatIDR = (v) => Number(v || 0).toLocaleString("id-ID");
 
 // Helper functions untuk format data
-const formatTime = (timeStr) => {
-  if (!timeStr) return "-";
-  const [hours, minutes] = timeStr.split(":");
-  return `${hours}:${minutes}`;
-};
+// Ambil range jam dari operating_times (paling awal - paling akhir)
+const displayOperatingHours = computed(() => {
+  if (!jasa.value?.operating_times) return "";
+  const list = jasa.value.operating_times
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .sort();
+  if (list.length === 0) return "";
+  const first = list[0];
+  const last = list[list.length - 1];
+  if (first === last) return first;
+  return `${first} - ${last}`;
+});
 
 const formatOperatingDays = (days) => {
   if (!days) return "-";
-  const daysMap = { 1: "Sen", 2: "Sel", 3: "Rab", 4: "Kam", 5: "Jum", 6: "Sab", 7: "Min" };
-  const dayList = days.split(",").map(d => daysMap[d.trim()]).filter(Boolean);
+  const daysMap = {
+    1: "Sen",
+    2: "Sel",
+    3: "Rab",
+    4: "Kam",
+    5: "Jum",
+    6: "Sab",
+    7: "Min",
+  };
+  const dayList = days
+    .split(",")
+    .map((d) => daysMap[d.trim()])
+    .filter(Boolean);
   return dayList.join(", ");
 };
 
 const formatPaymentMethods = (methods) => {
   if (!methods) return "-";
-  const methodsMap = { cod: "COD (Bayar di Tempat)", qris: "QRIS (Scan & Transfer)" };
+  const methodsMap = {
+    cod: "COD (Bayar di Tempat)",
+    qris: "QRIS (Scan & Transfer)",
+  };
   return methods
     .split(",")
-    .map(m => methodsMap[m.trim()])
+    .map((m) => methodsMap[m.trim()])
     .filter(Boolean)
     .join(", ");
 };
@@ -503,10 +699,12 @@ onMounted(async () => {
     const { data } = await api.get(`/api/public/jasas/${route.params.id}`);
     console.log("[JasaDetail] Jasa data:", data);
     jasa.value = data;
-    
+
     // Set selectedDate ke hari pertama yang tersedia
     if (data.operating_days) {
-      const operatingDays = data.operating_days.split(',').map(d => parseInt(d.trim()));
+      const operatingDays = data.operating_days
+        .split(",")
+        .map((d) => parseInt(d.trim()));
       // Cari hari tersedia dalam 7 hari ke depan
       for (let i = 0; i < 7; i++) {
         const checkDate = addDays(today.value, i);
@@ -517,27 +715,21 @@ onMounted(async () => {
         }
       }
     }
-    
+
     // Set active time ke waktu pertama yang tersedia
     initActiveTime();
   } catch (e) {
     console.error("[JasaDetail] Error fetching jasa:", e);
-    jasa.value = {
-      title: "Jasa Servis & Perawatan AC",
-      fixed_price: 100000,
-      images: [],
-    };
-    console.warn("API detail belum tersedia, memakai data fallback.");
-    initActiveTime();
+    // Biarkan jasa kosong jika tidak ditemukan / 404 supaya tidak menampilkan data dummy
+    jasa.value = null;
   }
 });
 
-
 function onImgError(e, type) {
-  if (type === 'header') {
-    e.target.src = fallbackHeader
-  } else if (type === 'logo') {
-    e.target.src = fallbackLogo
+  if (type === "header") {
+    e.target.src = fallbackHeader;
+  } else if (type === "logo") {
+    e.target.src = fallbackLogo;
   }
 }
 </script>

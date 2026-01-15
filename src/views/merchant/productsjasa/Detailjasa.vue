@@ -4,7 +4,6 @@
 import { ref, computed, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
-import { useAuthStore } from "@/stores/auth";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue"; // ✅ ADD
 import Button from "@/components/common/Button.vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";
@@ -12,6 +11,7 @@ import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import { getImageUrlJasa } from "@/libs/getImageUrl.js";
 import { useJasa } from "@/composables/useJasa";
+import { useAuthStore } from "@/stores/auth";
 
 const { fetchJasaDetail } = useJasa();
 const router = useRouter();
@@ -20,18 +20,19 @@ const toast = useToast();
 const authStore = useAuthStore();
 
 const currentMerchantSlug = computed(() => {
-  return route.params.merchantSlug
+  return route.params && route.params.merchantSlug
     ? String(route.params.merchantSlug)
-    : authStore.merchantSlug || null;
+    : authStore.merchantSlug ?? null;
 });
 
-// ✅ Get merchantId (numeric) for APIs by mapping slug -> id
+// Some owner-view calls may still require merchantId
 const currentMerchantId = computed(() => {
-  const merchant = currentMerchantSlug.value
-    ? authStore.getMerchantBySlug(currentMerchantSlug.value)
-    : authStore.activeMerchant;
-
-  return merchant?.id ?? null;
+  const slug = currentMerchantSlug.value;
+  if (slug) {
+    const merchant = authStore.getMerchantBySlug(slug);
+    return merchant?.id ?? authStore.merchantId ?? null;
+  }
+  return authStore.merchantId ?? null;
 });
 
 // ✅ Breadcrumb items
@@ -267,14 +268,14 @@ const getSelectionTypeLabel = (group) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 pb-20 sm:pb-0">
+  <div class="min-h-screen pb-20 bg-gray-50 sm:pb-0">
     <!-- Mobile Header -->
     <div
-      class="fixed sm:hidden top-0 left-0 right-0 bg-merchant-primary text-white px-4 py-6 flex items-center justify-center z-50 rounded-b-2xl shadow-lg"
+      class="fixed top-0 left-0 right-0 z-50 flex items-center justify-center px-4 py-6 text-white shadow-lg sm:hidden bg-merchant-primary rounded-b-2xl"
     >
       <button
         @click="router.back()"
-        class="absolute left-4 w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition"
+        class="absolute flex items-center justify-center w-10 h-10 transition rounded-full left-4 hover:bg-white/10"
       >
         <i class="pi pi-arrow-left"></i>
       </button>
@@ -282,40 +283,40 @@ const getSelectionTypeLabel = (group) => {
     </div>
 
     <!-- Desktop Header -->
-    <div class="hidden sm:block sticky top-0 left-0 right-0 z-30 py-6">
+    <div class="sticky top-0 left-0 right-0 z-30 hidden py-6 sm:block">
       <div
-        class="mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap gap-y-2 items-center justify-between gap-x-4"
+        class="flex flex-wrap items-center justify-between px-4 mx-auto sm:px-6 lg:px-8 gap-y-2 gap-x-4"
       >
         <div>
           <Breadcrumb
             :items="breadcrumbItems"
             :merchantId="currentMerchantId"
           />
-          <p class="text-muted-foreground text-xs lg:text-sm">
+          <p class="text-xs text-muted-foreground lg:text-sm">
             {{ jasa?.title || "Loading..." }}
           </p>
         </div>
 
         <div v-if="jasa" class="flex items-center gap-3">
           <div
-            class="hidden sm:flex items-center gap-3 mr-4 text-xs text-gray-500"
+            class="items-center hidden gap-3 mr-4 text-xs text-gray-500 sm:flex"
           >
             <div
-              class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 border border-gray-200"
+              class="inline-flex items-center gap-1 px-2 py-1 border border-gray-200 rounded-full bg-gray-50"
             >
-              <i class="pi pi-image text-gray-400 text-xs"></i>
+              <i class="text-xs text-gray-400 pi pi-image"></i>
               <span>Galeri</span>
             </div>
             <div
-              class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 border border-gray-200"
+              class="inline-flex items-center gap-1 px-2 py-1 border border-gray-200 rounded-full bg-gray-50"
             >
-              <i class="pi pi-wallet text-gray-400 text-xs"></i>
+              <i class="text-xs text-gray-400 pi pi-wallet"></i>
               <span>Harga</span>
             </div>
             <div
-              class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 border border-gray-200"
+              class="inline-flex items-center gap-1 px-2 py-1 border border-gray-200 rounded-full bg-gray-50"
             >
-              <i class="pi pi-check-circle text-gray-400 text-xs"></i>
+              <i class="text-xs text-gray-400 pi pi-check-circle"></i>
               <span>Status</span>
             </div>
           </div>
@@ -334,10 +335,10 @@ const getSelectionTypeLabel = (group) => {
     <!-- ✅ Loading State -->
     <div
       v-if="loading"
-      class="flex flex-col justify-center items-center py-20 gap-3"
+      class="flex flex-col items-center justify-center gap-3 py-20"
     >
       <div
-        class="w-12 h-12 border-4 border-gray-300 border-t-merchant-primary rounded-full animate-spin"
+        class="w-12 h-12 border-4 border-gray-300 rounded-full border-t-merchant-primary animate-spin"
       ></div>
       <p class="text-sm text-muted-foreground">Memuat detail jasa...</p>
     </div>
@@ -348,54 +349,54 @@ const getSelectionTypeLabel = (group) => {
       class="flex flex-col items-center justify-center py-20"
     >
       <i
-        class="pi pi-exclamation-triangle text-5xl text-danger-foreground mb-4"
+        class="mb-4 text-5xl pi pi-exclamation-triangle text-danger-foreground"
       ></i>
-      <p class="text-lg font-semibold text-black mb-2">Jasa Tidak Ditemukan</p>
+      <p class="mb-2 text-lg font-semibold text-black">Jasa Tidak Ditemukan</p>
       <Button @click="goBack" variant="muted-outline">
-        <i class="pi pi-arrow-left mr-2"></i>
+        <i class="mr-2 pi pi-arrow-left"></i>
         Kembali
       </Button>
     </div>
 
     <!-- ✅ Content - RESPONSIVE GRID -->
-    <div v-else class="mx-auto px-0 sm:px-4 lg:px-6 pb-6">
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div v-else class="px-0 pb-6 mx-auto sm:px-4 lg:px-6">
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <!-- Left Column (Images + Basic Info) -->
-        <div class="lg:col-span-1 space-y-2 sm:space-y-4">
+        <div class="space-y-2 lg:col-span-1 sm:space-y-4">
           <!-- Image Gallery Card -->
           <div v-if="(jasa.images && jasa.images.length > 0) || jasa.image">
             <!-- Main Image -->
             <div
-              class="relative aspect-square max-w-2xl mx-auto bg-gray-100 overflow-hidden mb-4 shadow-sm -mt-4 sm:mt-0 sm:rounded-2xl flex items-center justify-center"
+              class="relative flex items-center justify-center max-w-2xl mx-auto mb-4 -mt-4 overflow-hidden bg-gray-100 shadow-sm aspect-square sm:mt-0 sm:rounded-2xl"
             >
               <img
                 v-if="mainImageSrc"
                 :src="mainImageSrc"
                 :alt="jasa.title"
-                class="max-w-full max-h-full object-contain"
+                class="object-contain max-w-full max-h-full"
                 @error="(e) => (e.target.style.display = 'none')"
               />
               <!-- Navigation Arrows -->
               <button
                 v-if="jasa.images.length > 1"
                 @click="prevImage"
-                class="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white text-gray-800 rounded-full flex items-center justify-center transition shadow-lg backdrop-blur-sm active:scale-95"
+                class="absolute flex items-center justify-center w-10 h-10 text-gray-800 transition -translate-y-1/2 rounded-full shadow-lg left-3 top-1/2 bg-white/90 hover:bg-white backdrop-blur-sm active:scale-95"
               >
-                <i class="pi pi-chevron-left text-sm font-bold"></i>
+                <i class="text-sm font-bold pi pi-chevron-left"></i>
               </button>
               <button
                 v-if="jasa.images.length > 1"
                 @click="nextImage"
-                class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white text-gray-800 rounded-full flex items-center justify-center transition shadow-lg backdrop-blur-sm active:scale-95"
+                class="absolute flex items-center justify-center w-10 h-10 text-gray-800 transition -translate-y-1/2 rounded-full shadow-lg right-3 top-1/2 bg-white/90 hover:bg-white backdrop-blur-sm active:scale-95"
               >
-                <i class="pi pi-chevron-right text-sm font-bold"></i>
+                <i class="text-sm font-bold pi pi-chevron-right"></i>
               </button>
             </div>
 
             <!-- Thumbnails -->
             <div
               v-if="jasa.images && jasa.images.length > 0"
-              class="grid grid-cols-4 sm:grid-cols-6 gap-2"
+              class="grid grid-cols-4 gap-2 sm:grid-cols-6"
             >
               <button
                 v-for="(image, index) in jasa.images"
@@ -407,13 +408,13 @@ const getSelectionTypeLabel = (group) => {
                   'border-gray-200 hover:border-merchant-primary/50 hover:scale-105':
                     currentImageIndex !== index,
                 }"
-                class="relative border rounded-lg overflow-hidden transition aspect-square flex items-center justify-center bg-gray-50"
+                class="relative flex items-center justify-center overflow-hidden transition border rounded-lg aspect-square bg-gray-50"
               >
                 <img
                   v-if="image.id || image.path"
                   :src="getImageUrlJasa(image.path || image.id)"
                   :alt="`${jasa.title} ${index + 1}`"
-                  class="max-w-full max-h-full object-contain"
+                  class="object-contain max-w-full max-h-full"
                   @error="(e) => (e.target.style.display = 'none')"
                 />
               </button>
@@ -423,17 +424,17 @@ const getSelectionTypeLabel = (group) => {
           <!-- No Images State -->
           <div v-else class="flex items-center justify-center">
             <div
-              class="inline-flex flex-col items-center justify-center px-4 py-6 rounded-xl border border-dashed border-gray-300 bg-gray-50 text-center max-w-xs"
+              class="inline-flex flex-col items-center justify-center max-w-xs px-4 py-6 text-center border border-gray-300 border-dashed rounded-xl bg-gray-50"
             >
               <div
-                class="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center mb-2"
+                class="flex items-center justify-center w-10 h-10 mb-2 bg-white rounded-full shadow-sm"
               >
-                <i class="pi pi-image text-gray-400 text-lg"></i>
+                <i class="text-lg text-gray-400 pi pi-image"></i>
               </div>
               <p class="text-sm font-medium text-gray-600">
                 Tidak ada gambar untuk jasa ini.
               </p>
-              <p class="text-xs text-gray-400 mt-1">
+              <p class="mt-1 text-xs text-gray-400">
                 Tambahkan gambar dari halaman edit agar pelanggan lebih mudah
                 mengenali layanan.
               </p>
@@ -442,23 +443,23 @@ const getSelectionTypeLabel = (group) => {
         </div>
 
         <!-- Right Column (Details) -->
-        <div class="lg:col-span-1 space-y-2 sm:space-y-4">
+        <div class="space-y-2 lg:col-span-1 sm:space-y-4">
           <!-- Product Name Card -->
-          <div class="bg-white p-4 sm:p-6 sm:rounded-xl sm:shadow-sm">
+          <div class="p-4 bg-white sm:p-6 sm:rounded-xl sm:shadow-sm">
             <div class="flex items-start gap-3">
               <div
-                class="w-10 h-10 rounded-full bg-merchant-primary/10 flex items-center justify-center shrink-0"
+                class="flex items-center justify-center shrink-0 w-10 h-10 rounded-full bg-merchant-primary/10"
               >
-                <i class="pi pi-briefcase text-merchant-primary text-lg"></i>
+                <i class="text-lg pi pi-briefcase text-merchant-primary"></i>
               </div>
               <div class="flex-1 min-w-0">
                 <h2
-                  class="text-lg sm:text-xl font-bold text-gray-900 mb-1 truncate"
+                  class="mb-1 text-lg font-bold text-gray-900 truncate sm:text-xl"
                 >
                   {{ jasa.title }}
                 </h2>
-                <p class="text-xs text-gray-500 flex items-center gap-2">
-                  <i class="pi pi-tag text-gray-400 text-xs"></i>
+                <p class="flex items-center gap-2 text-xs text-gray-500">
+                  <i class="text-xs text-gray-400 pi pi-tag"></i>
                   <span class="truncate">{{
                     jasa.category?.name || "Tanpa kategori"
                   }}</span>
@@ -468,11 +469,11 @@ const getSelectionTypeLabel = (group) => {
           </div>
 
           <!-- Harga Card -->
-          <div class="bg-white p-4 sm:p-6 sm:rounded-xl sm:shadow-sm">
+          <div class="p-4 bg-white sm:p-6 sm:rounded-xl sm:shadow-sm">
             <h3
-              class="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2"
+              class="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-900"
             >
-              <i class="pi pi-wallet text-gray-400"></i>
+              <i class="text-gray-400 pi pi-wallet"></i>
               Harga
             </h3>
 
@@ -487,22 +488,22 @@ const getSelectionTypeLabel = (group) => {
               class="space-y-1"
             >
               <div class="flex items-center justify-between gap-3">
-                <span class="text-xs text-gray-500 flex items-center gap-1">
-                  <i class="pi pi-check-circle text-emerald-500 text-xs"></i>
+                <span class="flex items-center gap-1 text-xs text-gray-500">
+                  <i class="text-xs pi pi-check-circle text-emerald-500"></i>
                   <span>Harga tetap</span>
                 </span>
                 <span
-                  class="text-lg sm:text-2xl font-bold text-merchant-primary"
+                  class="text-lg font-bold sm:text-2xl text-merchant-primary"
                 >
                   {{ formatPrice(jasa.fixed_price) }}
                 </span>
               </div>
               <div class="flex items-center justify-between gap-3">
-                <span class="text-xs text-gray-500 flex items-center gap-1">
-                  <i class="pi pi-arrow-right text-gray-400 text-xs"></i>
+                <span class="flex items-center gap-1 text-xs text-gray-500">
+                  <i class="text-xs text-gray-400 pi pi-arrow-right"></i>
                   <span>Mulai dari</span>
                 </span>
-                <span class="text-base sm:text-lg font-semibold text-gray-900">
+                <span class="text-base font-semibold text-gray-900 sm:text-lg">
                   {{ formatPrice(jasa.base_price) }}
                 </span>
               </div>
@@ -513,8 +514,8 @@ const getSelectionTypeLabel = (group) => {
               <p class="text-2xl font-bold text-merchant-primary">
                 {{ formatPrice(jasa.fixed_price) }}
               </p>
-              <p class="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                <i class="pi pi-check-circle text-emerald-500 text-xs"></i>
+              <p class="flex items-center gap-1 mt-1 text-xs text-gray-500">
+                <i class="text-xs pi pi-check-circle text-emerald-500"></i>
                 <span>Harga tetap</span>
               </p>
             </div>
@@ -524,16 +525,16 @@ const getSelectionTypeLabel = (group) => {
               <p class="text-2xl font-bold text-merchant-primary">
                 {{ formatPrice(jasa.base_price) }}
               </p>
-              <p class="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                <i class="pi pi-arrow-right text-gray-400 text-xs"></i>
+              <p class="flex items-center gap-1 mt-1 text-xs text-gray-500">
+                <i class="text-xs text-gray-400 pi pi-arrow-right"></i>
                 <span>Mulai dari</span>
               </p>
             </div>
 
             <!-- Tidak ada harga -->
             <div v-else>
-              <p class="text-sm text-gray-500 flex items-center gap-2">
-                <i class="pi pi-info-circle text-gray-400 text-sm"></i>
+              <p class="flex items-center gap-2 text-sm text-gray-500">
+                <i class="text-sm text-gray-400 pi pi-info-circle"></i>
                 <span>Belum ada harga yang diatur.</span>
               </p>
             </div>
@@ -542,27 +543,29 @@ const getSelectionTypeLabel = (group) => {
           <!-- Description Card - Desktop Only -->
           <div
             v-if="jasa.description"
-            class="bg-white p-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
+            class="p-4 border-l-4 border-blue-500 bg-linear-to-r from-blue-50 to-transparent sm:p-6 sm:rounded-xl sm:shadow-sm"
           >
             <h3
-              class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2"
+              class="flex items-center gap-2 mb-3 text-sm font-semibold text-blue-900"
             >
-              <i class="pi pi-align-left text-gray-400"></i>
+              <i class="text-blue-600 pi pi-align-left"></i>
               Deskripsi Jasa
             </h3>
             <p
-              class="text-sm text-gray-700 leading-relaxed whitespace-pre-line"
+              class="text-sm leading-relaxed text-gray-700 whitespace-pre-line"
             >
               {{ jasa.description }}
             </p>
           </div>
 
           <!-- Status & Category Card -->
-          <div class="bg-white p-4 sm:p-6 space-y-3 sm:rounded-xl sm:shadow-sm">
+          <div
+            class="p-4 space-y-3 border-l-4 bg-linear-to-r from-emerald-50 to-transparent sm:p-6 sm:rounded-xl sm:shadow-sm border-emerald-500"
+          >
             <!-- Status -->
             <div class="flex items-center justify-between gap-3">
-              <span class="text-sm text-gray-600 flex items-center gap-2">
-                <i class="pi pi-check-circle text-gray-400 text-sm"></i>
+              <span class="flex items-center gap-2 text-sm text-gray-600">
+                <i class="text-sm text-gray-400 pi pi-check-circle"></i>
                 <span>Status</span>
               </span>
               <StatusLabel
@@ -587,7 +590,7 @@ const getSelectionTypeLabel = (group) => {
             <!-- Main Category -->
             <div class="flex items-center justify-between">
               <span class="text-sm text-gray-600">Kategori</span>
-              <div class="text-sm font-medium text-gray-900 text-right">
+              <div class="text-sm font-medium text-right text-gray-900">
                 <div>{{ jasa.category?.name || "-" }}</div>
                 <div
                   v-if="jasa.subcategory?.name"
@@ -600,9 +603,9 @@ const getSelectionTypeLabel = (group) => {
 
             <!-- Min Purchase -->
             <div v-if="jasa.min_purchase">
-              <div class="border-t border-gray-100 mb-3"></div>
+              <div class="mb-3 border-t border-gray-100"></div>
               <div class="flex items-start justify-between gap-3 mt-3">
-                <span class="text-sm text-gray-600 shrink-0"
+                <span class="shrink-0 text-sm text-gray-600"
                   >Minimal Pembelian</span
                 >
                 <span class="text-sm font-medium text-gray-900">
@@ -613,11 +616,11 @@ const getSelectionTypeLabel = (group) => {
           </div>
 
           <!-- Lokasi & Layanan Card -->
-          <div class="bg-white p-4 sm:p-6 space-y-3 sm:rounded-xl sm:shadow-sm">
+          <div class="p-4 space-y-3 bg-white sm:p-6 sm:rounded-xl sm:shadow-sm">
             <h3
-              class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2"
+              class="flex items-center gap-2 mb-3 text-sm font-semibold text-gray-900"
             >
-              <i class="pi pi-map-marker text-gray-400"></i>
+              <i class="text-gray-400 pi pi-map-marker"></i>
               Lokasi & Layanan
             </h3>
 
@@ -640,12 +643,12 @@ const getSelectionTypeLabel = (group) => {
 
             <!-- Location Address -->
             <div v-if="jasa.location_address">
-              <div class="border-t border-gray-100 mb-3"></div>
+              <div class="mb-3 border-t border-gray-100"></div>
               <div class="flex items-start justify-between gap-3">
-                <span class="text-sm text-gray-600 shrink-0"
+                <span class="shrink-0 text-sm text-gray-600"
                   >Alamat Tempat Layanan</span
                 >
-                <span class="text-sm font-medium text-gray-900 text-right">
+                <span class="text-sm font-medium text-right text-gray-900">
                   {{ jasa.location_address }}
                 </span>
               </div>
@@ -653,10 +656,10 @@ const getSelectionTypeLabel = (group) => {
 
             <!-- Service Area -->
             <div v-if="jasa.service_area">
-              <div class="border-t border-gray-100 mb-3"></div>
+              <div class="mb-3 border-t border-gray-100"></div>
               <div class="flex items-start justify-between gap-3">
-                <span class="text-sm text-gray-600 shrink-0">Area Layanan</span>
-                <span class="text-sm font-medium text-gray-900 text-right">
+                <span class="shrink-0 text-sm text-gray-600">Area Layanan</span>
+                <span class="text-sm font-medium text-right text-gray-900">
                   {{ jasa.service_area }}
                 </span>
               </div>
@@ -664,11 +667,11 @@ const getSelectionTypeLabel = (group) => {
           </div>
 
           <!-- Payment Methods Card -->
-          <div class="bg-white p-4 sm:p-6 space-y-3 sm:rounded-xl sm:shadow-sm">
+          <div class="p-4 space-y-3 bg-white sm:p-6 sm:rounded-xl sm:shadow-sm">
             <h3
-              class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2"
+              class="flex items-center gap-2 mb-3 text-sm font-semibold text-gray-900"
             >
-              <i class="pi pi-wallet text-gray-400"></i>
+              <i class="text-gray-400 pi pi-wallet"></i>
               Metode Pembayaran
             </h3>
             <div class="flex flex-wrap gap-2">
@@ -677,7 +680,7 @@ const getSelectionTypeLabel = (group) => {
                   .split(',')
                   .filter((m) => m.trim())"
                 :key="method"
-                class="px-3 py-1 bg-green-100 text-green-700 text-sm rounded-full"
+                class="px-3 py-1 text-sm text-green-700 bg-green-100 rounded-full"
               >
                 <template v-if="method.trim() === 'cod'"
                   >COD (Bayar di Tempat)</template
@@ -696,16 +699,16 @@ const getSelectionTypeLabel = (group) => {
           <!-- Special Notes Card -->
           <div
             v-if="jasa.special_notes"
-            class="bg-white p-4 sm:p-6 sm:rounded-xl sm:shadow-sm"
+            class="p-4 bg-white sm:p-6 sm:rounded-xl sm:shadow-sm"
           >
             <h3
-              class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2"
+              class="flex items-center gap-2 mb-3 text-sm font-semibold text-gray-900"
             >
-              <i class="pi pi-info-circle text-gray-400"></i>
+              <i class="text-gray-400 pi pi-info-circle"></i>
               Catatan Khusus
             </h3>
             <p
-              class="text-sm text-gray-700 leading-relaxed whitespace-pre-line"
+              class="text-sm leading-relaxed text-gray-700 whitespace-pre-line"
             >
               {{ jasa.special_notes }}
             </p>
@@ -715,11 +718,11 @@ const getSelectionTypeLabel = (group) => {
           <button
             v-if="totalAddOnGroups > 0"
             @click="openAddOnsModal"
-            class="w-full bg-white p-4 sm:p-6 flex items-center justify-between hover:bg-gray-50 active:bg-gray-100 transition sm:rounded-xl sm:shadow-sm"
+            class="flex items-center justify-between w-full p-4 transition bg-white sm:p-6 hover:bg-gray-50 active:bg-gray-100 sm:rounded-xl sm:shadow-sm"
           >
             <div class="flex items-center gap-3">
               <div
-                class="w-10 h-10 rounded-full bg-merchant-primary/10 flex items-center justify-center shrink-0"
+                class="flex items-center justify-center shrink-0 w-10 h-10 rounded-full bg-merchant-primary/10"
               >
                 <i class="pi pi-plus-circle text-merchant-primary"></i>
               </div>
@@ -731,7 +734,7 @@ const getSelectionTypeLabel = (group) => {
                 </p>
               </div>
             </div>
-            <i class="pi pi-chevron-right text-gray-400"></i>
+            <i class="text-gray-400 pi pi-chevron-right"></i>
           </button>
         </div>
       </div>
@@ -748,13 +751,13 @@ const getSelectionTypeLabel = (group) => {
       <div v-if="jasa && jasa.addonGroups">
         <!-- Summary Card -->
         <div
-          class="bg-merchant-primary/5 rounded-xl p-4 border border-merchant-primary/20 mb-4"
+          class="p-4 mb-4 border bg-merchant-primary/5 rounded-xl border-merchant-primary/20"
         >
           <div class="mb-3">
-            <p class="text-xs text-muted-foreground mb-1">
+            <p class="mb-1 text-xs text-muted-foreground">
               Rentang Harga Add-on
             </p>
-            <p class="text-base font-semibold text-merchant-primary truncate">
+            <p class="text-base font-semibold truncate text-merchant-primary">
               {{ addOnPriceRange || "Semua Gratis" }}
             </p>
           </div>
@@ -763,13 +766,13 @@ const getSelectionTypeLabel = (group) => {
             class="grid grid-cols-2 gap-4 pt-3 border-t border-merchant-primary/20"
           >
             <div>
-              <p class="text-xs text-muted-foreground mb-1">Total Grup</p>
+              <p class="mb-1 text-xs text-muted-foreground">Total Grup</p>
               <p class="text-lg font-bold text-merchant-primary">
                 {{ totalAddOnGroups }}
               </p>
             </div>
             <div>
-              <p class="text-xs text-muted-foreground mb-1">Total Opsi</p>
+              <p class="mb-1 text-xs text-muted-foreground">Total Opsi</p>
               <p class="text-lg font-bold text-merchant-primary">
                 {{ totalAddOnOptions }}
               </p>
@@ -782,18 +785,18 @@ const getSelectionTypeLabel = (group) => {
           <div
             v-for="(group, gIndex) in jasa.addonGroups"
             :key="group.id"
-            class="bg-white border border-muted-background rounded-xl overflow-hidden"
+            class="overflow-hidden bg-white border border-muted-background rounded-xl"
           >
             <!-- Group Header -->
             <div
-              class="bg-merchant-primary/5 border-b border-merchant-primary/20 p-4"
+              class="p-4 border-b bg-merchant-primary/5 border-merchant-primary/20"
             >
               <div class="flex items-start justify-between gap-3 mb-3">
                 <div class="flex-1">
-                  <h3 class="text-sm font-bold text-black mb-2">
+                  <h3 class="mb-2 text-sm font-bold text-black">
                     {{ gIndex + 1 }}. {{ group.addon_group_name }}
                   </h3>
-                  <div class="flex items-center gap-2 flex-wrap">
+                  <div class="flex flex-wrap items-center gap-2">
                     <!-- Required Badge -->
                     <StatusLabel
                       v-if="group.min_selection > 0"
@@ -831,15 +834,15 @@ const getSelectionTypeLabel = (group) => {
               <div
                 v-for="(option, oIndex) in group.options"
                 :key="option.id"
-                class="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
+                class="flex items-center justify-between px-4 py-3 transition rounded-lg bg-gray-50 hover:bg-gray-100"
               >
-                <div class="flex items-center gap-3 flex-1 min-w-0">
+                <div class="flex items-center flex-1 min-w-0 gap-3">
                   <!-- Number Badge -->
                   <StatusLabel
                     status="processing"
                     variant="custom"
                     :label="`${oIndex + 1}`"
-                    custom-class="bg-merchant-primary text-white"
+                    custom-class="text-white bg-merchant-primary"
                     size="xs"
                     :show-icon="false"
                   />

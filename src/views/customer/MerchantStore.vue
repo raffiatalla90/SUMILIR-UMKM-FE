@@ -228,7 +228,10 @@
         </div>
 
         <!-- Grid Jasa -->
-        <div v-else class="grid grid-cols-2 gap-3 sm:gap-4">
+        <div
+          v-else
+          class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+        >
           <router-link
             v-for="jasa in jasaList"
             :key="jasa.id"
@@ -465,7 +468,7 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useRouter } from "vue-router";
 import api from "@/libs/axios.js";
-import { getImageUrl } from "@/libs/getImageUrl.js";
+import { getImageUrl, getImageUrlJasa } from "@/libs/getImageUrl.js";
 import { setMeta, setJsonLd } from "@/router/seo";
 import ChatWindow from "@/components/common/ChatWindow.vue";
 import LeafletMap from "@/components/LeafletMap.vue";
@@ -726,16 +729,26 @@ function applyMerchantSeo(merchantData, merchantSlug) {
 
 // Resolve gambar jasa
 const resolveJasaImage = (jasa) => {
+  // Prefer API-provided cover image URL (id-based)
+  if (jasa?.cover_img?.src_url) {
+    return jasa.cover_img.src_url;
+  }
+
   if (jasa.images && jasa.images.length > 0) {
     const coverImage =
       jasa.images.find((img) => img.is_cover) || jasa.images[0];
-    const path = coverImage.path || coverImage.url || coverImage.image;
-    if (path) {
-      return getImageUrl(path);
-    }
+
+    // New API returns url/src_url; keep backward-compat
+    const url = coverImage.src_url || coverImage.url;
+    if (url) return url;
+
+    // Fallbacks
+    if (coverImage.id) return getImageUrl(coverImage.id);
+    if (coverImage.path || coverImage.image)
+      return getImageUrlJasa(coverImage.path || coverImage.image);
   }
   if (jasa.image) {
-    return getImageUrl(jasa.image);
+    return getImageUrlJasa(jasa.image);
   }
   return null;
 };
@@ -786,7 +799,9 @@ async function fetchMerchantMenu(merchantData, merchantSlug) {
   // 3 => jasa
   if (segId === 3) {
     menuKind.value = "jasa";
-    const { data } = await api.get("/api/public/jasas");
+    const { data } = await api.get(
+      `/api/public/merchants/${merchantSlug}/jasas`
+    );
     jasaList.value = Array.isArray(data) ? data : data?.data ?? [];
     return;
   }

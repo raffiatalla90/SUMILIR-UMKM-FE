@@ -19,7 +19,7 @@ import MobilePagination from "@/components/common/MobilePagination.vue";
 import BulkActionBar from "@/components/common/BulkActionBar.vue";
 import { useJasa } from "@/composables/useJasa"; // ✅ GANTI: import useJasa
 import { useChat } from "@/composables/useChat";
-import ChatWindow from "@/components/common/ChatWindow.vue";
+// import ChatWindow from "@/components/common/ChatWindow.vue";
 import { useCategories } from "@/composables/useCategories";
 import { getImageUrlJasa } from "@/libs/getImageUrl.js";
 import api from "@/libs/axios";
@@ -29,19 +29,22 @@ const route = useRoute();
 const toast = useToast();
 const authStore = useAuthStore();
 
+// ✅ Merchant Center uses :merchantSlug in routes
 const currentMerchantSlug = computed(() => {
-  return route.params.merchantSlug
+  return route.params && route.params.merchantSlug
     ? String(route.params.merchantSlug)
-    : authStore.merchantSlug || null;
+    : null;
 });
 
-// ✅ Get merchantId (numeric) for APIs by mapping slug -> id
+// ✅ Derive merchantId from slug (for API filter)
 const currentMerchantId = computed(() => {
-  const merchant = currentMerchantSlug.value
-    ? authStore.getMerchantBySlug(currentMerchantSlug.value)
-    : authStore.activeMerchant;
+  const slug = currentMerchantSlug.value;
+  if (slug) {
+    const merchant = authStore.getMerchantBySlug(slug);
+    return merchant?.id ?? authStore.merchantId ?? null;
+  }
 
-  return merchant?.id ?? null;
+  return authStore.merchantId ?? null;
 });
 
 // ✅ Breadcrumb items
@@ -55,7 +58,7 @@ const breadcrumbItems = computed(() => [
 const currentMerchantName = computed(() => {
   const merchant = currentMerchantSlug.value
     ? authStore.getMerchantBySlug(currentMerchantSlug.value)
-    : authStore.activeMerchant;
+    : authStore.getMerchantById(currentMerchantId.value);
   return merchant?.name || "UMKM";
 });
 
@@ -194,26 +197,24 @@ const buildSortByParam = (filters) => {
   return "newest";
 };
 
-// ✅ ADD: Initialize data on mount
+// ✅ INIT: Load data saat komponen siap & merchantId sudah ada
 onMounted(async () => {
   console.log("[Indexjasa] Component mounted");
+  console.log("[Indexjasa] Merchant Slug:", currentMerchantSlug.value);
   console.log("[Indexjasa] Merchant ID:", currentMerchantId.value);
 
-  // Validate merchant ID
-  if (!currentMerchantId.value) {
-    toast.error("Merchant ID tidak ditemukan");
-    const fallbackSlug =
-      authStore.merchantSlug ?? authStore.activeMerchant?.slug;
-    router.push(
-      fallbackSlug ? `/merchant-center/${fallbackSlug}` : "/merchant-register"
-    );
-    return;
-  }
-
-  // Load categories
+  // Selalu pastikan kategori ter-load
   await fetchLevel1Categories();
 
-  // Load jasa data
+  // Jika merchantId sudah ada saat mount, langsung load jasa.
+  // Kalau belum (mis. store belum siap), watcher currentMerchantId akan memanggil loadJasas.
+  if (currentMerchantId.value) await loadJasas();
+});
+
+// 🔁 Tambahan: jika merchantId berubah (atau baru ter-set), reload jasa
+watch(currentMerchantId, async (newVal, oldVal) => {
+  if (!newVal || newVal === oldVal) return;
+  console.log("[Indexjasa] merchantId changed, reloading jasas...", newVal);
   await loadJasas();
 });
 
@@ -231,8 +232,9 @@ watch(
 // ✅ UPDATED: Load jasas dengan merchantId dari route
 const loadJasas = async () => {
   // ✅ Validate merchantId exists
+  // Jangan tampilkan error kalau masih proses resolve merchant (biar request tetap bisa jalan saat computed terisi)
   if (!currentMerchantId.value) {
-    toast.error("Merchant ID tidak ditemukan");
+    console.warn("[loadJasas] Merchant ID belum tersedia, menunggu...");
     return;
   }
 
@@ -271,13 +273,11 @@ const loadJasas = async () => {
       serverMsg &&
       (serverMsg.includes("Segment") || serverMsg.includes("UMKM"))
     ) {
-      const fallbackSlug =
-        currentMerchantSlug.value ??
-        authStore.merchantSlug ??
-        authStore.activeMerchant?.slug;
-      router.push(
-        fallbackSlug ? `/merchant-center/${fallbackSlug}` : "/merchant-register"
-      );
+      if (currentMerchantSlug.value) {
+        router.push(`/merchant-center/${currentMerchantSlug.value}`);
+      } else {
+        router.push(`/merchant-center`);
+      }
     } else {
       toast.error(serverMsg || "Gagal memuat jasa");
     }
@@ -488,12 +488,12 @@ const exportPDF = async () => {
 // ✅ UPDATED: goToCreate with merchantId
 const goToCreate = () => {
   console.log("[Indexjasa] goToCreate called");
-  console.log("[Indexjasa] Current merchant ID:", currentMerchantId.value);
-  if (!currentMerchantId.value) {
-    console.error("[Indexjasa] No merchant ID - cannot create");
+  console.log("[Indexjasa] Current merchant slug:", currentMerchantSlug.value);
+  if (!currentMerchantSlug.value) {
+    console.error("[Indexjasa] No merchantSlug - cannot create");
     return;
   }
-  // Route parent sudah punya merchantSlug di params
+  // Route parent pakai merchantSlug di params
   router.push({
     name: "Merchant - Jasa Create",
     params: { merchantSlug: currentMerchantSlug.value },
@@ -542,6 +542,20 @@ const confirmDeleteJasa = async () => {
     closeDeleteModal();
   } catch (error) {
     toast.error(error.response?.data?.message || "Gagal menghapus jasa");
+  }
+};
+
+// Publish single jasa (khusus yang masih draft)
+const publishJasa = async (jasa) => {
+  if (!jasa || jasa.status !== "draft") return;
+
+  try {
+    await updateJasaStatus(jasa.id, "published");
+    toast.success("Jasa berhasil dipublish");
+    // Refresh data agar status & styling kartu terupdate
+    loadJasas();
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Gagal mempublish jasa");
   }
 };
 
@@ -652,6 +666,20 @@ const formatOperatingDays = (operatingDays) => {
   if (days.length === 0) return "-";
   if (days.length === 7) return "Setiap Hari";
   return days.map((d) => dayLabels[d] || d).join(", ");
+};
+
+// Format tanggal & jam jasa (created_at / updated_at)
+const formatJasaDateTime = (value) => {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 };
 
 // Format single price (IDR)
@@ -786,7 +814,12 @@ const getPrimaryImageSrc = (jasaItem) => {
 // =======================
 // Chat (Daftar Percakapan)
 // =======================
+// Fitur chat pembeli di halaman Index Jasa sementara disembunyikan dari UI,
+// namun logika chat tetap aktif sehingga bisa digunakan kembali kapan saja.
+
+// Chat composable
 const { conversations, fetchConversations } = useChat();
+
 const showChatPanel = ref(false);
 const selectedConversationId = ref(null);
 
@@ -820,199 +853,255 @@ const selectConversation = (conversation) => {
 
 <template>
   <div class="p-6">
-    <h1 class="text-2xl font-bold mb-4">Daftar Jasa</h1>
+    <div class="mb-6">
+      <h1 class="text-3xl font-bold text-gray-900">Daftar Jasa</h1>
+      <p class="mt-1 text-sm text-gray-600">
+        <i class="mr-1 pi pi-shop text-merchant-primary"></i>
+        {{ currentMerchantName }}
+      </p>
+    </div>
 
     <!-- Loading State -->
-    <div v-if="loading" class="flex justify-center items-center py-20">
+    <div v-if="loading" class="flex items-center justify-center py-20">
       <div
-        class="animate-spin rounded-full h-12 w-12 border-b-2 border-merchant-primary"
+        class="w-12 h-12 border-b-2 rounded-full animate-spin border-merchant-primary"
       ></div>
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="jasas.length === 0" class="text-center py-20">
-      <p class="text-gray-500 mb-4">Belum ada jasa</p>
+    <div
+      v-else-if="jasas.length === 0"
+      class="py-20 text-center bg-white rounded-lg shadow"
+    >
+      <i class="block mb-4 text-6xl text-gray-300 pi pi-inbox"></i>
+      <p class="mb-6 text-lg text-gray-500">Belum ada jasa yang ditambahkan</p>
       <button
         @click="goToCreate"
-        class="px-4 py-2 bg-merchant-primary text-white rounded"
+        class="inline-flex items-center gap-2 px-6 py-3 font-medium text-white transition rounded-lg shadow-md bg-merchant-primary hover:bg-merchant-primary/90"
       >
-        Tambah Jasa
+        <i class="text-sm pi pi-plus"></i>
+        <span>Tambah Jasa Baru</span>
       </button>
     </div>
 
     <!-- Data Table -->
     <div v-else>
-      <div class="mb-4 flex flex-wrap items-center gap-2 justify-between">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <button
           @click="goToCreate"
-          class="px-4 py-2 bg-merchant-primary text-white rounded"
+          class="inline-flex items-center gap-2 px-5 py-2.5 bg-linear-to-r from-merchant-primary to-merchant-primary/90 text-white rounded-lg font-medium hover:shadow-lg transition"
         >
-          Tambah Jasa
+          <i class="text-sm pi pi-plus"></i>
+          <span>Tambah Jasa Baru</span>
         </button>
+        <!-- Tombol Chat Pembeli sementara disembunyikan. Aktifkan kembali dengan menghapus komentar ini. -->
+        <!--
         <button
           @click="openChatModal"
-          class="inline-flex items-center gap-2 px-4 py-2 rounded border border-merchant-primary/50 text-merchant-primary bg-merchant-primary/5 hover:bg-merchant-primary/10 transition"
+          class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-merchant-primary/40 text-merchant-primary bg-white hover:bg-merchant-primary/5 transition font-medium"
         >
-          <i class="pi pi-comments text-sm"></i>
-          <span class="text-sm font-medium">Chat Pembeli</span>
+          <i class="text-sm pi pi-comments"></i>
+          <span>Chat Pembeli</span>
         </button>
+        -->
       </div>
 
-      <div class="bg-white rounded-lg shadow overflow-x-auto">
-        <table class="w-full min-w-[700px]">
-          <thead>
-            <tr class="border-b">
-              <th class="p-4 text-left w-24">
-                <div class="flex items-center gap-2">
-                  <i class="pi pi-image text-gray-500"></i>
-                  Gambar
-                </div>
-              </th>
-              <th class="p-4 text-left">
-                <div class="flex items-center gap-2">
-                  <i class="pi pi-file-edit text-gray-500"></i>
-                  Nama Jasa
-                </div>
-              </th>
-              <th class="p-4 text-left">
-                <div class="flex items-center gap-2">
-                  <i class="pi pi-tag text-gray-500"></i>
-                  Kategori
-                </div>
-              </th>
-              <th class="p-4 text-left">
-                <div class="flex items-center gap-2">
-                  <i class="pi pi-wallet text-gray-500"></i>
-                  Harga
-                </div>
-              </th>
-              <th class="p-4 text-left">
-                <div class="flex items-center gap-2">
-                  <i class="pi pi-calendar text-gray-500"></i>
-                  Hari Layanan
-                </div>
-              </th>
-              <th class="p-4 text-left">
-                <div class="flex items-center gap-2">
-                  <i class="pi pi-circle-fill text-gray-500 text-xs"></i>
-                  Status
-                </div>
-              </th>
-              <th class="p-4 text-left">
-                <div class="flex items-center gap-2">
-                  <i class="pi pi-cog text-gray-500"></i>
-                  Aksi
-                </div>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="jasa in jasas"
-              :key="jasa.id"
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div
+          v-for="(jasa, index) in jasas"
+          :key="jasa.id"
+          class="overflow-hidden transition bg-white border border-gray-100 rounded-lg shadow-md hover:shadow-lg"
+          :class="
+            !jasa.is_active || jasa.status === 'draft' ? 'opacity-75' : ''
+          "
+        >
+          <!-- Card Header dengan Nomor -->
+          <div
+            class="flex items-center justify-between px-4 py-3 bg-linear-to-r from-merchant-primary to-merchant-primary/80"
+          >
+            <div class="flex items-center gap-3">
+              <span
+                class="inline-flex items-center justify-center w-8 h-8 text-base font-bold text-white rounded-full bg-white/30"
+              >
+                {{ (currentPage - 1) * perPage + index + 1 }}
+              </span>
+              <span class="text-sm font-medium text-white truncate">{{
+                jasa.title
+              }}</span>
+            </div>
+            <span
               :class="[
-                'border-b hover:bg-gray-50',
-                !jasa.is_active || jasa.status === 'draft' ? 'opacity-50' : '',
+                'px-2 py-1 rounded-full text-xs font-medium shrink-0',
+                jasa.status === 'published'
+                  ? 'bg-green-100 text-green-700'
+                  : jasa.status === 'draft'
+                  ? 'bg-yellow-100 text-yellow-700'
+                  : 'bg-red-100 text-red-700',
               ]"
             >
-              <td class="p-4">
-                <div
-                  v-if="(jasa.images && jasa.images.length > 0) || jasa.image"
-                  class="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center"
-                >
-                  <img
-                    :src="getPrimaryImageSrc(jasa)"
-                    :alt="jasa.title"
-                    class="max-w-full max-h-full object-contain"
-                    @error="
-                      (e) =>
-                        (e.target.src =
-                          'data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Crect fill=%27%23f3f4f6%27 width=%27100%27 height=%27100%27/%3E%3Ctext x=%2750%27 y=%2750%27 font-size=%2714%27 text-anchor=%27middle%27 dy=%27.3em%27 fill=%27%239ca3af%27%3ENo Image%3C/text%3E%3C/svg%3E')
-                    "
-                  />
-                </div>
-                <div
-                  v-else
-                  class="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-lg bg-gray-100 flex items-center justify-center"
-                >
-                  <i class="pi pi-image text-gray-400 text-xl"></i>
-                </div>
-              </td>
-              <td class="p-4">{{ jasa.title }}</td>
-              <td class="p-4">
-                <div class="text-sm">
-                  <div class="font-medium text-gray-900">
+              {{
+                jasa.status === "published"
+                  ? "Dipublish"
+                  : jasa.status === "draft"
+                  ? "Draft"
+                  : "Diarsipkan"
+              }}
+            </span>
+          </div>
+
+          <!-- Card Body -->
+          <div class="p-4">
+            <!-- Gambar -->
+            <div class="mb-4">
+              <div
+                v-if="(jasa.images && jasa.images.length > 0) || jasa.image"
+                class="flex items-center justify-center w-full h-40 mb-3 overflow-hidden bg-gray-100 rounded-lg"
+              >
+                <img
+                  :src="getPrimaryImageSrc(jasa)"
+                  :alt="jasa.title"
+                  class="object-cover w-full h-full max-w-full max-h-full"
+                  @error="
+                    (e) =>
+                      (e.target.src =
+                        'data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Crect fill=%27%23f3f4f6%27 width=%27100%27 height=%27100%27/%3E%3Ctext x=%2750%27 y=%2750%27 font-size=%2714%27 text-anchor=%27middle%27 dy=%27.3em%27 fill=%27%239ca3af%27%3ENo Image%3C/text%3E%3C/svg%3E')
+                  "
+                />
+              </div>
+              <div
+                v-else
+                class="flex items-center justify-center w-full h-40 mb-3 bg-gray-100 rounded-lg"
+              >
+                <i class="text-4xl text-gray-400 pi pi-image"></i>
+              </div>
+            </div>
+
+            <!-- Nama Jasa -->
+            <h3 class="mb-2 text-lg font-bold text-gray-900 line-clamp-2">
+              {{ jasa.title }}
+            </h3>
+
+            <!-- Info Grid -->
+            <div class="mb-4 space-y-2 text-sm">
+              <!-- Kategori -->
+              <div class="flex items-start gap-2">
+                <i class="mt-1 text-xs pi pi-tag text-merchant-primary"></i>
+                <div class="flex-1">
+                  <div class="font-medium text-gray-700">
                     {{ jasa.category?.name || "-" }}
                   </div>
                   <div
                     v-if="jasa.subcategory?.name"
-                    class="text-xs text-gray-500 mt-0.5"
+                    class="text-xs text-gray-500"
                   >
                     {{ jasa.subcategory.name }}
                   </div>
                 </div>
-              </td>
-              <td class="p-4">
-                <template v-if="jasa.fixed_price && jasa.fixed_price > 0">
-                  {{ formatPriceId(jasa.fixed_price) }}
-                </template>
-                <template v-else-if="jasa.base_price && jasa.base_price > 0">
-                  {{ formatPriceId(jasa.base_price) }}
-                  <span class="text-xs text-gray-500">(Mulai dari)</span>
-                </template>
-                <template v-else> - </template>
-              </td>
-              <td class="p-4">
-                <span class="text-sm text-gray-700">
-                  {{ formatOperatingDays(jasa.operating_days) }}
-                </span>
-              </td>
-              <td class="p-4">
-                <span
-                  :class="
-                    jasa.status === 'active' && jasa.is_active
-                      ? 'text-green-600'
-                      : 'text-gray-400'
-                  "
-                >
-                  {{
-                    jasa.status === "active" && jasa.is_active
-                      ? "Aktif"
-                      : "Tidak Aktif"
-                  }}
-                </span>
-              </td>
-              <td class="p-4">
-                <div class="flex flex-wrap items-center gap-2">
-                  <button
-                    @click="goToEdit(jasa)"
-                    class="inline-flex items-center justify-center px-2 py-1 rounded border border-merchant-primary/40 text-merchant-primary text-xs sm:text-sm bg-merchant-primary/5 hover:bg-merchant-primary/10 transition"
-                    title="Edit jasa"
+              </div>
+
+              <!-- Harga -->
+              <div class="flex items-start gap-2">
+                <i
+                  class="pi pi-wallet text-merchant-primary text-xs mt-0.5"
+                ></i>
+                <div class="flex flex-col">
+                  <span class="text-sm font-semibold text-merchant-primary">
+                    <template v-if="jasa.fixed_price && jasa.fixed_price > 0">
+                      {{ formatPriceId(jasa.fixed_price) }}
+                    </template>
+                    <template
+                      v-else-if="jasa.base_price && jasa.base_price > 0"
+                    >
+                      Mulai {{ formatPriceId(jasa.base_price) }}
+                    </template>
+                    <template v-else> - </template>
+                  </span>
+                  <span
+                    v-if="jasa.fixed_price && jasa.fixed_price > 0"
+                    class="mt-0.5 inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-medium px-2 py-0.5 uppercase tracking-wide"
                   >
-                    <i class="pi pi-pencil text-xs sm:text-sm mr-1"></i>
-                    <span class="leading-none">Edit</span>
-                  </button>
-                  <button
-                    @click="goToDetail(jasa)"
-                    class="inline-flex items-center justify-center px-2 py-1 rounded border border-blue-500/30 text-blue-600 text-xs sm:text-sm bg-blue-50 hover:bg-blue-100 transition"
-                    title="Lihat detail"
+                    <span
+                      class="w-1.5 h-1.5 rounded-full bg-emerald-500"
+                    ></span>
+                    Harga Tetap
+                  </span>
+                  <span
+                    v-else-if="jasa.base_price && jasa.base_price > 0"
+                    class="mt-0.5 inline-flex items-center gap-1 rounded-full bg-gray-100 text-gray-700 text-[10px] font-medium px-2 py-0.5 uppercase tracking-wide"
                   >
-                    <i class="pi pi-eye text-xs sm:text-sm mr-1"></i>
-                    <span class="leading-none">Detail</span>
-                  </button>
-                  <button
-                    @click="deleteJasaAction(jasa)"
-                    class="inline-flex items-center justify-center px-2 py-1 rounded border border-red-500/30 text-red-600 text-xs sm:text-sm bg-red-50 hover:bg-red-100 transition"
-                    title="Hapus jasa"
-                  >
-                    <i class="pi pi-trash text-xs sm:text-sm mr-1"></i>
-                    <span class="leading-none">Hapus</span>
-                  </button>
+                    <span class="w-1.5 h-1.5 rounded-full bg-gray-500"></span>
+                    Harga Mulai
+                  </span>
                 </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              </div>
+
+              <!-- Hari Layanan -->
+              <div class="flex items-start gap-2">
+                <i
+                  class="mt-1 text-xs pi pi-calendar text-merchant-primary"
+                ></i>
+                <span class="text-gray-700">{{
+                  formatOperatingDays(jasa.operating_days)
+                }}</span>
+              </div>
+
+              <!-- Tanggal Upload & Edit -->
+              <div class="flex items-start gap-2 text-xs text-gray-500">
+                <i class="pi pi-clock text-merchant-primary text-xs mt-0.5"></i>
+                <div>
+                  <div>Upload: {{ formatJasaDateTime(jasa.created_at) }}</div>
+                  <div
+                    v-if="
+                      jasa.updated_at && jasa.updated_at !== jasa.created_at
+                    "
+                  >
+                    Edit: {{ formatJasaDateTime(jasa.updated_at) }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card Footer dengan Aksi -->
+          <div
+            class="flex flex-wrap gap-2 px-4 py-3 border-t border-gray-100 bg-gray-50"
+          >
+            <button
+              @click="goToDetail(jasa)"
+              class="inline-flex items-center justify-center flex-1 px-2 py-2 text-xs font-medium text-blue-600 transition border rounded border-blue-500/30 bg-blue-50 hover:bg-blue-100"
+              title="Lihat detail"
+            >
+              <i class="mr-1 text-xs pi pi-eye"></i>
+              <span>Detail</span>
+            </button>
+            <!-- Tombol Publish khusus untuk jasa Draft -->
+            <button
+              v-if="jasa.status === 'draft'"
+              @click="publishJasa(jasa)"
+              class="inline-flex items-center justify-center flex-1 px-2 py-2 text-xs font-semibold text-white transition rounded shadow-sm bg-linear-to-r from-emerald-500 to-emerald-600 hover:shadow-md hover:from-emerald-600 hover:to-emerald-700"
+              title="Publish jasa ini"
+            >
+              <i class="mr-1 text-xs pi pi-send"></i>
+              <span>Publish</span>
+            </button>
+            <button
+              @click="goToEdit(jasa)"
+              class="inline-flex items-center justify-center flex-1 px-2 py-2 text-xs font-medium transition border rounded border-merchant-primary/40 text-merchant-primary bg-merchant-primary/5 hover:bg-merchant-primary/10"
+              title="Edit jasa"
+            >
+              <i class="mr-1 text-xs pi pi-pencil"></i>
+              <span>Edit</span>
+            </button>
+            <button
+              @click="deleteJasaAction(jasa)"
+              class="inline-flex items-center justify-center flex-1 px-2 py-2 text-xs font-medium text-red-600 transition border rounded border-red-500/30 bg-red-50 hover:bg-red-100"
+              title="Hapus jasa"
+            >
+              <i class="mr-1 text-xs pi pi-trash"></i>
+              <span>Hapus</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Delete Confirmation Modal -->
@@ -1028,7 +1117,7 @@ const selectConversation = (conversation) => {
           >? Tindakan ini tidak dapat dibatalkan.
         </p>
         <template #footer>
-          <div class="flex gap-2 w-full">
+          <div class="flex w-full gap-2">
             <Button
               variant="muted-outline"
               class="flex-1"
@@ -1054,7 +1143,7 @@ const selectConversation = (conversation) => {
       >
         <div
           v-if="showChatPanel"
-          class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm"
+          class="fixed inset-0 z-50 flex items-end justify-center sm:items-center bg-black/40 backdrop-blur-sm"
           @click.self="closeChatModal"
         >
           <div
@@ -1062,10 +1151,10 @@ const selectConversation = (conversation) => {
           >
             <!-- Header -->
             <div
-              class="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 border-b border-gray-200 bg-gray-50 rounded-t-2xl"
+              class="flex items-center justify-between px-3 py-2 border-b border-gray-200 sm:px-4 sm:py-3 bg-gray-50 rounded-t-2xl"
             >
               <div>
-                <h2 class="text-xs sm:text-base font-semibold text-gray-900">
+                <h2 class="text-xs font-semibold text-gray-900 sm:text-base">
                   Chat Pembeli
                 </h2>
                 <p class="text-[10px] sm:text-xs text-gray-500 hidden sm:block">
@@ -1074,21 +1163,21 @@ const selectConversation = (conversation) => {
               </div>
               <button
                 type="button"
-                class="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center hover:bg-gray-100 text-gray-500"
+                class="flex items-center justify-center text-gray-500 rounded-full w-7 h-7 sm:w-8 sm:h-8 hover:bg-gray-100"
                 @click="closeChatModal"
               >
-                <i class="pi pi-times text-xs sm:text-sm"></i>
+                <i class="text-xs pi pi-times sm:text-sm"></i>
               </button>
             </div>
 
             <!-- Body -->
-            <div class="p-2 sm:p-4 flex-1 flex flex-col overflow-hidden">
+            <div class="flex flex-col flex-1 p-2 overflow-hidden sm:p-4">
               <div
-                class="flex flex-col md:flex-row gap-2 sm:gap-4 flex-1 min-h-0 overflow-hidden"
+                class="flex flex-col flex-1 min-h-0 gap-2 overflow-hidden md:flex-row sm:gap-4"
               >
                 <!-- Daftar percakapan -->
                 <div
-                  class="w-full h-28 sm:h-auto md:w-1/3 border border-gray-200 rounded-lg sm:rounded-xl bg-white overflow-hidden flex flex-col shrink-0 md:shrink"
+                  class="flex flex-col w-full overflow-hidden bg-white border border-gray-200 rounded-lg h-28 sm:h-auto md:w-1/3 sm:rounded-xl shrink-0 md:shrink"
                 >
                   <div
                     class="px-2 sm:px-3 py-1.5 sm:py-2 border-b border-gray-200 bg-gray-50"
@@ -1143,36 +1232,12 @@ const selectConversation = (conversation) => {
                   </div>
                 </div>
 
-                <!-- Chat window -->
-                <div class="w-full md:flex-1 flex-1 min-h-0">
+                <!-- Chat window sementara dinonaktifkan -->
+                <div class="flex-1 w-full min-h-0 md:flex-1">
                   <div
-                    v-if="!selectedConversationId && !hasConversations"
                     class="h-full text-[10px] sm:text-xs text-gray-500 text-center border border-dashed border-gray-300 rounded-lg sm:rounded-xl bg-gray-50/60 px-2 sm:px-4 py-4 sm:py-6 flex items-center justify-center"
                   >
-                    <span>
-                      Belum ada percakapan.
-                      <br class="hidden sm:block" />
-                      <span class="hidden sm:inline"
-                        >Saat ada pembeli yang menghubungi Anda, percakapan akan
-                        muncul di sini.</span
-                      >
-                    </span>
-                  </div>
-                  <div
-                    v-else-if="!selectedConversationId && hasConversations"
-                    class="h-full text-[10px] sm:text-xs text-gray-500 text-center border border-dashed border-gray-300 rounded-lg sm:rounded-xl bg-gray-50/60 px-2 sm:px-4 py-4 sm:py-6 flex items-center justify-center"
-                  >
-                    <span>
-                      Pilih percakapan
-                      <span class="hidden sm:inline">di sebelah kiri</span>
-                      untuk membalas pesan.
-                    </span>
-                  </div>
-                  <div v-else class="h-full">
-                    <ChatWindow
-                      :conversation-id="selectedConversationId"
-                      mode="merchant"
-                    />
+                    Fitur chat merchant belum tersedia untuk sementara.
                   </div>
                 </div>
               </div>
@@ -1182,7 +1247,7 @@ const selectConversation = (conversation) => {
       </transition>
 
       <!-- Pagination -->
-      <div v-if="totalPages > 1" class="mt-4 flex justify-center gap-2">
+      <div v-if="totalPages > 1" class="flex justify-center gap-2 mt-4">
         <button
           v-for="page in totalPages"
           :key="page"

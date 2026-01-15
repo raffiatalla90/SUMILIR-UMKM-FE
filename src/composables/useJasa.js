@@ -67,7 +67,9 @@ export function useJasa() {
       page,
     };
 
-    Object.keys(params).forEach((k) => params[k] === undefined && delete params[k]);
+    Object.keys(params).forEach(
+      (k) => params[k] === undefined && delete params[k]
+    );
 
     try {
       // Gunakan endpoint jasa lama: GET /api/jasa
@@ -77,7 +79,7 @@ export function useJasa() {
       // Dukung dua bentuk response:
       // 1) Array langsung: [ {...}, {...} ]
       // 2) Paginated: { data: [...], meta: {...} }
-      jasas.value = Array.isArray(data) ? data : (data.data || []);
+      jasas.value = Array.isArray(data) ? data : data.data || [];
 
       if (data.meta) {
         pagination.value = {
@@ -98,7 +100,11 @@ export function useJasa() {
     }
   };
 
-  const fetchJasaDetail = async (id, isOwnerView = false, merchantId = null) => {
+  const fetchJasaDetail = async (
+    id,
+    isOwnerView = false,
+    merchantId = null
+  ) => {
     try {
       let endpoint;
       if (isOwnerView) {
@@ -111,7 +117,8 @@ export function useJasa() {
       const { data } = await api.get(endpoint);
       const payload = data.data ?? data;
       if (payload.addon_groups) payload.addonGroups = payload.addon_groups;
-      if (!Array.isArray(payload.images)) payload.images = payload.images ? [payload.images] : [];
+      if (!Array.isArray(payload.images))
+        payload.images = payload.images ? [payload.images] : [];
       return payload;
     } catch (err) {
       throw err;
@@ -153,7 +160,10 @@ export function useJasa() {
         await api.delete(`/api/jasa/${id}`);
       }
       jasas.value = jasas.value.filter((j) => !ids.includes(j.id));
-      pagination.value.total = Math.max(0, (pagination.value.total || 0) - ids.length);
+      pagination.value.total = Math.max(
+        0,
+        (pagination.value.total || 0) - ids.length
+      );
     } catch (err) {
       throw err;
     } finally {
