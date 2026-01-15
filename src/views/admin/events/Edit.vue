@@ -253,29 +253,35 @@ const handleSubmit = async (values) => {
     formData.append("status", allowedStatus.value.status);
     formData.append("_method", "PUT");
 
+    // ✅ Always append banner if user selected new file
     if (hasNewBanner.value && bannerFile.value) {
       formData.append("banner_img", bannerFile.value);
-      console.log("Uploading new banner:", bannerFile.value.name);
+      console.log("[Edit] Uploading new banner:", bannerFile.value.name);
     }
 
-    const updatedData = await updateEvent(route.params.id, formData);
+    // ✅ Get updated data from server
+    const response = await updateEvent(route.params.id, formData);
     
-    // ✅ ADDED: Update event data dengan response dari server
-    if (updatedData?.data) {
-      event.value = updatedData.data;
+    // ✅ Update local event data with server response
+    if (response?.data) {
+      event.value = response.data;
       
-      // ✅ ADDED: Force reload banner dengan timestamp baru
-      if (updatedData.data.banner_img_path) {
-        bannerPreview.value = getEventBannerUrl(updatedData.data);
+      if (response.data.banner_img_path) {
+        // ✅ Force reload dengan timestamp baru
+        const timestamp = new Date(response.data.updated_at).getTime();
+        bannerPreview.value = `${getEventBannerUrl(response.data)}`;
         hasNewBanner.value = false;
+        bannerFile.value = null;
       }
+      
+      console.log("[Edit] Event updated successfully:", response.data);
     }
     
-    toast.success("Event berhasil diupdate");
+    // ✅ Navigate to detail page
     router.push({ name: "Admin - Event Detail", params: { id: route.params.id } });
   } catch (error) {
-    console.error("Update event failed:", error);
-    toast.error(error.response?.data?.message || "Gagal mengupdate event");
+    console.error("[Edit] Update failed:", error);
+    // Toast already shown by composable
   }
 };
 

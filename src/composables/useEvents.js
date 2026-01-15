@@ -93,10 +93,13 @@ export function useEvents() {
         },
       });
 
-      // ✅ ADDED: Return response data untuk digunakan di component
+      toast.success("Event berhasil diupdate!");
+
+      // ✅ Return full response data
       return response.data;
     } catch (err) {
       error.value = err.response?.data?.message || "Gagal mengupdate event";
+      toast.error(error.value);
       throw err;
     } finally {
       loading.value = false;
