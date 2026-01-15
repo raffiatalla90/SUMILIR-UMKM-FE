@@ -134,22 +134,19 @@ const handleBannerChange = (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
 
-  // Validate file type
-  const validTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
+  const validTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp", "image/svg+xml"];
   if (!validTypes.includes(file.type)) {
-    toast.error("Format file harus JPG, PNG, atau WebP");
+    toast.error("Format file harus JPG, PNG, WebP, atau SVG");
     return;
   }
 
-  // Validate file size (max 2MB)
-  if (file.size > 2 * 1024 * 1024) {
-    toast.error("Ukuran file maksimal 2MB");
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error("Ukuran file maksimal 5MB");
     return;
   }
 
   bannerFile.value = file;
 
-  // Create preview
   const reader = new FileReader();
   reader.onload = (e) => {
     bannerPreview.value = e.target?.result;
@@ -305,16 +302,18 @@ const goBack = () => router.push({ name: "Admin - Events" });
               <input
                 type="file"
                 @change="handleBannerChange"
-                accept="image/jpeg,image/png,image/jpg,image/webp"
+                accept="image/jpeg,image/png,image/jpg,image/webp,image/svg+xml"
                 class="hidden"
                 id="banner-upload"
               />
               <label for="banner-upload" class="cursor-pointer">
                 <i class="pi pi-cloud-upload text-4xl text-gray-400 mb-3"></i>
                 <p class="text-sm text-gray-600">
-                  Klik untuk upload banner (JPG, PNG, WebP)
+                  Klik untuk upload banner (JPG, PNG, WebP, SVG)
                 </p>
-                <p class="text-xs text-gray-400 mt-1">Maksimal 2MB</p>
+                <p class="text-xs text-gray-400 mt-1">
+                  Rekomendasi: 1920x480px (4:1) atau 1920x540px (16:9), Max 5MB
+                </p>
               </label>
             </div>
 
@@ -323,7 +322,7 @@ const goBack = () => router.push({ name: "Admin - Events" });
               <img
                 :src="bannerPreview"
                 alt="Banner preview"
-                class="w-full h-64 object-cover rounded-lg"
+                class="w-full aspect-4/1 object-cover rounded-lg"
               />
               <button
                 @click="removeBanner"

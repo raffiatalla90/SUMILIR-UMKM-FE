@@ -21,6 +21,8 @@ const event = ref(null);
 const bannerPreview = ref(null);
 const bannerFile = ref(null);
 const isDataLoaded = ref(false);
+const fileInputRef = ref(null);
+const hasNewBanner = ref(false); 
 
 const formValues = ref({
   event_start_date: "",
@@ -176,9 +178,9 @@ const loadEvent = async () => {
       status: data.status,
     };
 
-    // ✅ FIXED: Use getEventBannerUrl for existing banner
     if (data.banner_img_path) {
       bannerPreview.value = getEventBannerUrl(data);
+      hasNewBanner.value = false;
     }
 
     isDataLoaded.value = true;
@@ -194,22 +196,22 @@ const handleBannerChange = (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
 
-  // Validate file type
-  const validTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
+  const validTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp", "image/svg+xml"];
   if (!validTypes.includes(file.type)) {
-    toast.error("Format file harus JPG, PNG, atau WebP");
+    toast.error("Format file harus JPG, PNG, WebP, atau SVG");
+    event.target.value = "";
     return;
   }
 
-  // Validate file size (max 2MB)
-  if (file.size > 2 * 1024 * 1024) {
-    toast.error("Ukuran file maksimal 2MB");
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error("Ukuran file maksimal 5MB");
+    event.target.value = "";
     return;
   }
 
   bannerFile.value = file;
+  hasNewBanner.value = true;
 
-  // Create preview
   const reader = new FileReader();
   reader.onload = (e) => {
     bannerPreview.value = e.target?.result;
@@ -219,10 +221,20 @@ const handleBannerChange = (event) => {
 
 const removeBanner = () => {
   bannerFile.value = null;
-  // ✅ FIXED: Use getEventBannerUrl when restoring original banner
+  hasNewBanner.value = false;
+  
+  if (fileInputRef.value) {
+    fileInputRef.value.value = "";
+  }
+  
+  // Restore original banner preview
   bannerPreview.value = event.value?.banner_img_path 
     ? getEventBannerUrl(event.value) 
     : null;
+};
+
+const triggerFileInput = () => {
+  fileInputRef.value?.click();
 };
 
 // Submit handler
@@ -241,16 +253,29 @@ const handleSubmit = async (values) => {
     formData.append("status", allowedStatus.value.status);
     formData.append("_method", "PUT");
 
-    if (bannerFile.value) {
+    if (hasNewBanner.value && bannerFile.value) {
       formData.append("banner_img", bannerFile.value);
+      console.log("Uploading new banner:", bannerFile.value.name);
     }
 
-    await updateEvent(route.params.id, formData);
+    const updatedData = await updateEvent(route.params.id, formData);
+    
+    // ✅ ADDED: Update event data dengan response dari server
+    if (updatedData?.data) {
+      event.value = updatedData.data;
+      
+      // ✅ ADDED: Force reload banner dengan timestamp baru
+      if (updatedData.data.banner_img_path) {
+        bannerPreview.value = getEventBannerUrl(updatedData.data);
+        hasNewBanner.value = false;
+      }
+    }
+    
     toast.success("Event berhasil diupdate");
     router.push({ name: "Admin - Event Detail", params: { id: route.params.id } });
   } catch (error) {
     console.error("Update event failed:", error);
-    toast.error("Gagal mengupdate event");
+    toast.error(error.response?.data?.message || "Gagal mengupdate event");
   }
 };
 
@@ -263,7 +288,6 @@ onMounted(() => {
 
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- Form -->
     <div class="px-4 sm:px-6 py-6" v-if="isDataLoaded && event">
       <div class="bg-white rounded-lg shadow-sm p-6 max-w-4xl mx-auto">
         <Form
@@ -368,40 +392,61 @@ onMounted(() => {
               Banner Event <span class="text-red-500">*</span>
             </label>
 
-            <!-- Upload Area -->
+            <input
+              ref="fileInputRef"
+              type="file"
+              @change="handleBannerChange"
+              accept="image/jpeg,image/png,image/jpg,image/webp,image/svg+xml"
+              class="hidden"
+            />
+
             <div
               v-if="!bannerPreview"
+              @click="triggerFileInput"
               class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-merchant-primary transition-colors cursor-pointer"
             >
-              <input
-                type="file"
-                @change="handleBannerChange"
-                accept="image/jpeg,image/png,image/jpg,image/webp"
-                class="hidden"
-                id="banner-upload"
-              />
-              <label for="banner-upload" class="cursor-pointer">
-                <i class="pi pi-cloud-upload text-4xl text-gray-400 mb-3"></i>
-                <p class="text-sm text-gray-600">
-                  Klik untuk upload banner baru (JPG, PNG, WebP)
-                </p>
-                <p class="text-xs text-gray-400 mt-1">Maksimal 2MB</p>
-              </label>
+              <i class="pi pi-cloud-upload text-4xl text-gray-400 mb-3"></i>
+              <!-- ✅ UPDATED: Petunjuk ukuran dengan aspect ratio -->
+              <p class="text-sm text-gray-600">
+                Klik untuk upload banner baru (JPG, PNG, WebP, SVG)
+              </p>
+              <p class="text-xs text-gray-400 mt-1">
+                Rekomendasi: 1920x480px (4:1) atau 1920x540px (16:9), Max 5MB
+              </p>
             </div>
 
             <!-- Preview -->
             <div v-else class="relative">
+              <!-- ✅ CHANGED: Preview dengan aspect ratio -->
               <img
                 :src="bannerPreview"
                 alt="Banner preview"
-                class="w-full h-64 object-cover rounded-lg"
+                class="w-full aspect-4/1 object-cover rounded-lg"
               />
+              
+              <span 
+                v-if="hasNewBanner"
+                class="absolute top-2 left-2 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-semibold"
+              >
+                <i class="pi pi-check mr-1"></i>
+                Banner Baru
+              </span>
+              
               <button
                 @click="removeBanner"
                 type="button"
-                class="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition"
+                class="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition shadow-lg"
               >
                 <i class="pi pi-times"></i>
+              </button>
+              
+              <button
+                @click="triggerFileInput"
+                type="button"
+                class="absolute bottom-2 right-2 bg-merchant-primary text-white px-4 py-2 rounded-lg hover:bg-merchant-primary/90 transition shadow-lg text-sm"
+              >
+                <i class="pi pi-upload mr-2"></i>
+                Ganti Banner
               </button>
             </div>
           </div>

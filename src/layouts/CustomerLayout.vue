@@ -156,7 +156,7 @@ watch(
   <div class="flex flex-col min-h-screen pb-16 sm:pb-0">
     <!-- Navbar Desktop (hidden on mobile) -->
     <div
-      class="hidden sm:block sticky top-0 z-50 w-full h-[91px] bg-white border-b border-gray-200 shadow-sm"
+      class="hidden sm:block sticky top-0 z-50 w-full h-[68px] bg-white border-b border-gray-200 shadow-sm"
     >
       <div class="max-w-[1440px] mx-auto h-full px-4">
         <div class="flex items-center h-full">
@@ -272,7 +272,7 @@ watch(
     >
       <div
         v-if="showSearch"
-        class="hidden sm:block bg-white border-b border-gray-200 shadow-sm fixed top-[91px] left-0 right-0 z-[1002]"
+        class="hidden sm:block bg-white border-b border-gray-200 shadow-sm fixed top-[91px] left-0 right-0 z-1002"
       >
         <div class="max-w-[1440px] mx-auto px-4 py-4">
           <form @submit.prevent="submitSearch" class="relative">

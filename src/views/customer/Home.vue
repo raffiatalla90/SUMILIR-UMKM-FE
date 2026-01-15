@@ -1,6 +1,8 @@
 <script setup>
 import { ref, onMounted, watch, nextTick } from "vue";
 import { Form } from "vee-validate";
+import { Carousel, Slide } from 'vue3-carousel'; 
+import 'vue3-carousel/dist/carousel.css'; 
 
 import TextField from "@/components/forms/TextField.vue";
 import CategoryCard from "@/components/Card/CategoryCard.vue";
@@ -9,7 +11,7 @@ import PromoCard from "@/components/Card/PromoCard.vue";
 import PromoCardSkeleton from "@/components/Card/PromoCardSkeleton.vue";
 import EventCard from "@/components/Card/EventCard.vue";
 import EventCardSkeleton from "@/components/Card/EventCardSkeleton.vue";
-import MerchantCard from "@/components/Card/MerchantCard.vue"; // ✅ NEW
+import MerchantCard from "@/components/Card/MerchantCard.vue";
 import jasaIcon from "@/assets/icons/Jasa.svg";
 import kulinerIcon from "@/assets/icons/Kuliner.svg";
 import tokoIcon from "@/assets/icons/Toko.svg";
@@ -18,6 +20,8 @@ import komunitasIcon from "@/assets/icons/Komunitas.svg";
 import Button from "@/components/common/Button.vue";
 import api from "@/libs/axios.js";
 import { useRoute, useRouter } from "vue-router";
+import { usePublicEvents } from "@/composables/usePublicEvents"; 
+import { getEventBannerUrl } from "@/libs/getImageUrl"; 
 
 const route = useRoute();
 const router = useRouter();
@@ -27,6 +31,23 @@ const searchQuery = ref("");
 const isLoadingMerchants = ref(true);
 const isLoadingPromo = ref(true);
 const isLoadingEvent = ref(true);
+const isLoadingBanner = ref(true);
+const isLoadMore = ref(false); // ✅ ADD: Missing variable
+
+// banner carousel
+const { events: eventBanners, fetchPublicEvents } = usePublicEvents();
+
+//Carousel config (enable touch/mouse drag)
+const carouselConfig = {
+  itemsToShow: 1,
+  wrapAround: true,
+  autoplay: 5000, // 5 seconds
+  transition: 800,
+  pauseAutoplayOnHover: true,
+  snapAlign: 'center',
+  mouseDrag: true, 
+  touchDrag: true,
+};
 
 const categories = ref([
   {
@@ -148,33 +169,21 @@ const loadMoreMerchants = async () => {
 
 // LOAD DATA
 onMounted(async () => {
-  // ✅ Fetch random merchants
+  try {
+    isLoadingBanner.value = true;
+    await fetchPublicEvents();
+  } catch (e) {
+    console.error('Gagal memuat banner event:', e);
+  } finally {
+    isLoadingBanner.value = false;
+  }
+
   try {
     isLoadingMerchants.value = true;
     const merchantRes = await api.get("/api/public/merchants/random", {
       params: { limit: 8 },
     });
     merchantList.value = merchantRes.data.data || [];
-    const [jasaRes, promoRes] = await Promise.all([
-      api.get("/public/jasas"),
-      api.get("/promos"),
-    ]);
-
-    // Normalisasi image jasa ke /storage/jasa/*.png
-    jasaList.value = (jasaRes.data ?? []).map((item) => ({
-      ...item,
-      image: resolveJasaImage(item),
-    }));
-
-    promoList.value = (promoRes.data ?? []).map((p, i) => ({
-      ...p,
-      image: promoImages[i % promoImages.length],
-    }));
-
-    setTimeout(() => {
-      eventList.value = Array(5).fill({ id: 1 });
-      isLoadingEvent.value = false;
-    }, 1000);
   } catch (e) {
     console.error("Gagal memuat data merchant:", e);
   } finally {
@@ -217,9 +226,51 @@ watch(
 <template>
   <div class="relative app-container">
     <!-- HERO -->
-    <section id="hero" class="relative pb-2">
-      <div class="h-[240px] sm:h-[370px] w-full bg-secondary"></div>
+    <section id="hero" class="relative">
+      <div class="relative w-full overflow-hidden bg-gray-100 aspect-video sm:aspect-21/9 lg:aspect-24/9 xl:aspect-4/1">
+        <!-- Loading skeleton -->
+        <div 
+          v-if="isLoadingBanner" 
+          class="absolute inset-0 bg-linear-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse"
+        >
+          <div class="absolute inset-0 flex items-center justify-center">
+            <i class="pi pi-spin pi-spinner text-4xl text-gray-400"></i>
+          </div>
+        </div>
 
+        <Carousel 
+          v-else-if="eventBanners.length > 0" 
+          v-bind="carouselConfig"
+          class="h-full"
+        >
+          <Slide v-for="event in eventBanners" :key="`${event.id}-${event.updated_at}`">
+            <div class="relative w-full h-full group cursor-grab active:cursor-grabbing">
+              <!-- ✅ ADDED: Key menggunakan updated_at untuk force re-render -->
+              <img 
+                :key="`banner-${event.id}-${event.updated_at}`"
+                :src="getEventBannerUrl(event)"
+                :alt="event.event_name"
+                class="w-full h-full object-cover pointer-events-none select-none"
+                draggable="false"
+                @error="(e) => (e.target.src = '/placeholder-banner.png')"
+              />
+            </div>
+          </Slide>
+        </Carousel>
+
+        <!-- Fallback: No banners available -->
+        <div 
+          v-else 
+          class="absolute inset-0 bg-secondary flex items-center justify-center"
+        >
+          <div class="text-center text-white px-4">
+            <i class="pi pi-calendar text-5xl mb-4 opacity-50"></i>
+            <p class="text-lg font-semibold">Belum ada event aktif</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search Bar Container -->
       <div
         class="relative z-10 flex justify-center px-4 mx-auto -mt-10 max-w-7xl"
       >
@@ -369,3 +420,41 @@ watch(
     </section>
   </div>
 </template>
+
+<style scoped>
+:deep(.carousel) {
+  height: 100%;
+}
+
+:deep(.carousel__viewport) {
+  height: 100%;
+}
+
+:deep(.carousel__track) {
+  height: 100%;
+}
+
+:deep(.carousel__slide) {
+  height: 100%;
+}
+
+:deep(.carousel__prev),
+:deep(.carousel__next) {
+  display: none !important; 
+}
+
+:deep(.carousel__viewport) {
+  cursor: grab;
+}
+
+:deep(.carousel__viewport:active) {
+  cursor: grabbing;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+</style>
