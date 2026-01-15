@@ -8,7 +8,17 @@ function setOrCreateMeta(attr, key, content) {
   el.setAttribute("content", content || "");
 }
 
-export function setMeta({ title, description, image }) {
+function setOrCreateLink(rel, href) {
+  let el = document.querySelector(`link[rel='${rel}']`);
+  if (!el) {
+    el = document.createElement("link");
+    el.setAttribute("rel", rel);
+    document.head.appendChild(el);
+  }
+  el.setAttribute("href", href || "");
+}
+
+export function setMeta({ title, description, image, url, type }) {
   // TITLE
   if (title) {
     document.title = title;
@@ -24,36 +34,37 @@ export function setMeta({ title, description, image }) {
   metaDesc.setAttribute("content", description || "");
 
   // CANONICAL
-  let canonical = document.querySelector("link[rel='canonical']");
-  if (!canonical) {
-    canonical = document.createElement("link");
-    canonical.setAttribute("rel", "canonical");
-    document.head.appendChild(canonical);
-  }
-  canonical.setAttribute(
-    "href",
-    window.location.origin + window.location.pathname
-  );
+  const canonicalUrl = url || window.location.origin + window.location.pathname;
+  setOrCreateLink("canonical", canonicalUrl);
 
-  // OG IMAGE (minimal)
-  if (image) {
-    let ogImage = document.querySelector("meta[property='og:image']");
-    if (!ogImage) {
-      ogImage = document.createElement("meta");
-      ogImage.setAttribute("property", "og:image");
-      document.head.appendChild(ogImage);
-    }
-    ogImage.setAttribute("content", image);
-  }
-
-  if (title) {
-    setOrCreateMeta("property", "og:title", title);
-  }
-  if (description) {
-    setOrCreateMeta("property", "og:description", description);
-  }
-
+  // OpenGraph
   const defaultOgImage = "https://sumilir.web.id/og-image.png";
+  const resolvedImage = image || defaultOgImage;
+  const resolvedType = type || "website";
 
-  setOrCreateMeta("property", "og:image", image || defaultOgImage);
+  setOrCreateMeta("property", "og:title", title || document.title);
+  setOrCreateMeta("property", "og:description", description || "");
+  setOrCreateMeta("property", "og:image", resolvedImage);
+  setOrCreateMeta("property", "og:url", canonicalUrl);
+  setOrCreateMeta("property", "og:type", resolvedType);
+
+  // Twitter
+  setOrCreateMeta("name", "twitter:card", "summary_large_image");
+  setOrCreateMeta("name", "twitter:title", title || document.title);
+  setOrCreateMeta("name", "twitter:description", description || "");
+  setOrCreateMeta("name", "twitter:image", resolvedImage);
+}
+
+export function setJsonLd(id, data) {
+  const scriptId = id ? String(id) : "jsonld";
+  let el = document.getElementById(scriptId);
+
+  if (!el) {
+    el = document.createElement("script");
+    el.id = scriptId;
+    el.type = "application/ld+json";
+    document.head.appendChild(el);
+  }
+
+  el.text = JSON.stringify(data || {}, null, 0);
 }

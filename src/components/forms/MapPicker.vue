@@ -18,7 +18,7 @@ Props:
 - zoom: number (default 13) => tingkat zoom
 - height: string (default "280px") => tinggi peta (CSS unit)
 - readonly: boolean => nonaktifkan drag marker dan klik peta
-- variant: string (default "primary") => "primary" | "merchant"
+- variant: string (default "primary") => "primary" | "user" | "merchant"
 
 Events:
 - update:lat(number|null)
@@ -43,7 +43,7 @@ const props = defineProps({
   zoom: { type: Number, default: 13 },
   height: { type: String, default: "280px" },
   readonly: { type: Boolean, default: false },
-  variant: { type: String, default: "primary" }, // NEW: primary | merchant
+  variant: { type: String, default: "primary" }, // primary | user | merchant
 });
 const emit = defineEmits(["update:lat", "update:lng"]);
 
@@ -85,14 +85,18 @@ const buttonBorderClass = computed(() => {
 function setMarker(latlng) {
   if (!map) return;
 
-  const storeIcon = getUmkmStoreIcon(
-    getUmkmMarkerColorByVariant(props.variant)
-  );
+  // Untuk halaman alamat pelanggan: gunakan default Leaflet marker (user marker).
+  // Custom UMKM/merchant marker hanya dipakai jika variant === "merchant".
+  const shouldUseMerchantIcon = props.variant === "merchant";
+  const merchantIcon = shouldUseMerchantIcon
+    ? getUmkmStoreIcon(getUmkmMarkerColorByVariant(props.variant))
+    : null;
+  const defaultIcon = L.Marker.prototype.options.icon;
 
   if (!marker) {
     marker = L.marker(latlng, {
       draggable: !props.readonly,
-      icon: storeIcon,
+      ...(merchantIcon ? { icon: merchantIcon } : {}),
     }).addTo(map);
     if (!props.readonly) {
       marker.on("dragend", () => {
@@ -103,7 +107,7 @@ function setMarker(latlng) {
     }
   } else {
     marker.setLatLng(latlng);
-    marker.setIcon(storeIcon);
+    marker.setIcon(merchantIcon || defaultIcon);
   }
 }
 

@@ -352,7 +352,12 @@ const villageOptions = computed(() =>
             <label class="block mb-2 text-sm font-semibold text-gray-700">
               Lokasi di Peta
             </label>
-            <MapPicker v-model:lat="lat" v-model:lng="lng" height="320px" />
+            <MapPicker
+              v-model:lat="lat"
+              v-model:lng="lng"
+              height="320px"
+              variant="user"
+            />
           </div>
 
           <div class="flex gap-4">

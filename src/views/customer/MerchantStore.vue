@@ -458,11 +458,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useRouter } from "vue-router";
 import api from "@/libs/axios.js";
 import { getImageUrl } from "@/libs/getImageUrl.js";
+import { setMeta, setJsonLd } from "@/router/seo";
 import ChatWindow from "@/components/common/ChatWindow.vue";
 import LeafletMap from "@/components/LeafletMap.vue";
 import ProductCard from "@/components/Card/ProductCard.vue";
@@ -623,6 +624,62 @@ function formatFullAddress(addr) {
   return parts.length ? parts.join(", ") : "-";
 }
 
+function pickSeoImage(m) {
+  return m?.banner_url || m?.logo_url || "https://sumilir.web.id/og-image.png";
+}
+
+function applyMerchantSeo(merchantData, merchantSlug) {
+  const name = merchantData?.name || "Toko";
+  const segmentation = merchantData?.segmentation?.name || "UMKM";
+  const descRaw = merchantData?.description || "";
+  const addrText = merchantInfo.value?.address || "";
+
+  const description =
+    descRaw?.trim() ||
+    [
+      `${segmentation} di Sumilir.`,
+      addrText ? `Alamat: ${addrText}.` : "",
+      "Lihat menu, informasi toko, dan jam operasional.",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+  const pageUrl = `${window.location.origin}/merchant/${merchantSlug}`;
+
+  setMeta({
+    title: `${name} | SUMILIR`,
+    description,
+    image: pickSeoImage(merchantData),
+    url: pageUrl,
+    type: "business.business",
+  });
+
+  const latNum = parseFloat(latitude.value);
+  const lngNum = parseFloat(longitude.value);
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    name,
+    url: pageUrl,
+    image: [pickSeoImage(merchantData)],
+    telephone: merchantData?.phone || undefined,
+    address: addrText
+      ? { "@type": "PostalAddress", streetAddress: addrText }
+      : undefined,
+    geo:
+      Number.isFinite(latNum) && Number.isFinite(lngNum)
+        ? { "@type": "GeoCoordinates", latitude: latNum, longitude: lngNum }
+        : undefined,
+  };
+
+  // Remove undefined keys so JSON-LD is clean
+  for (const k of Object.keys(jsonLd)) {
+    if (jsonLd[k] === undefined) delete jsonLd[k];
+  }
+  setJsonLd("jsonld-merchant", jsonLd);
+}
+
 // Resolve gambar jasa
 const resolveJasaImage = (jasa) => {
   if (jasa.images && jasa.images.length > 0) {
@@ -733,6 +790,9 @@ const fetchMerchantData = async () => {
       return { name: day.label, hours: `${item.open} - ${item.close}` };
     });
 
+    // Dynamic SEO based on merchant data
+    applyMerchantSeo(data, merchantSlug);
+
     // Fetch menu berdasarkan segmentation
     await fetchMerchantMenu(data, merchantSlug);
   } catch (error) {
@@ -740,6 +800,12 @@ const fetchMerchantData = async () => {
     merchant.value = null;
     jasaList.value = [];
     productList.value = [];
+
+    setMeta({
+      title: "Toko tidak ditemukan | SUMILIR",
+      description: "Toko tidak ditemukan atau sudah tidak tersedia.",
+      url: window.location.origin + window.location.pathname,
+    });
   } finally {
     loading.value = false;
   }
@@ -748,8 +814,9 @@ const fetchMerchantData = async () => {
 onMounted(() => {
   // Preload profile coordinates (no geolocation prompt).
   loadMyCoordinatesFromProfile();
-  fetchMerchantData();
 });
+
+watch(() => route.params.slug, fetchMerchantData, { immediate: true });
 </script>
 
 <style scoped>

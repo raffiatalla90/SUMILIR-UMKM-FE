@@ -55,5 +55,5 @@ export function getUmkmStoreIcon(color) {
 export function getUmkmMarkerColorByVariant(variant) {
   return variant === "merchant"
     ? "var(--color-merchant-primary)"
-    : "var(--color-merchant-primary)";
+    : "var(--color-primary)";
 }

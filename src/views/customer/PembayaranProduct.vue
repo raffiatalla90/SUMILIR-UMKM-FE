@@ -948,6 +948,7 @@ const openWhatsapp = () => {
   const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   window.open(url, "_blank");
   checkout.clear();
+  router.back();
 };
 
 onBeforeRouteLeave(() => {

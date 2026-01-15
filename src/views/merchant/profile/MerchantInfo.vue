@@ -5,6 +5,7 @@ import { useAuthStore } from "@/stores/auth";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
 import LeafletMap from "@/components/LeafletMap.vue";
 import merchantProfile from "@/services/api/merchantProfile";
+import AppButton from "@/components/common/Button.vue";
 
 const router = useRouter();
 const route = useRoute();
@@ -90,6 +91,19 @@ const hasCover = computed(() => {
   return typeof val === "string" && val.trim().length > 0;
 });
 
+const hasDescription = computed(() => {
+  const val = merchantInfo.value?.description;
+  if (typeof val !== "string") return false;
+  const t = val.trim();
+  return t.length > 0 && t !== "-";
+});
+
+const needsMerchantCompletion = computed(
+  () =>
+    !isLoading.value &&
+    (!hasCover.value || !hasLogo.value || !hasDescription.value)
+);
+
 const DAYS = [
   { key: "monday", label: "Monday" },
   { key: "tuesday", label: "Tuesday" },
@@ -125,7 +139,8 @@ onMounted(async () => {
     merchantInfo.value = {
       name: data.name,
       contact: data.phone,
-      description: data.description ?? "-",
+      description:
+        typeof data?.description === "string" ? data.description.trim() : "",
       address: formatFullAddress(primaryAddress),
       logo:
         typeof data?.logo_url === "string" && data.logo_url.trim()
@@ -248,13 +263,10 @@ const goToEdit = () => {
 
       <!-- Desktop Edit Button -->
       <div class="hidden gap-3 sm:flex">
-        <button
-          @click="goToEdit"
-          class="px-6 py-2.5 bg-merchant-primary text-white font-semibold rounded-lg hover:opacity-90 transition-opacity text-sm flex items-center gap-2"
-        >
+        <AppButton @click="goToEdit" variant="merchant" size="md">
           <i class="pi pi-pencil"></i>
           <span>Edit UMKM</span>
-        </button>
+        </AppButton>
       </div>
     </div>
 
@@ -272,10 +284,46 @@ const goToEdit = () => {
 
     <!-- Content -->
     <div v-else class="px-0 pb-0 sm:pb-6 sm:px-6">
+      <!-- Merchant completion banner -->
+      <div
+        v-if="needsMerchantCompletion"
+        class="p-4 mx-4 mb-3 border rounded-2xl sm:mx-0 bg-amber-50 border-amber-200"
+      >
+        <div class="flex items-start gap-3">
+          <svg
+            class="w-5 h-5 mt-0.5 text-amber-700 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"
+            />
+          </svg>
+          <div class="flex-1">
+            <div class="font-semibold text-amber-900">
+              Profil UMKM belum lengkap
+            </div>
+            <div class="mt-1 text-sm text-amber-800">
+              <span v-if="!hasLogo">Logo belum diisi. </span>
+
+              <span v-if="!hasCover">Banner belum diisi. </span>
+              <span v-if="!hasCover && (!hasLogo || !hasDescription)"> </span>
+              <span v-if="!hasLogo && !hasDescription"> </span>
+              <span v-if="!hasDescription">Tentang toko belum diisi. </span>
+              <span> Lengkapi agar toko terlihat lebih meyakinkan.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Cover & Logo -->
       <div class="relative mb-2 overflow-visible bg-white sm:mb-4 sm:shadow-sm">
         <div
-          class="relative w-full overflow-hidden sm:rounded-2xl aspect-[24/9] lg:aspect-[4/1]"
+          class="relative w-full overflow-hidden sm:rounded-2xl aspect-24/9 lg:aspect-4/1"
         >
           <img
             v-if="hasCover"
@@ -375,7 +423,7 @@ const goToEdit = () => {
               <div
                 class="p-3 text-sm leading-relaxed text-gray-700 bg-gray-100 rounded-xl sm:p-4 sm:text-base"
               >
-                {{ merchantInfo.description }}
+                {{ merchantInfo.description || "-" }}
               </div>
             </div>
 
@@ -459,13 +507,10 @@ const goToEdit = () => {
 
         <!-- Desktop Edit Button (bawah) -->
         <div class="justify-end hidden mt-4 sm:flex">
-          <button
-            @click="goToEdit"
-            class="px-6 py-2.5 bg-merchant-primary text-white font-semibold rounded-lg hover:opacity-90 transition-opacity text-sm flex items-center gap-2"
-          >
+          <AppButton @click="goToEdit" variant="merchant" size="md">
             <i class="pi pi-pencil"></i>
             <span>Edit UMKM</span>
-          </button>
+          </AppButton>
         </div>
 
         <!-- Mobile Edit Button - Fixed at Bottom -->

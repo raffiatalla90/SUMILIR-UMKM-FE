@@ -101,6 +101,26 @@ const addressText = computed(() => {
   const a = profileStore.user?.full_address ?? profileStore.user?.address;
   return a && String(a).trim() ? String(a).trim() : "-";
 });
+
+const hasAddress = computed(() => {
+  const a = profileStore.user?.full_address ?? profileStore.user?.address;
+  return !!(a && String(a).trim());
+});
+
+const hasProfilePicture = computed(() => {
+  const url = profileStore.user?.profile_picture;
+  if (!url) return false;
+  const normalized = String(url).trim();
+  if (!normalized) return false;
+  // Hindari menganggap placeholder sebagai foto profil yang sudah diisi.
+  return !normalized.includes("via.placeholder.com");
+});
+
+const needsProfileCompletion = computed(
+  () =>
+    !isInitialProfileLoading.value &&
+    (!hasProfilePicture.value || !hasAddress.value)
+);
 </script>
 
 <template>
@@ -238,6 +258,19 @@ const addressText = computed(() => {
                   <span v-else class="min-w-0 text-sm wrap-break-word">{{
                     addressText
                   }}</span>
+                </div>
+
+                <div
+                  v-if="!isInitialProfileLoading && !hasAddress"
+                  class="p-3 text-sm border border-amber-200 rounded-xl bg-amber-50 text-amber-900"
+                >
+                  Alamat belum diisi.
+                  <button
+                    class="font-semibold underline underline-offset-2"
+                    @click="router.push('/profile/address')"
+                  >
+                    Isi alamat sekarang
+                  </button>
                 </div>
               </div>
             </div>
@@ -532,6 +565,19 @@ const addressText = computed(() => {
                 <span v-else class="min-w-0 text-sm wrap-break-word">{{
                   addressText
                 }}</span>
+              </div>
+
+              <div
+                v-if="!isInitialProfileLoading && !hasAddress"
+                class="p-3 mt-2 text-sm border border-amber-200 rounded-xl bg-amber-50 text-amber-900"
+              >
+                Alamat belum diisi.
+                <button
+                  class="font-semibold underline underline-offset-2"
+                  @click="router.push('/profile/address')"
+                >
+                  Isi alamat sekarang
+                </button>
               </div>
             </div>
           </div>
