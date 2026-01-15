@@ -57,6 +57,21 @@ const productImageUrl = computed(() => {
   return null;
 });
 
+const distanceKm = computed(() => {
+  const raw =
+    props.product?.distance_km ??
+    props.product?.distanceKm ??
+    props.product?.distance;
+  const num = typeof raw === "string" ? parseFloat(raw) : raw;
+  return Number.isFinite(num) ? num : null;
+});
+
+const formattedDistanceKm = computed(() => {
+  if (distanceKm.value == null) return null;
+  // tampilkan 1 angka desimal agar stabil di UI
+  return `${distanceKm.value.toFixed(1)} km`;
+});
+
 watch(
   () => props.product?.id,
   () => {
@@ -116,7 +131,7 @@ watch(
       <!-- Rating & Distance (auto push to bottom) -->
       <div
         v-if="product.merchant"
-        class="mt-auto pt-2 text-[11px] text-xs text-gray-600"
+        class="mt-auto pt-2 text-[11px] text-gray-600"
       >
         <span
           v-if="product.merchant?.name"
@@ -125,10 +140,10 @@ watch(
           <i class="text-base pi pi-shop me-1 text-merchant-primary"></i>
           {{ product.merchant?.name ?? "Nama Toko" }}
         </span>
-        <!-- <span class="flex items-center gap-1">
+        <span v-if="formattedDistanceKm" class="flex items-center gap-1">
           <i class="text-base pi pi-map-marker me-1 text-danger-foreground"></i>
-          {{ product.distance ?? "1.5" }} km
-        </span> -->
+          {{ formattedDistanceKm }}
+        </span>
       </div>
     </div>
   </div>

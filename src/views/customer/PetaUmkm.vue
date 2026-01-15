@@ -182,6 +182,7 @@ export default {
       activeSeg: null,
       query: "",
       results: [],
+      merchantIconCache: {},
     };
   },
 
@@ -200,6 +201,57 @@ export default {
   },
 
   methods: {
+    getMerchantMarkerIcon(segmentationId) {
+      const key = String(segmentationId ?? "default");
+      if (this.merchantIconCache[key]) return this.merchantIconCache[key];
+
+      const colorBySeg = {
+        default: "#058895", // fallback
+      };
+
+      const color = colorBySeg[Number(segmentationId)] ?? colorBySeg.default;
+
+      const icon = L.divIcon({
+        className: "umkm-marker-icon",
+        html: `
+          <div class="umkm-marker" style="--umkm-marker-color: ${color}">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M4 10.5V20a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9.5"
+                fill="none"
+                stroke="white"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M3 10.5l2-7h14l2 7"
+                fill="none"
+                stroke="white"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M9 21v-7h6v7"
+                fill="none"
+                stroke="white"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+        `,
+        iconSize: [36, 46],
+        iconAnchor: [18, 46],
+        popupAnchor: [0, -46],
+      });
+
+      this.merchantIconCache[key] = icon;
+      return icon;
+    },
+
     async loadMyLocationMarker() {
       const coords = await this.getMyCoordinates();
       if (!coords) return;
@@ -297,7 +349,8 @@ export default {
         const lng = parseFloat(item.longitude);
         if (!lat || !lng || isNaN(lat) || isNaN(lng)) return;
 
-        const marker = L.marker([lat, lng]).addTo(this.map);
+        const icon = this.getMerchantMarkerIcon(item.segmentation?.id);
+        const marker = L.marker([lat, lng], { icon }).addTo(this.map);
 
         const logoTag = item.logo_url
           ? `<div class="popup-gmaps__img"><img src="${item.logo_url}" alt="${item.name}" /></div>`
@@ -378,6 +431,45 @@ export default {
 
 .leaflet-popup-tip {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+
+/* ===== Custom UMKM marker (store/shop) ===== */
+.umkm-marker-icon {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.umkm-marker {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background: var(--umkm-marker-color, #10b981);
+  border: 3px solid rgba(255, 255, 255, 0.98);
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.umkm-marker::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-top: 12px solid var(--umkm-marker-color, #10b981);
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.25));
+}
+
+.umkm-marker svg {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 /* Custom close (x) button for Leaflet popup */

@@ -42,26 +42,83 @@ const toast = useToast();
 const myLatitude = ref(null);
 const myLongitude = ref(null);
 
+const profileCoordsLoaded = ref(false);
+let profileCoordsPromise = null;
+
 const hasMyCoordinates = computed(() => {
   return (
-    Number.isFinite(Number(myLatitude.value)) &&
-    Number.isFinite(Number(myLongitude.value))
+    Number.isFinite(myLatitude.value) && Number.isFinite(myLongitude.value)
   );
 });
 
 async function loadMyCoordinates() {
+  return loadMyCoordinatesInternal({ allowDevice: false });
+}
+
+async function preloadProfileCoordinates() {
+  if (profileCoordsLoaded.value) return true;
+  if (profileCoordsPromise) return await profileCoordsPromise;
+
+  profileCoordsPromise = (async () => {
+    try {
+      return await loadMyCoordinates();
+    } finally {
+      profileCoordsLoaded.value = true;
+    }
+  })();
+
+  return await profileCoordsPromise;
+}
+
+function setMyCoordinates(lat, lng) {
+  const latNum = parseFloat(lat);
+  const lngNum = parseFloat(lng);
+  myLatitude.value = Number.isFinite(latNum) ? latNum : null;
+  myLongitude.value = Number.isFinite(lngNum) ? lngNum : null;
+}
+
+async function loadMyCoordinatesInternal(
+  { allowDevice } = { allowDevice: false }
+) {
+  // 1) Prefer saved address (if logged in)
   try {
     const res = await api.get("api/profile/address");
     const addr = res?.data?.data;
-    const lat = parseFloat(addr?.latitude);
-    const lng = parseFloat(addr?.longitude);
-    myLatitude.value = Number.isFinite(lat) ? lat : null;
-    myLongitude.value = Number.isFinite(lng) ? lng : null;
+    setMyCoordinates(addr?.latitude, addr?.longitude);
+    if (hasMyCoordinates.value) return true;
   } catch (e) {
     // ignore (likely 401 if not logged in)
-    myLatitude.value = null;
-    myLongitude.value = null;
+    setMyCoordinates(null, null);
   }
+
+  // 2) Fallback: device geolocation (only when explicitly allowed)
+  if (!allowDevice) return false;
+  if (!navigator.geolocation) return false;
+
+  const coords = await new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos?.coords?.latitude;
+        const lng = pos?.coords?.longitude;
+        if (typeof lat === "number" && typeof lng === "number") {
+          resolve({ lat, lng });
+        } else {
+          resolve(null);
+        }
+      },
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+    );
+  });
+
+  if (!coords) return false;
+  setMyCoordinates(coords.lat, coords.lng);
+  return hasMyCoordinates.value;
+}
+
+async function ensureMyCoordinates({ allowDevice } = { allowDevice: true }) {
+  if (hasMyCoordinates.value) return true;
+  return await loadMyCoordinatesInternal({ allowDevice });
 }
 
 const {
@@ -238,6 +295,21 @@ async function fetchMerchants(reset = false) {
   isLoadingMoreMerchants.value = true;
 
   try {
+    await preloadProfileCoordinates();
+
+    if (
+      activeInstantSorts.value.includes("nearest") &&
+      !hasMyCoordinates.value
+    ) {
+      const ok = await ensureMyCoordinates({ allowDevice: true });
+      if (!ok) {
+        toast.error(
+          "Tidak bisa mengambil lokasi. Aktifkan izin lokasi atau lengkapi alamat (koordinat)."
+        );
+        return;
+      }
+    }
+
     const params = {
       ...buildMerchantQuery(),
       page: merchantPage.value,
@@ -266,6 +338,21 @@ async function fetchProducts(reset = false) {
   isLoadingMoreProducts.value = true;
 
   try {
+    await preloadProfileCoordinates();
+
+    if (
+      activeInstantSorts.value.includes("nearest") &&
+      !hasMyCoordinates.value
+    ) {
+      const ok = await ensureMyCoordinates({ allowDevice: true });
+      if (!ok) {
+        toast.error(
+          "Tidak bisa mengambil lokasi. Aktifkan izin lokasi atau lengkapi alamat (koordinat)."
+        );
+        return;
+      }
+    }
+
     const params = {
       ...buildProductQuery(),
       page: String(page.value),
@@ -333,8 +420,8 @@ function buildMerchantQuery() {
     max_price: detailFilters.value.maxPrice ?? undefined,
 
     sort: sort || undefined,
-    lat: sort === "nearest" ? myLatitude.value : undefined,
-    lng: sort === "nearest" ? myLongitude.value : undefined,
+    lat: hasMyCoordinates.value ? myLatitude.value : undefined,
+    lng: hasMyCoordinates.value ? myLongitude.value : undefined,
     page: merchantPage.value,
     per_page: merchantPerPage,
   };
@@ -367,8 +454,8 @@ function buildProductQuery() {
       : undefined,
 
     sort: typeof sortKey === "string" ? sortKey : undefined,
-    lat: sortKey === "nearest" ? myLatitude.value : undefined,
-    lng: sortKey === "nearest" ? myLongitude.value : undefined,
+    lat: hasMyCoordinates.value ? myLatitude.value : undefined,
+    lng: hasMyCoordinates.value ? myLongitude.value : undefined,
 
     page: String(page.value),
     per_page: String(perPage),
@@ -440,7 +527,7 @@ watch(
       // nextTick(() => setupMerchantObserver());
     }
   },
-  { immediate: true }
+  { immediate: false }
 );
 
 watch(
@@ -472,7 +559,7 @@ watch(
       fetchMerchants(true);
     }
   },
-  { immediate: true }
+  { immediate: false }
 );
 
 watch(
@@ -510,13 +597,18 @@ watch(
 );
 
 /* ================= INSTANT SORT HANDLER ================= */
-function toggleInstantSort(key) {
+async function toggleInstantSort(key) {
   const option = instantSortOptions.find((o) => o.key === key);
   if (!option) return;
 
   if (key === "nearest" && !hasMyCoordinates.value) {
-    toast.error("Lengkapi alamat (koordinat) untuk sort terdekat.");
-    return;
+    const ok = await ensureMyCoordinates({ allowDevice: true });
+    if (!ok) {
+      toast.error(
+        "Tidak bisa mengambil lokasi. Aktifkan izin lokasi atau lengkapi alamat (koordinat)."
+      );
+      return;
+    }
   }
 
   if (option.conflict) {
@@ -656,16 +748,28 @@ function handleMerchantInfiniteScroll() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener("scroll", handleScroll);
   window.addEventListener("scroll", handleMerchantInfiniteScroll);
 
-  loadMyCoordinates();
+  // Only preload profile coordinates (no geolocation prompt).
+  await preloadProfileCoordinates();
 
   fetchLevel1Categories();
   fetchSegmentations();
-  // fetchProducts(true);
-  // setupObserver();
+
+  // Initial fetch: after coordinates preload, so lat/lng can be included if available.
+  const q = route.query.q;
+  if (!q) return;
+
+  if (activeTab.value === "products") {
+    fetchProducts(true);
+    nextTick(() => setupObserver());
+  }
+
+  if (activeTab.value === "merchants") {
+    fetchMerchants(true);
+  }
 });
 
 onBeforeUnmount(() => {

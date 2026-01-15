@@ -349,7 +349,7 @@ const addressText = computed(() => {
                         @click="router.push(`/merchant-center/${m.slug}`)"
                       >
                         <svg
-                          class="w-5 h-5 text-primary"
+                          class="w-5 h-5 text-merchant-primary"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -385,7 +385,7 @@ const addressText = computed(() => {
                     @click="router.push('/merchant-register')"
                   >
                     <svg
-                      class="w-5 h-5 text-primary"
+                      class="w-5 h-5 text-merchant-primary"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -630,7 +630,7 @@ const addressText = computed(() => {
                       @click="router.push(`/merchant-center/${m.slug}`)"
                     >
                       <svg
-                        class="w-5 h-5 text-primary"
+                        class="w-5 h-5 text-merchant-primary"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -667,7 +667,7 @@ const addressText = computed(() => {
                   @click="router.push('/merchant-register')"
                 >
                   <svg
-                    class="w-5 h-5 text-primary"
+                    class="w-5 h-5 text-merchant-primary"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -676,7 +676,7 @@ const addressText = computed(() => {
                       stroke-linecap="round"
                       stroke-linejoin="round"
                       stroke-width="2"
-                      d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                      d="M12 4v16m8-8H4"
                     />
                   </svg>
                   <span class="flex-1 font-medium text-gray-700"

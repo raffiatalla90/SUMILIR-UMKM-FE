@@ -185,3 +185,45 @@ body {
   width: 0;
   height: 0;
 }
+
+/* ========================================
+   Leaflet: UMKM store/shop marker
+   (used by Leaflet divIcon HTML)
+   ======================================== */
+.umkm-marker-icon {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.umkm-marker {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background: var(--umkm-marker-color, var(--color-primary));
+  border: 3px solid rgba(255, 255, 255, 0.98);
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.umkm-marker::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-top: 12px solid var(--umkm-marker-color, var(--color-primary));
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.25));
+}
+
+.umkm-marker svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}

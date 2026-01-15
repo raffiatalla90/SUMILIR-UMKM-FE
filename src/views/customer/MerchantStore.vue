@@ -146,6 +146,25 @@
                   <span class="text-xs font-bold text-merchant-primary">
                     {{ merchant.segmentation?.name || "UMKM" }}
                   </span>
+
+                  <span
+                    v-if="formattedDistanceKm"
+                    class="flex items-center gap-1 text-xs font-semibold text-gray-500"
+                  >
+                    <i
+                      class="text-sm pi pi-map-marker text-danger-foreground"
+                    ></i>
+                    {{ formattedDistanceKm }}
+                  </span>
+
+                  <button
+                    v-else-if="hasMerchantCoordinates"
+                    type="button"
+                    @click="requestMyLocation"
+                    class="text-xs font-semibold text-gray-500 underline hover:text-gray-700"
+                  >
+                    Aktifkan lokasi
+                  </button>
                 </div>
               </div>
             </div>
@@ -367,16 +386,6 @@
           </p>
         </div>
       </div>
-
-      <!-- Tombol Chat Floating -->
-      <button
-        v-if="menuKind === 'jasa' && jasaList.length > 0"
-        @click="openChat"
-        class="fixed z-40 flex items-center justify-center transition rounded-full shadow-xl bottom-6 right-6 w-14 h-14 bg-secondary-hover hover:brightness-95"
-        title="Chat dengan Toko"
-      >
-        <i class="text-xl text-white pi pi-comments"></i>
-      </button>
     </template>
 
     <!-- Not Found -->
@@ -490,6 +499,53 @@ const operationalHours = ref([]);
 const latitude = ref(null);
 const longitude = ref(null);
 
+const myLatitude = ref(null);
+const myLongitude = ref(null);
+
+function setMyCoordinates(lat, lng) {
+  const latNum = parseFloat(lat);
+  const lngNum = parseFloat(lng);
+  myLatitude.value = Number.isFinite(latNum) ? latNum : null;
+  myLongitude.value = Number.isFinite(lngNum) ? lngNum : null;
+}
+
+async function loadMyCoordinatesFromProfile() {
+  try {
+    const res = await api.get("api/profile/address");
+    const addr = res?.data?.data;
+    setMyCoordinates(addr?.latitude, addr?.longitude);
+    return hasMyCoordinates.value;
+  } catch (e) {
+    setMyCoordinates(null, null);
+    return false;
+  }
+}
+
+async function requestMyLocation() {
+  if (hasMyCoordinates.value) return true;
+  if (!navigator.geolocation) return false;
+
+  const coords = await new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos?.coords?.latitude;
+        const lng = pos?.coords?.longitude;
+        if (typeof lat === "number" && typeof lng === "number") {
+          resolve({ lat, lng });
+        } else {
+          resolve(null);
+        }
+      },
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+    );
+  });
+
+  if (!coords) return false;
+  setMyCoordinates(coords.lat, coords.lng);
+  return hasMyCoordinates.value;
+}
+
 const DAYS = [
   { key: "monday", label: "Senin" },
   { key: "tuesday", label: "Selasa" },
@@ -501,10 +557,51 @@ const DAYS = [
 ];
 
 const hasCoordinates = computed(() => {
+  const latNum = parseFloat(latitude.value);
+  const lngNum = parseFloat(longitude.value);
+  return Number.isFinite(latNum) && Number.isFinite(lngNum);
+});
+
+const hasMerchantCoordinates = computed(() => hasCoordinates.value);
+
+const hasMyCoordinates = computed(() => {
   return (
-    Number.isFinite(Number(latitude.value)) &&
-    Number.isFinite(Number(longitude.value))
+    Number.isFinite(myLatitude.value) && Number.isFinite(myLongitude.value)
   );
+});
+
+function toRad(deg) {
+  return (deg * Math.PI) / 180;
+}
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+const distanceKm = computed(() => {
+  if (!hasMyCoordinates.value) return null;
+  if (!hasMerchantCoordinates.value) return null;
+
+  const mLat = parseFloat(latitude.value);
+  const mLng = parseFloat(longitude.value);
+  if (!Number.isFinite(mLat) || !Number.isFinite(mLng)) return null;
+
+  return haversineKm(myLatitude.value, myLongitude.value, mLat, mLng);
+});
+
+const formattedDistanceKm = computed(() => {
+  if (distanceKm.value == null) return null;
+  return `${distanceKm.value.toFixed(1)} km`;
 });
 
 // Format harga
@@ -649,6 +746,8 @@ const fetchMerchantData = async () => {
 };
 
 onMounted(() => {
+  // Preload profile coordinates (no geolocation prompt).
+  loadMyCoordinatesFromProfile();
   fetchMerchantData();
 });
 </script>

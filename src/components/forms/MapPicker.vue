@@ -32,6 +32,10 @@ Catatan:
 import { ref, watch, onMounted, onBeforeUnmount, computed } from "vue";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import {
+  getUmkmMarkerColorByVariant,
+  getUmkmStoreIcon,
+} from "@/libs/leafletIcons";
 
 const props = defineProps({
   lat: { type: [Number, String, null], default: null },
@@ -80,8 +84,16 @@ const buttonBorderClass = computed(() => {
 
 function setMarker(latlng) {
   if (!map) return;
+
+  const storeIcon = getUmkmStoreIcon(
+    getUmkmMarkerColorByVariant(props.variant)
+  );
+
   if (!marker) {
-    marker = L.marker(latlng, { draggable: !props.readonly }).addTo(map);
+    marker = L.marker(latlng, {
+      draggable: !props.readonly,
+      icon: storeIcon,
+    }).addTo(map);
     if (!props.readonly) {
       marker.on("dragend", () => {
         const { lat, lng } = marker.getLatLng();
@@ -91,6 +103,7 @@ function setMarker(latlng) {
     }
   } else {
     marker.setLatLng(latlng);
+    marker.setIcon(storeIcon);
   }
 }
 
