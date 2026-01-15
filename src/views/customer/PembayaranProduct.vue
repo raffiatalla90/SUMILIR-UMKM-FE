@@ -695,8 +695,8 @@ onMounted(async () => {
     }
   }
 
-  if (!isGuest.value && order.value.store?.id) {
-    await fetchVouchersByMerchant(order.value.store.id);
+  if (!isGuest.value && order.value.store?.slug) {
+    await fetchVouchersByMerchant(order.value.store.slug);
   }
 });
 const promos = computed(() =>
@@ -749,8 +749,8 @@ watch(
       return;
     }
 
-    if (order.value.store?.id) {
-      fetchVouchersByMerchant(order.value.store.id);
+    if (order.value.store?.slug) {
+      fetchVouchersByMerchant(order.value.store.slug);
     }
   },
   { immediate: true }
