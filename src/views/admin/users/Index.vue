@@ -40,22 +40,34 @@ const breadcrumbItems = computed(() => {
   const items = [
     {
       label: "Users",
-      path: { name: "Admin - Users", query: { tab: effectiveTab.value } },
-    },
-    {
-      label: effectiveTab.value === "merchants" ? "Merchants" : "Customers",
-      path: !isListRoute.value
-        ? { name: "Admin - Users", query: { tab: effectiveTab.value } }
-        : undefined,
-    },
+      path: effectiveTab.value === "merchants" 
+        ? { name: "Admin - Merchants List" }
+        : { name: "Admin - Customers List" }
+    }
   ];
 
   if (isDetailRoute.value) {
+    items.push({
+      label: effectiveTab.value === "merchants" ? "Merchants" : "Customers",
+      path: effectiveTab.value === "merchants"
+        ? { name: "Admin - Merchants List" }
+        : { name: "Admin - Customers List" }
+    });
     items.push({ label: "Detail" });
-  } else if (isCreateRoute.value && effectiveTab.value === "customers") {
-    items.push({ label: "Tambah Customer" });
-  } else if (isCreateRoute.value && effectiveTab.value === "merchants") {
-    items.push({ label: "Tambah Merchant" });
+  } else if (isCreateRoute.value) {
+    items.push({
+      label: effectiveTab.value === "merchants" ? "Merchants" : "Customers",
+      path: effectiveTab.value === "merchants"
+        ? { name: "Admin - Merchants List" }
+        : { name: "Admin - Customers List" }
+    });
+    items.push({ 
+      label: effectiveTab.value === "merchants" ? "Tambah Merchant" : "Tambah Customer"
+    });
+  } else {
+    items.push({
+      label: effectiveTab.value === "merchants" ? "Merchants" : "Customers"
+    });
   }
 
   return items;
