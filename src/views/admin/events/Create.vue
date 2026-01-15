@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { Form, Field } from "vee-validate";
@@ -22,8 +22,87 @@ const breadcrumbItems = [
 // Form state
 const bannerPreview = ref(null);
 const bannerFile = ref(null);
+const formValues = ref({
+  event_start_date: "",
+  event_end_date: "",
+  status: "draft",
+});
 
-// Validation schema
+const allowedStatus = computed(() => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (!formValues.value.event_start_date || !formValues.value.event_end_date) {
+    return { status: "draft", options: statusOptions, message: "", isError: false };
+  }
+
+  const startDate = new Date(formValues.value.event_start_date);
+  const endDate = new Date(formValues.value.event_end_date);
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(0, 0, 0, 0);
+
+  if (startDate < today) {
+    return {
+      status: "draft",
+      options: [{ value: "draft", label: "Draft" }],
+      message: "Tanggal mulai tidak boleh di masa lalu. Pilih hari ini atau di masa depan.",
+      messageColor: "text-red-600",
+      isError: true,
+      disabled: true,
+    };
+  }
+
+  if (endDate < today) {
+    return {
+      status: "archived",
+      options: [{ value: "archived", label: "Archived" }],
+      message: "Event sudah melewati tanggal selesai. Status otomatis diset ke Archived.",
+      messageColor: "text-blue-600",
+      isError: false,
+    };
+  }
+
+  if (startDate.getTime() === today.getTime()) {
+    return {
+      status: formValues.value.status || "published",
+      options: [
+        { value: "draft", label: "Draft" },
+        { value: "published", label: "Published" },
+      ],
+      message: "Event dimulai hari ini. Anda dapat memilih Draft atau Published.",
+      messageColor: "text-green-600",
+      isError: false,
+    };
+  }
+
+  if (startDate > today) {
+    return {
+      status: "draft",
+      options: [{ value: "draft", label: "Draft" }],
+      message: "Event belum memasuki tanggal mulai. Status hanya dapat diset Draft untuk saat ini.",
+      messageColor: "text-blue-600",
+      isError: false,
+    };
+  }
+
+  // Default
+  return {
+    status: "draft",
+    options: statusOptions,
+    message: "",
+    isError: false,
+  };
+});
+
+// Watch dates to auto-update status
+watch(
+  () => [formValues.value.event_start_date, formValues.value.event_end_date],
+  () => {
+    formValues.value.status = allowedStatus.value.status;
+  }
+);
+
+// Validation schema (status validation removed since auto-determined)
 const schema = yup.object({
   event_name: yup
     .string()
@@ -42,10 +121,6 @@ const schema = yup.object({
     .required("Tanggal selesai wajib diisi")
     .min(yup.ref("event_start_date"), "Tanggal selesai harus setelah tanggal mulai")
     .typeError("Format tanggal tidak valid"),
-  status: yup
-    .string()
-    .required("Status wajib dipilih")
-    .oneOf(["draft", "published", "archived"], "Status tidak valid"),
 });
 
 const statusOptions = [
@@ -90,6 +165,11 @@ const removeBanner = () => {
 // Submit handler
 const handleSubmit = async (values) => {
   try {
+    if (allowedStatus.value.isError) {
+      toast.error("Tidak dapat membuat event dengan tanggal yang sudah terlewat");
+      return;
+    }
+
     if (!bannerFile.value) {
       toast.error("Banner event wajib diupload");
       return;
@@ -100,10 +180,11 @@ const handleSubmit = async (values) => {
     formData.append("event_description", values.event_description);
     formData.append("event_start_date", values.event_start_date);
     formData.append("event_end_date", values.event_end_date);
-    formData.append("status", values.status);
+    formData.append("status", allowedStatus.value.status);
     formData.append("banner_img", bannerFile.value);
 
     await createEvent(formData);
+    toast.success("Event berhasil dibuat");
     router.push({ name: "Admin - Events" });
   } catch (error) {
     console.error("Create event failed:", error);
@@ -121,7 +202,7 @@ const goBack = () => router.push({ name: "Admin - Events" });
         <Form
           @submit="handleSubmit"
           :validation-schema="schema"
-          v-slot="{ errors }"
+          v-slot="{ errors, setFieldValue }"
         >
           <!-- Event Name -->
           <div class="mb-6">
@@ -154,41 +235,60 @@ const goBack = () => router.push({ name: "Admin - Events" });
           <!-- Date Range -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
             <Field name="event_start_date" v-slot="{ field }">
-                <InputDateField
-                  v-model="field.value"
-                  variant="merchant"
-                  label="Tanggal Mulai"
-                  v-bind="field"
-                  :error="errors.event_start_date"
-                  required
-                />
+              <InputDateField
+                v-model="formValues.event_start_date"
+                @update:modelValue="(v) => { formValues.event_start_date = v; setFieldValue('event_start_date', v); }"
+                variant="merchant"
+                label="Tanggal Mulai"
+                :error="errors.event_start_date"
+                required
+              />
             </Field>
 
             <Field name="event_end_date" v-slot="{ field }">
-                <InputDateField
-                  v-model="field.value"
-                  variant="merchant"
-                  label="Tanggal Selesai"
-                  v-bind="field"
-                  :error="errors.event_end_date"
-                  required
-                />
+              <InputDateField
+                v-model="formValues.event_end_date"
+                @update:modelValue="(v) => { formValues.event_end_date = v; setFieldValue('event_end_date', v); }"
+                variant="merchant"
+                label="Tanggal Selesai"
+                :error="errors.event_end_date"
+                required
+              />
             </Field>
           </div>
 
-          <!-- Status -->
+          <!-- Status (Auto-determined) -->
           <div class="mb-6">
-            <Field name="status" v-slot="{ field, meta, errors }">
-              <SelectField
-                v-bind="field"
-                :options="statusOptions"
-                label="Status"
-                variant="merchant"
-                required
-                :error="errors[0]"
-                placeholder="Pilih Status"
-              />
-            </Field>
+            <label class="block text-sm font-bold text-black mb-2">
+              Status <span class="text-red-500">*</span>
+            </label>
+            
+            <select
+              v-model="formValues.status"
+              :disabled="allowedStatus.options.length === 1 || allowedStatus.disabled"
+              :class="[
+                'w-full px-4 py-2.5 text-sm border rounded-xl bg-white text-black focus:ring-2 focus:ring-merchant-primary focus:outline-none',
+                allowedStatus.disabled ? 'bg-gray-100 cursor-not-allowed border-red-300' : 'border-merchant-primary',
+                allowedStatus.isError ? 'border-red-500' : ''
+              ]"
+            >
+              <option 
+                v-for="opt in allowedStatus.options" 
+                :key="opt.value" 
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </option>
+            </select>
+
+            <!-- Info/Error Message -->
+            <p 
+              v-if="allowedStatus.message" 
+              :class="['text-xs mt-2 flex items-start gap-2', allowedStatus.messageColor]"
+            >
+              <i :class="allowedStatus.isError ? 'pi pi-times-circle' : 'pi pi-info-circle'" class="mt-0.5"></i>
+              <span>{{ allowedStatus.message }}</span>
+            </p>
           </div>
 
           <!-- Banner Upload -->
@@ -240,7 +340,11 @@ const goBack = () => router.push({ name: "Admin - Events" });
             <Button @click="goBack" variant="secondary" type="button">
               Batal
             </Button>
-            <Button type="submit" variant="merchant" :disabled="loading">
+            <Button 
+              type="submit" 
+              variant="merchant" 
+              :disabled="loading || allowedStatus.isError"
+            >
               <i class="pi pi-check mr-2"></i>
               {{ loading ? "Menyimpan..." : "Simpan Event" }}
             </Button>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import { Form, Field } from "vee-validate";
@@ -9,7 +9,7 @@ import InputDateField from "@/components/forms/InputDateField.vue";
 import SelectField from "@/components/forms/SelectField.vue";
 import Button from "@/components/common/Button.vue";
 import { useEvents } from "@/composables/useEvents";
-import { getImageUrl } from "@/libs/getImageUrl";
+import { getEventBannerUrl } from "@/libs/getImageUrl";
 
 const router = useRouter();
 const route = useRoute();
@@ -22,7 +22,109 @@ const bannerPreview = ref(null);
 const bannerFile = ref(null);
 const isDataLoaded = ref(false);
 
-// Validation schema
+const formValues = ref({
+  event_start_date: "",
+  event_end_date: "",
+  status: "draft",
+});
+
+const originalStartDate = ref(null);
+
+const allowedStatus = computed(() => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (!formValues.value.event_start_date || !formValues.value.event_end_date) {
+    return { status: "draft", options: statusOptions, message: "", isError: false };
+  }
+
+  const startDate = new Date(formValues.value.event_start_date);
+  const endDate = new Date(formValues.value.event_end_date);
+  const origStart = originalStartDate.value ? new Date(originalStartDate.value) : null;
+  
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(0, 0, 0, 0);
+  if (origStart) origStart.setHours(0, 0, 0, 0);
+
+  if (origStart && origStart < today) {
+    if (startDate.getTime() !== origStart.getTime()) {
+      return {
+        status: "draft",
+        options: [{ value: "draft", label: "Draft" }],
+        message: "Event yang sudah dimulai tidak dapat diubah tanggal mulainya. Mohon kembalikan ke tanggal original.",
+        messageColor: "text-red-600",
+        isError: true,
+        disabled: true,
+      };
+    }
+
+    return {
+      status: formValues.value.status || "published",
+      options: [
+        { value: "published", label: "Published" },
+        { value: "archived", label: "Archived" },
+      ],
+      message: "Event sudah berjalan. Status Draft tidak tersedia.",
+      messageColor: "text-orange-600",
+      isError: false,
+    };
+  }
+
+  if (startDate < today) {
+    return {
+      status: "draft",
+      options: [{ value: "draft", label: "Draft" }],
+      message: "Tanggal mulai tidak boleh di masa lalu. Pilih hari ini atau di masa depan.",
+      messageColor: "text-red-600",
+      isError: true,
+      disabled: true,
+    };
+  }
+
+  if (endDate < today) {
+    return {
+      status: "archived",
+      options: [{ value: "archived", label: "Archived" }],
+      message: "Event sudah melewati tanggal selesai. Status otomatis diset ke Archived.",
+      messageColor: "text-blue-600",
+      isError: false,
+    };
+  }
+
+  if (startDate > today) {
+    return {
+      status: "draft",
+      options: [{ value: "draft", label: "Draft" }],
+      message: "Event belum memasuki tanggal mulai. Status hanya dapat diset Draft.",
+      messageColor: "text-blue-600",
+      isError: false,
+    };
+  }
+
+  if (startDate.getTime() === today.getTime()) {
+    return {
+      status: formValues.value.status || "published",
+      options: [
+        { value: "draft", label: "Draft" },
+        { value: "published", label: "Published" },
+      ],
+      message: "Event dimulai hari ini. Anda dapat memilih Draft atau Published.",
+      messageColor: "text-green-600",
+      isError: false,
+    };
+  }
+
+  return { status: "draft", options: statusOptions, message: "", isError: false };
+});
+
+watch(
+  () => [formValues.value.event_start_date, formValues.value.event_end_date],
+  () => {
+    formValues.value.status = allowedStatus.value.status;
+  }
+);
+
+// Validation schema (status removed)
 const schema = yup.object({
   event_name: yup
     .string()
@@ -41,10 +143,6 @@ const schema = yup.object({
     .required("Tanggal selesai wajib diisi")
     .min(yup.ref("event_start_date"), "Tanggal selesai harus setelah tanggal mulai")
     .typeError("Format tanggal tidak valid"),
-  status: yup
-    .string()
-    .required("Status wajib dipilih")
-    .oneOf(["draft", "published", "archived"], "Status tidak valid"),
 });
 
 const statusOptions = [
@@ -69,9 +167,18 @@ const loadEvent = async () => {
     const data = await fetchEventDetail(route.params.id);
     event.value = data;
 
-    // Set current banner preview
+    const startDate = formatDateForInput(data.event_start_date);
+    originalStartDate.value = startDate;
+
+    formValues.value = {
+      event_start_date: startDate,
+      event_end_date: formatDateForInput(data.event_end_date),
+      status: data.status,
+    };
+
+    // ✅ FIXED: Use getEventBannerUrl for existing banner
     if (data.banner_img_path) {
-      bannerPreview.value = getImageUrl(data.banner_img_path);
+      bannerPreview.value = getEventBannerUrl(data);
     }
 
     isDataLoaded.value = true;
@@ -112,23 +219,28 @@ const handleBannerChange = (event) => {
 
 const removeBanner = () => {
   bannerFile.value = null;
+  // ✅ FIXED: Use getEventBannerUrl when restoring original banner
   bannerPreview.value = event.value?.banner_img_path 
-    ? getImageUrl(event.value.banner_img_path) 
+    ? getEventBannerUrl(event.value) 
     : null;
 };
 
 // Submit handler
 const handleSubmit = async (values) => {
   try {
+    if (allowedStatus.value.isError) {
+      toast.error("Tidak dapat menyimpan perubahan dengan tanggal yang tidak valid");
+      return;
+    }
+
     const formData = new FormData();
     formData.append("event_name", values.event_name);
     formData.append("event_description", values.event_description);
-    formData.append("event_start_date", values.event_start_date);
-    formData.append("event_end_date", values.event_end_date);
-    formData.append("status", values.status);
-    formData.append("_method", "PUT"); // Laravel method spoofing
+    formData.append("event_start_date", formValues.value.event_start_date);
+    formData.append("event_end_date", formValues.value.event_end_date);
+    formData.append("status", allowedStatus.value.status);
+    formData.append("_method", "PUT");
 
-    // Only append banner if new file selected
     if (bannerFile.value) {
       formData.append("banner_img", bannerFile.value);
     }
@@ -160,11 +272,10 @@ onMounted(() => {
           :initial-values="{
             event_name: event.event_name,
             event_description: event.event_description,
-            event_start_date: formatDateForInput(event.event_start_date),
-            event_end_date: formatDateForInput(event.event_end_date),
-            status: event.status,
+            event_start_date: formValues.event_start_date,
+            event_end_date: formValues.event_end_date,
           }"
-          v-slot="{ errors }"
+          v-slot="{ errors, setFieldValue }"
         >
           <!-- Event Name -->
           <div class="mb-6">
@@ -200,10 +311,10 @@ onMounted(() => {
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
             <Field name="event_start_date" v-slot="{ field }">
               <InputDateField
-                v-model="field.value"
+                v-model="formValues.event_start_date"
+                @update:modelValue="(v) => { formValues.event_start_date = v; setFieldValue('event_start_date', v); }"
                 variant="merchant"
                 label="Tanggal Mulai"
-                v-bind="field"
                 :error="errors.event_start_date"
                 required
               />
@@ -211,30 +322,44 @@ onMounted(() => {
 
             <Field name="event_end_date" v-slot="{ field }">
               <InputDateField
-                v-model="field.value"
+                v-model="formValues.event_end_date"
+                @update:modelValue="(v) => { formValues.event_end_date = v; setFieldValue('event_end_date', v); }"
                 variant="merchant"
                 label="Tanggal Selesai"
-                v-bind="field"
                 :error="errors.event_end_date"
                 required
               />
             </Field>
           </div>
 
-          <!-- Status -->
+          <!-- Status (Auto-determined) -->
           <div class="mb-6">
-            <Field name="status" v-slot="{ field, value, errors }">
-              <SelectField
-                v-bind="field"
-                :modelValue="value"
-                :options="statusOptions"
-                label="Status"
-                variant="merchant"
-                required
-                :error="errors[0]"
-                placeholder="Pilih Status"
-              />
-            </Field>
+            <label class="block text-sm font-bold text-black mb-2">
+              Status <span class="text-red-500">*</span>
+            </label>
+            
+            <select
+              v-model="formValues.status"
+              :disabled="allowedStatus.options.length === 1"
+              class="w-full px-4 py-2.5 text-sm border border-merchant-primary rounded-xl bg-white text-black focus:ring-2 focus:ring-merchant-primary focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+            >
+              <option 
+                v-for="opt in allowedStatus.options" 
+                :key="opt.value" 
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </option>
+            </select>
+
+            <!-- Info Message -->
+            <p 
+              v-if="allowedStatus.message" 
+              :class="['text-xs mt-2 flex items-start gap-2', allowedStatus.messageColor]"
+            >
+              <i class="pi pi-info-circle mt-0.5"></i>
+              <span>{{ allowedStatus.message }}</span>
+            </p>
           </div>
 
           <!-- Banner Upload -->
