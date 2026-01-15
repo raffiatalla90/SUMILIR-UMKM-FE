@@ -20,19 +20,27 @@ function buildProfilePictureUrl(path) {
 function buildProfilePictureUrlFromUser(user) {
   if (!user) return "";
 
+  // If backend explicitly returns null/empty, treat it as "no photo" so UI can show DefaultPP.
+  // (We only use the streaming endpoint when the field is missing/undefined, not explicitly null.)
+  if (user.profile_picture === null) return "";
+  if (typeof user.profile_picture === "string" && !user.profile_picture.trim())
+    return "";
+
   // 1) Prefer backend-provided computed URL (signed route)
   if (user.profile_picture) return buildProfilePictureUrl(user.profile_picture);
 
-  // 2) If we have an id, use the new API streaming endpoint (matches product image access pattern)
+  // 2) Fallback: raw storage path (some APIs return path fields instead)
+  const picturePath = user.profile_picture_path ?? user.avatar ?? null;
+  if (picturePath) return buildProfilePictureUrl(picturePath);
+
+  // 3) If the API doesn't include any field at all (undefined), try the streaming endpoint.
   const apiBase = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
-  if (user.id && apiBase) {
+  if (user.profile_picture === undefined && user.id && apiBase) {
     // Use dash route; backend also provides underscore alias.
     return `${apiBase}/profile-pictures/${user.id}`;
   }
 
-  // 3) Fallback: raw storage path
-  const picturePath = user.profile_picture_path ?? user.avatar ?? null;
-  return buildProfilePictureUrl(picturePath);
+  return "";
 }
 
 export const useProfileStore = defineStore("profile", {
@@ -56,10 +64,15 @@ export const useProfileStore = defineStore("profile", {
         // Accept both shapes so the store always ends up with the user object.
         const raw = data?.data ?? data;
         // Normalize common field names so views/forms can rely on the same keys
+        let normalizedProfilePicture = buildProfilePictureUrlFromUser(raw);
+        // If the result is falsy (null, empty, etc), set to empty string so ProfileView.vue fallback works
+        if (!normalizedProfilePicture || normalizedProfilePicture === "null") {
+          normalizedProfilePicture = "";
+        }
         this.user = {
           ...raw,
           full_address: raw?.full_address ?? raw?.address ?? "",
-          profile_picture: buildProfilePictureUrlFromUser(raw),
+          profile_picture: normalizedProfilePicture,
         };
       } catch (error) {
         this.error = error.response?.data?.message || "Failed to fetch profile";
@@ -74,10 +87,14 @@ export const useProfileStore = defineStore("profile", {
         const data = await profileAPI.updateProfile(payload);
         // Support either { data: {...} } or direct user object
         const raw = data?.user ?? data?.data ?? data;
+        let normalizedProfilePicture = buildProfilePictureUrlFromUser(raw);
+        if (!normalizedProfilePicture || normalizedProfilePicture === "null") {
+          normalizedProfilePicture = "";
+        }
         this.user = {
           ...raw,
           full_address: raw?.full_address ?? raw?.address ?? "",
-          profile_picture: buildProfilePictureUrlFromUser(raw),
+          profile_picture: normalizedProfilePicture,
         };
       } catch (error) {
         this.error =

@@ -3,70 +3,70 @@ import api from "@/libs/axios";
 /* =====================================================
  * Customer VOUCHERS
  * ===================================================== */
-export async function getVouchersByMerchant(merchantId) {
-  const { data } = await api.get(`/api/checkout/${merchantId}/vouchers`);
+export async function getVouchersByMerchant(merchantSlug) {
+  const { data } = await api.get(`/api/checkout/${merchantSlug}/vouchers`);
   return data;
 }
 
 /* =====================================================
  * Merchant VOUCHERS
  * ===================================================== */
-export async function getMerchantVouchers(merchantId, params = {}) {
-  const { data } = await api.get(`/api/merchant/${merchantId}/vouchers`, {
+export async function getMerchantVouchers(merchantSlug, params = {}) {
+  const { data } = await api.get(`/api/merchant/${merchantSlug}/vouchers`, {
     params,
   });
   return data;
 }
 
-export async function getMerchantVoucherDetail(merchantId, voucherId) {
+export async function getMerchantVoucherDetail(merchantSlug, voucherId) {
   const { data } = await api.get(
-    `/api/merchant/${merchantId}/vouchers/${voucherId}`
+    `/api/merchant/${merchantSlug}/vouchers/${voucherId}`
   );
   return data;
 }
 
-export async function createMerchantVoucher(merchantId, payload) {
+export async function createMerchantVoucher(merchantSlug, payload) {
   const { data } = await api.post(
-    `/api/merchant/${merchantId}/vouchers`,
+    `/api/merchant/${merchantSlug}/vouchers`,
     payload
   );
   return data;
 }
 
-export async function editMerchantVoucher(merchantId, voucherId, payload) {
+export async function editMerchantVoucher(merchantSlug, voucherId, payload) {
   const { data } = await api.put(
-    `/api/merchant/${merchantId}/vouchers/${voucherId}`,
+    `/api/merchant/${merchantSlug}/vouchers/${voucherId}`,
     payload
   );
   return data;
 }
 
-export async function editStatus(merchantId, voucherId, status) {
+export async function editStatus(merchantSlug, voucherId, status) {
   const { data } = await api.patch(
-    `/api/merchant/${merchantId}/vouchers/${voucherId}/status`,
+    `/api/merchant/${merchantSlug}/vouchers/${voucherId}/status`,
     { voucher_status: status }
   );
   return data;
 }
 
-export async function deleteMerchantVoucher(merchantId, voucherId) {
+export async function deleteMerchantVoucher(merchantSlug, voucherId) {
   const { data } = await api.delete(
-    `/api/merchant/${merchantId}/vouchers/${voucherId}`
+    `/api/merchant/${merchantSlug}/vouchers/${voucherId}`
   );
   return data;
 }
 
-export async function bulkDeleteMerchantVoucher(merchantId, voucherIds = []) {
+export async function bulkDeleteMerchantVoucher(merchantSlug, voucherIds = []) {
   const { data } = await api.post(
-    `/api/merchant/${merchantId}/vouchers/bulk-delete`,
+    `/api/merchant/${merchantSlug}/vouchers/bulk-delete`,
     { voucher_ids: voucherIds }
   );
   return data;
 }
 
-export async function editBulkStatus(merchantId, voucherIds = [], status) {
+export async function editBulkStatus(merchantSlug, voucherIds = [], status) {
   const { data } = await api.post(
-    `/api/merchant/${merchantId}/vouchers/bulk-update-status`,
+    `/api/merchant/${merchantSlug}/vouchers/bulk-update-status`,
     {
       voucher_ids: voucherIds,
       voucher_status: status,

@@ -49,6 +49,7 @@ export const useAuthStore = defineStore("auth", () => {
   });
 
   const merchantId = computed(() => activeMerchant.value?.id || null);
+  const merchantSlug = computed(() => activeMerchant.value?.slug || null);
   const merchantName = computed(
     () => activeMerchant.value?.name || user.value?.name || "User"
   );
@@ -61,6 +62,7 @@ export const useAuthStore = defineStore("auth", () => {
       id: data.id,
       name: data.name,
       email: data.email,
+      profile_picture: data.profile_picture || null,
       roles: data.roles,
       merchants: data.merchants || [],
     };
@@ -89,6 +91,14 @@ export const useAuthStore = defineStore("auth", () => {
   }
   function getMerchantById(id) {
     return allMerchants.value.find((m) => Number(m.id) === Number(id)) || null;
+  }
+
+  function getMerchantBySlug(slug) {
+    if (!slug) return null;
+    const slugString = String(slug);
+    return (
+      allMerchants.value.find((m) => String(m.slug) === slugString) || null
+    );
   }
 
   // =========================
@@ -189,9 +199,11 @@ export const useAuthStore = defineStore("auth", () => {
     allMerchants,
     activeMerchant,
     merchantId,
+    merchantSlug,
     merchantName,
     setActiveMerchant,
     getMerchantById,
+    getMerchantBySlug,
 
     // actions
     requireLoginToast,

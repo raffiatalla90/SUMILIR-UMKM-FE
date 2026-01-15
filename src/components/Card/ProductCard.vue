@@ -99,9 +99,7 @@ watch(
     </div>
 
     <!-- Product Info -->
-    <div
-      class="flex flex-col flex-1 px-3 sm:px-4 py-2 sm:py-3 bg-white min-h-[120px]"
-    >
+    <div class="flex flex-col flex-1 px-3 py-3 bg-white sm:px-4 sm:py-3">
       <!-- Product Name -->
       <h3
         class="mb-1 text-xs font-semibold text-gray-900 line-clamp-2"
@@ -116,15 +114,21 @@ watch(
       </p>
 
       <!-- Rating & Distance (auto push to bottom) -->
-      <div class="mt-auto pt-2 text-[11px] text-xs text-gray-600">
-        <span class="flex items-center gap-1 mb-1 truncate">
+      <div
+        v-if="product.merchant"
+        class="mt-auto pt-2 text-[11px] text-xs text-gray-600"
+      >
+        <span
+          v-if="product.merchant?.name"
+          class="flex items-center gap-1 mb-1 truncate"
+        >
           <i class="text-base pi pi-shop me-1 text-merchant-primary"></i>
           {{ product.merchant?.name ?? "Nama Toko" }}
         </span>
-        <span class="flex items-center gap-1">
+        <!-- <span class="flex items-center gap-1">
           <i class="text-base pi pi-map-marker me-1 text-danger-foreground"></i>
           {{ product.distance ?? "1.5" }} km
-        </span>
+        </span> -->
       </div>
     </div>
   </div>

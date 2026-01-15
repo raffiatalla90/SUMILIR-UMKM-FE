@@ -6,6 +6,7 @@ import { useProfileStore } from "@/stores/profile";
 import { Form, useForm } from "vee-validate";
 import * as yup from "yup";
 import MobileHeader from "@/components/customer/MobileHeader.vue";
+import AppButton from "@/components/common/Button.vue";
 
 import MapPicker from "@/components/forms/MapPicker.vue";
 import SelectField from "@/components/forms/SelectField.vue";
@@ -242,17 +243,53 @@ const villageOptions = computed(() =>
 </script>
 
 <template>
-  <div class="min-h-screen pb-20 bg-gray-50 md:bg-white md:pb-0">
+  <div class="">
     <MobileHeader title="Alamat Utama" @back="goBack" />
 
-    <div class="px-4 py-6 mx-auto max-w-7xl md:px-8 md:py-12">
+    <div class="px-4 py-6 mx-auto max-w-7xl sm:px-8 sm:py-12">
       <div class="p-6 bg-white border border-gray-100 shadow-sm rounded-2xl">
-        <h3 class="mb-6 text-xl font-bold text-gray-900">Atur Alamat Utama</h3>
+        <div v-if="loading" class="space-y-6 animate-pulse">
+          <!-- Select Fields Skeleton -->
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div class="space-y-2">
+              <div class="w-24 h-4 bg-gray-200 rounded" />
+              <div class="w-full bg-gray-200 h-11 rounded-xl" />
+            </div>
+            <div class="space-y-2">
+              <div class="w-32 h-4 bg-gray-200 rounded" />
+              <div class="w-full bg-gray-200 h-11 rounded-xl" />
+            </div>
+            <div class="space-y-2">
+              <div class="h-4 bg-gray-200 rounded w-28" />
+              <div class="w-full bg-gray-200 h-11 rounded-xl" />
+            </div>
+            <div class="space-y-2">
+              <div class="w-32 h-4 bg-gray-200 rounded" />
+              <div class="w-full bg-gray-200 h-11 rounded-xl" />
+            </div>
+          </div>
 
-        <div v-if="loading" class="text-sm text-gray-500">Memuat...</div>
+          <!-- Detail Address Skeleton -->
+          <div class="space-y-2">
+            <div class="h-4 bg-gray-200 rounded w-28" />
+            <div class="w-full bg-gray-200 rounded-xl h-[92px]" />
+          </div>
+
+          <!-- Map Skeleton -->
+          <div class="space-y-2">
+            <div class="h-4 bg-gray-200 rounded w-28" />
+            <div class="w-full bg-gray-200 rounded-xl h-80" />
+          </div>
+
+          <!-- Buttons Skeleton -->
+          <div class="flex gap-4">
+            <div class="flex-1 hidden h-12 bg-gray-200 sm:block rounded-xl" />
+            <div class="flex-1 h-12 bg-gray-200 rounded-xl" />
+          </div>
+        </div>
 
         <Form v-else @submit="handleSave" class="space-y-6">
-          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <SelectField
               name="province_id"
               label="Provinsi"
@@ -319,41 +356,26 @@ const villageOptions = computed(() =>
           </div>
 
           <div class="flex gap-4">
-            <button
-              type="button"
-              @click="router.back()"
-              class="flex-1 py-3 font-semibold text-gray-700 transition-all bg-gray-100 rounded-xl hover:bg-gray-200"
-            >
-              Batal
-            </button>
-            <button
-              type="submit"
-              :disabled="saving"
-              class="flex items-center justify-center flex-1 gap-2 py-3 font-semibold text-white transition-all shadow-md rounded-xl bg-primary hover:bg-orange-600 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg
-                v-if="saving"
-                class="w-5 h-5 text-white animate-spin"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
+            <div class="hidden w-full sm:inline">
+              <AppButton
+                type="button"
+                variant="muted-outline"
+                class="w-full"
+                @click="router.back()"
               >
-                <circle
-                  class="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  stroke-width="4"
-                ></circle>
-                <path
-                  class="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
+                Batal
+              </AppButton>
+            </div>
+
+            <AppButton
+              type="submit"
+              variant="primary"
+              class="w-full"
+              :loading="saving"
+              :disabled="saving"
+            >
               {{ saving ? "Menyimpan..." : "Simpan" }}
-            </button>
+            </AppButton>
           </div>
         </Form>
       </div>

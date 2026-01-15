@@ -121,24 +121,31 @@ const {
 });
 
 // ✅ FIXED: Get merchantId from route params
+const currentMerchantSlug = computed(() => {
+  return route?.params?.merchantSlug
+    ? String(route.params.merchantSlug)
+    : authStore.merchantSlug || null;
+});
+
 const currentMerchantId = computed(() => {
-  return route?.params?.merchantId ? Number(route.params.merchantId) : null;
+  const merchant = currentMerchantSlug.value
+    ? authStore.getMerchantBySlug(currentMerchantSlug.value)
+    : authStore.activeMerchant;
+
+  return merchant?.id ?? null;
 });
 
 // ✅ ADD: Validate merchant ownership
 const isValidMerchant = computed(() => {
-  if (!currentMerchantId.value) return false;
-
-  // Check if user owns this merchant
-  const merchant = authStore.getMerchantById(currentMerchantId.value);
-  return !!merchant;
+  if (!currentMerchantSlug.value) return false;
+  return !!authStore.getMerchantBySlug(currentMerchantSlug.value);
 });
 
 // ✅ Breadcrumb items
 const breadcrumbItems = computed(() => [
   {
     label: "Produk",
-    path: `/merchant-center/${currentMerchantId.value}/products`,
+    path: `/merchant-center/${currentMerchantSlug.value}/products`,
   },
   {
     label: "Tambah Produk",
@@ -232,14 +239,26 @@ onMounted(async () => {
   // ✅ ADD: Validate merchantId on mount
   if (!currentMerchantId.value) {
     toast.error("Merchant ID tidak valid");
-    router.push("/merchant-center");
+    const fallbackSlug =
+      currentMerchantSlug.value ??
+      authStore.merchantSlug ??
+      authStore.activeMerchant?.slug;
+    router.push(
+      fallbackSlug ? `/merchant-center/${fallbackSlug}` : "/merchant-register"
+    );
     return;
   }
 
   // ✅ ADD: Validate merchant ownership
   if (!isValidMerchant.value) {
     toast.error("Anda tidak memiliki akses ke merchant ini");
-    router.push("/merchant-center");
+    const fallbackSlug =
+      currentMerchantSlug.value ??
+      authStore.merchantSlug ??
+      authStore.activeMerchant?.slug;
+    router.push(
+      fallbackSlug ? `/merchant-center/${fallbackSlug}` : "/merchant-register"
+    );
     return;
   }
 
@@ -504,8 +523,10 @@ const onSubmit = veeHandleSubmit(
     try {
       const formData = new FormData();
 
-      // ✅ FIXED: Use merchantId from route params
-      formData.append("merchant_id", currentMerchantId.value);
+      if (!currentMerchantSlug.value) {
+        throw new Error("merchantSlug tidak ditemukan");
+      }
+
       formData.append("name", values.name);
       formData.append("description", values.description);
       const categoryIds = [
@@ -617,16 +638,20 @@ const onSubmit = veeHandleSubmit(
       console.log("variants:", variants.value);
 
       // API Call
-      const response = await api.post("/api/products", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      const response = await api.post(
+        `/api/merchant/${currentMerchantSlug.value}/products/`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
 
       toast.success("Produk berhasil ditambahkan");
 
       // ✅ FIXED: Redirect dengan merchantId yang benar
-      router.push(`/merchant-center/${currentMerchantId.value}/products`);
+      router.push(`/merchant-center/${currentMerchantSlug.value}/products`);
     } catch (error) {
       if (error.response?.status === 422) {
         const data = error.response.data;
@@ -719,7 +744,7 @@ const onSubmit = veeHandleSubmit(
     >
       <!-- ✅ FIXED: Back button dengan dynamic route -->
       <button
-        @click="router.push(`/merchant-center/${currentMerchantId}/products`)"
+        @click="router.push(`/merchant-center/${currentMerchantSlug}/products`)"
         class="absolute flex items-center justify-center w-10 h-10 transition rounded-full left-4 hover:bg-white/10"
       >
         <i class="pi pi-arrow-left"></i>
@@ -730,13 +755,13 @@ const onSubmit = veeHandleSubmit(
     <!-- Desktop Header -->
     <div class="sticky top-0 left-0 right-0 z-50 hidden py-6 sm:block">
       <div
-        class="flex flex-wrap items-center justify-between px-4 mx-auto sm:px-6 sm:px-8 gap-y-2 gap-x-4"
+        class="flex flex-wrap items-center justify-between px-4 mx-auto sm:px-6 gap-y-2 gap-x-4"
       >
         <div>
           <!-- ✅ Use Breadcrumb Component -->
           <Breadcrumb
             :items="breadcrumbItems"
-            :merchantId="currentMerchantId"
+            :merchantId="currentMerchantSlug"
           />
           <p class="text-xs text-muted-foreground sm:text-sm">
             Lengkapi informasi produk Anda.
@@ -760,7 +785,7 @@ const onSubmit = veeHandleSubmit(
     <div class="h-[72px] sm:h-0"></div>
 
     <!-- Container Responsive -->
-    <div class="px-0 mx-auto sm:px-4 sm:px-6 sm:py-6 sm:pt-0">
+    <div class="px-0 mx-auto sm:px-6 sm:py-6 sm:pt-0">
       <!-- ✅ FIXED: Remove ref, use @submit -->
       <Form @submit="onSubmit">
         <!-- Foto Produk -->
@@ -776,9 +801,7 @@ const onSubmit = veeHandleSubmit(
           </h3>
 
           <!-- Image Grid - RESPONSIVE -->
-          <div
-            class="grid grid-cols-3 gap-3 mb-3 sm:grid-cols-4 sm:grid-cols-6"
-          >
+          <div class="grid grid-cols-3 gap-3 mb-3 sm:grid-cols-4">
             <div
               v-for="(img, index) in productImages"
               :key="img.id"
@@ -998,7 +1021,7 @@ const onSubmit = veeHandleSubmit(
             </div>
             <div
               :class="[
-                'relative w-12 h-6 rounded-full transition flex-shrink-0',
+                'relative w-12 h-6 rounded-full transition shrink-0',
                 useVariants ? 'bg-merchant-primary' : 'bg-gray-300',
               ]"
             >
@@ -1073,7 +1096,7 @@ const onSubmit = veeHandleSubmit(
                   <button
                     @click="removeVariant(vIndex)"
                     type="button"
-                    class="flex items-center justify-center flex-shrink-0 w-8 h-8 transition rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100"
+                    class="flex items-center justify-center w-8 h-8 transition rounded-lg shrink-0 bg-danger-background text-danger-foreground hover:bg-red-100"
                   >
                     <i class="text-sm pi pi-trash"></i>
                   </button>
@@ -1109,7 +1132,7 @@ const onSubmit = veeHandleSubmit(
                     <!-- ✅ FIXED: Check dengan === 1 -->
                     <div
                       :class="[
-                        'relative w-11 h-6 rounded-full transition flex-shrink-0',
+                        'relative w-11 h-6 rounded-full transition shrink-0',
                         variantUsesImages[variant.id] === 1
                           ? 'bg-merchant-primary'
                           : 'bg-gray-300',
@@ -1203,7 +1226,7 @@ const onSubmit = veeHandleSubmit(
                         <!-- Opsi Input dengan Number Badge -->
                         <div class="flex items-start gap-2.5">
                           <div
-                            class="w-7 h-7 rounded-lg bg-merchant-primary text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5"
+                            class="w-7 h-7 rounded-lg bg-merchant-primary text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5"
                           >
                             {{ oIndex + 1 }}
                           </div>
@@ -1285,7 +1308,7 @@ const onSubmit = veeHandleSubmit(
                             v-if="variant.options.length > 1"
                             @click="removeOption(vIndex, oIndex)"
                             type="button"
-                            class="w-8 h-8 rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100 flex items-center justify-center transition flex-shrink-0 mt-0.5"
+                            class="w-8 h-8 rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100 flex items-center justify-center transition shrink-0 mt-0.5"
                           >
                             <i class="text-sm pi pi-times"></i>
                           </button>
@@ -1459,7 +1482,7 @@ const onSubmit = veeHandleSubmit(
                   <button
                     @click="removeAddOnGroup(gIndex)"
                     type="button"
-                    class="flex items-center justify-center flex-shrink-0 w-8 h-8 transition rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100"
+                    class="flex items-center justify-center w-8 h-8 transition rounded-lg shrink-0 bg-danger-background text-danger-foreground hover:bg-red-100"
                   >
                     <i class="text-sm pi pi-trash"></i>
                   </button>
@@ -1644,7 +1667,7 @@ const onSubmit = veeHandleSubmit(
                       >
                         <div class="flex items-start gap-2.5">
                           <div
-                            class="w-7 h-7 rounded-lg bg-merchant-primary text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5"
+                            class="w-7 h-7 rounded-lg bg-merchant-primary text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5"
                           >
                             {{ oIndex + 1 }}
                           </div>
@@ -1686,7 +1709,7 @@ const onSubmit = veeHandleSubmit(
                             v-if="group.options.length > 1"
                             @click="removeAddOnOption(gIndex, oIndex)"
                             type="button"
-                            class="w-8 h-8 rounded-lg bg-white border border-gray-300 hover:bg-red-50 hover:border-red-300 hover:text-red-600 flex items-center justify-center transition flex-shrink-0 mt-0.5"
+                            class="w-8 h-8 rounded-lg bg-white border border-gray-300 hover:bg-red-50 hover:border-red-300 hover:text-red-600 flex items-center justify-center transition shrink-0 mt-0.5"
                           >
                             <i class="text-sm pi pi-times"></i>
                           </button>
@@ -1864,7 +1887,7 @@ const onSubmit = veeHandleSubmit(
         >
           <div class="flex items-start gap-3 mb-3">
             <div
-              class="w-5 h-5 rounded border-2 flex items-center justify-center transition flex-shrink-0 mt-0.5"
+              class="w-5 h-5 rounded border-2 flex items-center justify-center transition shrink-0 mt-0.5"
               :class="
                 selectedCombinations.has(cIndex)
                   ? 'bg-merchant-primary border-merchant-primary'

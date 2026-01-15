@@ -37,11 +37,17 @@ const debouncedLoadProductsByPerPage = () => {
   }, 400); // ⏱️ 400ms (ideal untuk UX)
 };
 
-// ✅ Get merchantId from route
-const currentMerchantId = computed(() => {
-  return route.params && route.params.merchantId
-    ? Number(route.params.merchantId)
+// ✅ Merchant slug from route (URL menggunakan slug)
+const currentMerchantSlug = computed(() => {
+  return route.params && route.params.merchantSlug
+    ? String(route.params.merchantSlug)
     : null;
+});
+
+// (Optional) numeric id still available via authStore if needed elsewhere
+const currentMerchantId = computed(() => {
+  const merchant = authStore.getMerchantBySlug(currentMerchantSlug.value);
+  return merchant?.id ?? null;
 });
 
 // ✅ Breadcrumb items
@@ -53,7 +59,7 @@ const breadcrumbItems = computed(() => [
 
 // ✅ ADD: Get merchant name for display
 const currentMerchantName = computed(() => {
-  const merchant = authStore.getMerchantById(currentMerchantId.value);
+  const merchant = authStore.getMerchantBySlug(currentMerchantSlug.value);
   return merchant?.name || "UMKM";
 });
 
@@ -165,11 +171,10 @@ const buildSortByParam = (filters) => {
   return "newest";
 };
 
-// ✅ UPDATED: Load products dengan merchantId dari route
+// ✅ UPDATED: Load products dengan merchantSlug dari route
 const loadProducts = async () => {
-  // ✅ Validate merchantId exists
-  if (!currentMerchantId.value) {
-    toast.error("Merchant ID tidak ditemukan");
+  if (!currentMerchantSlug.value) {
+    toast.error("Merchant slug tidak ditemukan");
     return;
   }
 
@@ -177,7 +182,7 @@ const loadProducts = async () => {
     const sortBy = buildSortByParam(activeFilters.value);
 
     await fetchProducts({
-      merchantId: currentMerchantId.value,
+      merchantSlug: currentMerchantSlug.value,
       searchQuery: searchQuery.value,
       status: activeFilters.value.status,
       category: activeFilters.value.category,
@@ -232,7 +237,7 @@ const bulkDelete = () => {
 // ✅ NEW: Confirm bulk delete
 const confirmBulkDelete = async () => {
   try {
-    await bulkDeleteProducts(selectedProducts.value);
+    await bulkDeleteProducts(currentMerchantSlug.value, selectedProducts.value);
 
     toast.success(`${selectedProductsCount.value} produk berhasil dihapus`);
 
@@ -309,7 +314,6 @@ const resetFilters = () => {
 // Helper: buat URL params dari filter aktif
 const buildExportParams = () => {
   const params = {
-    merchant_id: currentMerchantId.value ?? undefined, // ✅ pastikan export untuk merchant yang aktif
     q: searchQuery.value || undefined,
     status: activeFilters.value.status || undefined,
     category_id: activeFilters.value.category || undefined,
@@ -327,13 +331,13 @@ const buildExportParams = () => {
 
 // Export Excel (via BE)
 const confirmExportExcel = async () => {
-  await exportExcel(buildExportParams());
+  await exportExcel(currentMerchantSlug.value, buildExportParams());
   closeExportModal();
 };
 
 // Export PDF (via BE)
 const confirmExportPDF = async () => {
-  await exportPDF(buildExportParams());
+  await exportPDF(currentMerchantSlug.value, buildExportParams());
   closeExportModal();
 };
 
@@ -341,7 +345,7 @@ const confirmExportPDF = async () => {
 const goToCreate = () => {
   router.push({
     name: "Merchant - Buat Product",
-    params: { merchantId: currentMerchantId.value },
+    params: { merchantSlug: currentMerchantSlug.value },
   });
 };
 
@@ -350,7 +354,7 @@ const goToEdit = (product) => {
   router.push({
     name: "Merchant - Product Edit",
     params: {
-      merchantId: currentMerchantId.value,
+      merchantSlug: currentMerchantSlug.value,
       slug: product.slug, // ✅ gunakan slug
     },
   });
@@ -361,7 +365,7 @@ const goToDetail = (product) => {
   router.push({
     name: "Merchant - Product Detail",
     params: {
-      merchantId: currentMerchantId.value,
+      merchantSlug: currentMerchantSlug.value,
       slug: product.slug, // ✅ gunakan slug
     },
   });
@@ -377,7 +381,10 @@ const deleteProductAction = (product) => {
 const confirmDeleteProduct = async () => {
   if (!selectedProductForDelete.value) return;
 
-  await deleteProduct(selectedProductForDelete.value.slug); // ✅ slug
+  await deleteProduct(
+    currentMerchantSlug.value,
+    selectedProductForDelete.value.slug
+  );
   closeDeleteModal();
 };
 
@@ -519,7 +526,8 @@ const confirmSingleStatusChange = async () => {
 
   try {
     await updateProductStatus(
-      selectedProductForStatusChange.value.slug, // ✅ slug
+      currentMerchantSlug.value,
+      selectedProductForStatusChange.value.slug,
       newStatusForChange.value
     );
     const statusLabel = getStatusLabel(newStatusForChange.value);
@@ -550,7 +558,11 @@ const confirmBulkStatusChange = async () => {
   if (!newBulkStatus.value) return;
 
   try {
-    await bulkUpdateStatus(selectedProducts.value, newBulkStatus.value);
+    await bulkUpdateStatus(
+      currentMerchantSlug.value,
+      selectedProducts.value,
+      newBulkStatus.value
+    );
 
     const statusLabel = getStatusLabel(newBulkStatus.value);
     toast.success(
@@ -750,7 +762,7 @@ const tableActions = [
           <div class="hidden sm:block">
             <Breadcrumb
               :items="breadcrumbItems"
-              :merchantId="currentMerchantId"
+              :merchantId="currentMerchantSlug"
             />
             <p class="mt-1 text-xs sm:text-sm text-muted-foreground">
               Kelola produk {{ currentMerchantName }}
@@ -1125,7 +1137,7 @@ const tableActions = [
           <template #cell-name="{ item }">
             <div class="flex items-center gap-3 cursor-pointer">
               <div
-                class="flex-shrink-0 w-12 h-12 overflow-hidden rounded-lg bg-muted-background"
+                class="shrink-0 w-12 h-12 overflow-hidden rounded-lg bg-muted-background"
               >
                 <!-- ✅ FIXED: Gunakan helper getImageUrl -->
                 <img
@@ -1236,7 +1248,7 @@ const tableActions = [
                 :key="action.label"
                 :title="action.label"
                 size="sm"
-                class="!w-8 border-none"
+                class="w-8! border-none"
                 :variant="action.variant || 'muted'"
                 @click.stop="action.handler(item)"
               >
@@ -1598,7 +1610,7 @@ const tableActions = [
           "
         >
           <div
-            class="flex items-center justify-center flex-shrink-0 w-12 h-12 transition-transform rounded-lg bg-danger-background group-hover:scale-110"
+            class="flex items-center justify-center shrink-0 w-12 h-12 transition-transform rounded-lg bg-danger-background group-hover:scale-110"
           >
             <i class="text-2xl pi pi-file-pdf text-danger-foreground"></i>
           </div>
@@ -1623,7 +1635,7 @@ const tableActions = [
           "
         >
           <div
-            class="flex items-center justify-center flex-shrink-0 w-12 h-12 transition-transform rounded-lg bg-success-background group-hover:scale-110"
+            class="flex items-center justify-center shrink-0 w-12 h-12 transition-transform rounded-lg bg-success-background group-hover:scale-110"
           >
             <i class="text-2xl pi pi-file-excel text-success-foreground"></i>
           </div>
@@ -1663,7 +1675,7 @@ const tableActions = [
           class="flex items-center w-full gap-4 p-4 text-left transition border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary group"
         >
           <div
-            class="flex items-center justify-center flex-shrink-0 w-12 h-12 transition-transform rounded-lg bg-success-background group-hover:scale-110"
+            class="flex items-center justify-center shrink-0 w-12 h-12 transition-transform rounded-lg bg-success-background group-hover:scale-110"
           >
             <i class="text-2xl pi pi-check-circle text-success-foreground"></i>
           </div>
@@ -1683,7 +1695,7 @@ const tableActions = [
           class="flex items-center w-full gap-4 p-4 text-left transition border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary group"
         >
           <div
-            class="flex items-center justify-center flex-shrink-0 w-12 h-12 transition-transform rounded-lg bg-danger-background group-hover:scale-110"
+            class="flex items-center justify-center shrink-0 w-12 h-12 transition-transform rounded-lg bg-danger-background group-hover:scale-110"
           >
             <i class="text-2xl pi pi-box text-danger-foreground"></i>
           </div>
@@ -1742,7 +1754,7 @@ const tableActions = [
           "
         >
           <div
-            class="flex items-center justify-center flex-shrink-0 w-12 h-12 transition-transform rounded-lg bg-success-background"
+            class="flex items-center justify-center shrink-0 w-12 h-12 transition-transform rounded-lg bg-success-background"
             :class="
               selectedProductForVisibility?.status !== 'published' &&
               'group-hover:scale-110'
@@ -1772,7 +1784,7 @@ const tableActions = [
           "
         >
           <div
-            class="flex items-center justify-center flex-shrink-0 w-12 h-12 transition-transform rounded-lg bg-danger-background"
+            class="flex items-center justify-center shrink-0 w-12 h-12 transition-transform rounded-lg bg-danger-background"
             :class="
               selectedProductForVisibility?.status !== 'archived' &&
               'group-hover:scale-110'
@@ -1814,7 +1826,7 @@ const tableActions = [
           class="flex items-start gap-3 p-4 border bg-danger-background/10 border-danger-foreground/20 rounded-xl"
         >
           <i
-            class="pi pi-exclamation-triangle text-danger-foreground text-xl flex-shrink-0 mt-0.5"
+            class="pi pi-exclamation-triangle text-danger-foreground text-xl shrink-0 mt-0.5"
           ></i>
           <div>
             <h4 class="mb-1 text-sm font-semibold text-danger-foreground">
@@ -1832,9 +1844,7 @@ const tableActions = [
           v-if="selectedProductForDelete"
           class="flex items-center gap-3 p-4 bg-muted-background rounded-xl"
         >
-          <div
-            class="flex-shrink-0 w-16 h-16 overflow-hidden bg-white rounded-lg"
-          >
+          <div class="shrink-0 w-16 h-16 overflow-hidden bg-white rounded-lg">
             <!-- ✅ FIXED: Gunakan helper getImageUrl -->
             <img
               v-if="selectedProductForDelete.cover_image?.src_url"
@@ -1896,7 +1906,7 @@ const tableActions = [
           class="flex items-start gap-3 p-4 border bg-danger-background/10 border-danger-foreground/20 rounded-xl"
         >
           <i
-            class="pi pi-exclamation-triangle text-danger-foreground text-xl flex-shrink-0 mt-0.5"
+            class="pi pi-exclamation-triangle text-danger-foreground text-xl shrink-0 mt-0.5"
           ></i>
           <div>
             <h4 class="mb-1 text-sm font-semibold text-danger-foreground">
@@ -1931,7 +1941,7 @@ const tableActions = [
             class="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg"
           >
             <div
-              class="flex-shrink-0 w-12 h-12 overflow-hidden rounded-lg bg-muted-background"
+              class="shrink-0 w-12 h-12 overflow-hidden rounded-lg bg-muted-background"
             >
               <!-- ✅ FIXED: Gunakan helper getImageUrl -->
               <img
@@ -2002,7 +2012,7 @@ const tableActions = [
           class="flex items-start gap-3 p-4 border bg-warning-background/10 border-warning-foreground/20 rounded-xl"
         >
           <i
-            class="pi pi-info-circle text-warning-foreground text-xl flex-shrink-0 mt-0.5"
+            class="pi pi-info-circle text-warning-foreground text-xl shrink-0 mt-0.5"
           ></i>
           <div>
             <h4 class="mb-1 text-sm font-semibold text-warning-foreground">
@@ -2020,9 +2030,7 @@ const tableActions = [
           v-if="selectedProductForStatusChange"
           class="flex items-center gap-3 p-4 bg-muted-background rounded-xl"
         >
-          <div
-            class="flex-shrink-0 w-16 h-16 overflow-hidden bg-white rounded-lg"
-          >
+          <div class="shrink-0 w-16 h-16 overflow-hidden bg-white rounded-lg">
             <!-- ✅ FIXED: Gunakan helper getImageUrl -->
             <img
               v-if="selectedProductForStatusChange.cover_image?.src_url"
@@ -2114,7 +2122,7 @@ const tableActions = [
           class="flex items-start gap-3 p-4 border bg-warning-background/10 border-warning-foreground/20 rounded-xl"
         >
           <i
-            class="pi pi-info-circle text-warning-foreground text-xl flex-shrink-0 mt-0.5"
+            class="pi pi-info-circle text-warning-foreground text-xl shrink-0 mt-0.5"
           ></i>
           <div>
             <h4 class="mb-1 text-sm font-semibold text-warning-foreground">
@@ -2163,7 +2171,7 @@ const tableActions = [
             class="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg"
           >
             <div
-              class="flex-shrink-0 w-12 h-12 overflow-hidden rounded-lg bg-muted-background"
+              class="shrink-0 w-12 h-12 overflow-hidden rounded-lg bg-muted-background"
             >
               <!-- ✅ FIXED: Gunakan helper getImageUrl -->
               <img

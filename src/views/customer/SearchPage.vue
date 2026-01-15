@@ -14,13 +14,12 @@ import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import TextField from "@/components/forms/TextField.vue";
 import Button from "@/components/common/Button.vue";
 import { useRouter, useRoute } from "vue-router";
-import api from "@/libs/axios";
+import { useSearch } from "@/composables/useSearch";
 import { useCategories } from "@/composables/useCategories";
 import { useSegmentations } from "@/composables/useSegmentations";
+import api from "@/libs/axios";
+import { useToast } from "vue-toastification";
 
-const products = ref([]);
-const merchants = ref([]); // nanti endpoint sendiri
-const isLoading = ref(false); // loading awal
 const isLoadingMoreProducts = ref(false);
 const isLoadingMoreMerchants = ref(false);
 const loadMoreRef = ref(null); // elemen sentinel
@@ -38,6 +37,32 @@ const merchantHasMore = ref(false);
 
 const router = useRouter();
 const route = useRoute();
+const toast = useToast();
+
+const myLatitude = ref(null);
+const myLongitude = ref(null);
+
+const hasMyCoordinates = computed(() => {
+  return (
+    Number.isFinite(Number(myLatitude.value)) &&
+    Number.isFinite(Number(myLongitude.value))
+  );
+});
+
+async function loadMyCoordinates() {
+  try {
+    const res = await api.get("api/profile/address");
+    const addr = res?.data?.data;
+    const lat = parseFloat(addr?.latitude);
+    const lng = parseFloat(addr?.longitude);
+    myLatitude.value = Number.isFinite(lat) ? lat : null;
+    myLongitude.value = Number.isFinite(lng) ? lng : null;
+  } catch (e) {
+    // ignore (likely 401 if not logged in)
+    myLatitude.value = null;
+    myLongitude.value = null;
+  }
+}
 
 const {
   categoriesLevel1,
@@ -52,6 +77,16 @@ const {
   loading: loadingSegmentations,
   fetchSegmentations,
 } = useSegmentations();
+const {
+  products,
+  productsMeta,
+  loadingProducts,
+  fetchProducts: fetchProductsApi,
+  merchants,
+  merchantsMeta,
+  loadingMerchants,
+  fetchMerchants: fetchMerchantsApi,
+} = useSearch();
 function goBack() {
   router.back();
 }
@@ -98,20 +133,21 @@ const detailFilters = ref({
   categories: [],
   subCategories: [],
   segments: [],
+  isOpen: false,
 });
 
 const tempDetailFilters = ref({ ...detailFilters.value, subCategories: [] });
 
 const isEmptyProducts = computed(
   () =>
-    !isLoading.value &&
+    !loadingProducts.value &&
     activeTab.value === "products" &&
     products.value.length === 0
 );
 
 const isEmptyMerchants = computed(
   () =>
-    !isLoading.value &&
+    !loadingMerchants.value &&
     activeTab.value === "merchants" &&
     merchants.value.length === 0
 );
@@ -151,6 +187,7 @@ const activeFilterCount = computed(() => {
   if (detailFilters.value.categories.length) count++;
   if (detailFilters.value.segments.length) count++;
   if (detailFilters.value.subCategories.length) count++;
+  if (detailFilters.value.isOpen) count++;
 
   return count;
 });
@@ -162,20 +199,24 @@ function safeString(v) {
 
 /* ================= SORT OPTIONS ================= */
 const instantSortOptions = [
-  { key: "latest", label: "Terbaru", conflict: ["oldest"] },
-  { key: "oldest", label: "Terlama", conflict: ["latest"] },
-  { key: "nearest", label: "Terdekat" },
+  { key: "latest", label: "Terbaru", conflict: ["oldest", "nearest"] },
+  { key: "oldest", label: "Terlama", conflict: ["latest", "nearest"] },
+  {
+    key: "nearest",
+    label: "Terdekat",
+    conflict: ["latest", "oldest", "cheapest", "expensive"],
+  },
   {
     key: "cheapest",
     label: "Termurah",
     productOnly: true,
-    conflict: ["expensive"],
+    conflict: ["expensive", "nearest"],
   },
   {
     key: "expensive",
     label: "Termahal",
     productOnly: true,
-    conflict: ["cheapest"],
+    conflict: ["cheapest", "nearest"],
   },
 ];
 
@@ -197,84 +238,46 @@ async function fetchMerchants(reset = false) {
   isLoadingMoreMerchants.value = true;
 
   try {
-    const res = await api.get("/api/public/search-merchants", {
-      params: {
-        ...buildMerchantQuery(),
-        page: merchantPage.value,
-        per_page: merchantPerPage,
-      },
-    });
+    const params = {
+      ...buildMerchantQuery(),
+      page: merchantPage.value,
+      per_page: merchantPerPage,
+    };
 
-    const data = res.data.data ?? [];
+    await fetchMerchantsApi(params, !reset);
 
-    merchants.value.push(...data);
-
-    merchantHasMore.value =
-      res.data.meta.current_page < res.data.meta.last_page;
-  } catch (err) {
-    console.error("Fetch merchants error:", err);
+    const current = Number(merchantsMeta.value?.current_page ?? 1);
+    const last = Number(merchantsMeta.value?.last_page ?? 1);
+    merchantHasMore.value = current < last;
   } finally {
     isLoadingMoreMerchants.value = false;
   }
 }
 
-// function setupMerchantObserver() {
-//   // Bersihkan observer lama jika ada
-//   if (merchantObserver.value) merchantObserver.value.disconnect();
-
-//   merchantObserver.value = new IntersectionObserver(
-//     (entries) => {
-//       const entry = entries[0];
-
-//       // LOGIC PENTING:
-//       // Kita cek apakah sentinel terlihat (isIntersecting)
-//       // DAN kita punya data lebih (merchantHasMore)
-//       // DAN kita TIDAK sedang loading
-//       if (
-//         entry.isIntersecting &&
-//         merchantHasMore.value &&
-//         !isLoadingMoreMerchants.value &&
-//         !isLoading.value
-//       ) {
-//         merchantPage.value++;
-//         fetchMerchants();
-//       }
-//     },
-//     {
-//       root: null,
-//       rootMargin: "200px", // Preload 200px sebelum mentok bawah
-//       threshold: 0,
-//     }
-//   );
-
-//   if (loadMoreMerchantRef.value) {
-//     merchantObserver.value.observe(loadMoreMerchantRef.value);
-//   }
-// }
 async function fetchProducts(reset = false) {
-  if (isLoading.value || isLoadingMoreProducts.value) return;
+  if (isLoadingMoreProducts.value) return;
 
   if (reset) {
     page.value = 1;
     products.value = [];
     hasMore.value = true;
-    isLoading.value = true;
-  } else {
-    isLoadingMoreProducts.value = true;
   }
 
-  try {
-    const res = await api.get("/api/public/search", {
-      params: buildProductQuery(),
-    });
+  isLoadingMoreProducts.value = true;
 
-    products.value.push(...res.data.data);
-    hasMore.value = res.data.meta.current_page < res.data.meta.last_page;
-  } catch (err) {
-    toast.error("Gagal memuat produk. Silakan coba lagi.");
-    // console.error(err);
+  try {
+    const params = {
+      ...buildProductQuery(),
+      page: String(page.value),
+      per_page: String(perPage),
+    };
+
+    await fetchProductsApi(params, !reset);
+
+    const current = Number(productsMeta.value?.current_page ?? 1);
+    const last = Number(productsMeta.value?.last_page ?? 1);
+    hasMore.value = current < last;
   } finally {
-    isLoading.value = false;
     isLoadingMoreProducts.value = false;
   }
 }
@@ -309,7 +312,7 @@ function setupObserver() {
 
 function buildMerchantQuery() {
   const sort = activeInstantSorts.value.find((s) =>
-    ["latest", "oldest"].includes(s)
+    ["latest", "oldest", "nearest"].includes(s)
   );
 
   return {
@@ -317,6 +320,8 @@ function buildMerchantQuery() {
     segments: detailFilters.value.segments.length
       ? detailFilters.value.segments
       : undefined,
+
+    is_open: detailFilters.value.isOpen ? 1 : undefined,
 
     categories: detailFilters.value.subCategories.length
       ? detailFilters.value.subCategories
@@ -328,6 +333,8 @@ function buildMerchantQuery() {
     max_price: detailFilters.value.maxPrice ?? undefined,
 
     sort: sort || undefined,
+    lat: sort === "nearest" ? myLatitude.value : undefined,
+    lng: sort === "nearest" ? myLongitude.value : undefined,
     page: merchantPage.value,
     per_page: merchantPerPage,
   };
@@ -335,7 +342,7 @@ function buildMerchantQuery() {
 
 function buildProductQuery() {
   const sortKey = activeInstantSorts.value.find((s) =>
-    ["latest", "oldest", "cheapest", "expensive"].includes(s)
+    ["latest", "oldest", "cheapest", "expensive", "nearest"].includes(s)
   );
 
   return {
@@ -360,6 +367,8 @@ function buildProductQuery() {
       : undefined,
 
     sort: typeof sortKey === "string" ? sortKey : undefined,
+    lat: sortKey === "nearest" ? myLatitude.value : undefined,
+    lng: sortKey === "nearest" ? myLongitude.value : undefined,
 
     page: String(page.value),
     per_page: String(perPage),
@@ -383,6 +392,7 @@ function applyDetailFilter() {
     categories: [...tempDetailFilters.value.categories],
     subCategories: [...tempDetailFilters.value.subCategories],
     segments: [...tempDetailFilters.value.segments],
+    isOpen: !!tempDetailFilters.value.isOpen,
   };
 
   showFilterModal.value = false;
@@ -394,9 +404,26 @@ function applyDetailFilter() {
   }
 }
 
-watch(activeInstantSorts, () => {
-  fetchProducts(true);
-});
+watch(
+  () => [...activeInstantSorts.value],
+  () => {
+    if (activeTab.value === "products") {
+      page.value = 1;
+      products.value = [];
+      hasMore.value = true;
+      fetchProducts(true);
+      nextTick(() => setupObserver());
+      return;
+    }
+
+    if (activeTab.value === "merchants") {
+      merchantPage.value = 1;
+      merchants.value = [];
+      merchantHasMore.value = true;
+      fetchMerchants(true);
+    }
+  }
+);
 
 watch(
   activeTab,
@@ -487,6 +514,11 @@ function toggleInstantSort(key) {
   const option = instantSortOptions.find((o) => o.key === key);
   if (!option) return;
 
+  if (key === "nearest" && !hasMyCoordinates.value) {
+    toast.error("Lengkapi alamat (koordinat) untuk sort terdekat.");
+    return;
+  }
+
   if (option.conflict) {
     activeInstantSorts.value = activeInstantSorts.value.filter(
       (k) => !option.conflict.includes(k)
@@ -536,6 +568,7 @@ function resetAllFilters() {
     categories: [],
     subCategories: [],
     segments: [],
+    isOpen: false,
   };
 
   // reset filter modal
@@ -545,6 +578,7 @@ function resetAllFilters() {
     categories: [],
     subCategories: [],
     segments: [],
+    isOpen: false,
   };
 
   // reset sub category cache
@@ -608,7 +642,7 @@ function handleMerchantInfiniteScroll() {
     activeTab.value !== "merchants" ||
     !merchantHasMore.value ||
     isLoadingMoreMerchants.value ||
-    isLoading.value
+    loadingMerchants.value
   )
     return;
 
@@ -625,6 +659,8 @@ function handleMerchantInfiniteScroll() {
 onMounted(() => {
   window.addEventListener("scroll", handleScroll);
   window.addEventListener("scroll", handleMerchantInfiniteScroll);
+
+  loadMyCoordinates();
 
   fetchLevel1Categories();
   fetchSegmentations();
@@ -762,11 +798,9 @@ onBeforeUnmount(() => {
         />
 
         <!-- SKELETON APPEND -->
-        <ProductCardSkeleton
-          v-if="isLoadingMoreProducts"
-          v-for="i in 6"
-          :key="'loading-more-' + i"
-        />
+        <template v-if="isLoadingMoreProducts">
+          <ProductCardSkeleton v-for="i in 6" :key="'loading-more-' + i" />
+        </template>
       </section>
 
       <!-- SENTINEL -->
@@ -799,11 +833,9 @@ onBeforeUnmount(() => {
         />
 
         <!-- skeleton append -->
-        <ProductCardSkeleton
-          v-if="isLoadingMoreMerchants"
-          v-for="i in 6"
-          :key="'merchant-loading-' + i"
-        />
+        <template v-if="isLoadingMoreMerchants">
+          <ProductCardSkeleton v-for="i in 6" :key="'merchant-loading-' + i" />
+        </template>
       </section>
 
       <!-- SENTINEL UMKM -->
@@ -947,6 +979,24 @@ onBeforeUnmount(() => {
                 "
               >
                 {{ seg.label }}
+              </button>
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <label class="text-sm font-medium">Status</label>
+            <div class="mt-2">
+              <button
+                type="button"
+                @click="tempDetailFilters.isOpen = !tempDetailFilters.isOpen"
+                class="px-3 py-2 text-xs border rounded-xl"
+                :class="
+                  tempDetailFilters.isOpen
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-white border-gray-300'
+                "
+              >
+                Buka
               </button>
             </div>
           </div>

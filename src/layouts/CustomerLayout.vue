@@ -224,8 +224,8 @@ watch(
                 class="flex items-center gap-4 transition md:gap-2 hover:opacity-80"
               >
                 <img
-                  v-if="user?.avatar"
-                  :src="user?.avatar"
+                  v-if="user?.profile_picture || user?.avatar"
+                  :src="user?.profile_picture || user?.avatar"
                   alt="Foto Profil"
                   class="object-cover w-10 h-10 rounded-full"
                 />
@@ -330,10 +330,15 @@ watch(
           <!-- Jika profile dan authenticated, tampilkan avatar -->
           <template v-if="m.key === 'profile' && isAuthenticated">
             <img
-              v-if="user?.avatar"
-              :src="user?.avatar"
+              v-if="user?.profile_picture || user?.avatar"
+              :src="user?.profile_picture || user?.avatar"
               alt="Foto Profil"
-              class="object-cover w-6 h-6 rounded-full"
+              class="object-cover w-6 h-6 transition-colors rounded-full"
+              :class="
+                isMenuActive(m)
+                  ? 'border-2 border-primary'
+                  : 'hover:border-2 border-primary'
+              "
             />
             <span
               v-else

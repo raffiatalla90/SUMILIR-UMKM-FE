@@ -1,10 +1,11 @@
 <script setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useProfileStore } from "@/stores/profile";
 import { useToast } from "vue-toastification";
 import TextField from "@/components/forms/TextField.vue";
 import MobileHeader from "@/components/customer/MobileHeader.vue";
+import AppButton from "@/components/common/Button.vue";
 
 const router = useRouter();
 const profileStore = useProfileStore();
@@ -22,12 +23,47 @@ const formData = ref({
 const profilePictureFile = ref(null);
 const fileInput = ref(null);
 
+const isInitialProfileLoading = computed(
+  () => profileStore.loading && !profileStore.user
+);
+
+const imgLoaded = ref(false);
+const imgError = ref(false);
+
+const hasProfilePicture = computed(() => {
+  const val = formData.value?.profile_picture;
+  return typeof val === "string" && val.trim().length > 0;
+});
+
+watch(
+  () => formData.value?.profile_picture,
+  () => {
+    imgLoaded.value = false;
+    imgError.value = false;
+  }
+);
+
+const onImgLoad = () => {
+  imgLoaded.value = true;
+};
+
+const onImgError = () => {
+  imgError.value = true;
+  imgLoaded.value = true;
+};
+
 // Watch for changes in store user data
 watch(
   () => profileStore.user,
   (newUser) => {
     if (newUser) {
-      formData.value = { ...newUser };
+      formData.value = {
+        ...newUser,
+        profile_picture:
+          typeof newUser?.profile_picture === "string"
+            ? newUser.profile_picture
+            : "",
+      };
     }
   },
   { immediate: true }
@@ -85,7 +121,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen pb-20 bg-gray-50 md:bg-white md:pb-0">
+  <div class="">
     <!-- Hidden file input -->
     <input
       type="file"
@@ -99,21 +135,46 @@ onMounted(() => {
     <MobileHeader title="Edit Profil" @back="goBack" />
 
     <!-- Content Container -->
-    <div class="px-4 py-6 mx-auto max-w-7xl md:px-8 md:py-12">
+    <div class="px-4 py-6 mx-auto max-w-7xl sm:px-8 sm:py-12">
       <!-- DESKTOP LAYOUT -->
-      <div class="hidden gap-8 md:grid md:grid-cols-12">
+      <div class="hidden gap-8 sm:grid sm:grid-cols-12">
         <!-- Left: Profile Picture -->
-        <div class="md:col-span-4">
+        <div class="sm:col-span-4">
           <div
             class="sticky p-8 bg-white border border-gray-100 shadow-sm rounded-2xl top-24"
           >
             <div class="flex flex-col items-center">
-              <div class="relative">
+              <div class="relative w-40 h-40">
+                <div
+                  v-if="
+                    isInitialProfileLoading ||
+                    (hasProfilePicture && !imgLoaded && !imgError)
+                  "
+                  class="w-40 h-40 bg-gray-200 border-4 border-white rounded-full shadow-lg animate-pulse"
+                />
                 <img
+                  v-if="
+                    !isInitialProfileLoading && hasProfilePicture && !imgError
+                  "
                   :src="formData.profile_picture"
                   :alt="formData.name"
+                  loading="lazy"
                   class="object-cover w-40 h-40 border-4 border-white rounded-full shadow-lg"
+                  :class="imgLoaded ? '' : 'opacity-0'"
+                  @load="onImgLoad"
+                  @error="onImgError"
                 />
+                <span v-else>
+                  <svg
+                    class="w-40 h-40 p-8 text-gray-300 bg-gray-100 border-4 border-white rounded-full shadow-lg"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                    />
+                  </svg>
+                </span>
                 <button
                   @click="handlePhotoUpload"
                   class="absolute p-3 text-white transition-all rounded-full shadow-lg bottom-2 right-2 bg-primary hover:bg-orange-600 hover:scale-110"
@@ -155,7 +216,7 @@ onMounted(() => {
         </div>
 
         <!-- Right: Form -->
-        <div class="md:col-span-8">
+        <div class="sm:col-span-8">
           <div
             class="p-8 bg-white border border-gray-100 shadow-sm rounded-2xl"
           >
@@ -224,43 +285,25 @@ onMounted(() => {
 
               <!-- Action Buttons -->
               <div class="flex gap-4 mt-8">
-                <button
+                <AppButton
                   type="button"
+                  variant="muted-outline"
+                  class="w-full"
                   @click="handleCancel"
-                  class="flex-1 py-3 font-semibold text-gray-700 transition-all bg-gray-100 rounded-xl hover:bg-gray-200"
                 >
                   Batal
-                </button>
-                <button
+                </AppButton>
+                <AppButton
                   type="submit"
+                  variant="primary"
+                  :loading="profileStore.loading"
                   :disabled="profileStore.loading"
-                  class="flex items-center justify-center flex-1 gap-2 py-3 font-semibold text-white transition-all shadow-md rounded-xl bg-primary hover:bg-orange-600 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="w-full"
                 >
-                  <svg
-                    v-if="profileStore.loading"
-                    class="w-5 h-5 text-white animate-spin"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      class="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      stroke-width="4"
-                    ></circle>
-                    <path
-                      class="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
                   {{
                     profileStore.loading ? "Menyimpan..." : "Simpan Perubahan"
                   }}
-                </button>
+                </AppButton>
               </div>
             </form>
           </div>
@@ -268,14 +311,37 @@ onMounted(() => {
       </div>
 
       <!-- MOBILE LAYOUT -->
-      <div class="md:hidden">
+      <div class="sm:hidden">
         <div class="flex flex-col items-center mb-8">
-          <div class="relative">
+          <div class="relative w-32 h-32">
+            <div
+              v-if="
+                isInitialProfileLoading ||
+                (hasProfilePicture && !imgLoaded && !imgError)
+              "
+              class="w-32 h-32 bg-gray-200 border-4 border-white rounded-full shadow-lg animate-pulse"
+            />
             <img
+              v-if="!isInitialProfileLoading && hasProfilePicture && !imgError"
               :src="formData.profile_picture"
               :alt="formData.name"
+              loading="lazy"
               class="object-cover w-32 h-32 border-4 border-white rounded-full shadow-lg"
+              :class="imgLoaded ? '' : 'opacity-0'"
+              @load="onImgLoad"
+              @error="onImgError"
             />
+            <span v-else>
+              <svg
+                class="w-32 h-32 p-6 text-gray-300 bg-gray-100 border-4 border-white rounded-full shadow-lg"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                />
+              </svg>
+            </span>
             <button
               @click="handlePhotoUpload"
               class="absolute bottom-0 right-0 p-2 text-white transition-colors rounded-full shadow-lg bg-primary hover:bg-orange-600"
@@ -367,49 +433,18 @@ onMounted(() => {
             />
           </div>
 
-          <!-- Alamat -->
-          <div>
-            <label class="block mb-2 text-sm font-medium text-gray-700"
-              >Alamat</label
-            >
-            <TextField
-              name="full_address"
-              v-model="formData.full_address"
-              textarea
-              :rows="3"
-              placeholder="Masukkan alamat lengkap"
-            />
-          </div>
-
           <!-- Save Button -->
-          <button
+          <AppButton
             type="submit"
+            variant="primary"
+            size="md"
+            block
+            :loading="profileStore.loading"
             :disabled="profileStore.loading"
-            class="flex items-center justify-center w-full gap-2 py-4 font-semibold text-white transition-all rounded-full shadow-md bg-primary hover:bg-orange-600 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            customClass="w-full"
           >
-            <svg
-              v-if="profileStore.loading"
-              class="w-5 h-5 text-white animate-spin"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
             {{ profileStore.loading ? "Menyimpan..." : "Simpan" }}
-          </button>
+          </AppButton>
         </form>
       </div>
     </div>

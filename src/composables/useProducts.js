@@ -24,7 +24,7 @@ export function useProducts() {
 
   // Admin UMKM
   const fetchProducts = async ({
-    merchantId,
+    merchantSlug,
     searchQuery = "",
     status = "",
     category = "",
@@ -36,13 +36,13 @@ export function useProducts() {
     perPage = 10,
     page = 1,
   } = {}) => {
-    if (!merchantId) {
-      toast.error("Merchant ID diperlukan untuk memuat produk");
+    if (!merchantSlug) {
+      toast.error("Merchant slug diperlukan untuk memuat produk");
       return;
     }
 
     const requestSignature = JSON.stringify({
-      merchantId,
+      merchantSlug,
       searchQuery,
       status,
       category,
@@ -73,7 +73,6 @@ export function useProducts() {
     loadingFetchProducts.value = true;
 
     const params = {
-      merchant_id: merchantId,
       q: searchQuery || undefined,
       status: status || undefined,
       category_id: category || undefined,
@@ -92,7 +91,7 @@ export function useProducts() {
     // Buat pendingRequest sebagai promise yang mengembalikan `data` (konsisten)
     pendingRequest = (async () => {
       try {
-        const data = await ProductService.getProducts(params);
+        const data = await ProductService.getProducts(merchantSlug, params);
         const payload = data.data || data;
 
         products.value = payload.data || payload;
@@ -120,9 +119,13 @@ export function useProducts() {
     return pendingRequest;
   };
 
-  const fetchProductDetail = async (productSlug) => {
+  const fetchProductDetail = async (merchantSlug, productSlug) => {
     try {
-      const payload = await ProductService.getProductDetail(productSlug);
+      if (!merchantSlug) throw new Error("merchantSlug diperlukan");
+      const payload = await ProductService.getProductDetail(
+        merchantSlug,
+        productSlug
+      );
       if (!payload) throw new Error("Product data tidak ditemukan");
 
       if (payload.addon_groups) payload.addonGroups = payload.addon_groups;
@@ -137,11 +140,12 @@ export function useProducts() {
     }
   };
 
-  const exportPDF = async (params = {}) => {
+  const exportPDF = async (merchantSlug, params = {}) => {
     if (loadingExport.value) return;
     loadingExport.value = true;
     try {
-      const res = await ProductService.exportPDF(params);
+      if (!merchantSlug) throw new Error("merchantSlug diperlukan");
+      const res = await ProductService.exportPDF(merchantSlug, params);
 
       const disposition = res.headers["content-disposition"] || "";
       const match = disposition.match(/filename="?([^"]+)"?/);
@@ -160,11 +164,12 @@ export function useProducts() {
     loadingExport.value = false;
   };
 
-  const exportExcel = async (params = {}) => {
+  const exportExcel = async (merchantSlug, params = {}) => {
     if (loadingExport.value) return;
     loadingExport.value = true;
     try {
-      const res = await ProductService.exportExcel(params);
+      if (!merchantSlug) throw new Error("merchantSlug diperlukan");
+      const res = await ProductService.exportExcel(merchantSlug, params);
 
       // Ambil nama file dari header jika ada
       const disposition = res.headers["content-disposition"] || "";
@@ -185,10 +190,11 @@ export function useProducts() {
     }
   };
 
-  const deleteProduct = async (productSlug) => {
+  const deleteProduct = async (merchantSlug, productSlug) => {
     loading.value = true;
     try {
-      await ProductService.deleteProduct(productSlug);
+      if (!merchantSlug) throw new Error("merchantSlug diperlukan");
+      await ProductService.deleteProduct(merchantSlug, productSlug);
       products.value = products.value.filter((p) => p.slug !== productSlug);
       pagination.value.total = Math.max(0, pagination.value.total - 1);
       toast.success("Produk berhasil dihapus");
@@ -200,10 +206,11 @@ export function useProducts() {
     }
   };
 
-  const updateProductStatus = async (productSlug, status) => {
+  const updateProductStatus = async (merchantSlug, productSlug, status) => {
     loading.value = true;
     try {
-      await ProductService.editStatus(productSlug, status);
+      if (!merchantSlug) throw new Error("merchantSlug diperlukan");
+      await ProductService.editStatus(merchantSlug, productSlug, status);
       const index = products.value.findIndex((p) => p.slug === productSlug);
       if (index !== -1) products.value[index].status = status;
     } catch (error) {
@@ -214,10 +221,11 @@ export function useProducts() {
     }
   };
 
-  const bulkDeleteProducts = async (productSlugs) => {
+  const bulkDeleteProducts = async (merchantSlug, productSlugs) => {
     loading.value = true;
     try {
-      await ProductService.deleteBulk(productSlugs);
+      if (!merchantSlug) throw new Error("merchantSlug diperlukan");
+      await ProductService.deleteBulk(merchantSlug, productSlugs);
       products.value = products.value.filter(
         (p) => !productSlugs.includes(p.slug)
       );
@@ -233,10 +241,11 @@ export function useProducts() {
     }
   };
 
-  const bulkUpdateStatus = async (productSlugs, status) => {
+  const bulkUpdateStatus = async (merchantSlug, productSlugs, status) => {
     loading.value = true;
     try {
-      await ProductService.editBulkStatus(productSlugs, status);
+      if (!merchantSlug) throw new Error("merchantSlug diperlukan");
+      await ProductService.editBulkStatus(merchantSlug, productSlugs, status);
       products.value.forEach((product) => {
         if (productSlugs.includes(product.slug)) {
           product.status = status;
@@ -562,6 +571,26 @@ export function useProducts() {
     }
   };
 
+  const fetchPublicMerchantProducts = async (merchantSlug, limit = 10) => {
+    loading.value = true;
+    try {
+      if (!merchantSlug) throw new Error("merchantSlug diperlukan");
+      const data = await ProductService.getPublicMerchantProducts(
+        merchantSlug,
+        { limit }
+      );
+      return data.data || [];
+    } catch (error) {
+      if (isDev) {
+        console.error(error);
+      }
+      toast.error("Gagal memuat produk merchant");
+      throw error;
+    } finally {
+      loading.value = false;
+    }
+  };
+
   return {
     products,
     loadingExport,
@@ -571,6 +600,7 @@ export function useProducts() {
     fetchProducts,
     fetchProductDetail,
     fetchPublicProductDetail,
+    fetchPublicMerchantProducts,
     updateProductStatus,
     deleteProduct,
     bulkDeleteProducts,

@@ -18,6 +18,7 @@ import {
 } from "vue";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import api from "@/libs/axios";
 
 /* ================= PROPS & EMITS ================= */
 const props = defineProps({
@@ -27,14 +28,18 @@ const props = defineProps({
   height: { type: String, default: "280px" },
   readonly: { type: Boolean, default: false },
   variant: { type: String, default: "primary" }, // primary | merchant
+  showMyLocation: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(["update:lat", "update:lng"]);
 
 /* ================= STATE ================= */
 const mapEl = ref(null);
+const wrapperEl = ref(null);
 let map = null;
 let marker = null;
+let myMarker = null;
+let resizeObserver = null;
 
 const geoError = ref("");
 const isLocating = ref(false);
@@ -42,6 +47,15 @@ const isLocating = ref(false);
 const isSecure = window.isSecureContext === true;
 const isGeoSupported = "geolocation" in navigator;
 const canUseGeo = computed(() => isSecure && isGeoSupported && !props.readonly);
+
+function createMyLocationIcon() {
+  return L.divIcon({
+    className: "my-location-icon",
+    html: '<div class="w-4 h-4 border-2 border-white rounded-full shadow-md bg-primary"></div>',
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+  });
+}
 
 /* ================= STYLE COMPUTED ================= */
 const borderColorClass = computed(() =>
@@ -107,6 +121,91 @@ function resetMarker() {
   }
   emit("update:lat", null);
   emit("update:lng", null);
+}
+
+function invalidateMapSize() {
+  if (!map) return;
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      map?.invalidateSize(true);
+    });
+  });
+}
+
+async function getMyCoordinates() {
+  // 1) Prefer saved address from profile if user is logged in.
+  try {
+    const res = await api.get("api/profile/address");
+    const addr = res?.data?.data;
+
+    const lat = parseFloat(addr?.latitude);
+    const lng = parseFloat(addr?.longitude);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return { lat, lng };
+    }
+  } catch (e) {
+    // ignore (likely 401 if not logged in)
+  }
+
+  // 2) Fallback: browser geolocation (requires HTTPS / localhost)
+  if (!isSecure || !isGeoSupported) return null;
+
+  return await new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos?.coords?.latitude;
+        const lng = pos?.coords?.longitude;
+        if (typeof lat === "number" && typeof lng === "number") {
+          resolve({ lat, lng });
+        } else {
+          resolve(null);
+        }
+      },
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+    );
+  });
+}
+
+function setMyMarker(latlng) {
+  if (!map) return;
+
+  if (!myMarker) {
+    myMarker = L.marker(latlng, { icon: createMyLocationIcon() })
+      .addTo(map)
+      .bindPopup(
+        `
+        <div class="popup-card popup-card--me">
+          <div class="popup-card__body">
+            <div class="popup-me__badge">Anda</div>
+            <div class="popup-me__title">Alamat Anda</div>
+          </div>
+        </div>`
+      );
+  } else {
+    myMarker.setLatLng(latlng);
+  }
+}
+
+function fitToMarkers() {
+  if (!map) return;
+  const points = [];
+
+  if (marker) points.push(marker.getLatLng());
+  if (myMarker) points.push(myMarker.getLatLng());
+
+  if (points.length === 0) return;
+  if (points.length === 1) {
+    map.setView(points[0], props.zoom);
+    return;
+  }
+
+  const bounds = L.latLngBounds(points);
+  map.fitBounds(bounds, {
+    padding: [24, 24],
+    // Respect zoom prop as an upper bound.
+    maxZoom: Number.isFinite(Number(props.zoom)) ? Number(props.zoom) : 15,
+  });
 }
 
 /* ================= GEOLOCATION ================= */
@@ -180,6 +279,15 @@ onMounted(async () => {
     updateLatLng(props.lat, props.lng, true);
   }
 
+  if (props.showMyLocation) {
+    const coords = await getMyCoordinates();
+    if (coords) {
+      setMyMarker(L.latLng(coords.lat, coords.lng));
+      // If both markers exist, show them together.
+      fitToMarkers();
+    }
+  }
+
   if (!props.readonly) {
     map.on("click", (e) => {
       const { lat, lng } = e.latlng;
@@ -189,10 +297,24 @@ onMounted(async () => {
     });
   }
 
-  // 🔥 FIX BUG MAP KOSONG / GESER
+  // 🔥 FIX: when mounted in hidden container (e.g. v-show tab), tiles can render grey.
+  // Invalidate once, and again whenever the container becomes visible/resizes.
   setTimeout(() => {
-    map.invalidateSize(true);
+    invalidateMapSize();
   }, 300);
+
+  if (typeof ResizeObserver !== "undefined" && wrapperEl.value) {
+    resizeObserver = new ResizeObserver((entries) => {
+      const rect = entries?.[0]?.contentRect;
+      if (!rect) return;
+      // Only invalidate when the container has real size.
+      if (rect.width > 0 && rect.height > 0) {
+        invalidateMapSize();
+      }
+    });
+
+    resizeObserver.observe(wrapperEl.value);
+  }
 });
 
 watch(
@@ -202,11 +324,32 @@ watch(
       // If coords arrive after mount (API load), center map on first marker.
       const shouldSetView = marker == null;
       updateLatLng(lat, lng, shouldSetView);
+
+      // If my marker is shown, keep both visible.
+      if (props.showMyLocation && myMarker) {
+        fitToMarkers();
+      }
     }
   }
 );
 
+watch(
+  () => props.zoom,
+  (z) => {
+    if (!map) return;
+    const nextZoom = Number(z);
+    if (!Number.isFinite(nextZoom)) return;
+    map.setZoom(nextZoom);
+  }
+);
+
 onBeforeUnmount(() => {
+  resizeObserver?.disconnect?.();
+  resizeObserver = null;
+  if (myMarker && map) {
+    map.removeLayer(myMarker);
+    myMarker = null;
+  }
   map?.remove();
 });
 </script>
@@ -215,7 +358,8 @@ onBeforeUnmount(() => {
   <div class="h-full">
     <!-- MAP WRAPPER -->
     <div
-      class="relative w-full h-full rounded-xl overflow-hidden border"
+      ref="wrapperEl"
+      class="relative w-full h-full overflow-hidden border rounded-xl"
       :class="borderColorClass"
     >
       <!-- MAP -->
@@ -227,13 +371,13 @@ onBeforeUnmount(() => {
         class="absolute inset-0 z-10 flex items-center justify-center pointer-events-none"
         :class="
           variant === 'merchant'
-            ? 'bg-gradient-to-br from-green-200 to-green-400'
+            ? 'bg-linear-to-br from-green-200 to-green-400'
             : 'bg-gray-100'
         "
       >
         <div class="text-center">
           <svg
-            class="w-12 h-12 md:w-16 md:h-16 text-red-600 mx-auto mb-2"
+            class="w-12 h-12 mx-auto mb-2 text-red-600 md:w-16 md:h-16"
             fill="currentColor"
             viewBox="0 0 24 24"
           >

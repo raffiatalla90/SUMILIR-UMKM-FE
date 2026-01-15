@@ -29,8 +29,18 @@ const route = useRoute();
 const toast = useToast();
 const authStore = useAuthStore();
 
+const currentMerchantSlug = computed(() => {
+  return route.params.merchantSlug
+    ? String(route.params.merchantSlug)
+    : authStore.merchantSlug || null;
+});
+
 const currentMerchantId = computed(() => {
-  return route.params.merchantId ? Number(route.params.merchantId) : null;
+  const merchant = currentMerchantSlug.value
+    ? authStore.getMerchantBySlug(currentMerchantSlug.value)
+    : authStore.activeMerchant;
+
+  return merchant?.id ?? null;
 });
 
 const currentJasaId = computed(() => {
@@ -38,7 +48,10 @@ const currentJasaId = computed(() => {
 });
 
 const breadcrumbItems = computed(() => [
-  { label: "Jasa", path: `/merchant-center/${currentMerchantId.value}/jasas` },
+  {
+    label: "Jasa",
+    path: `/merchant-center/${currentMerchantSlug.value}/jasas`,
+  },
   { label: "Edit Jasa" },
 ]);
 
@@ -127,20 +140,26 @@ const timeOptions = [
   { value: "21.00", label: "21.00", period: "evening" },
 ];
 
-const morningTimes = timeOptions.filter(t => t.period === 'morning');
-const afternoonTimes = timeOptions.filter(t => t.period === 'afternoon');
-const eveningTimes = timeOptions.filter(t => t.period === 'evening');
+const morningTimes = timeOptions.filter((t) => t.period === "morning");
+const afternoonTimes = timeOptions.filter((t) => t.period === "afternoon");
+const eveningTimes = timeOptions.filter((t) => t.period === "evening");
 
 // Computed untuk selected days
 const selectedDays = computed(() => {
   if (!formData.value.operating_days) return [];
-  return formData.value.operating_days.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d));
+  return formData.value.operating_days
+    .split(",")
+    .map((d) => parseInt(d.trim()))
+    .filter((d) => !isNaN(d));
 });
 
 // Computed untuk selected times
 const selectedTimes = computed(() => {
   if (!formData.value.operating_times) return [];
-  return formData.value.operating_times.split(',').map(t => t.trim()).filter(t => t);
+  return formData.value.operating_times
+    .split(",")
+    .map((t) => t.trim())
+    .filter((t) => t);
 });
 
 // Toggle day selection
@@ -155,7 +174,7 @@ const toggleDay = (dayValue) => {
     current.push(dayValue);
   }
   current.sort((a, b) => a - b);
-  formData.value.operating_days = current.join(',');
+  formData.value.operating_days = current.join(",");
 };
 
 // Toggle time selection
@@ -168,28 +187,34 @@ const toggleTime = (timeValue) => {
     current.push(timeValue);
   }
   current.sort((a, b) => a.localeCompare(b));
-  formData.value.operating_times = current.join(',');
+  formData.value.operating_times = current.join(",");
 };
 
 // Select all times in a period
 const selectAllPeriod = (period) => {
-  const periodTimes = timeOptions.filter(t => t.period === period).map(t => t.value);
+  const periodTimes = timeOptions
+    .filter((t) => t.period === period)
+    .map((t) => t.value);
   const current = [...selectedTimes.value];
-  const allSelected = periodTimes.every(t => current.includes(t));
-  
+  const allSelected = periodTimes.every((t) => current.includes(t));
+
   if (allSelected) {
-    formData.value.operating_times = current.filter(t => !periodTimes.includes(t)).join(',');
+    formData.value.operating_times = current
+      .filter((t) => !periodTimes.includes(t))
+      .join(",");
   } else {
     const newTimes = [...new Set([...current, ...periodTimes])];
     newTimes.sort((a, b) => a.localeCompare(b));
-    formData.value.operating_times = newTimes.join(',');
+    formData.value.operating_times = newTimes.join(",");
   }
 };
 
 // Check if all times in period are selected
 const isAllPeriodSelected = (period) => {
-  const periodTimes = timeOptions.filter(t => t.period === period).map(t => t.value);
-  return periodTimes.every(t => selectedTimes.value.includes(t));
+  const periodTimes = timeOptions
+    .filter((t) => t.period === period)
+    .map((t) => t.value);
+  return periodTimes.every((t) => selectedTimes.value.includes(t));
 };
 
 // Validation schema
@@ -215,7 +240,7 @@ const validationSchema = yup.object({
 
 const loadCategories = async () => {
   try {
-	const { data } = await api.get("/api/public/categories/level-1");
+    const { data } = await api.get("/api/public/categories/level-1");
     // Backend mengembalikan { success, message, data: [...] }
     jasaCategories.value = data.data ?? data;
   } catch (error) {
@@ -230,7 +255,9 @@ const loadSubcategories = async (categoryId) => {
   }
   try {
     console.log("Loading subcategories for category:", categoryId);
-  	const { data } = await api.get(`/api/public/categories/${categoryId}/sub-categories`);
+    const { data } = await api.get(
+      `/api/public/categories/${categoryId}/sub-categories`
+    );
     console.log("Subcategories loaded:", data);
     jasaSubcategories.value = data.data ?? data;
   } catch (error) {
@@ -251,7 +278,11 @@ const handleNewImageChange = (e) => {
   const files = e.target.files;
   if (files && files.length) {
     newImageFiles.value = Array.from(files);
-    console.log("New images selected:", newImageFiles.value.length, newImageFiles.value.map(f => f.name));
+    console.log(
+      "New images selected:",
+      newImageFiles.value.length,
+      newImageFiles.value.map((f) => f.name)
+    );
   }
 };
 
@@ -263,20 +294,23 @@ const loadJasa = async () => {
 
   loadingData.value = true;
   try {
-	const { data } = await api.get(`/api/jasa/${currentJasaId.value}`);
-    
+    const { data } = await api.get(`/api/jasa/${currentJasaId.value}`);
+
     // Handle both wrapped and direct responses
     const jasaData = data.data || data;
-    
-    console.log('[Editjasa] Raw API response:', data);
-    console.log('[Editjasa] Extracted jasaData:', jasaData);
-    console.log('[Editjasa] Title value:', jasaData.title);
-    
+
+    console.log("[Editjasa] Raw API response:", data);
+    console.log("[Editjasa] Extracted jasaData:", jasaData);
+    console.log("[Editjasa] Title value:", jasaData.title);
+
     // Store existing images (relasi baru)
     existingImages.value = jasaData.images || [];
 
     // Fallback: jika belum ada relasi images tapi ada field legacy `image`, jadikan sebagai satu gambar awal
-    if ((!existingImages.value || existingImages.value.length === 0) && jasaData.image) {
+    if (
+      (!existingImages.value || existingImages.value.length === 0) &&
+      jasaData.image
+    ) {
       existingImages.value = [
         {
           id: null,
@@ -287,7 +321,7 @@ const loadJasa = async () => {
     }
     imagesToRemove.value = [];
     newImageFiles.value = [];
-    
+
     // Initialize form with loaded data
     formData.value = {
       title: jasaData.title || "",
@@ -338,54 +372,56 @@ const submitForm = async (values) => {
   try {
     // Build FormData for multipart submission
     const fd = new FormData();
-    
+
     // Laravel doesn't parse multipart PUT requests correctly, use POST with _method
-    fd.append('_method', 'PUT');
-    
+    fd.append("_method", "PUT");
+
     // Add all form fields
     Object.entries(values).forEach(([key, value]) => {
-      if (key === 'title' || key === 'location_address') {
+      if (key === "title" || key === "location_address") {
         // Use formData values for fields with v-model
-        fd.append(key, formData.value[key] ?? '');
+        fd.append(key, formData.value[key] ?? "");
       } else {
-        fd.append(key, value ?? '');
+        fd.append(key, value ?? "");
       }
     });
-    
+
     // Explicitly add fields that use v-model on formData
-    fd.set('status', formData.value.status);
-    fd.set('service_type', formData.value.service_type);
-    fd.set('operating_days', formData.value.operating_days);
-    fd.set('operating_times', formData.value.operating_times || '');
-    
+    fd.set("status", formData.value.status);
+    fd.set("service_type", formData.value.service_type);
+    fd.set("operating_days", formData.value.operating_days);
+    fd.set("operating_times", formData.value.operating_times || "");
+
     // Ensure integer prices
-    fd.set('fixed_price', parseInt(values.fixed_price) || 0);
-    fd.set('base_price', parseInt(values.base_price) || 0);
-    
+    fd.set("fixed_price", parseInt(values.fixed_price) || 0);
+    fd.set("base_price", parseInt(values.base_price) || 0);
+
     // Add new images if any
     if (newImageFiles.value && newImageFiles.value.length) {
-      newImageFiles.value.forEach((file) => fd.append('images[]', file));
+      newImageFiles.value.forEach((file) => fd.append("images[]", file));
     }
-    
+
     // Add images to remove (if backend supports it)
     if (imagesToRemove.value.length) {
-      fd.append('remove_images', JSON.stringify(imagesToRemove.value));
+      fd.append("remove_images", JSON.stringify(imagesToRemove.value));
     }
 
     console.log("Submitting jasa with FormData", {
       status: formData.value.status,
       new_images_count: newImageFiles.value.length,
-      images_to_remove: imagesToRemove.value.length
+      images_to_remove: imagesToRemove.value.length,
     });
-    
+
     // Use POST with _method spoofing for multipart compatibility
     // Biarkan axios yang set header multipart/form-data + boundary secara otomatis
     const { data } = await api.post(`/api/jasa/${currentJasaId.value}`, fd);
 
     toast.success("Jasa berhasil diperbarui!");
-    
+
     // Force reload the list page
-    router.push(`/merchant-center/${currentMerchantId.value}/jasas?t=${Date.now()}`);
+    router.push(
+      `/merchant-center/${currentMerchantSlug.value}/jasas?t=${Date.now()}`
+    );
   } catch (error) {
     console.error("Error updating jasa:", error);
     const msg = error.response?.data?.message || "Gagal memperbarui jasa";
@@ -411,7 +447,9 @@ onMounted(() => {
 
         <!-- Loading State -->
         <div v-if="loadingData" class="flex justify-center items-center py-20">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-merchant-primary"></div>
+          <div
+            class="animate-spin rounded-full h-12 w-12 border-b-2 border-merchant-primary"
+          ></div>
         </div>
 
         <Form
@@ -420,15 +458,19 @@ onMounted(() => {
           :validationSchema="validationSchema"
           :initialValues="formData"
           @submit="submitForm"
-          v-slot="{ handleSubmit, errors, setFieldValue }"
+          v-slot="{ handleSubmit }"
         >
           <form @submit.prevent="handleSubmit(submitForm)" class="space-y-6">
             <!-- 1. KLASIFIKASI LAYANAN -->
             <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">1. Klasifikasi Layanan</h2>
+              <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                1. Klasifikasi Layanan
+              </h2>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Nama Layanan <span class="text-red-500">*</span></label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1"
+                    >Nama Layanan <span class="text-red-500">*</span></label
+                  >
                   <input
                     v-model="formData.title"
                     type="text"
@@ -442,7 +484,12 @@ onMounted(() => {
                   name="jasa_category_id"
                   label="Pilih Kategori Utama"
                   placeholder="Pilih kategori..."
-                  :options="jasaCategories.map(c => ({ value: c.value ?? c.id, label: c.label ?? c.name }))"
+                  :options="
+                    jasaCategories.map((c) => ({
+                      value: c.value ?? c.id,
+                      label: c.label ?? c.name,
+                    }))
+                  "
                   v-model="formData.jasa_category_id"
                   @update:modelValue="handleCategoryChange"
                   required
@@ -452,13 +499,20 @@ onMounted(() => {
                   name="jasa_subcategory_id"
                   label="Pilih Jenis Layanan Lebih Spesifik"
                   placeholder="Pilih sub kategori..."
-                  :options="jasaSubcategories.map(s => ({ value: s.value ?? s.id, label: s.label ?? s.name }))"
+                  :options="
+                    jasaSubcategories.map((s) => ({
+                      value: s.value ?? s.id,
+                      label: s.label ?? s.name,
+                    }))
+                  "
                   v-model="formData.jasa_subcategory_id"
                 />
 
                 <Field name="description" v-slot="{ field }">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Jelaskan Layanan Anda</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1"
+                      >Jelaskan Layanan Anda</label
+                    >
                     <textarea
                       v-bind="field"
                       placeholder="Tuliskan detail tentang layanan yang Anda tawarkan..."
@@ -472,39 +526,53 @@ onMounted(() => {
 
             <!-- 2. HARGA -->
             <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">2. Pengaturan Harga</h2>
+              <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                2. Pengaturan Harga
+              </h2>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field name="fixed_price" v-slot="{ field, errors }">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Harga Tetap</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1"
+                      >Harga Tetap</label
+                    >
                     <div class="relative">
                       <input
                         :value="formatCurrency(field.value || 0)"
-                        @input="(e) => field.onChange(parseCurrency(e.target.value))"
+                        @input="
+                          (e) => field.onChange(parseCurrency(e.target.value))
+                        "
                         @blur="field.onBlur"
                         type="text"
                         placeholder="0"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary"
                       />
                     </div>
-                    <p v-if="errors[0]" class="text-red-500 text-sm mt-1">{{ errors[0] }}</p>
+                    <p v-if="errors[0]" class="text-red-500 text-sm mt-1">
+                      {{ errors[0] }}
+                    </p>
                   </div>
                 </Field>
 
                 <Field name="base_price" v-slot="{ field, errors }">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Harga Mulai Dari</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1"
+                      >Harga Mulai Dari</label
+                    >
                     <div class="relative">
                       <input
                         :value="formatCurrency(field.value || 0)"
-                        @input="(e) => field.onChange(parseCurrency(e.target.value))"
+                        @input="
+                          (e) => field.onChange(parseCurrency(e.target.value))
+                        "
                         @blur="field.onBlur"
                         type="text"
                         placeholder="0"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary"
                       />
                     </div>
-                    <p v-if="errors[0]" class="text-red-500 text-sm mt-1">{{ errors[0] }}</p>
+                    <p v-if="errors[0]" class="text-red-500 text-sm mt-1">
+                      {{ errors[0] }}
+                    </p>
                   </div>
                 </Field>
               </div>
@@ -512,22 +580,33 @@ onMounted(() => {
 
             <!-- 3. GAMBAR -->
             <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">3. Gambar</h2>
-              
+              <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                3. Gambar
+              </h2>
+
               <!-- Existing Images -->
               <div v-if="existingImages.length" class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                <label
+                  class="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2"
+                >
                   <i class="pi pi-images text-gray-400 text-sm"></i>
                   <span>Gambar Saat Ini</span>
                 </label>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div v-for="(image, idx) in existingImages" :key="image.id ?? idx" class="relative group">
-                    <div v-if="!imagesToRemove.includes(image.id)" class="relative">
-                      <img 
-                        :src="getImageUrl(image.path || image.id)" 
-                        alt="preview" 
+                  <div
+                    v-for="(image, idx) in existingImages"
+                    :key="image.id ?? idx"
+                    class="relative group"
+                  >
+                    <div
+                      v-if="!imagesToRemove.includes(image.id)"
+                      class="relative"
+                    >
+                      <img
+                        :src="getImageUrl(image.path || image.id)"
+                        alt="preview"
                         class="w-full h-28 object-cover rounded border border-gray-200 bg-gray-50"
-                        @error="(e) => e.target.style.display = 'none'"
+                        @error="(e) => (e.target.style.display = 'none')"
                       />
                       <span
                         v-if="image.is_cover"
@@ -549,7 +628,10 @@ onMounted(() => {
                         <i class="pi pi-times text-xs"></i>
                       </button>
                     </div>
-                    <div v-else class="w-full h-28 bg-gray-100 rounded border flex items-center justify-center">
+                    <div
+                      v-else
+                      class="w-full h-28 bg-gray-100 rounded border flex items-center justify-center"
+                    >
                       <div class="text-center">
                         <i class="pi pi-trash text-gray-400 text-xl mb-1"></i>
                         <p class="text-xs text-gray-500">Akan dihapus</p>
@@ -558,11 +640,13 @@ onMounted(() => {
                   </div>
                 </div>
               </div>
-              
+
               <!-- Upload New Images -->
               <div class="space-y-3">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                  <label
+                    class="text-sm font-medium text-gray-700 mb-1 flex items-center gap-2"
+                  >
                     <i class="pi pi-image text-gray-400 text-sm"></i>
                     <span>Unggah Gambar Baru (opsional)</span>
                   </label>
@@ -573,10 +657,15 @@ onMounted(() => {
                     @change="handleNewImageChange"
                     class="block w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-merchant-primary/10 file:text-merchant-primary hover:file:bg-merchant-primary/20"
                   />
-                  <p class="text-xs text-gray-500 mt-1">Gambar baru akan ditambahkan ke gambar yang ada.</p>
+                  <p class="text-xs text-gray-500 mt-1">
+                    Gambar baru akan ditambahkan ke gambar yang ada.
+                  </p>
                 </div>
 
-                <div v-if="newImageFiles.length" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div
+                  v-if="newImageFiles.length"
+                  class="grid grid-cols-2 sm:grid-cols-4 gap-3"
+                >
                   <div
                     v-for="(file, idx) in newImageFiles"
                     :key="idx"
@@ -604,7 +693,9 @@ onMounted(() => {
 
             <!-- 4. LOKASI -->
             <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">4. Lokasi & Area Layanan</h2>
+              <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                4. Lokasi & Area Layanan
+              </h2>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <SelectField
                   name="service_type"
@@ -619,7 +710,9 @@ onMounted(() => {
                 />
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Alamat Tempat Layanan</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1"
+                    >Alamat Tempat Layanan</label
+                  >
                   <input
                     v-model="formData.location_address"
                     type="text"
@@ -627,15 +720,18 @@ onMounted(() => {
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary"
                   />
                 </div>
-
               </div>
             </div>
 
             <!-- 5. HARI LAYANAN -->
             <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">5. Hari Layanan</h2>
+              <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                5. Hari Layanan
+              </h2>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-3">Pilih Hari Buka Layanan</label>
+                <label class="block text-sm font-medium text-gray-700 mb-3"
+                  >Pilih Hari Buka Layanan</label
+                >
                 <div class="flex flex-wrap gap-2">
                   <button
                     v-for="day in dayOptions"
@@ -646,7 +742,7 @@ onMounted(() => {
                     :class="[
                       selectedDays.includes(day.value)
                         ? 'bg-merchant-primary text-white border-merchant-primary'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary',
                     ]"
                   >
                     {{ day.label }}
@@ -661,21 +757,33 @@ onMounted(() => {
 
             <!-- 6. JAM LAYANAN (OPTIONAL) -->
             <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">6. Jam Layanan <span class="text-sm font-normal text-gray-500">(Opsional)</span></h2>
+              <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                6. Jam Layanan
+                <span class="text-sm font-normal text-gray-500"
+                  >(Opsional)</span
+                >
+              </h2>
               <p class="text-sm text-gray-600 mb-4">
-                Pilih jam-jam yang tersedia untuk layanan Anda. Kosongkan jika tidak ingin membatasi jam.
+                Pilih jam-jam yang tersedia untuk layanan Anda. Kosongkan jika
+                tidak ingin membatasi jam.
               </p>
-              
+
               <!-- Pagi -->
               <div class="mb-4">
                 <div class="flex items-center justify-between mb-2">
-                  <span class="text-sm font-medium text-gray-700">Pagi (06.00 - 11.30)</span>
+                  <span class="text-sm font-medium text-gray-700"
+                    >Pagi (06.00 - 11.30)</span
+                  >
                   <button
                     type="button"
                     @click="selectAllPeriod('morning')"
                     class="text-xs text-merchant-primary hover:underline"
                   >
-                    {{ isAllPeriodSelected('morning') ? 'Hapus Semua' : 'Pilih Semua' }}
+                    {{
+                      isAllPeriodSelected("morning")
+                        ? "Hapus Semua"
+                        : "Pilih Semua"
+                    }}
                   </button>
                 </div>
                 <div class="flex flex-wrap gap-2">
@@ -688,24 +796,30 @@ onMounted(() => {
                     :class="[
                       selectedTimes.includes(time.value)
                         ? 'bg-merchant-primary text-white border-merchant-primary'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary',
                     ]"
                   >
                     {{ time.label }}
                   </button>
                 </div>
               </div>
-              
+
               <!-- Siang -->
               <div class="mb-4">
                 <div class="flex items-center justify-between mb-2">
-                  <span class="text-sm font-medium text-gray-700">Siang (12.00 - 17.00)</span>
+                  <span class="text-sm font-medium text-gray-700"
+                    >Siang (12.00 - 17.00)</span
+                  >
                   <button
                     type="button"
                     @click="selectAllPeriod('afternoon')"
                     class="text-xs text-merchant-primary hover:underline"
                   >
-                    {{ isAllPeriodSelected('afternoon') ? 'Hapus Semua' : 'Pilih Semua' }}
+                    {{
+                      isAllPeriodSelected("afternoon")
+                        ? "Hapus Semua"
+                        : "Pilih Semua"
+                    }}
                   </button>
                 </div>
                 <div class="flex flex-wrap gap-2">
@@ -718,24 +832,30 @@ onMounted(() => {
                     :class="[
                       selectedTimes.includes(time.value)
                         ? 'bg-merchant-primary text-white border-merchant-primary'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary',
                     ]"
                   >
                     {{ time.label }}
                   </button>
                 </div>
               </div>
-              
+
               <!-- Malam -->
               <div>
                 <div class="flex items-center justify-between mb-2">
-                  <span class="text-sm font-medium text-gray-700">Malam (17.30 - 21.00)</span>
+                  <span class="text-sm font-medium text-gray-700"
+                    >Malam (17.30 - 21.00)</span
+                  >
                   <button
                     type="button"
                     @click="selectAllPeriod('evening')"
                     class="text-xs text-merchant-primary hover:underline"
                   >
-                    {{ isAllPeriodSelected('evening') ? 'Hapus Semua' : 'Pilih Semua' }}
+                    {{
+                      isAllPeriodSelected("evening")
+                        ? "Hapus Semua"
+                        : "Pilih Semua"
+                    }}
                   </button>
                 </div>
                 <div class="flex flex-wrap gap-2">
@@ -748,45 +868,62 @@ onMounted(() => {
                     :class="[
                       selectedTimes.includes(time.value)
                         ? 'bg-merchant-primary text-white border-merchant-primary'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary',
                     ]"
                   >
                     {{ time.label }}
                   </button>
                 </div>
               </div>
-              
+
               <p class="text-xs text-gray-500 mt-3">
                 <i class="pi pi-info-circle mr-1"></i>
-                {{ selectedTimes.length > 0 ? `${selectedTimes.length} waktu dipilih` : 'Tidak ada waktu dipilih (tersedia kapan saja)' }}
+                {{
+                  selectedTimes.length > 0
+                    ? `${selectedTimes.length} waktu dipilih`
+                    : "Tidak ada waktu dipilih (tersedia kapan saja)"
+                }}
               </p>
             </div>
 
             <!-- 7. PEMBAYARAN -->
             <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">7. Pembayaran</h2>
+              <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                7. Pembayaran
+              </h2>
               <div class="space-y-4">
                 <!-- Metode Pembayaran -->
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-3">Metode Pembayaran yang Diterima</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-3"
+                    >Metode Pembayaran yang Diterima</label
+                  >
                   <div class="space-y-2">
                     <div class="flex items-center gap-3">
                       <input
                         type="checkbox"
                         id="payment_cod"
                         :checked="formData.payment_methods.includes('cod')"
-                        @change="(e) => {
-                          const methods = formData.payment_methods.split(',').filter(m => m).map(m => m.trim());
-                          if (e.target.checked) {
-                            if (!methods.includes('cod')) methods.push('cod');
-                          } else {
-                            methods.splice(methods.indexOf('cod'), 1);
+                        @change="
+                          (e) => {
+                            const methods = formData.payment_methods
+                              .split(',')
+                              .filter((m) => m)
+                              .map((m) => m.trim());
+                            if (e.target.checked) {
+                              if (!methods.includes('cod')) methods.push('cod');
+                            } else {
+                              methods.splice(methods.indexOf('cod'), 1);
+                            }
+                            formData.payment_methods = methods.length
+                              ? methods.join(',')
+                              : 'cod';
                           }
-                          formData.payment_methods = methods.length ? methods.join(',') : 'cod';
-                        }"
+                        "
                         class="w-4 h-4 text-merchant-primary rounded"
                       />
-                      <label for="payment_cod" class="text-sm text-gray-700">COD (Bayar di Tempat)</label>
+                      <label for="payment_cod" class="text-sm text-gray-700"
+                        >COD (Bayar di Tempat)</label
+                      >
                     </div>
                   </div>
                 </div>
@@ -819,7 +956,12 @@ onMounted(() => {
               >
                 Batal
               </Button>
-              <Button type="submit" variant="primary" :disabled="loading" :loading="loading">
+              <Button
+                type="submit"
+                variant="primary"
+                :disabled="loading"
+                :loading="loading"
+              >
                 {{ loading ? "Menyimpan..." : "Simpan Perubahan" }}
               </Button>
             </div>

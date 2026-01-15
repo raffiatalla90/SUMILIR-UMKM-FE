@@ -33,9 +33,9 @@ const {
   editBulkStatus,
 } = useVouchers();
 
-const currentMerchantId = computed(() => {
-  return route.params && route.params.merchantId
-    ? Number(route.params.merchantId)
+const currentMerchantSlug = computed(() => {
+  return route.params && route.params.merchantSlug
+    ? String(route.params.merchantSlug)
     : null;
 });
 
@@ -227,7 +227,7 @@ const confirmBulkStatusChange = async () => {
 
   try {
     await editBulkStatus(
-      currentMerchantId.value,
+      currentMerchantSlug.value,
       selectedVouchers.value,
       newBulkStatus.value
     );
@@ -247,11 +247,11 @@ const closeBulkStatusChangeModal = () => {
 };
 
 const loadVouchers = async () => {
-  if (!currentMerchantId.value) return;
+  if (!currentMerchantSlug.value) return;
 
   const sortBy = buildSortByParam(activeFilters.value);
 
-  await fetchMerchantVouchers(currentMerchantId.value, {
+  await fetchMerchantVouchers(currentMerchantSlug.value, {
     q: searchQuery.value || undefined,
     page: currentPage.value,
     per_page: perPage.value,
@@ -305,31 +305,31 @@ const toggleVoucherSelection = (voucherId) => {
 const goToCreate = () => {
   router.push({
     name: "Merchant - Buat Voucher",
-    params: { merchantId: currentMerchantId.value },
+    params: { merchantSlug: currentMerchantSlug.value },
   });
 };
 
 const goToEdit = (voucher) => {
-  if (!currentMerchantId.value || !voucher?.id) return;
+  if (!currentMerchantSlug.value || !voucher?.id) return;
 
   router.push({
     name: "Merchant - Voucher Edit",
     params: {
-      merchantId: currentMerchantId.value,
+      merchantSlug: currentMerchantSlug.value,
       id: voucher.id,
     },
   });
 };
 
 const goToDetail = async (voucher) => {
-  if (!currentMerchantId.value || !voucher?.id) return;
+  if (!currentMerchantSlug.value || !voucher?.id) return;
 
   try {
     showDetailModal.value = true;
     selectedVoucherDetail.value = null;
 
     const res = await fetchMerchantVoucherDetail(
-      currentMerchantId.value,
+      currentMerchantSlug.value,
       voucher.id
     );
 
@@ -346,11 +346,11 @@ const deleteVoucherAction = (voucher) => {
 };
 
 const confirmDeleteVoucher = async () => {
-  if (!selectedVoucherForDelete.value || !currentMerchantId.value) return;
+  if (!selectedVoucherForDelete.value || !currentMerchantSlug.value) return;
 
   try {
     await deleteMerchantVoucher(
-      currentMerchantId.value,
+      currentMerchantSlug.value,
       selectedVoucherForDelete.value.id
     );
 
@@ -377,7 +377,7 @@ const confirmSingleStatusChange = async () => {
 
   try {
     await editMerchantVoucherStatus(
-      currentMerchantId.value,
+      currentMerchantSlug.value,
       selectedVoucherForStatusChange.value.id,
       newStatusForChange.value
     );
@@ -411,7 +411,7 @@ const confirmBulkDelete = async () => {
 
   try {
     await bulkDeleteMerchantVoucher(
-      currentMerchantId.value,
+      currentMerchantSlug.value,
       selectedVouchers.value
     );
 
@@ -448,12 +448,12 @@ const prevPage = () => {
 };
 
 onMounted(() => {
-  if (currentMerchantId.value) {
+  if (currentMerchantSlug.value) {
     loadVouchers();
   }
 });
 watch(
-  currentMerchantId,
+  currentMerchantSlug,
   (newVal) => {
     if (newVal) {
       currentPage.value = 1;
@@ -493,7 +493,7 @@ onBeforeRouteLeave(() => {
         <div>
           <Breadcrumb
             :items="breadcrumbItems"
-            :merchantId="currentMerchantId"
+            :merchantId="currentMerchantSlug"
           />
           <p class="mt-1 text-xs sm:text-sm text-muted-foreground">
             Kelola voucher promo.

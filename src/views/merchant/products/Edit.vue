@@ -6,6 +6,7 @@ import { ref, computed, watch, onMounted, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
+import { useAuthStore } from "@/stores/auth";
 import api from "@/libs/axios";
 import { Form, useForm } from "vee-validate";
 import * as yup from "yup";
@@ -30,6 +31,7 @@ import { useProductAddons } from "@/composables/product/forms/useProductAddons";
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
+const authStore = useAuthStore();
 
 const MAX_IMAGES = 6;
 const MAX_IMAGE_SIZE_MB = 5;
@@ -41,11 +43,23 @@ const maxAddOnGroups = 10;
 const maxAddOnOptions = 10;
 
 const productSlug = computed(() => route.params.slug);
+const currentMerchantSlug = computed(() => {
+  return route.params.merchantSlug
+    ? String(route.params.merchantSlug)
+    : authStore.merchantSlug || null;
+});
 const currentMerchantId = ref(null);
 
 watch(
-  () => route.params?.merchantId,
-  (v) => (currentMerchantId.value = v ? Number(v) : null),
+  () => route.params?.merchantSlug,
+  (slug) => {
+    const slugValue = slug ? String(slug) : authStore.merchantSlug;
+    const merchant = slugValue
+      ? authStore.getMerchantBySlug(slugValue)
+      : authStore.activeMerchant;
+
+    currentMerchantId.value = merchant?.id ?? null;
+  },
   { immediate: true }
 );
 
@@ -305,7 +319,7 @@ const populateFormFromProduct = async (product) => {
   } else {
     // Produk tanpa variants - populate SKU, price, stock
     useVariants.value = false;
-    
+
     // Jika ada 1 variant di backend (hasil dari variant OFF), ambil datanya
     if (product.variants?.length === 1) {
       const variant = product.variants[0];
@@ -348,12 +362,17 @@ const populateFormFromProduct = async (product) => {
 const fetchProductData = async () => {
   loadingData.value = true;
   try {
-    const product = await fetchProductDetail(productSlug.value);
+    if (!currentMerchantSlug.value)
+      throw new Error("merchantSlug tidak ditemukan");
+    const product = await fetchProductDetail(
+      currentMerchantSlug.value,
+      productSlug.value
+    );
     await populateFormFromProduct(product);
   } catch (error) {
     console.error("Fetch product error:", error);
     toast.error("Gagal memuat produk");
-    router.push(`/merchant-center/${currentMerchantId.value}/products`);
+    router.push(`/merchant-center/${currentMerchantSlug.value}/products`);
   } finally {
     loadingData.value = false;
   }
@@ -662,16 +681,28 @@ const onSubmit = handleSubmit(
         }
       });
 
+      if (!currentMerchantSlug.value)
+        throw new Error("merchantSlug tidak ditemukan");
+
+      // Laravel route expects PUT/PATCH; use method override for multipart
+      if (typeof formData.has === "function" && !formData.has("_method")) {
+        formData.append("_method", "PUT");
+      }
+
       // ✅ API Call
-      await api.post(`/api/products/${productSlug.value}`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      await api.post(
+        `/api/merchant/${currentMerchantSlug.value}/products/${productSlug.value}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
 
       toast.success("Produk berhasil diperbarui");
       // Redirect setelah update
-      router.push(`/merchant-center/${currentMerchantId.value}/products`);
+      router.push(`/merchant-center/${currentMerchantSlug.value}/products`);
     } catch (error) {
       if (error.response?.status === 422) {
         const data = error.response.data;
@@ -775,7 +806,7 @@ onMounted(async () => {
 const breadcrumbItems = computed(() => [
   {
     label: "Produk",
-    path: `/merchant-center/${currentMerchantId.value}/products`,
+    path: `/merchant-center/${currentMerchantSlug.value}/products`,
   },
   {
     label: "Edit Produk",
@@ -811,7 +842,7 @@ const formMinPurchase = computed({
           <!-- ✅ Use Breadcrumb Component -->
           <Breadcrumb
             :items="breadcrumbItems"
-            :merchantId="currentMerchantId"
+            :merchantId="currentMerchantSlug"
           />
           <p class="text-xs text-muted-foreground lg:text-sm">
             {{ loadingData ? "Memuat data produk..." : name || "Edit Produk" }}
@@ -1147,7 +1178,7 @@ const formMinPurchase = computed({
                   <button
                     @click="removeVariant(vIndex)"
                     type="button"
-                    class="flex items-center justify-center flex-shrink-0 w-8 h-8 transition rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100"
+                    class="flex items-center justify-center shrink-0 w-8 h-8 transition rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100"
                   >
                     <i class="text-sm pi pi-trash"></i>
                   </button>
@@ -1181,7 +1212,7 @@ const formMinPurchase = computed({
                     </div>
                     <div
                       :class="[
-                        'relative w-11 h-6 rounded-full transition flex-shrink-0',
+                        'relative w-11 h-6 rounded-full transition shrink-0',
                         variantUsesImages[variant.clientKey]
                           ? 'bg-merchant-primary'
                           : 'bg-gray-300',
@@ -1268,7 +1299,7 @@ const formMinPurchase = computed({
                       >
                         <div class="flex items-start gap-2.5">
                           <div
-                            class="w-7 h-7 rounded-lg bg-merchant-primary text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5"
+                            class="w-7 h-7 rounded-lg bg-merchant-primary text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5"
                           >
                             {{ oIndex + 1 }}
                           </div>
@@ -1353,7 +1384,7 @@ const formMinPurchase = computed({
                             v-if="variant.options.length > 1"
                             @click="removeOption(vIndex, oIndex)"
                             type="button"
-                            class="w-8 h-8 rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100 flex items-center justify-center transition flex-shrink-0 mt-0.5"
+                            class="w-8 h-8 rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100 flex items-center justify-center transition shrink-0 mt-0.5"
                           >
                             <i class="text-sm pi pi-times"></i>
                           </button>
@@ -1523,7 +1554,7 @@ const formMinPurchase = computed({
                   <button
                     @click="removeAddOnGroupEdit(gIndex)"
                     type="button"
-                    class="flex items-center justify-center flex-shrink-0 w-8 h-8 transition rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100"
+                    class="flex items-center justify-center shrink-0 w-8 h-8 transition rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100"
                   >
                     <i class="text-sm pi pi-trash"></i>
                   </button>
@@ -1713,7 +1744,7 @@ const formMinPurchase = computed({
                       >
                         <div class="flex items-start gap-2.5">
                           <div
-                            class="w-7 h-7 rounded-lg bg-merchant-primary text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5"
+                            class="w-7 h-7 rounded-lg bg-merchant-primary text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5"
                           >
                             {{ oIndex + 1 }}
                           </div>
@@ -1755,7 +1786,7 @@ const formMinPurchase = computed({
                             v-if="group.options.length > 1"
                             @click="removeAddOnOption(gIndex, oIndex)"
                             type="button"
-                            class="w-8 h-8 rounded-lg bg-white border border-gray-300 hover:bg-red-50 hover:border-red-300 hover:text-red-600 flex items-center justify-center transition flex-shrink-0 mt-0.5"
+                            class="w-8 h-8 rounded-lg bg-white border border-gray-300 hover:bg-red-50 hover:border-red-300 hover:text-red-600 flex items-center justify-center transition shrink-0 mt-0.5"
                           >
                             <i class="text-sm pi pi-times"></i>
                           </button>
@@ -1926,7 +1957,7 @@ const formMinPurchase = computed({
         >
           <div class="flex items-start gap-3 mb-3">
             <div
-              class="w-5 h-5 rounded border-2 flex items-center justify-center transition flex-shrink-0 mt-0.5"
+              class="w-5 h-5 rounded border-2 flex items-center justify-center transition shrink-0 mt-0.5"
               :class="
                 selectedCombinations.has(cIndex)
                   ? 'bg-merchant-primary border-merchant-primary'

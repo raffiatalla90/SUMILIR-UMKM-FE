@@ -15,14 +15,21 @@ const isOpen = ref(false);
 const notificationCount = ref(12);
 const showLogoutModal = ref(false);
 
-// ✅ Get merchantId dari route params
-const currentMerchantId = computed(() => {
+// ✅ Get merchantSlug dari route params (URL menggunakan slug)
+const currentMerchantSlug = computed(() => {
   if (!route || !route.params || typeof route.params !== "object") {
-    return authStore.merchantId;
+    return authStore.merchantSlug;
   }
-  return route.params.merchantId
-    ? Number(route.params.merchantId)
-    : authStore.merchantId;
+
+  return route.params.merchantSlug
+    ? String(route.params.merchantSlug)
+    : authStore.merchantSlug;
+});
+
+// ✅ Derive merchantId dari slug (untuk API yang masih pakai id)
+const currentMerchantId = computed(() => {
+  const merchant = authStore.getMerchantBySlug(currentMerchantSlug.value);
+  return merchant?.id ?? authStore.merchantId;
 });
 
 // ✅ Get merchant data berdasarkan merchantId di route
@@ -55,8 +62,10 @@ const showMerchantSelector = computed(() => merchantsCount.value > 1);
 watch(
   () => (route && route.params ? route.params : {}),
   (params) => {
-    if (!params?.merchantId) return;
-    authStore.setActiveMerchant(Number(params.merchantId));
+    if (!params?.merchantSlug) return;
+    const merchant = authStore.getMerchantBySlug(String(params.merchantSlug));
+    if (!merchant?.id) return;
+    authStore.setActiveMerchant(Number(merchant.id));
   },
   { immediate: true }
 );
@@ -66,7 +75,7 @@ const menuItems = computed(() => [
   {
     label: "Dashboard",
     icon: "pi-chart-bar",
-    route: `/merchant-center/${currentMerchantId.value}/dashboard`,
+    route: `/merchant-center/${currentMerchantSlug.value}/dashboard`,
   },
   // {
   //   label: "Pesanan",
@@ -76,7 +85,7 @@ const menuItems = computed(() => [
   {
     label: "Produk",
     icon: "pi-box",
-    route: `/merchant-center/${currentMerchantId.value}/products`,
+    route: `/merchant-center/${currentMerchantSlug.value}/products`,
   },
   // {
   //   label: "Komunitas",
@@ -86,7 +95,7 @@ const menuItems = computed(() => [
   {
     label: "Voucher",
     icon: "pi-tag",
-    route: `/merchant-center/${currentMerchantId.value}/vouchers`,
+    route: `/merchant-center/${currentMerchantSlug.value}/vouchers`,
   },
 ]);
 
@@ -295,7 +304,7 @@ defineExpose({
           ]"
           :title="!isOpen ? 'Log Out' : ''"
         >
-          <i class="flex-shrink-0 text-lg pi pi-sign-out"></i>
+          <i class="shrink-0 text-lg pi pi-sign-out"></i>
           <span
             :class="[
               'transition-all duration-300',
@@ -315,7 +324,7 @@ defineExpose({
         >
           <div class="flex items-center gap-3">
             <div
-              class="flex items-center justify-center flex-shrink-0 w-10 h-10 text-lg font-bold rounded-full bg-white/20"
+              class="flex items-center justify-center shrink-0 w-10 h-10 text-lg font-bold rounded-full bg-white/20"
             >
               {{ userInitial }}
             </div>
@@ -340,9 +349,9 @@ defineExpose({
 
             <button
               @click="
-                navigateTo(`/merchant-center/${currentMerchantId}/profile`)
+                navigateTo(`/merchant-center/${currentMerchantSlug}/profile`)
               "
-              class="flex items-center justify-center flex-shrink-0 w-6 h-6 transition rounded-full hover:bg-white/20"
+              class="flex items-center justify-center shrink-0 w-6 h-6 transition rounded-full hover:bg-white/20"
               title="Pengaturan"
             >
               <i class="text-sm pi pi-ellipsis-v"></i>
@@ -354,7 +363,7 @@ defineExpose({
             v-if="false"
             class="pt-2 mt-2 text-xs border-t opacity-75 border-white/20"
           >
-            <div>Route Merchant ID: {{ currentMerchantId }}</div>
+            <div>Route Merchant Slug: {{ currentMerchantSlug }}</div>
             <div>Merchant Name: {{ merchantName }}</div>
             <div>Merchant Type: {{ merchantType }}</div>
           </div>

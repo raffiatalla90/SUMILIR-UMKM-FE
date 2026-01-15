@@ -98,15 +98,15 @@ export function useVouchers() {
    * Merchant VOUCHERS
    * ===================================================== */
 
-  const fetchMerchantVouchers = async (id, params = {}) => {
-    if (!id) {
-      toast.error("Merchant ID diperlukan untuk memuat voucher");
-      throw new Error("Merchant ID is required to fetch vouchers");
+  const fetchMerchantVouchers = async (merchantSlug, params = {}) => {
+    if (!merchantSlug) {
+      toast.error("Merchant slug diperlukan untuk memuat voucher");
+      throw new Error("Merchant slug is required to fetch vouchers");
     }
 
     loading.value = true;
     try {
-      const res = await voucherApi.getMerchantVouchers(id, params);
+      const res = await voucherApi.getMerchantVouchers(merchantSlug, params);
       vouchers.value = res.data || [];
       pagination.value = res.meta || pagination.value;
       if (isDev) {
@@ -129,16 +129,18 @@ export function useVouchers() {
     }
   };
 
-  const fetchMerchantVoucherDetail = async (merchantId, voucherId) => {
-    if (!merchantId || !voucherId) {
-      toast.error("ID Merchant dan Voucher diperlukan untuk memuat detail");
-      throw new Error("Merchant ID and Voucher ID are required");
+  const fetchMerchantVoucherDetail = async (merchantSlug, voucherId) => {
+    if (!merchantSlug || !voucherId) {
+      toast.error(
+        "Merchant slug dan ID voucher diperlukan untuk memuat detail"
+      );
+      throw new Error("Merchant slug and voucher ID are required");
     }
     if (loadingDetail.value) return;
     loadingDetail.value = true;
     try {
       const voucher = await voucherApi.getMerchantVoucherDetail(
-        merchantId,
+        merchantSlug,
         voucherId
       );
       if (isDev) {
@@ -161,10 +163,10 @@ export function useVouchers() {
     }
   };
 
-  const createMerchantVoucher = async (merchantId, payload) => {
+  const createMerchantVoucher = async (merchantSlug, payload) => {
     try {
       const voucher = await voucherApi.createMerchantVoucher(
-        merchantId,
+        merchantSlug,
         payload
       );
       toast.success("Voucher berhasil dibuat");
@@ -182,10 +184,10 @@ export function useVouchers() {
     }
   };
 
-  const editMerchantVoucher = async (merchantId, voucherId, payload) => {
+  const editMerchantVoucher = async (merchantSlug, voucherId, payload) => {
     try {
       const voucher = await voucherApi.editMerchantVoucher(
-        merchantId,
+        merchantSlug,
         voucherId,
         payload
       );
@@ -205,11 +207,11 @@ export function useVouchers() {
     }
   };
 
-  const editMerchantVoucherStatus = async (merchantId, voucherId, status) => {
+  const editMerchantVoucherStatus = async (merchantSlug, voucherId, status) => {
     loading.value = true;
     try {
       const voucher = await voucherApi.editStatus(
-        merchantId,
+        merchantSlug,
         voucherId,
         status
       );
@@ -238,14 +240,14 @@ export function useVouchers() {
     }
   };
 
-  const deleteMerchantVoucher = async (merchantId, voucherId) => {
+  const deleteMerchantVoucher = async (merchantSlug, voucherId) => {
     try {
-      await voucherApi.deleteMerchantVoucher(merchantId, voucherId);
+      await voucherApi.deleteMerchantVoucher(merchantSlug, voucherId);
       toast.success("Voucher berhasil dihapus");
       if (isDev) {
         console.log(
           "[useVouchers] Deleted merchant voucher:",
-          merchantId,
+          merchantSlug,
           voucherId
         );
       }
@@ -260,14 +262,14 @@ export function useVouchers() {
     }
   };
 
-  const bulkDeleteMerchantVoucher = async (merchantId, voucherIds = []) => {
+  const bulkDeleteMerchantVoucher = async (merchantSlug, voucherIds = []) => {
     loading.value = true;
     try {
-      await voucherApi.bulkDeleteMerchantVoucher(merchantId, voucherIds);
+      await voucherApi.bulkDeleteMerchantVoucher(merchantSlug, voucherIds);
       if (isDev) {
         console.log(
           "[useVouchers] Bulk deleted merchant vouchers:",
-          merchantId,
+          merchantSlug,
           voucherIds
         );
       }
@@ -288,14 +290,14 @@ export function useVouchers() {
     }
   };
 
-  const editBulkStatus = async (merchantId, voucherIds = [], status) => {
+  const editBulkStatus = async (merchantSlug, voucherIds = [], status) => {
     loading.value = true;
     try {
-      await voucherApi.editBulkStatus(merchantId, voucherIds, status);
+      await voucherApi.editBulkStatus(merchantSlug, voucherIds, status);
       if (isDev) {
         console.log(
           "[useVouchers] Bulk edited merchant voucher statuses:",
-          merchantId,
+          merchantSlug,
           voucherIds,
           status
         );
@@ -320,10 +322,10 @@ export function useVouchers() {
   /* =====================================================
    * Customer VOUCHERS
    * ===================================================== */
-  const fetchVouchersByMerchant = async (merchantId) => {
+  const fetchVouchersByMerchant = async (merchantSlug) => {
     loading.value = true;
     try {
-      const res = await voucherApi.getVouchersByMerchant(merchantId);
+      const res = await voucherApi.getVouchersByMerchant(merchantSlug);
       vouchers.value = res.data || [];
       if (isDev) {
         console.log(

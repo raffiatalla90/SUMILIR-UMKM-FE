@@ -5,7 +5,13 @@
       class="fixed top-0 left-0 right-0 z-50 flex items-center justify-center px-4 py-6 text-white sm:hidden bg-merchant-primary rounded-b-2xl"
     >
       <button
-        @click="router.push(`/merchant-center/${merchantId}/profile`)"
+        @click="
+          router.push(
+            merchantSlug
+              ? `/merchant-center/${merchantSlug}/profile`
+              : '/merchant-profile'
+          )
+        "
         class="absolute flex items-center justify-center w-10 h-10 transition rounded-full left-4 hover:bg-white/10"
       >
         <i class="text-xl pi pi-arrow-left"></i>
@@ -21,7 +27,7 @@
         >
           <div>
             <!-- Breadcrumb Component -->
-            <Breadcrumb :items="breadcrumbItems" :merchantId="merchantId" />
+            <Breadcrumb :items="breadcrumbItems" :merchantId="merchantSlug" />
             <p class="mt-1 text-xs text-muted-foreground lg:text-sm">
               Perbarui informasi toko Anda.
             </p>
@@ -85,12 +91,31 @@
         class="mx-4 mb-4 overflow-hidden bg-white shadow-sm sm:hidden rounded-2xl"
       >
         <!-- Cover Image -->
-        <div class="relative h-40">
+        <div
+          class="relative w-full overflow-hidden aspect-[24/9] lg:aspect-[4/1]"
+        >
           <img
+            v-if="hasFormCover"
             :src="form.coverImage"
             alt="Cover"
-            class="object-cover w-full h-full"
+            class="absolute inset-0 object-cover w-full h-full"
+            @error="onCoverImgError"
           />
+          <div
+            v-else
+            class="absolute inset-0 flex items-center justify-center bg-linear-to-br from-muted-background to-muted-foreground"
+            aria-hidden="true"
+          >
+            <svg
+              class="w-10 h-10 text-white"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM5 19V5h14v14H5zm8-7a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm-6 7l3-4 2.5 3 3.5-5 4 6H7z"
+              />
+            </svg>
+          </div>
           <button
             @click="handleUploadCover"
             class="absolute flex items-center justify-center w-10 h-10 text-white transition-opacity rounded-full shadow-lg top-3 right-3 bg-merchant-primary hover:opacity-90"
@@ -104,10 +129,27 @@
           <div class="absolute -top-12 left-4">
             <div class="relative">
               <img
+                v-if="hasFormLogo"
                 :src="form.logo"
                 alt="Logo"
-                class="object-cover w-24 h-24 border-4 border-white rounded-full shadow-lg"
+                class="object-cover w-24 h-24 border-4 border-white shadow-lg rounded-2xl"
+                @error="onLogoImgError"
               />
+              <span
+                v-else
+                class="flex items-center justify-center w-24 h-24 bg-gray-100 border-4 border-white shadow-lg rounded-2xl"
+                aria-hidden="true"
+              >
+                <svg
+                  class="w-10 h-10 text-gray-300"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M20 4H4v2h16V4zm1 10v-2l-1-5H4l-1 5v2h1v6h10v-6h4v6h2v-6h1zm-9 6H6v-6h6v6z"
+                  />
+                </svg>
+              </span>
               <button
                 @click="handleUploadLogo"
                 class="absolute bottom-0 right-0 flex items-center justify-center w-8 h-8 text-white transition-opacity rounded-full shadow-lg bg-merchant-primary hover:opacity-90"
@@ -124,11 +166,32 @@
         class="relative hidden mb-4 overflow-visible bg-white shadow-sm sm:block rounded-xl"
       >
         <div class="overflow-hidden rounded-xl">
-          <img
-            :src="form.coverImage"
-            alt="Cover"
-            class="object-cover w-full h-64 lg:h-80"
-          />
+          <div
+            class="relative w-full overflow-hidden aspect-[24/9] lg:aspect-[4/1]"
+          >
+            <img
+              v-if="hasFormCover"
+              :src="form.coverImage"
+              alt="Cover"
+              class="absolute inset-0 object-cover w-full h-full"
+              @error="onCoverImgError"
+            />
+            <div
+              v-else
+              class="absolute inset-0 flex items-center justify-center bg-linear-to-br from-muted-background to-muted-foreground"
+              aria-hidden="true"
+            >
+              <svg
+                class="w-12 h-12 text-white lg:w-16 lg:h-16"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM5 19V5h14v14H5zm8-7a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm-6 7l3-4 2.5 3 3.5-5 4 6H7z"
+                />
+              </svg>
+            </div>
+          </div>
         </div>
         <button
           @click="handleUploadCover"
@@ -158,10 +221,27 @@
         <div class="absolute -bottom-12 left-8">
           <div class="relative">
             <img
+              v-if="hasFormLogo"
               :src="form.logo"
               alt="Logo"
-              class="object-cover w-32 h-32 border-4 border-white rounded-full shadow-lg"
+              class="object-cover w-32 h-32 border-4 border-white shadow-lg rounded-2xl"
+              @error="onLogoImgError"
             />
+            <span
+              v-else
+              class="flex items-center justify-center w-32 h-32 bg-gray-100 border-4 border-white shadow-lg rounded-2xl"
+              aria-hidden="true"
+            >
+              <svg
+                class="w-12 h-12 text-gray-300"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M20 4H4v2h16V4zm1 10v-2l-1-5H4l-1 5v2h1v6h10v-6h4v6h2v-6h1zm-9 6H6v-6h6v6z"
+                />
+              </svg>
+            </span>
             <button
               @click="handleUploadLogo"
               class="absolute bottom-0 right-0 p-2 text-white transition-opacity rounded-full shadow-lg bg-merchant-primary hover:opacity-90"
@@ -370,7 +450,7 @@
                       class="sr-only peer"
                     />
                     <div
-                      class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-merchant-primary"
+                      class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-merchant-primary"
                     ></div>
                   </label>
                 </div>
@@ -536,31 +616,31 @@
                 class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center bg-gray-50 rounded-xl"
               >
                 <span
-                  class="px-4 py-2 bg-merchant-primary text-white rounded-full text-sm font-medium min-w-[120px] text-center flex-shrink-0"
+                  class="px-4 py-2 bg-merchant-primary text-white rounded-full text-sm font-medium min-w-[120px] text-center shrink-0"
                 >
                   {{ day.name }}
                 </span>
 
-                <span class="flex-grow text-base font-medium text-gray-700">
+                <span class="text-base font-medium text-gray-700 grow">
                   {{ day.hours }}
                 </span>
 
                 <button
                   v-if="day.isOpen"
                   @click="handleEditHours(index)"
-                  class="flex-shrink-0 text-base font-medium text-merchant-primary hover:underline"
+                  class="text-base font-medium shrink-0 text-merchant-primary hover:underline"
                 >
                   Edit
                 </button>
                 <span
                   v-else
-                  class="flex-shrink-0 text-base font-medium text-red-500"
+                  class="text-base font-medium text-red-500 shrink-0"
                 >
                   Tutup
                 </span>
 
                 <label
-                  class="relative inline-flex items-center flex-shrink-0 cursor-pointer"
+                  class="relative inline-flex items-center cursor-pointer shrink-0"
                 >
                   <input
                     type="checkbox"
@@ -568,7 +648,7 @@
                     class="sr-only peer"
                   />
                   <div
-                    class="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-merchant-primary"
+                    class="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-merchant-primary"
                   ></div>
                 </label>
               </div>
@@ -657,6 +737,7 @@ import { useRouter, useRoute } from "vue-router";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
 import { onMounted, watch } from "vue";
 import merchantProfile from "@/services/api/merchantProfile";
+import { useAuthStore } from "@/stores/auth";
 import {
   getProvinces,
   getCities,
@@ -673,15 +754,31 @@ import AppButton from "@/components/common/Button.vue";
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
+const authStore = useAuthStore();
 
-const merchantId = computed(() => {
-  return route.params.merchantId ? Number(route.params.merchantId) : 1;
+const merchantSlug = computed(() => {
+  const slug =
+    route.params.merchantSlug ??
+    authStore.merchantSlug ??
+    authStore.activeMerchant?.slug ??
+    null;
+  return slug ? String(slug) : null;
 });
+
+function unwrapApiData(payload) {
+  // Handles shapes like:
+  // - merchant
+  // - { data: merchant }
+  // - { data: { data: merchant } }
+  return payload?.data?.data ?? payload?.data ?? payload;
+}
 
 const breadcrumbItems = computed(() => [
   {
     label: "Profil UMKM",
-    path: `/merchant-center/${merchantId.value}/profile`,
+    path: merchantSlug.value
+      ? `/merchant-center/${merchantSlug.value}/profile`
+      : "/merchant-profile",
   },
   {
     label: "Edit Profil UMKM",
@@ -694,9 +791,8 @@ const form = ref({
   description:
     "Toko Sembako Rojolele menyediakan beragam kebutuhan pokok harian — beras, gula, minyak, dan produk lokal lainnya.",
   address: "Jl. Pasar Rojolele No. 123",
-  logo: "https://via.placeholder.com/150/FF6B6B/FFFFFF?text=SEMBAKO",
-  coverImage:
-    "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=800&h=400&fit=crop",
+  logo: "",
+  coverImage: "",
   city_id: null,
   district_id: null,
   province_id: null,
@@ -717,6 +813,26 @@ const latitude = ref(null);
 const longitude = ref(null);
 const coverInput = ref(null);
 const logoInput = ref(null);
+
+const hasFormLogo = computed(() => {
+  const val = form.value?.logo;
+  return typeof val === "string" && val.trim().length > 0;
+});
+
+const hasFormCover = computed(() => {
+  const val = form.value?.coverImage;
+  return typeof val === "string" && val.trim().length > 0;
+});
+
+const onCoverImgError = () => {
+  form.value.coverImage = "";
+  form.value.coverFile = null;
+};
+
+const onLogoImgError = () => {
+  form.value.logo = "";
+  form.value.logoFile = null;
+};
 
 const showHoursModal = ref(false);
 const editingDayIndex = ref(null);
@@ -859,8 +975,14 @@ onMounted(async () => {
   // Kalau edit data lama (prefill)
 
   try {
-    const res = await merchantProfile.getMerchantProfile(merchantId.value);
-    const data = res?.data ?? res;
+    if (!merchantSlug.value) {
+      toast.error("Merchant tidak valid");
+      router.push("/merchant-register");
+      return;
+    }
+
+    const res = await merchantProfile.getMerchantProfile(merchantSlug.value);
+    const data = unwrapApiData(res);
 
     latitude.value = data?.primary_address?.latitude ?? null;
     longitude.value = data?.primary_address?.longitude ?? null;
@@ -886,11 +1008,15 @@ onMounted(async () => {
     }
     form.value.village_id = data?.primary_address?.village_id ?? null;
 
-    form.value.logo = data?.logo_url ? data.logo_url : form.value.logo;
+    form.value.logo =
+      typeof data?.logo_url === "string" && data.logo_url.trim()
+        ? data.logo_url
+        : "";
 
-    form.value.coverImage = data?.banner_url
-      ? data.banner_url
-      : form.value.coverImage;
+    form.value.coverImage =
+      typeof data?.banner_url === "string" && data.banner_url.trim()
+        ? data.banner_url
+        : "";
 
     const hours = data?.operational_hours ?? {};
 
@@ -995,6 +1121,11 @@ const handleSave = async () => {
   console.log("Saving changes...", form.value);
 
   try {
+    if (!merchantSlug.value) {
+      toast.error("Merchant tidak valid");
+      return;
+    }
+
     isLoading.value = true;
 
     const fd = new FormData();
@@ -1042,10 +1173,10 @@ const handleSave = async () => {
       fd.append("cover", form.value.coverFile);
     }
 
-    await merchantProfile.updateMerchantProfile(merchantId.value, fd);
+    await merchantProfile.updateMerchantProfile(merchantSlug.value, fd);
 
     toast.success("Profil UMKM berhasil diperbarui");
-    // router.push(`/merchants/${merchantId.value}/profile`);
+    // redirect handled below
   } catch (error) {
     console.error("Error response:", error.response?.data);
     console.error("Validation errors:", error.response?.data?.errors);
@@ -1061,7 +1192,11 @@ const handleSave = async () => {
   } finally {
     isLoading.value = false;
   }
-  router.push(`/merchant-center/${merchantId.value}/profile`);
+
+  const targetSlug = merchantSlug.value ?? authStore.merchantSlug;
+  router.push(
+    targetSlug ? `/merchant-center/${targetSlug}/profile` : "/merchant-profile"
+  );
 };
 </script>
 
