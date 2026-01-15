@@ -23,6 +23,9 @@ const props = defineProps({
         "report",
         "event",
         "voucher",
+        "merchant",
+        "user",
+        "segmentation",
       ].includes(value),
   },
 
@@ -100,28 +103,56 @@ const statusConfigs = {
   },
 
   report: {
-    pending: { label: "Pending", class: "bg-yellow-100 text-yellow-700" },
-    in_review: { label: "In Review", class: "bg-blue-100 text-blue-700" },
-    resolved: { label: "Resolved", class: "bg-green-100 text-green-700" },
-    dismissed: { label: "Dismissed", class: "bg-gray-100 text-gray-700" },
+    pending: { label: "Menunggu", class: "bg-yellow-100 text-yellow-700" },
+    in_review: { label: "Dalam Peninjauan", class: "bg-blue-100 text-blue-700" },
+    resolved: { label: "Terselesaikan", class: "bg-green-100 text-green-700" },
+    dismissed: { label: "Dibatalkan", class: "bg-gray-100 text-gray-700" },
   },
 
   event: {
     draft: { label: "Draft", class: "bg-gray-100 text-gray-700" },
-    published: { label: "Published", class: "bg-green-100 text-green-700" },
-    archived: { label: "Archived", class: "bg-orange-100 text-orange-700" },
+    published: { label: "Dipublikasikan", class: "bg-green-100 text-green-700" },
+    archived: { label: "Diarsipkan", class: "bg-orange-100 text-orange-700" },
   },
 
   voucher: {
-    active: { label: "Active", class: "bg-green-100 text-green-700" },
-    inactive: { label: "Inactive", class: "bg-gray-100 text-gray-700" },
-    expired: { label: "Expired", class: "bg-red-100 text-red-700" },
+    active: {
+      label: "Aktif",
+      class: "bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/25 border border-green-600/30",
+      icon: "pi-check-circle",
+      dot: "bg-green-500",
+    },
+    inactive: {
+      label: "Tidak Aktif",
+      class: "bg-yellow-50 text-slate-700 ring-1 ring-inset ring-slate-500/25 border border-slate-500/25",
+      icon: "pi-pause-circle",
+      dot: "bg-slate-500",
+    },
+    expired: {
+      label: "Kadaluarsa",
+      class: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/25 border border-red-600/30",
+      icon: "pi-times-circle",
+      dot: "bg-red-500",
+    },
   },
+
   
   merchant: {
-    approved: { label: "Approved", class: "bg-green-100 text-green-700" },
-    pending: { label: "Pending", class: "bg-gray-100 text-gray-700" },
-    rejected: { label: "Rejected", class: "bg-red-100 text-red-700" },
+    accepted: { label: "Diterima", class: "bg-green-100 text-green-700" },
+    approved: { label: "Disetujui", class: "bg-green-100 text-green-700" },
+    pending: { label: "Menunggu", class: "bg-gray-100 text-gray-700" },
+    rejected: { label: "Ditolak", class: "bg-red-100 text-red-700" },
+    cancelled: { label: "Dibatalkan", class: "bg-yellow-100 text-yellow-700" },
+    removed: { label: "Dikeluarkan", class: "bg-red-200 text-red-800" },
+  },
+
+
+  user: {
+    active: { label: "Aktif", class: "bg-green-100 text-green-700" },
+    inactive: { label: "Tidak Aktif", class: "bg-gray-100 text-gray-700" },
+    suspended: { label: "Ditangguhkan", class: "bg-red-100 text-red-700" },
+    declining: { label: "Menurun", class: "bg-yellow-100 text-yellow-700" },
+    watchlist: { label: "Dalam Pantauan", class: "bg-orange-100 text-orange-700" },
   },
 
   segmentation: {
@@ -163,6 +194,36 @@ const config = computed(() => {
   };
 });
 
+const variantClasses = computed(() => {
+  // Event Status Variants
+  if (props.variant === 'event') {
+    switch (props.status) {
+      case 'published':
+        return 'bg-green-100 text-green-700 border-green-200';
+      case 'draft':
+        return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+      case 'archived':
+        return 'bg-gray-100 text-gray-700 border-gray-200';
+      default:
+        return 'bg-gray-100 text-gray-600 border-gray-200';
+    }
+  }
+  
+  return ''
+});
+
+const statusLabel = computed(() => {
+  if (props.variant === 'event') {
+    switch (props.status) {
+      case 'published': return 'Published';
+      case 'draft': return 'Draft';
+      case 'archived': return 'Archived';
+      default: return props.status;
+    }
+  }
+  
+  return props.status;
+});
 
 // =======================
 // SIZE STYLES

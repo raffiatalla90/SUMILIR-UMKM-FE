@@ -11,6 +11,7 @@ export function useEvents() {
     per_page: 10,
     total: 0,
   });
+  const error = ref(null);
 
   const toast = useToast();
 
@@ -83,15 +84,23 @@ export function useEvents() {
   // Update event (Admin)
   const updateEvent = async (id, formData) => {
     loading.value = true;
+    error.value = null;
+
     try {
       const response = await api.post(`/api/admin/events/${id}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       });
+
       toast.success("Event berhasil diupdate!");
-      return response.data.data;
-    } catch (error) {
-      toast.error("Gagal mengupdate event");
-      throw error;
+
+      // ✅ Return full response data
+      return response.data;
+    } catch (err) {
+      error.value = err.response?.data?.message || "Gagal mengupdate event";
+      toast.error(error.value);
+      throw err;
     } finally {
       loading.value = false;
     }

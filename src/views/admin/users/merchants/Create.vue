@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
-import { useRouter } from "vue-router";
-import { Form } from "vee-validate";
+import { useRouter, useRoute } from "vue-router";
+import { Form, Field } from "vee-validate";
 import * as yup from "yup";
 import {
   getProvinces,
@@ -19,6 +19,7 @@ import { useToast } from "vue-toastification";
 import AppButton from "@/components/common/Button.vue";
 
 const router = useRouter();
+const route = useRoute();
 const toast = useToast();
 
 const isLoading = ref(false);
@@ -63,12 +64,53 @@ watch(userSearch, (val) => {
   }, 400);
 });
 
-onMounted(() => {
-  fetchUsers();
-  loadProvinces();
-  loadSegmentations();
+onMounted(async () => {
+  await fetchUsers();
+  await loadProvinces();
+  await loadSegmentations();
+  
+  const userId = route.query.userId;
+  if (userId) {
+    const userIdNum = Number(userId);
+    selectedUserId.value = userIdNum;
+    
+    await nextTick();
+    
+    const selectedUser = users.value.find(u => u.id === userIdNum);
+    if (selectedUser) {
+      toast.info(`Membuat merchant untuk: ${selectedUser.name}`, { timeout: 3000 });
+    }
+  }
 });
 
+// ✅ FIXED: Sync selectedUserId with form values using computed
+const formInitialValues = computed(() => ({
+  user_id: selectedUserId.value,
+  name: '',
+  phone: '',
+  segmentation_id: '',
+  description: '',
+  address: {
+    province_id: '',
+    city_id: '',
+    district_id: '',
+    village_id: '',
+    detail: '',
+    latitude: null,
+    longitude: null,
+  }
+}));
+
+// ✅ FIXED: Watch selectedUserId changes and update form
+const formRef = ref(null);
+
+watch(selectedUserId, (newVal) => {
+  if (formRef.value && newVal) {
+    formRef.value.setFieldValue('user_id', newVal);
+  }
+});
+
+// ✅ FIXED: Add user_id to schema and sync with selectedUserId
 const schema = yup.object({
   user_id: yup.number().required("User wajib dipilih"),
   name: yup.string().required("Nama wajib diisi"),
@@ -238,36 +280,48 @@ watch(districtId, async (val) => {
 
 // Submit pakai endpoint admin
 const handleRegister = async (values) => {
+  // ✅ IMPROVED: Better validation
+  if (!selectedUserId.value) {
+    toast.error("User wajib dipilih");
+    return;
+  }
+
   isLoading.value = true;
   errorMessage.value = "";
 
   try {
-    const payload = {
-      user_id: selectedUserId.value,
-      name: values.name,
-      phone: values.phone,
-      description: values.description,
-      segmentation_id: Number(values.segmentation_id),
-      address: {
-        province_id: Number(values.address.province_id),
-        city_id: Number(values.address.city_id),
-        district_id: Number(values.address.district_id),
-        village_id: Number(values.address.village_id),
-        detail: values.address.detail || null,
-        latitude: Number(values.address.latitude),
-        longitude: Number(values.address.longitude),
-      },
-    };
-    await api.post("/api/admin/merchants", payload);
-
-    toast.success("Merchant berhasil dibuat & langsung di-approve.", { timeout: 3000 });
-    router.push({ name: "Admin - Merchants List" });
-  } catch (error) {
-    errorMessage.value = error.response?.data?.message || "Gagal membuat merchant";
-  } finally {
-    isLoading.value = false;
-  }
-};
+      const payload = {
+        user_id: selectedUserId.value,
+        name: values.name,
+        phone: values.phone,
+        description: values.description || null,
+        segmentation_id: Number(values.segmentation_id),
+        address: {
+          province_id: Number(values.address.province_id),
+          city_id: Number(values.address.city_id),
+          district_id: Number(values.address.district_id),
+          village_id: Number(values.address.village_id),
+          detail: values.address.detail || null,
+          latitude: Number(values.address.latitude),
+          longitude: Number(values.address.longitude),
+        }
+      };
+  
+      console.log('Submitting payload:', payload);
+      
+      const response = await api.post("/api/admin/merchants", payload);
+      console.log('Response:', response);
+  
+      toast.success("Merchant berhasil dibuat & langsung di-approve.", { timeout: 3000 });
+      router.push({ name: "Admin - Merchants List" });
+    } catch (error) {
+      console.error('Submit error:', error);
+      errorMessage.value = error.response?.data?.message || "Gagal membuat merchant";
+      toast.error(errorMessage.value);
+    } finally {
+      isLoading.value = false;
+    }
+  };
 
 const userDropdownOpen = ref(false);
 const userDropdownRef = ref(null);
@@ -324,7 +378,6 @@ const selectedUser = computed(() =>
     <div
       class="flex flex-col justify-center sm:flex-0 flex-2/3 p-8 sm:p-12 sm:max-w-xl w-full bg-white sm:rounded-4xl rounded-t-4xl sm:shadow-lg shadow-none"
     >
-      <!-- Right Side - Form -->
       <div class="sm:flex flex-col">
         <div class="flex gap-3 mb-2 items-center">
           <span
@@ -346,32 +399,66 @@ const selectedUser = computed(() =>
           kami
         </p>
 
-        <Form @submit="handleRegister" :validation-schema="schema">
+        <Form 
+          ref="formRef"
+          @submit="handleRegister" 
+          :validation-schema="schema" 
+          :initial-values="formInitialValues"
+          v-slot="{ errors, values, setFieldValue }"
+        >
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <!-- Pilih User dengan Search -->
+            <!-- Info banner -->
+            <div 
+              v-if="route.query.userId && selectedUser" 
+              class="sm:col-span-2 bg-merchant-primary/10 border border-merchant-primary/20 rounded-lg p-3"
+            >
+              <div class="flex items-center gap-2">
+                <i class="pi pi-info-circle text-merchant-primary"></i>
+                <div class="flex-1">
+                  <p class="text-sm font-medium text-merchant-primary">
+                    Membuat merchant untuk: {{ selectedUser.name }}
+                  </p>
+                  <p class="text-xs text-gray-600">
+                    {{ selectedUser.email }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Field component -->
+            <Field name="user_id" v-slot="{ field, meta }">
+              <input type="hidden" v-bind="field" :value="selectedUserId" />
+            </Field>
+
+            <!-- Pilih User dropdown -->
             <div class="sm:col-span-2">
-              <label class="block text-sm font-bold mb-2 text-black">Pilih User</label>
+              <label class="block text-sm font-bold mb-2 text-black">
+                Pilih User <span class="text-red-500">*</span>
+              </label>
               <div class="relative" ref="userDropdownRef">
                 <button
                   type="button"
-                  class="block w-full py-2.5 pl-4 pr-10 text-sm border rounded-xl bg-white text-black border-merchant-primary focus:ring-2 focus:ring-merchant-primary focus:outline-none transition-all"
+                  class="block w-full py-2.5 pl-4 pr-10 text-sm border text-left rounded-xl bg-white text-black focus:ring-2 focus:outline-none transition-all"
+                  :class="
+                    !selectedUserId || errors.user_id
+                      ? 'border-danger-foreground focus:ring-danger-foreground'
+                      : 'border-merchant-primary focus:ring-merchant-primary'
+                  "
                   @click="userDropdownOpen = !userDropdownOpen"
-                  :class="{
-                    'border-danger-foreground focus:ring-danger-foreground': !selectedUserId
-                  }"
                   style="min-height:44px"
                 >
-                  <span v-if="selectedUser">
+                  <span v-if="selectedUser" class="truncate">
                     {{ selectedUser.name }} ({{ selectedUser.email }})
                   </span>
-                  <span v-else class="text-gray-400 text-left block w-full truncate">Cari atau pilih user...</span>
+                  <span v-else class="text-gray-400 text-left block w-full truncate">
+                    Cari atau pilih user...
+                  </span>
                   <i class="pi pi-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-500"></i>
                 </button>
                 <div
                   v-if="userDropdownOpen"
                   class="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg"
                 >
-                  <!-- Search bar di atas dropdown -->
                   <div class="p-2 border-b border-gray-100">
                     <input
                       ref="userSearchInputRef"
@@ -394,6 +481,7 @@ const selectedUser = computed(() =>
                         :key="u.id"
                         @click="
                           selectedUserId = u.id;
+                          setFieldValue('user_id', u.id);
                           userDropdownOpen = false;
                         "
                         class="px-4 py-2 cursor-pointer hover:bg-merchant-primary/10 text-sm"
@@ -409,7 +497,10 @@ const selectedUser = computed(() =>
                   </div>
                 </div>
               </div>
-              <div v-if="!selectedUserId" class="text-xs text-danger-foreground mt-1">User wajib dipilih</div>
+              <!-- Only show error if user_id field is touched and invalid -->
+              <div v-if="errors.user_id && !selectedUserId" class="text-xs text-danger-foreground mt-1">
+                {{ errors.user_id }}
+              </div>
             </div>
 
             <!-- Nama Usaha -->
@@ -419,6 +510,7 @@ const selectedUser = computed(() =>
               label="Nama Usaha"
               placeholder="Masukkan nama usaha"
               class="sm:col-span-2"
+              required
             />
 
             <!-- Phone Number -->
@@ -428,6 +520,7 @@ const selectedUser = computed(() =>
               label="Nomor Telepon"
               placeholder="Contoh: 081234567890"
               class="sm:col-span-2"
+              required
             />
 
             <!-- Jenis Usaha (dari API /segmentations) -->
@@ -441,6 +534,7 @@ const selectedUser = computed(() =>
               :disabled="segmentationsLoading"
               :options="segmentations.map((s) => ({ value: s.id, label: s.name }))"
               class="sm:col-span-2"
+              required
             />
 
             <!-- Wilayah (nested di address.*) -->
@@ -452,6 +546,7 @@ const selectedUser = computed(() =>
               v-model="provinceId"
               :loading="provincesLoading"
               :options="provinces.map((p) => ({ value: p.id, label: p.name }))"
+              required
             />
 
             <SelectField
@@ -463,6 +558,7 @@ const selectedUser = computed(() =>
               :loading="citiesLoading"
               :disabled="!provinceId"
               :options="cities.map((r) => ({ value: r.id, label: r.name }))"
+              required
             />
 
             <SelectField
@@ -474,6 +570,7 @@ const selectedUser = computed(() =>
               :loading="districtsLoading"
               :disabled="!cityId"
               :options="districts.map((d) => ({ value: d.id, label: d.name }))"
+              required
             />
 
             <SelectField
@@ -485,10 +582,14 @@ const selectedUser = computed(() =>
               :loading="villagesLoading"
               :disabled="!districtId"
               :options="villages.map((v) => ({ value: v.id, label: v.name }))"
+              required
             />
 
             <!-- Pemetaan Lokasi -->
             <div class="sm:col-span-2">
+              <label class="block text-sm font-bold mb-2 text-black">
+                Pemetaan Lokasi <span class="text-red-500">*</span>
+              </label>
               <MapPicker
                 variant="merchant"
                 v-model:lat="latitude"
@@ -497,7 +598,7 @@ const selectedUser = computed(() =>
               />
             </div>
 
-            <!-- Koordinat (nested di address.*) -->
+            <!-- Koordinat -->
             <TextField
               variant="merchant"
               name="address.latitude"
@@ -505,6 +606,7 @@ const selectedUser = computed(() =>
               v-model="latitude"
               :readonly="true"
               placeholder="-6.200000"
+              required
             />
             <TextField
               variant="merchant"
@@ -513,43 +615,81 @@ const selectedUser = computed(() =>
               v-model="longitude"
               :readonly="true"
               placeholder="106.816666"
+              required
             />
 
-            <!-- Detail alamat (nested di address.detail) -->
+            <!-- Detail alamat (optional) -->
             <TextField
               variant="merchant"
               name="address.detail"
-              label="Alamat Lengkap"
-              placeholder="Nama jalan, RT/RW, patokan, dsb (opsional)"
+              label="Alamat Lengkap (Opsional)"
+              placeholder="Nama jalan, RT/RW, patokan, dsb"
               class="sm:col-span-2"
             />
+
+            <!-- ✅ IMPROVED: Better error summary display -->
+            <div v-if="Object.keys(errors).length > 0 && !selectedUserId" class="sm:col-span-2">
+              <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div class="flex items-start gap-2">
+                  <i class="pi pi-exclamation-circle text-red-600 mt-0.5"></i>
+                  <div class="flex-1">
+                    <p class="text-sm font-medium text-red-800 mb-1">
+                      Harap lengkapi field yang wajib diisi:
+                    </p>
+                    <ul class="text-xs text-red-700 space-y-1 list-disc list-inside">
+                      <li v-for="(error, field) in errors" :key="field">
+                        {{ error }}
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <!-- Error -->
             <ErrorAlert :message="errorMessage" class="sm:col-span-2" />
 
-            <!-- Submit -->
+            <!-- ✅ IMPROVED: Submit button -->
             <div class="sm:col-span-2">
               <AppButton
                 variant="merchant"
                 type="submit"
                 :loading="isLoading"
+                :disabled="isLoading"
                 size="md"
                 block
                 class="mb-2"
               >
-                Daftarkan UMKM
+                <template v-if="isLoading">
+                  <i class="pi pi-spin pi-spinner mr-2"></i>
+                  Mendaftarkan UMKM...
+                </template>
+                <template v-else>
+                  <i class="pi pi-check mr-2"></i>
+                  Daftarkan UMKM
+                </template>
               </AppButton>
+              
+              <!-- ✅ ADD: Helper text -->
+              <p class="text-xs text-center text-gray-500 mt-2">
+                <span class="text-red-500">*</span> Field wajib diisi
+              </p>
             </div>
           </div>
         </Form>
 
-        <!-- Debug Info (Development Only) -->
+        <!-- Debug Info -->
         <div
           v-if="isDev"
           class="mt-6 p-4 bg-gray-50 rounded-xl text-xs border border-gray-200"
         >
           <p class="font-semibold mb-2 text-gray-700">Debug Info:</p>
           <p class="text-gray-600"><strong>API URL:</strong> {{ apiUrl }}</p>
+          <p class="text-gray-600"><strong>Selected User ID:</strong> {{ selectedUserId }}</p>
+          <p class="text-gray-600"><strong>Form user_id value:</strong> {{ formRef?.values?.user_id }}</p>
+          <p class="text-gray-600"><strong>Latitude:</strong> {{ latitude }}</p>
+          <p class="text-gray-600"><strong>Longitude:</strong> {{ longitude }}</p>
+          <p class="text-gray-600"><strong>Route Query:</strong> {{ JSON.stringify(route.query) }}</p>
         </div>
       </div>
     </div>

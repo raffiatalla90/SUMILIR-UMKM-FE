@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch, inject } from "vue"; 
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useMerchants } from "@/composables/useMerchants";
@@ -11,11 +11,14 @@ import StatusLabel from "@/components/common/StatusLabel.vue";
 import MobilePagination from "@/components/common/MobilePagination.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
+import api from "@/libs/axios";
 
 const router = useRouter();
 const toast = useToast();
 
 const { merchants, loading, pagination, fetchMerchants } = useMerchants();
+
+const registerExportModal = inject('registerExportModal', null);
 
 // State
 const searchQuery = ref("");
@@ -25,6 +28,14 @@ const perPage = ref(10);
 // Modals
 const showFilterModal = ref(false);
 const showExportModal = ref(false);
+const showApproveModal = ref(false);
+const showRejectModal = ref(false);
+const exportLoading = ref(false); 
+
+// Selected merchant for approval/rejection
+const selectedMerchant = ref(null);
+const rejectionReason = ref("");
+const processingAction = ref(false);
 
 // Temp filters for modal
 const tempFilters = ref({
@@ -37,7 +48,13 @@ const activeFilters = ref({
   segmentation: "",
 });
 
-const isAnyModalOpen = computed(() => showFilterModal.value || showExportModal.value);
+const isAnyModalOpen = computed(
+  () =>
+    showFilterModal.value ||
+    showExportModal.value ||
+    showApproveModal.value ||
+    showRejectModal.value
+);
 useBodyScrollLock(isAnyModalOpen);
 
 // Table config
@@ -48,27 +65,35 @@ const tableColumns = [
   { key: "segmentation", label: "Segmentasi", sortable: false },
   { key: "products_count", label: "Produk", sortable: true },
   { key: "status", label: "Status", sortable: true },
-];
-
-const tableActions = [
-  {
-    icon: "pi-eye",
-    label: "Lihat Detail",
-    handler: (merchant) => goToDetail(merchant),
-    class: "hover:bg-muted-foreground/20 text-muted-foreground",
-  },
+  { key: "actions", label: "Aksi", sortable: false },
 ];
 
 // Safe pagination helpers
 const totalPages = computed(() => pagination.value?.last_page ?? 1);
 const totalItems = computed(() => pagination.value?.total ?? 0);
-const currentPageFromApi = computed(() => pagination.value?.current_page ?? currentPage.value);
-const perPageFromApi = computed(() => pagination.value?.per_page ?? perPage.value);
+const currentPageFromApi = computed(
+  () => pagination.value?.current_page ?? currentPage.value
+);
+const perPageFromApi = computed(
+  () => pagination.value?.per_page ?? perPage.value
+);
 
 const paginationInfo = computed(() => {
-  const start = totalItems.value === 0 ? 0 : (currentPageFromApi.value - 1) * perPageFromApi.value + 1;
-  const end = Math.min(currentPageFromApi.value * perPageFromApi.value, totalItems.value);
-  return { start, end, total: totalItems.value, current_page: currentPageFromApi.value, per_page: perPageFromApi.value };
+  const start =
+    totalItems.value === 0
+      ? 0
+      : (currentPageFromApi.value - 1) * perPageFromApi.value + 1;
+  const end = Math.min(
+    currentPageFromApi.value * perPageFromApi.value,
+    totalItems.value
+  );
+  return {
+    start,
+    end,
+    total: totalItems.value,
+    current_page: currentPageFromApi.value,
+    per_page: perPageFromApi.value,
+  };
 });
 
 // Filter options
@@ -120,8 +145,88 @@ const openFilterModal = () => {
 };
 const closeFilterModal = () => (showFilterModal.value = false);
 
-const openExportModal = () => (showExportModal.value = true);
+const openExportModal = () => {
+  console.log('openExportModal called in merchants/Index.vue');
+  showExportModal.value = true;
+};
 const closeExportModal = () => (showExportModal.value = false);
+
+// Approve/Reject modal handlers
+const openApproveModal = (merchant) => {
+  selectedMerchant.value = merchant;
+  showApproveModal.value = true;
+};
+
+const openRejectModal = (merchant) => {
+  selectedMerchant.value = merchant;
+  rejectionReason.value = "";
+  showRejectModal.value = true;
+};
+
+const closeApproveModal = () => {
+  showApproveModal.value = false;
+  selectedMerchant.value = null;
+};
+
+const closeRejectModal = () => {
+  showRejectModal.value = false;
+  selectedMerchant.value = null;
+  rejectionReason.value = "";
+};
+
+// Approve merchant
+const approveMerchant = async () => {
+  if (!selectedMerchant.value) return;
+
+  processingAction.value = true;
+  try {
+    await api.patch(
+      `/api/admin/merchants/${selectedMerchant.value.id}/approve`
+    );
+
+    toast.success(`Merchant "${selectedMerchant.value.name}" berhasil di-approve`);
+    closeApproveModal();
+    loadMerchants();
+  } catch (error) {
+    console.error("Failed to approve merchant:", error);
+    toast.error(
+      error.response?.data?.message || "Gagal approve merchant"
+    );
+  } finally {
+    processingAction.value = false;
+  }
+};
+
+// Reject merchant
+const rejectMerchant = async () => {
+  if (!selectedMerchant.value) return;
+
+  if (!rejectionReason.value.trim()) {
+    toast.error("Alasan penolakan harus diisi");
+    return;
+  }
+
+  processingAction.value = true;
+  try {
+    await api.patch(
+      `/api/admin/merchants/${selectedMerchant.value.id}/reject`,
+      {
+        rejection_reason: rejectionReason.value,
+      }
+    );
+
+    toast.success(`Merchant "${selectedMerchant.value.name}" berhasil ditolak`);
+    closeRejectModal();
+    loadMerchants();
+  } catch (error) {
+    console.error("Failed to reject merchant:", error);
+    toast.error(
+      error.response?.data?.message || "Gagal reject merchant"
+    );
+  } finally {
+    processingAction.value = false;
+  }
+};
 
 const applyFilters = () => {
   activeFilters.value = { ...tempFilters.value };
@@ -145,9 +250,36 @@ const exportExcel = async () => {
   toast.info("Export Excel sedang dalam pengembangan");
   closeExportModal();
 };
+
+// Export methods
 const exportPDF = async () => {
-  toast.info("Export PDF sedang dalam pengembangan");
-  closeExportModal();
+  exportLoading.value = true; // ✅ Set loading to true
+  try {
+    const response = await api.get("/api/admin/merchants/export-pdf", {
+      responseType: "blob",
+      params: {
+        status: activeFilters.value.status,
+        segmentation_id: activeFilters.value.segmentation,
+        search: searchQuery.value,
+      },
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `merchants-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    toast.success("Laporan merchant berhasil diunduh");
+    closeExportModal();
+  } catch (error) {
+    console.error("Export PDF failed:", error);
+    toast.error(error.response?.data?.message || "Gagal mengunduh laporan");
+  } finally {
+    exportLoading.value = false; // ✅ Set loading to false
+  }
 };
 
 // Actions
@@ -170,11 +302,18 @@ const prevPage = () => {
 };
 
 watch(currentPage, () => loadMerchants());
-onMounted(() => loadMerchants());
 
-defineExpose({
-  openExportModal,
-  goToCreate: () => toast.info("Tambah merchant sedang dalam pengembangan"),
+// ✅ FIXED: Register callback on mount
+onMounted(() => {
+  loadMerchants();
+  
+  // Register the export modal function with parent
+  if (registerExportModal && typeof registerExportModal === 'function') {
+    console.log('Registering export modal callback for merchants');
+    registerExportModal(openExportModal);
+  } else {
+    console.warn('registerExportModal not provided by parent');
+  }
 });
 </script>
 
@@ -240,7 +379,6 @@ defineExpose({
       <AdminTable
         :items="merchants"
         :columns="tableColumns"
-        :actions="tableActions"
         :loading="loading"
         :current-page="currentPage"
         :total-pages="totalPages"
@@ -292,21 +430,55 @@ defineExpose({
           />
         </template>
 
+        <!-- Actions cell dengan conditional buttons -->
         <template #cell-actions="{ item }">
-          <Button @click.stop="goToDetail(item)" variant="muted-outline" size="sm">
-            <i class="pi pi-eye"></i>
-          </Button>
+          <div class="flex items-center gap-2">
+            <Button
+              @click.stop="goToDetail(item)"
+              variant="outline"
+              size="sm"
+              title="Lihat Detail"
+            >
+              <i class="pi pi-eye"></i>
+            </Button>
+
+            <!-- Show approve/reject buttons only for pending -->
+            <template v-if="item.status === 'pending'">
+              <Button
+                @click.stop="openApproveModal(item)"
+                variant="outline"
+                size="sm"
+                custom-class="!border-green-500 !text-green-600 hover:!bg-green-50"
+                title="Approve Merchant"
+              >
+                <i class="pi pi-check"></i>
+              </Button>
+
+              <Button
+                @click.stop="openRejectModal(item)"
+                variant="outline"
+                size="sm"
+                custom-class="!border-red-500 !text-red-600 hover:!bg-red-50"
+                title="Reject Merchant"
+              >
+                <i class="pi pi-times"></i>
+              </Button>
+            </template>
+          </div>
         </template>
       </AdminTable>
     </div>
 
-    <!-- Mobile List + Pagination -->
+    <!-- Mobile List -->
     <div class="sm:hidden">
       <div v-if="loading" class="flex justify-center py-12">
         <i class="pi pi-spin pi-spinner text-4xl text-merchant-primary"></i>
       </div>
 
-      <div v-else-if="!merchants || merchants.length === 0" class="text-center py-12">
+      <div
+        v-else-if="!merchants || merchants.length === 0"
+        class="text-center py-12"
+      >
         <i class="pi pi-building text-6xl text-gray-300 mb-4"></i>
         <p class="text-gray-500">Tidak ada merchant</p>
       </div>
@@ -348,6 +520,32 @@ defineExpose({
               <i class="pi pi-box mr-1"></i>
               {{ m.products_count || 0 }} Produk
             </span>
+          </div>
+
+          <!-- ✅ NEW: Mobile action buttons for pending -->
+          <div
+            v-if="m.status === 'pending'"
+            class="flex gap-2 mt-3 pt-3 border-t"
+            @click.stop
+          >
+            <Button
+              @click="openApproveModal(m)"
+              variant="outline"
+              size="sm"
+              custom-class="flex-1 !border-green-500 !text-green-600"
+            >
+              <i class="pi pi-check mr-1"></i>
+              Approve
+            </Button>
+            <Button
+              @click="openRejectModal(m)"
+              variant="outline"
+              size="sm"
+              custom-class="flex-1 !border-red-500 !text-red-600"
+            >
+              <i class="pi pi-times mr-1"></i>
+              Reject
+            </Button>
           </div>
         </div>
       </div>
@@ -400,26 +598,100 @@ defineExpose({
     <ResponsiveModal
       :show="showExportModal"
       @close="closeExportModal"
-      title="Export Data"
-      subtitle="Pilih format export"
+      title="Export Laporan Merchants"
+      subtitle="Unduh laporan data merchants dalam format PDF"
     >
-      <div class="space-y-3">
-        <Button @click="exportExcel" variant="merchant" size="lg" customClass="w-full justify-start">
-          <i class="pi pi-file-excel mr-3 text-xl"></i>
-          <div class="text-left">
-            <p class="font-semibold">Export ke Excel</p>
-            <p class="text-xs opacity-80">Download .xlsx</p>
+      <div class="space-y-4">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div class="flex items-start gap-3">
+            <i class="pi pi-info-circle text-blue-600 text-xl mt-0.5"></i>
+            <div class="flex-1">
+              <p class="text-sm text-blue-900 font-medium mb-1">Laporan akan mencakup:</p>
+              <ul class="text-xs text-blue-800 space-y-1 list-disc list-inside">
+                <li>Data lengkap merchants (Nama, Owner, Email, Phone)</li>
+                <li>Segmentasi dan status merchants</li>
+                <li>Jumlah produk yang dimiliki</li>
+                <li>Filter yang diterapkan (Status, Segmentasi, Pencarian)</li>
+                <li>Informasi waktu download dan user yang mendownload</li>
+              </ul>
+            </div>
           </div>
-        </Button>
+        </div>
 
-        <Button @click="exportPDF" variant="merchant" size="lg" customClass="w-full justify-start">
-          <i class="pi pi-file-pdf mr-3 text-xl"></i>
-          <div class="text-left">
-            <p class="font-semibold">Export ke PDF</p>
-            <p class="text-xs opacity-80">Download .pdf</p>
-          </div>
+        <Button
+          @click="exportPDF"
+          variant="merchant"
+          size="lg"
+          custom-class="w-full justify-center"
+          :loading="exportLoading"
+        >
+          <i class="pi pi-download mr-2"></i>
+          <span>Download Laporan PDF</span>
         </Button>
       </div>
+    </ResponsiveModal>
+
+    <!-- Approve Modal -->
+    <ResponsiveModal
+      :show="showApproveModal"
+      @close="closeApproveModal"
+      title="Approve Merchant"
+      subtitle="Apakah Anda yakin ingin meng-approve merchant ini?"
+    >
+      <div class="text-center py-4">
+        <i class="pi pi-check-circle text-green-500 text-4xl mb-4"></i>
+        <p class="text-gray-800 font-semibold mb-2">
+          Merchant "{{ selectedMerchant?.name }}" akan di-approve
+        </p>
+        <p class="text-sm text-gray-500">
+          Merchant yang di-approve akan mendapatkan akses penuh ke platform.
+        </p>
+      </div>
+
+      <div class="flex gap-3 justify-center">
+        <Button @click="closeApproveModal" variant="secondary" size="lg" custom-class="w-full max-w-[150px]">
+          Batal
+        </Button>
+        <Button
+          @click="approveMerchant"
+          variant="merchant"
+          size="lg"
+          custom-class="w-full max-w-[150px]"
+          :loading="processingAction"
+        >
+          Setujui
+        </Button>
+      </div>
+    </ResponsiveModal>
+
+    <!-- Reject Modal -->
+    <ResponsiveModal
+      :show="showRejectModal"
+      @close="closeRejectModal"
+      title="Reject Merchant"
+      subtitle="Berikan alasan penolakan"
+    >
+      <div class="space-y-4">
+        <textarea
+          v-model="rejectionReason"
+          class="w-full p-3 border rounded-md focus:ring-1 focus:ring-primary focus:outline-none resize-none"
+          rows="3"
+          placeholder="Masukkan alasan penolakan di sini..."
+        ></textarea>
+      </div>
+
+      <template #footer>
+        <div class="flex gap-3 justify-end">
+          <Button @click="closeRejectModal" variant="secondary">Batal</Button>
+          <Button
+            @click="rejectMerchant"
+            variant="merchant"
+            :disabled="!rejectionReason.trim()"
+          >
+            Tolak Merchant
+          </Button>
+        </div>
+      </template>
     </ResponsiveModal>
   </div>
 </template>

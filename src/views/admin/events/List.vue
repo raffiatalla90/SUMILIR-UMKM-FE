@@ -1,16 +1,18 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
-import { useRouter } from "vue-router";
+import { ref, computed, onMounted, watch, inject } from "vue"; 
+import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
+import api from "@/libs/axios"; 
 import AdminTable from "@/components/common/AdminTable.vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import Button from "@/components/common/Button.vue";
 import MobilePagination from "@/components/common/MobilePagination.vue";
 import { useEvents } from "@/composables/useEvents";
-import { getImageUrl } from "@/libs/getImageUrl";
+import { getEventBannerUrl } from "@/libs/getImageUrl";
 import TextField from "@/components/forms/TextField.vue";
 import SelectField from "@/components/forms/SelectField.vue";
+const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 
@@ -21,10 +23,14 @@ const statusFilter = ref("");
 const sortBy = ref("event_start_date");
 const sortDesc = ref(true);
 
+const showFilterModal = ref(false);
+const showExportModal = ref(false);
 const showDeleteModal = ref(false);
+const exportLoading = ref(false);
+
 const selectedEvent = ref(null);
 
-const selectedEvents = ref([]); // array of event.id
+const selectedEvents = ref([]); 
 const selectAll = ref(false);
 
 const activeFilters = ref({
@@ -84,6 +90,11 @@ const confirmDelete = (event) => {
 };
 
 const handleSearch = () => {
+  currentPage.value = 1;
+  loadEvents();
+};
+
+const onStatusChange = () => {
   currentPage.value = 1;
   loadEvents();
 };
@@ -156,14 +167,63 @@ watch([searchQuery, () => activeFilters.value.status], () => {
   loadEvents();
 });
 
-const onStatusChange = () => {
-  currentPage.value = 1;
-  loadEvents();
+// Modal methods
+const openExportModal = () => {
+  console.log('openExportModal called in List.vue');
+  showExportModal.value = true;
 };
 
+const closeExportModal = () => {
+  showExportModal.value = false;
+};
+
+// ✅ Export PDF method
+const exportPDF = async () => {
+  console.log('exportPDF called'); // ✅ ADD debug log
+  exportLoading.value = true;
+  try {
+    const response = await api.get("/api/admin/events/export-pdf", {
+      responseType: "blob",
+      params: {
+        status: activeFilters.value.status,
+        search: searchQuery.value,
+      },
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `events-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    toast.success("Laporan events berhasil diunduh");
+    closeExportModal();
+  } catch (error) {
+    console.error("Export PDF failed:", error);
+    toast.error(error.response?.data?.message || "Gagal mengunduh laporan");
+  } finally {
+    exportLoading.value = false;
+  }
+};
+
+// ✅ Inject the register function from parent
+const registerExportModal = inject('registerExportModal', null);
+
+// ✅ Expose openExportModal to parent via register callback
 onMounted(() => {
   loadEvents();
+  
+  // Register the export modal function with parent
+  if (registerExportModal && typeof registerExportModal === 'function') {
+    console.log('Registering export modal callback for events list');
+    registerExportModal(openExportModal);
+  } else {
+    console.warn('registerExportModal not provided by parent');
+  }
 });
+
 </script>
 
 <template>
@@ -184,11 +244,12 @@ onMounted(() => {
 
         <!-- Dropdown status -->
         <SelectField
+          placeholder="Status"
           name="filter-status"
           v-model="activeFilters.status"
           :options="statusOptions"
           variant="merchant"
-          class="ml-2 w-[140px]"
+          class="ml-2 w-[100px]"
           @change="onStatusChange"
         />
       </div>
@@ -219,7 +280,7 @@ onMounted(() => {
           <div class="w-16 h-10 rounded bg-gray-100 flex items-center justify-center overflow-hidden">
             <img
               v-if="item.banner_img_path"
-              :src="getImageUrl(item.banner_img_path)"
+              :src="getEventBannerUrl(item)"
               :alt="item.event_name"
               class="w-full h-full object-cover"
               @error="(e) => (e.target.style.display = 'none')"
@@ -293,14 +354,14 @@ onMounted(() => {
         <div
           v-for="event in events"
           :key="event.id"
-          @click="goToDetail(event)"
-          class="bg-white rounded-lg shadow p-4 active:bg-gray-50 transition"
+          class="bg-white rounded-lg shadow p-4"
         >
           <div class="flex gap-3">
             <img
               v-if="event.banner_img_path"
-              :src="getImageUrl(event.banner_img_path)"
+              :src="getEventBannerUrl(event)"
               class="w-20 h-20 object-cover rounded-lg shrink-0"
+              @error="(e) => (e.target.style.display = 'none')"
             />
             <div class="flex-1 min-w-0">
               <h3 class="font-semibold text-gray-900 line-clamp-2 mb-1">
@@ -343,28 +404,65 @@ onMounted(() => {
 
     <!-- Delete Modal -->
     <ResponsiveModal
-    :show="showDeleteModal"
-    @close="showDeleteModal = false"
-    title="Konfirmasi Hapus Event"
+      :show="showDeleteModal"
+      @close="showDeleteModal = false"
+      title="Konfirmasi Hapus Event"
     >
-    <div class="text-center py-4">
+      <div class="text-center py-4">
         <i class="pi pi-exclamation-triangle text-4xl text-red-500 mb-3"></i>
         <p class="text-lg font-semibold mb-2">Yakin ingin menghapus event ini?</p>
         <p class="text-gray-500 mb-2">
-        Event <strong>{{ selectedEvent?.event_name }}</strong> akan dihapus dari sistem.
+          Event <strong>{{ selectedEvent?.event_name }}</strong> akan dihapus dari sistem.
         </p>
         <p class="text-xs text-muted-foreground">
-        Tindakan ini tidak dapat dibatalkan.
+          Tindakan ini tidak dapat dibatalkan.
         </p>
-    </div>
-    <template #footer>
+      </div>
+      <template #footer>
         <div class="flex gap-3 justify-end">
-        <Button @click="showDeleteModal = false" variant="secondary">Batal</Button>
-        <Button @click="handleDelete" variant="danger">
+          <Button @click="showDeleteModal = false" variant="secondary">Batal</Button>
+          <Button @click="handleDelete" variant="danger">
             <i class="pi pi-trash mr-2"></i> Hapus
-        </Button>
+          </Button>
         </div>
-    </template>
+      </template>
+    </ResponsiveModal>
+
+    <!-- ✅ Export Modal -->
+    <ResponsiveModal
+      :show="showExportModal"
+      @close="closeExportModal"
+      title="Export Laporan Events"
+      subtitle="Unduh laporan data events dalam format PDF"
+    >
+      <div class="space-y-4">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div class="flex items-start gap-3">
+            <i class="pi pi-info-circle text-blue-600 text-xl mt-0.5"></i>
+            <div class="flex-1">
+              <p class="text-sm text-blue-900 font-medium mb-1">Laporan akan mencakup:</p>
+              <ul class="text-xs text-blue-800 space-y-1 list-disc list-inside">
+                <li>Data lengkap events (Nama, Tanggal, Status)</li>
+                <li>Jumlah merchants dan vouchers yang terlibat</li>
+                <li>Deskripsi event dan pembuat event</li>
+                <li>Filter yang diterapkan (Status, Pencarian)</li>
+                <li>Informasi waktu download dan admin yang mendownload</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <Button
+          @click="exportPDF"
+          variant="merchant"
+          size="lg"
+          custom-class="w-full justify-center"
+          :loading="exportLoading"
+        >
+          <i class="pi pi-download mr-2"></i>
+          <span>Download Laporan PDF</span>
+        </Button>
+      </div>
     </ResponsiveModal>
   </div>
 </template>

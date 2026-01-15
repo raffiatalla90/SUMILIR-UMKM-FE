@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from "vue";
+import { computed, ref, provide, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
 import Button from "@/components/common/Button.vue";
@@ -10,6 +10,12 @@ const router = useRouter();
 const isCreateRoute = computed(() => route.name === "Admin - Create Event");
 const isEditRoute = computed(() => route.name === "Admin - Edit Event");
 const isDetailRoute = computed(() => route.name === "Admin - Event Detail");
+
+const exportModalCallback = ref(null);
+
+provide('registerExportModal', (callback) => {
+  exportModalCallback.value = callback;
+});
 
 const breadcrumbItems = computed(() => {
   if (isCreateRoute.value) {
@@ -30,7 +36,6 @@ const breadcrumbItems = computed(() => {
       { label: "Detail Event" },
     ];
   }
-  // Default: list
   return [{ label: "Events" }];
 });
 
@@ -39,8 +44,12 @@ const addLabel = "Tambah Event";
 const goToCreate = () => router.push({ name: "Admin - Create Event" });
 
 const triggerExport = () => {
-  // Implementasi export event
-  alert("Fitur export event belum diimplementasikan.");
+  
+  if (typeof exportModalCallback.value === 'function') {
+    exportModalCallback.value();
+  } else {
+    console.error('Export modal callback not registered');
+  }
 };
 
 const headerSubtitle = computed(() => {
@@ -48,6 +57,12 @@ const headerSubtitle = computed(() => {
   if (isEditRoute.value) return "Edit event";
   if (isDetailRoute.value) return "Detail event";
   return "Kelola data event";
+});
+
+const showActionButtons = computed(() => !isCreateRoute.value && !isEditRoute.value );
+
+watch(() => route.name, () => {
+  exportModalCallback.value = null;
 });
 </script>
 
@@ -65,23 +80,25 @@ const headerSubtitle = computed(() => {
           </p>
         </div>
       </div>
-      <div class="flex gap-2 sm:gap-3">
-        <template v-if="!isCreateRoute && !isEditRoute && !isDetailRoute">
-          <Button @click="goToCreate" variant="merchant" size="sm" customClass="!hidden sm:!inline">
-            <i class="pi pi-plus"></i>
-            <span class="hidden sm:inline ml-2">{{ addLabel }}</span>
-          </Button>
-          <Button @click="goToCreate" variant="merchant" size="md" customClass="sm:!hidden">
-            <i class="pi pi-plus"></i>
-          </Button>
-          <Button @click="triggerExport" variant="merchant-outline" size="sm" customClass="!hidden sm:!inline">
-            <i class="pi pi-download"></i>
-            <span class="hidden sm:inline ml-2">Export</span>
-          </Button>
-          <Button @click="triggerExport" variant="merchant-outline" size="md" customClass="sm:!hidden">
-            <i class="pi pi-download"></i>
-          </Button>
-        </template>
+      
+      <div v-if="showActionButtons" class="flex gap-2 sm:gap-3">
+        <!-- Create Button -->
+        <Button @click="goToCreate" variant="merchant" size="sm" customClass="!hidden sm:!inline">
+          <i class="pi pi-plus"></i>
+          <span class="hidden sm:inline ml-2">{{ addLabel }}</span>
+        </Button>
+        <Button @click="goToCreate" variant="merchant" size="md" customClass="sm:!hidden">
+          <i class="pi pi-plus"></i>
+        </Button>
+
+        <!-- Export Button -->
+        <Button @click="triggerExport" variant="merchant-outline" size="sm" customClass="!hidden sm:!inline">
+          <i class="pi pi-download"></i>
+          <span class="hidden sm:inline ml-2">Export</span>
+        </Button>
+        <Button @click="triggerExport" variant="merchant-outline" size="md" customClass="sm:!hidden">
+          <i class="pi pi-download"></i>
+        </Button>
       </div>
     </div>
 
