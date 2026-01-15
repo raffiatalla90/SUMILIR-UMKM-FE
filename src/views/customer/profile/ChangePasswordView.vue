@@ -82,7 +82,7 @@ const goBack = () => {
     <MobileHeader title="Ubah Kata Sandi" @back="goBack" />
 
     <!-- Content -->
-    <div class="max-w-4xl px-4 py-6 pb-24 mx-auto">
+    <div class="max-w-4xl px-4 py-4 pb-24 mx-auto">
       <form @submit.prevent="onSubmit" class="space-y-6">
         <!-- Current Password -->
         <PasswordField

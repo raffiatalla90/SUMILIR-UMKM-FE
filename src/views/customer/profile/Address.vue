@@ -246,7 +246,7 @@ const villageOptions = computed(() =>
   <div class="">
     <MobileHeader title="Alamat Utama" @back="goBack" />
 
-    <div class="px-4 py-6 mx-auto max-w-7xl sm:px-8 sm:py-12">
+    <div class="px-4 py-4 mx-auto max-w-7xl">
       <div class="p-6 bg-white border border-gray-100 shadow-sm rounded-2xl">
         <div v-if="loading" class="space-y-6 animate-pulse">
           <!-- Select Fields Skeleton -->
@@ -352,7 +352,12 @@ const villageOptions = computed(() =>
             <label class="block mb-2 text-sm font-semibold text-gray-700">
               Lokasi di Peta
             </label>
-            <MapPicker v-model:lat="lat" v-model:lng="lng" height="320px" />
+            <MapPicker
+              v-model:lat="lat"
+              v-model:lng="lng"
+              height="320px"
+              variant="user"
+            />
           </div>
 
           <div class="flex gap-4">

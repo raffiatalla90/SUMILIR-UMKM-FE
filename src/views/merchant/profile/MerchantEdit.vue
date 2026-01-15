@@ -35,12 +35,13 @@
 
           <!-- Desktop Save Button -->
           <div class="flex items-center gap-3">
-            <button
+            <AppButton
               @click="handleSave"
-              class="px-6 py-2.5 bg-merchant-primary text-white font-semibold rounded-lg hover:opacity-90 transition-opacity text-sm"
+              :loading="isSaving"
+              variant="merchant"
             >
               Simpan
-            </button>
+            </AppButton>
           </div>
         </div>
       </div>
@@ -658,12 +659,9 @@
 
         <!-- Desktop Save Button -->
         <div class="justify-end hidden mt-6 sm:flex">
-          <button
-            @click="handleSave"
-            class="px-6 py-2.5 bg-merchant-primary text-white font-semibold rounded-lg hover:opacity-90 transition-opacity text-sm"
-          >
+          <AppButton @click="handleSave" :loading="isSaving" variant="merchant">
             Simpan
-          </button>
+          </AppButton>
         </div>
 
         <!-- Mobile Action Button - Fixed at Bottom -->

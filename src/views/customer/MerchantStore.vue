@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen">
+  <div class="">
     <!-- Loading State -->
     <div v-if="loading" class="w-full">
       <!-- Header Skeleton -->
@@ -145,6 +145,16 @@
                   </span>
                   <span class="text-xs font-bold text-merchant-primary">
                     {{ merchant.segmentation?.name || "UMKM" }}
+                  </span>
+
+                  <span
+                    v-if="formattedDistanceKm"
+                    class="flex items-center gap-1 text-xs font-semibold text-gray-500"
+                  >
+                    <i
+                      class="text-sm pi pi-map-marker text-danger-foreground"
+                    ></i>
+                    {{ formattedDistanceKm }}
                   </span>
                 </div>
               </div>
@@ -351,6 +361,7 @@
               :lng="longitude"
               :zoom="12"
               :showMyLocation="true"
+              variant="merchant"
               readonly="true"
               class="absolute inset-0"
             />
@@ -362,21 +373,22 @@
             </div>
           </div>
 
-          <p class="text-sm leading-relaxed text-gray-600">
+          <p class="mb-4 text-sm leading-relaxed text-gray-600">
             {{ merchantInfo.address }}
           </p>
+
+          <!-- Rute Button -->
+          <AppButton
+            v-if="hasCoordinates"
+            @click="openRouteToMerchant"
+            type="button"
+            variant="primary"
+            class="w-full"
+          >
+            <span>Rute</span>
+          </AppButton>
         </div>
       </div>
-
-      <!-- Tombol Chat Floating -->
-      <button
-        v-if="menuKind === 'jasa' && jasaList.length > 0"
-        @click="openChat"
-        class="fixed z-40 flex items-center justify-center transition rounded-full shadow-xl bottom-6 right-6 w-14 h-14 bg-secondary-hover hover:brightness-95"
-        title="Chat dengan Toko"
-      >
-        <i class="text-xl text-white pi pi-comments"></i>
-      </button>
     </template>
 
     <!-- Not Found -->
@@ -449,15 +461,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useRouter } from "vue-router";
 import api from "@/libs/axios.js";
 import { getImageUrl } from "@/libs/getImageUrl.js";
+import { setMeta, setJsonLd } from "@/router/seo";
 import ChatWindow from "@/components/common/ChatWindow.vue";
 import LeafletMap from "@/components/LeafletMap.vue";
 import ProductCard from "@/components/Card/ProductCard.vue";
 import ProductCardSkeleton from "@/components/Card/ProductCardSkeleton.vue";
+import AppButton from "@/components/common/Button.vue";
+import { useToast } from "vue-toastification";
+const toast = useToast();
 
 // Format phone number for wa.me (remove non-digits, add country code if needed)
 function formatPhoneForWa(phone) {
@@ -490,6 +506,91 @@ const operationalHours = ref([]);
 const latitude = ref(null);
 const longitude = ref(null);
 
+const myLatitude = ref(null);
+const myLongitude = ref(null);
+
+function setMyCoordinates(lat, lng) {
+  const latNum = parseFloat(lat);
+  const lngNum = parseFloat(lng);
+  myLatitude.value = Number.isFinite(latNum) ? latNum : null;
+  myLongitude.value = Number.isFinite(lngNum) ? lngNum : null;
+}
+
+async function loadMyCoordinatesFromProfile() {
+  try {
+    const res = await api.get("api/profile/address");
+    const addr = res?.data?.data;
+    setMyCoordinates(addr?.latitude, addr?.longitude);
+    return hasMyCoordinates.value;
+  } catch (e) {
+    setMyCoordinates(null, null);
+    return false;
+  }
+}
+
+async function requestMyLocation() {
+  if (hasMyCoordinates.value) return true;
+  if (!navigator.geolocation) return false;
+
+  const coords = await new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos?.coords?.latitude;
+        const lng = pos?.coords?.longitude;
+        if (typeof lat === "number" && typeof lng === "number") {
+          resolve({ lat, lng });
+        } else {
+          resolve(null);
+        }
+      },
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+    );
+  });
+
+  if (!coords) return false;
+  setMyCoordinates(coords.lat, coords.lng);
+  return hasMyCoordinates.value;
+}
+
+function openRouteToMerchant() {
+  if (!hasMyCoordinates.value) {
+    // Try to get location first
+    requestMyLocation().then((success) => {
+      if (success) {
+        openGoogleMapsRoute();
+      } else {
+        toast.info(
+          "Lokasi Anda belum tersedia. Silakan aktifkan akses lokasi."
+        );
+      }
+    });
+    return;
+  }
+  openGoogleMapsRoute();
+}
+
+function openGoogleMapsRoute() {
+  const originLat = myLatitude.value;
+  const originLng = myLongitude.value;
+
+  const destLat = parseFloat(latitude.value);
+  const destLng = parseFloat(longitude.value);
+
+  if (isNaN(destLat) || isNaN(destLng)) {
+    toast.info("Lokasi toko tidak valid");
+    return;
+  }
+
+  const url =
+    `https://www.google.com/maps/dir/?api=1` +
+    `&origin=${originLat},${originLng}` +
+    `&destination=${destLat},${destLng}` +
+    `&travelmode=driving`;
+
+  window.open(url, "_blank");
+}
+
 const DAYS = [
   { key: "monday", label: "Senin" },
   { key: "tuesday", label: "Selasa" },
@@ -501,10 +602,51 @@ const DAYS = [
 ];
 
 const hasCoordinates = computed(() => {
+  const latNum = parseFloat(latitude.value);
+  const lngNum = parseFloat(longitude.value);
+  return Number.isFinite(latNum) && Number.isFinite(lngNum);
+});
+
+const hasMerchantCoordinates = computed(() => hasCoordinates.value);
+
+const hasMyCoordinates = computed(() => {
   return (
-    Number.isFinite(Number(latitude.value)) &&
-    Number.isFinite(Number(longitude.value))
+    Number.isFinite(myLatitude.value) && Number.isFinite(myLongitude.value)
   );
+});
+
+function toRad(deg) {
+  return (deg * Math.PI) / 180;
+}
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+const distanceKm = computed(() => {
+  if (!hasMyCoordinates.value) return null;
+  if (!hasMerchantCoordinates.value) return null;
+
+  const mLat = parseFloat(latitude.value);
+  const mLng = parseFloat(longitude.value);
+  if (!Number.isFinite(mLat) || !Number.isFinite(mLng)) return null;
+
+  return haversineKm(myLatitude.value, myLongitude.value, mLat, mLng);
+});
+
+const formattedDistanceKm = computed(() => {
+  if (distanceKm.value == null) return null;
+  return `${distanceKm.value.toFixed(1)} km`;
 });
 
 // Format harga
@@ -524,6 +666,62 @@ function formatFullAddress(addr) {
     (p) => typeof p === "string" && p.trim() !== ""
   );
   return parts.length ? parts.join(", ") : "-";
+}
+
+function pickSeoImage(m) {
+  return m?.banner_url || m?.logo_url || "https://sumilir.web.id/og-image.png";
+}
+
+function applyMerchantSeo(merchantData, merchantSlug) {
+  const name = merchantData?.name || "Toko";
+  const segmentation = merchantData?.segmentation?.name || "UMKM";
+  const descRaw = merchantData?.description || "";
+  const addrText = merchantInfo.value?.address || "";
+
+  const description =
+    descRaw?.trim() ||
+    [
+      `${segmentation} di Sumilir.`,
+      addrText ? `Alamat: ${addrText}.` : "",
+      "Lihat menu, informasi toko, dan jam operasional.",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+  const pageUrl = `${window.location.origin}/merchant/${merchantSlug}`;
+
+  setMeta({
+    title: `${name} | SUMILIR`,
+    description,
+    image: pickSeoImage(merchantData),
+    url: pageUrl,
+    type: "business.business",
+  });
+
+  const latNum = parseFloat(latitude.value);
+  const lngNum = parseFloat(longitude.value);
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    name,
+    url: pageUrl,
+    image: [pickSeoImage(merchantData)],
+    telephone: merchantData?.phone || undefined,
+    address: addrText
+      ? { "@type": "PostalAddress", streetAddress: addrText }
+      : undefined,
+    geo:
+      Number.isFinite(latNum) && Number.isFinite(lngNum)
+        ? { "@type": "GeoCoordinates", latitude: latNum, longitude: lngNum }
+        : undefined,
+  };
+
+  // Remove undefined keys so JSON-LD is clean
+  for (const k of Object.keys(jsonLd)) {
+    if (jsonLd[k] === undefined) delete jsonLd[k];
+  }
+  setJsonLd("jsonld-merchant", jsonLd);
 }
 
 // Resolve gambar jasa
@@ -636,6 +834,9 @@ const fetchMerchantData = async () => {
       return { name: day.label, hours: `${item.open} - ${item.close}` };
     });
 
+    // Dynamic SEO based on merchant data
+    applyMerchantSeo(data, merchantSlug);
+
     // Fetch menu berdasarkan segmentation
     await fetchMerchantMenu(data, merchantSlug);
   } catch (error) {
@@ -643,14 +844,23 @@ const fetchMerchantData = async () => {
     merchant.value = null;
     jasaList.value = [];
     productList.value = [];
+
+    setMeta({
+      title: "Toko tidak ditemukan | SUMILIR",
+      description: "Toko tidak ditemukan atau sudah tidak tersedia.",
+      url: window.location.origin + window.location.pathname,
+    });
   } finally {
     loading.value = false;
   }
 };
 
 onMounted(() => {
-  fetchMerchantData();
+  // Preload profile coordinates (no geolocation prompt).
+  loadMyCoordinatesFromProfile();
 });
+
+watch(() => route.params.slug, fetchMerchantData, { immediate: true });
 </script>
 
 <style scoped>

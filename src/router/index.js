@@ -804,7 +804,16 @@ let authInitialized = false;
 
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
-  document.title = to.meta.title || "SUMILIR";
+  // Basic SEO for all routes (can be overridden by page-level dynamic SEO)
+  try {
+    const { setMeta } = await import("@/router/seo");
+    setMeta({
+      title: to.meta.title || "SUMILIR",
+      description: to.meta.description || "",
+    });
+  } catch (e) {
+    document.title = to.meta.title || "SUMILIR";
+  }
 
   if (!authInitialized) {
     authInitialized = true;

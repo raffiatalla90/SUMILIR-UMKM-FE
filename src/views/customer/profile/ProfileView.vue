@@ -101,6 +101,26 @@ const addressText = computed(() => {
   const a = profileStore.user?.full_address ?? profileStore.user?.address;
   return a && String(a).trim() ? String(a).trim() : "-";
 });
+
+const hasAddress = computed(() => {
+  const a = profileStore.user?.full_address ?? profileStore.user?.address;
+  return !!(a && String(a).trim());
+});
+
+const hasProfilePicture = computed(() => {
+  const url = profileStore.user?.profile_picture;
+  if (!url) return false;
+  const normalized = String(url).trim();
+  if (!normalized) return false;
+  // Hindari menganggap placeholder sebagai foto profil yang sudah diisi.
+  return !normalized.includes("via.placeholder.com");
+});
+
+const needsProfileCompletion = computed(
+  () =>
+    !isInitialProfileLoading.value &&
+    (!hasProfilePicture.value || !hasAddress.value)
+);
 </script>
 
 <template>
@@ -109,7 +129,7 @@ const addressText = computed(() => {
     <!-- <MobileHeader title="Profil" @back="goBack()" /> -->
 
     <!-- Content Container -->
-    <div class="px-4 py-6 mx-auto max-w-7xl sm:px-8 sm:py-12">
+    <div class="px-4 py-4 mx-auto max-w-7xl">
       <!-- DESKTOP LAYOUT -->
       <div class="hidden gap-8 lg:grid lg:grid-cols-12">
         <!-- Left: Profile Card -->
@@ -239,6 +259,19 @@ const addressText = computed(() => {
                     addressText
                   }}</span>
                 </div>
+
+                <div
+                  v-if="!isInitialProfileLoading && !hasAddress"
+                  class="p-3 text-sm border border-amber-200 rounded-xl bg-amber-50 text-amber-900"
+                >
+                  Alamat belum diisi.
+                  <button
+                    class="font-semibold underline underline-offset-2"
+                    @click="router.push('/profile/address')"
+                  >
+                    Isi alamat sekarang
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -349,7 +382,7 @@ const addressText = computed(() => {
                         @click="router.push(`/merchant-center/${m.slug}`)"
                       >
                         <svg
-                          class="w-5 h-5 text-primary"
+                          class="w-5 h-5 text-merchant-primary"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -385,7 +418,7 @@ const addressText = computed(() => {
                     @click="router.push('/merchant-register')"
                   >
                     <svg
-                      class="w-5 h-5 text-primary"
+                      class="w-5 h-5 text-merchant-primary"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -533,6 +566,19 @@ const addressText = computed(() => {
                   addressText
                 }}</span>
               </div>
+
+              <div
+                v-if="!isInitialProfileLoading && !hasAddress"
+                class="p-3 mt-2 text-sm border border-amber-200 rounded-xl bg-amber-50 text-amber-900"
+              >
+                Alamat belum diisi.
+                <button
+                  class="font-semibold underline underline-offset-2"
+                  @click="router.push('/profile/address')"
+                >
+                  Isi alamat sekarang
+                </button>
+              </div>
             </div>
           </div>
 
@@ -630,7 +676,7 @@ const addressText = computed(() => {
                       @click="router.push(`/merchant-center/${m.slug}`)"
                     >
                       <svg
-                        class="w-5 h-5 text-primary"
+                        class="w-5 h-5 text-merchant-primary"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -667,7 +713,7 @@ const addressText = computed(() => {
                   @click="router.push('/merchant-register')"
                 >
                   <svg
-                    class="w-5 h-5 text-primary"
+                    class="w-5 h-5 text-merchant-primary"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -676,7 +722,7 @@ const addressText = computed(() => {
                       stroke-linecap="round"
                       stroke-linejoin="round"
                       stroke-width="2"
-                      d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                      d="M12 4v16m8-8H4"
                     />
                   </svg>
                   <span class="flex-1 font-medium text-gray-700"

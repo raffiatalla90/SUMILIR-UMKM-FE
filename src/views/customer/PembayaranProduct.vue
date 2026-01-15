@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen mx-auto pb-28 sm:pb-12 bg-gray-50 max-w-7xl">
+  <div class="mx-auto pb-28 sm:pb-12 max-w-7xl">
     <!-- Mobile Header -->
     <MobileHeader title="Checkout Pesanan" variant="primary" />
 
@@ -695,8 +695,8 @@ onMounted(async () => {
     }
   }
 
-  if (!isGuest.value && order.value.store?.id) {
-    await fetchVouchersByMerchant(order.value.store.id);
+  if (!isGuest.value && order.value.store?.slug) {
+    await fetchVouchersByMerchant(order.value.store.slug);
   }
 });
 const promos = computed(() =>
@@ -749,8 +749,8 @@ watch(
       return;
     }
 
-    if (order.value.store?.id) {
-      fetchVouchersByMerchant(order.value.store.id);
+    if (order.value.store?.slug) {
+      fetchVouchersByMerchant(order.value.store.slug);
     }
   },
   { immediate: true }
@@ -948,6 +948,7 @@ const openWhatsapp = () => {
   const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   window.open(url, "_blank");
   checkout.clear();
+  router.back();
 };
 
 onBeforeRouteLeave(() => {
