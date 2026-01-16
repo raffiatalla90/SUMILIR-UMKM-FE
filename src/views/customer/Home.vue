@@ -32,10 +32,11 @@ const isLoadingMerchants = ref(true);
 const isLoadingPromo = ref(true);
 const isLoadingEvent = ref(true);
 const isLoadingBanner = ref(true);
-const isLoadMore = ref(false); // ✅ ADD: Missing variable
+const isLoadMore = ref(false); 
 
 // banner carousel
 const { events: eventBanners, fetchPublicEvents } = usePublicEvents();
+const eventBannersProcessed = ref([]); 
 
 //Carousel config (enable touch/mouse drag)
 const carouselConfig = {
@@ -172,6 +173,11 @@ onMounted(async () => {
   try {
     isLoadingBanner.value = true;
     await fetchPublicEvents();
+    
+    eventBannersProcessed.value = eventBanners.value.map(event => ({
+      ...event,
+      bannerUrl: getEventBannerUrl(event) // Compute URL once
+    }));
   } catch (e) {
     console.error('Gagal memuat banner event:', e);
   } finally {
@@ -239,16 +245,14 @@ watch(
         </div>
 
         <Carousel 
-          v-else-if="eventBanners.length > 0" 
+          v-else-if="eventBannersProcessed.length > 0" 
           v-bind="carouselConfig"
           class="h-full"
         >
-          <Slide v-for="event in eventBanners" :key="`${event.id}-${event.updated_at}`">
+          <Slide v-for="event in eventBannersProcessed" :key="event.id">
             <div class="relative w-full h-full group cursor-grab active:cursor-grabbing">
-              <!-- ✅ ADDED: Key menggunakan updated_at untuk force re-render -->
               <img 
-                :key="`banner-${event.id}-${event.updated_at}`"
-                :src="getEventBannerUrl(event)"
+                :src="event.bannerUrl"
                 :alt="event.event_name"
                 class="w-full h-full object-cover pointer-events-none select-none"
                 draggable="false"
@@ -349,7 +353,7 @@ watch(
       </div>
     </section>
 
-    <!-- ✅ Section Rekomendasi UMKM -->
+    <!-- Section Rekomendasi UMKM -->
     <section id="umkm-recommendation" class="relative pt-6">
       <div class="pl-4 lg:pl-[54px]">
         <div class="inline-flex items-center gap-2.5 w-auto h-[35px] py-[5px]">
@@ -378,7 +382,7 @@ watch(
           </template>
         </div>
 
-        <!-- ✅ Tombol Muat Lebih Banyak -->
+        <!-- Tombol Muat Lebih Banyak -->
         <div class="flex justify-center mt-6">
           <Button
             @click="loadMoreMerchants"
