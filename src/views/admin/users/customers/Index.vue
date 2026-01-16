@@ -12,6 +12,7 @@ import StatusLabel from "@/components/common/StatusLabel.vue";
 import MobilePagination from "@/components/common/MobilePagination.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
+import { getUserProfileUrl } from "@/libs/getImageUrl"; // ✅ ADD import
 
 const router = useRouter();
 const toast = useToast();
@@ -320,7 +321,18 @@ watch(searchQuery, () => {
       >
         <template #cell-photo="{ item }">
           <div class="w-10 h-10 rounded-full bg-merchant-primary/10 flex items-center justify-center overflow-hidden">
-            <span class="text-merchant-primary font-semibold text-sm">
+            <img 
+              v-if="item.profile_picture_path"
+              :src="getUserProfileUrl(item)" 
+              :alt="item.name"
+              class="w-full h-full object-cover"
+              @error="(e) => { 
+                console.error('Image load error for user:', item.id, item.name);
+                e.target.style.display = 'none'; 
+                e.target.parentElement.innerHTML = `<span class='text-merchant-primary font-semibold text-sm'>${item.name?.charAt(0)?.toUpperCase() || 'U'}</span>`;
+              }"
+            />
+            <span v-else class="text-merchant-primary font-semibold text-sm">
               {{ item.name?.charAt(0)?.toUpperCase() || "U" }}
             </span>
           </div>
@@ -404,8 +416,19 @@ watch(searchQuery, () => {
           class="bg-white rounded-lg shadow-sm p-4 active:bg-gray-50 transition"
         >
           <div class="flex items-start gap-3 mb-3">
-            <div class="w-12 h-12 rounded-full bg-merchant-primary/10 flex items-center justify-center shrink-0">
-              <span class="text-merchant-primary font-semibold">
+            <div class="w-12 h-12 rounded-full bg-merchant-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
+              <img 
+                v-if="u.profile_picture_path"
+                :src="getUserProfileUrl(u)" 
+                :alt="u.name"
+                class="w-full h-full object-cover"
+                @error="(e) => { 
+                  console.error('Image load error for user:', u.id, u.name);
+                  e.target.style.display = 'none'; 
+                  e.target.parentElement.innerHTML = `<span class='text-merchant-primary font-semibold'>${u.name?.charAt(0)?.toUpperCase() || 'U'}</span>`;
+                }"
+              />
+              <span v-else class="text-merchant-primary font-semibold">
                 {{ u.name?.charAt(0)?.toUpperCase() || "U" }}
               </span>
             </div>

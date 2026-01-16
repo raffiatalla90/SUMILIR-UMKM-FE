@@ -70,7 +70,7 @@ const routes = [
       },
       {
         path: "/map",
-        name: "map",
+        name: "Peta UMKM",
         component: () => import("@/views/customer/PetaUmkm.vue"),
         meta: { title: "Peta UMKM Banyuanyar" },
       },
@@ -328,6 +328,7 @@ const routes = [
             component: () => import("@/views/admin/events/Detail.vue"),
             meta: { title: "Detail Event | Admin SUMILIR" },
           },
+          // ✅ ADD: Edit Event route
           {
             path: ":id/edit",
             name: "Admin - Edit Event",
@@ -358,7 +359,10 @@ const routes = [
             path: ":id",
             name: "Admin - Voucher Detail",
             component: () => import("@/views/admin/vouchers/Detail.vue"),
-            meta: { title: "Detail Voucher | Admin SUMILIR" },
+            meta: {
+              requiresAuth: true,
+              requiresAdmin: true,
+            },
           },
         ],
       },

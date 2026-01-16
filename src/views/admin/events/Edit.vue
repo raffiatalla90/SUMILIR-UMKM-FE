@@ -126,12 +126,13 @@ watch(
   }
 );
 
-// Validation schema (status removed)
+// Validation schema
 const schema = yup.object({
   event_name: yup
     .string()
     .required("Nama event wajib diisi")
-    .min(3, "Minimal 3 karakter"),
+    .min(3, "Minimal 3 karakter")
+    .max(255, "Maksimal 255 karakter"),
   event_description: yup
     .string()
     .required("Deskripsi event wajib diisi")
@@ -237,11 +238,17 @@ const triggerFileInput = () => {
   fileInputRef.value?.click();
 };
 
-// Submit handler
+// Submit handler - banner optional on edit but warn if removed
 const handleSubmit = async (values) => {
   try {
     if (allowedStatus.value.isError) {
       toast.error("Tidak dapat menyimpan perubahan dengan tanggal yang tidak valid");
+      return;
+    }
+
+    // ✅ WARN if no banner exists (shouldn't happen if required on create)
+    if (!event.value.banner_img_path && !bannerFile.value) {
+      toast.error("Banner event wajib ada");
       return;
     }
 
@@ -253,35 +260,32 @@ const handleSubmit = async (values) => {
     formData.append("status", allowedStatus.value.status);
     formData.append("_method", "PUT");
 
-    // ✅ Always append banner if user selected new file
     if (hasNewBanner.value && bannerFile.value) {
       formData.append("banner_img", bannerFile.value);
-      console.log("[Edit] Uploading new banner:", bannerFile.value.name);
     }
 
-    // ✅ Get updated data from server
     const response = await updateEvent(route.params.id, formData);
     
-    // ✅ Update local event data with server response
     if (response?.data) {
       event.value = response.data;
       
       if (response.data.banner_img_path) {
-        // ✅ Force reload dengan timestamp baru
         const timestamp = new Date(response.data.updated_at).getTime();
         bannerPreview.value = `${getEventBannerUrl(response.data)}`;
         hasNewBanner.value = false;
         bannerFile.value = null;
       }
-      
-      console.log("[Edit] Event updated successfully:", response.data);
     }
     
-    // ✅ Navigate to detail page
     router.push({ name: "Admin - Event Detail", params: { id: route.params.id } });
   } catch (error) {
     console.error("[Edit] Update failed:", error);
-    // Toast already shown by composable
+    
+    if (error.response?.data?.errors?.event_name) {
+      toast.error(error.response.data.errors.event_name[0] || "Nama event sudah digunakan");
+    } else if (error.response?.data?.message) {
+      toast.error(error.response.data.message);
+    }
   }
 };
 
@@ -320,6 +324,11 @@ onMounted(() => {
                 required
               />
             </Field>
+            <!-- Unique validation hint -->
+            <p class="text-xs text-gray-500 mt-1 flex items-center gap-1">
+              <i class="pi pi-info-circle"></i>
+              <span>Nama event tidak boleh sama dengan event lain</span>
+            </p>
           </div>
 
           <!-- Event Description -->
@@ -406,14 +415,17 @@ onMounted(() => {
               class="hidden"
             />
 
+            <!-- ✅ NO BANNER STATE (should rarely happen) -->
             <div
               v-if="!bannerPreview"
               @click="triggerFileInput"
-              class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-merchant-primary transition-colors cursor-pointer"
+              class="border-2 border-dashed border-red-300 bg-red-50 rounded-lg p-8 text-center cursor-pointer"
             >
-              <i class="pi pi-cloud-upload text-4xl text-gray-400 mb-3"></i>
-              <!-- ✅ UPDATED: Petunjuk ukuran dengan aspect ratio -->
-              <p class="text-sm text-gray-600">
+              <i class="pi pi-exclamation-triangle text-4xl text-red-500 mb-3"></i>
+              <p class="text-sm text-red-600 font-semibold mb-2">
+                Banner event wajib ada!
+              </p>
+              <p class="text-xs text-gray-600">
                 Klik untuk upload banner baru (JPG, PNG, WebP, SVG)
               </p>
               <p class="text-xs text-gray-400 mt-1">
@@ -423,7 +435,6 @@ onMounted(() => {
 
             <!-- Preview -->
             <div v-else class="relative">
-              <!-- ✅ CHANGED: Preview dengan aspect ratio -->
               <img
                 :src="bannerPreview"
                 alt="Banner preview"
@@ -438,13 +449,8 @@ onMounted(() => {
                 Banner Baru
               </span>
               
-              <button
-                @click="removeBanner"
-                type="button"
-                class="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition shadow-lg"
-              >
-                <i class="pi pi-times"></i>
-              </button>
+              <!-- ✅ REMOVED: Delete button (banner required) -->
+              <!-- Keep only Change Banner button -->
               
               <button
                 @click="triggerFileInput"
@@ -455,6 +461,12 @@ onMounted(() => {
                 Ganti Banner
               </button>
             </div>
+
+            <!-- ✅ INFO MESSAGE -->
+            <p class="text-xs text-gray-500 mt-2 flex items-center gap-1">
+              <i class="pi pi-info-circle"></i>
+              <span>Banner event wajib ada. Klik "Ganti Banner" untuk mengubah.</span>
+            </p>
           </div>
 
           <!-- Actions -->
@@ -462,7 +474,11 @@ onMounted(() => {
             <Button @click="goBack" variant="secondary" type="button">
               Batal
             </Button>
-            <Button type="submit" variant="merchant" :disabled="loading">
+            <Button 
+              type="submit" 
+              variant="merchant" 
+              :disabled="loading || !bannerPreview"
+            >
               <i class="pi pi-check mr-2"></i>
               {{ loading ? "Menyimpan..." : "Simpan Perubahan" }}
             </Button>

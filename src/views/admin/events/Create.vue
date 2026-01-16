@@ -102,12 +102,13 @@ watch(
   }
 );
 
-// Validation schema (status validation removed since auto-determined)
+// Validation schema with banner required
 const schema = yup.object({
   event_name: yup
     .string()
     .required("Nama event wajib diisi")
-    .min(3, "Minimal 3 karakter"),
+    .min(3, "Minimal 3 karakter")
+    .max(255, "Maksimal 255 karakter"),
   event_description: yup
     .string()
     .required("Deskripsi event wajib diisi")
@@ -159,7 +160,7 @@ const removeBanner = () => {
   bannerPreview.value = null;
 };
 
-// Submit handler
+// Submit handler with banner validation
 const handleSubmit = async (values) => {
   try {
     if (allowedStatus.value.isError) {
@@ -185,6 +186,12 @@ const handleSubmit = async (values) => {
     router.push({ name: "Admin - Events" });
   } catch (error) {
     console.error("Create event failed:", error);
+    
+    if (error.response?.data?.errors?.event_name) {
+      toast.error(error.response.data.errors.event_name[0] || "Nama event sudah digunakan");
+    } else if (error.response?.data?.message) {
+      toast.error(error.response.data.message);
+    }
   }
 };
 
@@ -213,6 +220,11 @@ const goBack = () => router.push({ name: "Admin - Events" });
                 required
               />
             </Field>
+            <!-- Unique validation hint -->
+            <p class="text-xs text-gray-500 mt-1 flex items-center gap-1">
+              <i class="pi pi-info-circle"></i>
+              <span>Nama event tidak boleh sama dengan event lain</span>
+            </p>
           </div>
 
           <!-- Event Description -->
@@ -312,7 +324,7 @@ const goBack = () => router.push({ name: "Admin - Events" });
                   Klik untuk upload banner (JPG, PNG, WebP, SVG)
                 </p>
                 <p class="text-xs text-gray-400 mt-1">
-                  Rekomendasi: 1920x480px (4:1) atau 1920x540px (16:9), Max 5MB
+                  Format: JPG, PNG, WebP, SVG | Rekomendasi: 1920x480px (4:1) | Max 5MB
                 </p>
               </label>
             </div>
@@ -332,6 +344,12 @@ const goBack = () => router.push({ name: "Admin - Events" });
                 <i class="pi pi-times"></i>
               </button>
             </div>
+
+            <!-- ✅ REQUIRED ERROR MESSAGE -->
+            <p v-if="!bannerFile" class="text-xs text-red-500 mt-2 flex items-center gap-1">
+              <i class="pi pi-exclamation-circle"></i>
+              <span>Banner event wajib diupload sebelum menyimpan</span>
+            </p>
           </div>
 
           <!-- Actions -->
@@ -342,7 +360,7 @@ const goBack = () => router.push({ name: "Admin - Events" });
             <Button 
               type="submit" 
               variant="merchant" 
-              :disabled="loading || allowedStatus.isError"
+              :disabled="loading || allowedStatus.isError || !bannerFile"
             >
               <i class="pi pi-check mr-2"></i>
               {{ loading ? "Menyimpan..." : "Simpan Event" }}
