@@ -26,12 +26,11 @@ const selectedMerchantIds = ref([]);
 
 // Validation schema
 const schema = yup.object({
-  voucher_code: yup
+  voucher_name: yup
     .string()
-    .required("Kode voucher wajib diisi")
+    .required("Nama voucher wajib diisi")
     .min(3, "Minimal 3 karakter")
-    .max(50, "Maksimal 50 karakter")
-    .matches(/^[A-Z0-9-]+$/, "Hanya huruf kapital, angka, dan strip (-)"),
+    .max(100, "Maksimal 100 karakter"),
   voucher_description: yup
     .string()
     .required("Deskripsi voucher wajib diisi")
@@ -161,11 +160,19 @@ const handleSubmit = async (values) => {
 
     await api.post("/api/admin/vouchers", payload);
     toast.success("Voucher berhasil dibuat");
+    
+    // ✅ Redirect ke list vouchers
     router.push({ name: "Admin - Vouchers" });
   } catch (error) {
     console.error("Create voucher failed:", error);
-    const message = error.response?.data?.message || "Gagal membuat voucher";
-    toast.error(message);
+    
+    // ✅ Handle unique validation error
+    if (error.response?.data?.errors?.voucher_name) {
+      toast.error(error.response.data.errors.voucher_name[0] || "Nama voucher sudah digunakan");
+    } else {
+      const message = error.response?.data?.message || "Gagal membuat voucher";
+      toast.error(message);
+    }
   }
 };
 
@@ -183,20 +190,21 @@ loadEvents();
         :validation-schema="schema"
         v-slot="{ errors, values }"
       >
-        <!-- Voucher Code -->
+        <!-- ✅ Voucher Name with unique hint -->
         <div class="mb-6">
-          <Field name="voucher_code" v-slot="{ field }">
+          <Field name="voucher_name" v-slot="{ field }">
             <TextField
               variant="merchant"
               v-bind="field"
-              label="Kode Voucher"
-              placeholder="Contoh: PROMO2025"
-              :error="errors.voucher_code"
+              label="Nama Voucher"
+              placeholder="Contoh: Promo Ramadan 2025"
+              :error="errors.voucher_name"
               required
             >
               <template #hint>
-                <p class="text-xs text-gray-500 mt-1">
-                  Gunakan huruf kapital, angka, dan strip (-) saja
+                <p class="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                  <i class="pi pi-info-circle"></i>
+                  <span>Nama voucher tidak boleh sama dengan voucher lain. Kode voucher akan digenerate otomatis (Format: SUMILIR-XXXXXXXX)</span>
                 </p>
               </template>
             </TextField>
@@ -281,6 +289,7 @@ loadEvents();
               label="Maksimal Diskon"
               placeholder="Contoh: 50000"
               :error="errors.max_discount_amount"
+              required
             >
               <template #prefix>
                 <span class="text-sm text-gray-500">Rp</span>
@@ -423,14 +432,16 @@ loadEvents();
           </div>
         </div>
 
-        <!-- Info Banner -->
+        <!-- ✅ UPDATED: Info Banner -->
         <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
           <div class="flex gap-3">
             <i class="pi pi-info-circle text-blue-600 text-lg shrink-0 mt-0.5"></i>
             <div class="flex-1">
               <h4 class="text-sm font-semibold text-blue-900 mb-1">Informasi Penting</h4>
               <ul class="text-xs text-blue-700 space-y-1">
-                <li>• Kode voucher harus unik dan tidak boleh sama dengan voucher lain</li>
+                <li>• Nama voucher tidak boleh sama dengan voucher lain</li>
+                <li>• Kode voucher akan digenerate otomatis dengan format SUMILIR-XXXXXXXX</li>
+                <li>• Kode voucher dijamin unik oleh sistem</li>
                 <li>• Voucher dengan status "Tidak Aktif" tidak dapat digunakan</li>
                 <li>• Jika dihubungkan dengan event, voucher hanya berlaku untuk merchant dalam event tersebut</li>
               </ul>

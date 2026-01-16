@@ -172,33 +172,44 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- Search Bar -->
-      <div class="relative z-10 flex justify-center px-4 mx-auto -mt-10 max-w-7xl">
+      <!-- Search Bar Container -->
+      <div
+        class="relative z-10 flex justify-center px-4 mx-auto -mt-10 max-w-7xl"
+      >
         <div class="w-full sm:w-[906px]">
-          <div class="overflow-hidden bg-white border border-gray-100 shadow-xl rounded-2xl">
+          <div
+            class="overflow-hidden bg-white border border-gray-100 shadow-xl rounded-2xl"
+          >
+            <!-- SEARCH -->
             <div class="p-4 border-b border-gray-100 sm:p-5">
-              <form @submit.prevent="onSearch">
+              <Form @submit="onSearch">
                 <div class="flex items-center w-full gap-2 sm:gap-3">
                   <TextField
                     name="search"
-                    v-model="searchQuery"
+                    ref="searchInputRef"
+                    :modelValue="searchQuery"
+                    @update:modelValue="(v) => (searchQuery = v)"
                     placeholder="Cari produk, jasa, atau UMKM…"
                     :hideLabel="true"
                     variant="primary"
                     wrapperClass="flex-1 min-w-0"
                   />
-                  <Button type="submit" variant="secondary" class="px-3 text-sm sm:text-base sm:px-4">
+                  <Button
+                    type="submit"
+                    variant="secondary"
+                    class="px-3 text-sm sm:text-base sm:px-4"
+                  >
                     Search
                   </Button>
                 </div>
-              </form>
+              </Form>
             </div>
 
             <!-- Categories -->
             <div class="p-4 sm:p-5">
               <div class="grid grid-cols-4 gap-3 sm:gap-4">
                 <CategoryCard
-                  v-for="cat in categories"
+                  v-for="cat in navigates"
                   :key="cat.label"
                   :label="cat.label"
                   :icon="cat.icon"
