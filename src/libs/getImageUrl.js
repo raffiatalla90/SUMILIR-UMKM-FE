@@ -46,16 +46,23 @@ export const getImageUrlJasa = (imageIdOrPath) => {
 
 /**
  * Get event banner URL via streaming API
- * Konsisten dengan profile picture dan merchant logo
+ * @param {Object} event - Event object with id
+ * @returns {string} Event banner URL
  */
 export function getEventBannerUrl(event) {
-  if (!event?.id || !event?.banner_img_path) {
+  if (!event?.id) {
+    console.warn('getEventBannerUrl: event.id is missing', event);
+    return '/placeholder.png';
+  }
+
+  if (!event?.banner_img_path) {
+    console.warn('getEventBannerUrl: event.banner_img_path is missing', event);
     return '/placeholder.png';
   }
 
   const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-  // ✅ ADD: Cache-busting with updated_at timestamp
+  // ✅ Cache-busting with updated_at timestamp
   const timestamp = event.updated_at
     ? new Date(event.updated_at).getTime()
     : Date.now();
