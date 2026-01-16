@@ -83,7 +83,7 @@ const routes = [
       },
       {
         path: "/map",
-        name: "map",
+        name: "Peta UMKM",
         component: () => import("@/views/customer/PetaUmkm.vue"),
         meta: { title: "Peta UMKM Banyuanyar" },
       },

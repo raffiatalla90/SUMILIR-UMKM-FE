@@ -1,48 +1,50 @@
 <script setup>
-import { ref, onMounted, watch, nextTick } from "vue";
-import { Form } from "vee-validate";
+import { ref, onMounted } from "vue";
 import { Carousel, Slide } from 'vue3-carousel'; 
 import 'vue3-carousel/dist/carousel.css'; 
 
 import TextField from "@/components/forms/TextField.vue";
 import CategoryCard from "@/components/Card/CategoryCard.vue";
-import ProductCardSkeleton from "@/components/Card/ProductCardSkeleton.vue";
-import PromoCard from "@/components/Card/PromoCard.vue";
-import PromoCardSkeleton from "@/components/Card/PromoCardSkeleton.vue";
-import EventCard from "@/components/Card/EventCard.vue";
-import EventCardSkeleton from "@/components/Card/EventCardSkeleton.vue";
 import MerchantCard from "@/components/Card/MerchantCard.vue";
+import ProductCardSkeleton from "@/components/Card/ProductCardSkeleton.vue";
+import MapPreviewSection from "@/components/home/MapPreviewSection.vue";
+import AnimatedCounter from "@/components/common/AnimatedCounter.vue";
+import Button from "@/components/common/Button.vue";
+
 import jasaIcon from "@/assets/icons/Jasa.svg";
 import kulinerIcon from "@/assets/icons/Kuliner.svg";
 import tokoIcon from "@/assets/icons/Toko.svg";
 import komunitasIcon from "@/assets/icons/Komunitas.svg";
+import WhiteWithText from "@/assets/icons/White-with-Text.png";
 
-import Button from "@/components/common/Button.vue";
 import api from "@/libs/axios.js";
-import { useRoute, useRouter } from "vue-router";
+import { useRouter } from "vue-router";
 import { usePublicEvents } from "@/composables/usePublicEvents"; 
+import { useHomeStatistics } from "@/composables/useHomeStatistics";
 import { getEventBannerUrl } from "@/libs/getImageUrl"; 
 
-const route = useRoute();
 const router = useRouter();
 
-const searchInputRef = ref(null);
+const replayMerchants = ref(0);
+const replayProducts = ref(0);
+const replayCategories = ref(0);
+
 const searchQuery = ref("");
 const isLoadingMerchants = ref(true);
-const isLoadingPromo = ref(true);
-const isLoadingEvent = ref(true);
 const isLoadingBanner = ref(true);
-const isLoadMore = ref(false); 
 
-// banner carousel
+// Banner carousel
 const { events: eventBanners, fetchPublicEvents } = usePublicEvents();
 const eventBannersProcessed = ref([]); 
 
-//Carousel config (enable touch/mouse drag)
+// Statistics with animated counter
+const { statistics, loading: statsLoading, fetchStatistics } = useHomeStatistics();
+
+// Carousel config
 const carouselConfig = {
   itemsToShow: 1,
   wrapAround: true,
-  autoplay: 5000, // 5 seconds
+  autoplay: 5000,
   transition: 800,
   pauseAutoplayOnHover: true,
   snapAlign: 'center',
@@ -51,98 +53,28 @@ const carouselConfig = {
 };
 
 const categories = ref([
-  {
-    label: "Kuliner",
-    icon: kulinerIcon,
-    to: { name: "Product Kuliner" },
-  },
-  {
-    label: "Toko",
-    icon: tokoIcon,
-    to: { name: "Product Toko" },
-  },
-  {
-    label: "Jasa",
-    icon: jasaIcon,
-    to: { name: "JasaTeknisi" },
-  },
-  {
-    label: "Komunitas",
-    icon: komunitasIcon,
-    to: { name: "community" },
-  },
+  { label: "Kuliner", icon: kulinerIcon, to: { name: "Product Kuliner" } },
+  { label: "Toko", icon: tokoIcon, to: { name: "Product Toko" } },
+  { label: "Jasa", icon: jasaIcon, to: { name: "JasaTeknisi" } },
+  { label: "Komunitas", icon: komunitasIcon, to: { name: "community" } },
 ]);
 
-const merchantList = ref([]);
-const promoList = ref([]);
-const eventList = ref([]);
-const promoScroller = ref(null);
+const recommendedMerchants = ref([]);
 
-// === AUTO IMPORT PROMO BANNER ===
-const promoImagesFiles = import.meta.glob("@/assets/banner/*.png", {
-  eager: true,
-});
-const promoImages = Object.values(promoImagesFiles).map((img) => img.default);
-
-// Format harga
-const formatHarga = (value) => {
-  if (!value) return "0";
-  return Number(value).toLocaleString("id-ID");
-};
-
-// Normalisasi URL gambar jasa dari backend -> public/storage/jasa/*.png
-const resolveJasaImage = (jasa) => {
-  // Cek relasi images (array) terlebih dahulu
-  if (jasa.images && jasa.images.length > 0) {
-    const coverImage =
-      jasa.images.find((img) => img.is_cover) || jasa.images[0];
-    const path = coverImage.path || coverImage.url || coverImage.image;
-    if (path) {
-      if (
-        path.startsWith("http://") ||
-        path.startsWith("https://") ||
-        path.startsWith("/storage/")
-      ) {
-        return path;
-      }
-      if (path.startsWith("jasa/")) {
-        return `/storage/${path}`;
-      }
-      return `/storage/jasa/${path}`;
-    }
+// Load recommended merchants
+const loadRecommendedMerchants = async () => {
+  isLoadingMerchants.value = true;
+  
+  try {
+    const params = { limit: 10 };
+    
+    const response = await api.get("/api/public/home/recommended-merchants", { params });
+    recommendedMerchants.value = response.data.data || [];
+  } catch (error) {
+    console.error("Failed to load merchants:", error);
+  } finally {
+    isLoadingMerchants.value = false;
   }
-
-  // Fallback ke field image langsung
-  const img = jasa.image;
-  if (!img) return null;
-  const s = String(img);
-
-  // Jika sudah URL penuh atau sudah diawali /storage, pakai apa adanya
-  if (
-    s.startsWith("http://") ||
-    s.startsWith("https://") ||
-    s.startsWith("/storage/")
-  ) {
-    return s;
-  }
-
-  // Jika sudah ada prefix "jasa/..." cukup tambahkan /storage di depan
-  if (s.startsWith("jasa/")) {
-    return `/storage/${s}`;
-  }
-
-  // Default: anggap nama file di folder public/storage/jasa
-  return `/storage/jasa/${s}`;
-};
-
-// Scroll promo
-const scrollPromo = (dir = 1) => {
-  const el = promoScroller.value;
-  if (!el) return;
-  const gap = 16;
-  const card = el.querySelector(":scope > *");
-  const step = (card?.clientWidth || el.clientWidth * 0.5) + gap;
-  el.scrollBy({ left: dir * step, behavior: "smooth" });
 };
 
 // Submit search
@@ -152,95 +84,44 @@ const onSearch = () => {
   router.push({ path: "/search", query: { q } });
 };
 
-const loadMoreMerchants = async () => {
-  isLoadMore.value = true;
-  try {
-    // Ambil produk baru dengan limit lebih banyak
-    const newProducts = await api.get("/api/public/merchants/random", {
-      params: { limit: 8 },
-    });
-    productList.value = newProducts;
-    productLimit.value += 8;
-  } catch (e) {
-    // Optional: tampilkan error
-  } finally {
-    isLoadMore.value = false;
-  }
+// Navigate to map
+const viewMap = () => {
+  router.push({ name: "Peta UMKM" });
 };
 
-// LOAD DATA
 onMounted(async () => {
+  // Load banner events
   try {
     isLoadingBanner.value = true;
     await fetchPublicEvents();
     
     eventBannersProcessed.value = eventBanners.value.map(event => ({
       ...event,
-      bannerUrl: getEventBannerUrl(event) // Compute URL once
+      bannerUrl: getEventBannerUrl(event)
     }));
   } catch (e) {
-    console.error('Gagal memuat banner event:', e);
+    console.error('Failed to load event banners:', e);
   } finally {
     isLoadingBanner.value = false;
   }
 
-  try {
-    isLoadingMerchants.value = true;
-    const merchantRes = await api.get("/api/public/merchants/random", {
-      params: { limit: 8 },
-    });
-    merchantList.value = merchantRes.data.data || [];
-  } catch (e) {
-    console.error("Gagal memuat data merchant:", e);
-  } finally {
-    isLoadingMerchants.value = false;
-  }
-
-  // Fetch promo (ganti dengan API call sebenarnya)
-  try {
-    isLoadingPromo.value = true;
-    const promoRes = await api.get("/api/promos");
-    promoList.value = Array.isArray(promoRes.data) ? promoRes.data : [];
-  } catch (e) {
-    console.error("Gagal memuat data promo:", e);
-  } finally {
-    isLoadingPromo.value = false;
-  }
-
-  // Simulasi loading event (ganti dengan API call sebenarnya)
-  setTimeout(() => {
-    eventList.value = Array(5).fill({ id: 1 });
-    isLoadingEvent.value = false;
-  }, 1000);
+  // Load merchants
+  await loadRecommendedMerchants();
 });
-watch(
-  () => route.query.focusSearch,
-  async (val) => {
-    if (!val) return;
-
-    await nextTick();
-
-    searchInputRef.value?.scrollIntoView();
-    searchInputRef.value?.focus();
-
-    router.replace({ query: {} });
-  },
-  { immediate: true }
-);
 </script>
 
 <template>
   <div class="relative app-container">
-    <!-- HERO -->
-    <section id="hero" class="relative">
-      <div class="relative w-full overflow-hidden bg-gray-100 aspect-video sm:aspect-21/9 lg:aspect-24/9 xl:aspect-4/1">
-        <!-- Loading skeleton -->
+    <!-- HERO SECTION -->
+    <section id="hero" class="relative pb-12 bg-linear-to-b from-gray-50 to-white">
+      <!-- Banner Carousel -->
+      <div class="relative w-full overflow-hidden bg-gray-100 sm:aspect-21/9 lg:aspect-24/9 xl:aspect-4/1">
         <div 
           v-if="isLoadingBanner" 
           class="absolute inset-0 bg-linear-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse"
         >
           <div class="absolute inset-0 flex items-center justify-center">
-            <i class="pi pi-spin pi-spinner text-4xl text-gray-400"></i>
+            <i class="text-4xl text-gray-400 pi pi-spin pi-spinner"></i>
           </div>
         </div>
 
@@ -250,64 +131,54 @@ watch(
           class="h-full"
         >
           <Slide v-for="event in eventBannersProcessed" :key="event.id">
-            <div class="relative w-full h-full group cursor-grab active:cursor-grabbing">
-              <img 
+            <div class="relative w-full h-full cursor-grab group active:cursor-grabbing">
+              <img
                 :src="event.bannerUrl"
-                :alt="event.event_name"
-                class="w-full h-full object-cover pointer-events-none select-none"
-                draggable="false"
-                @error="(e) => (e.target.src = '/placeholder-banner.png')"
+                class="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-60"
+                aria-hidden="true"
+              />
+              <img
+                :src="event.bannerUrl"
+                class="relative w-full h-full object-contain"
               />
             </div>
           </Slide>
         </Carousel>
 
-        <!-- Fallback: No banners available -->
         <div 
           v-else 
-          class="absolute inset-0 bg-secondary flex items-center justify-center"
+          class="absolute inset-0 flex items-center justify-center bg-secondary"
         >
-          <div class="text-center text-white px-4">
-            <i class="pi pi-calendar text-5xl mb-4 opacity-50"></i>
+          <div class="px-4 text-center text-white">
+            <i class="mb-4 text-5xl opacity-50 pi pi-calendar"></i>
             <p class="text-lg font-semibold">Belum ada event aktif</p>
           </div>
         </div>
       </div>
 
-      <!-- Search Bar Container -->
-      <div
-        class="relative z-10 flex justify-center px-4 mx-auto -mt-10 max-w-7xl"
-      >
+      <!-- Search Bar -->
+      <div class="relative z-10 flex justify-center px-4 mx-auto -mt-10 max-w-7xl">
         <div class="w-full sm:w-[906px]">
-          <div
-            class="overflow-hidden bg-white border border-gray-100 shadow-xl rounded-2xl"
-          >
-            <!-- SEARCH -->
+          <div class="overflow-hidden bg-white border border-gray-100 shadow-xl rounded-2xl">
             <div class="p-4 border-b border-gray-100 sm:p-5">
-              <Form @submit="onSearch">
+              <form @submit.prevent="onSearch">
                 <div class="flex items-center w-full gap-2 sm:gap-3">
                   <TextField
                     name="search"
-                    ref="searchInputRef"
-                    :modelValue="searchQuery"
-                    @update:modelValue="(v) => (searchQuery = v)"
+                    v-model="searchQuery"
                     placeholder="Cari produk, jasa, atau UMKM…"
                     :hideLabel="true"
                     variant="primary"
                     wrapperClass="flex-1 min-w-0"
                   />
-                  <Button
-                    type="submit"
-                    variant="secondary"
-                    class="px-3 text-sm sm:text-base sm:px-4"
-                  >
+                  <Button type="submit" variant="secondary" class="px-3 text-sm sm:text-base sm:px-4">
                     Search
                   </Button>
                 </div>
-              </Form>
+              </form>
             </div>
 
-            <!-- KATEGORI -->
+            <!-- Categories -->
             <div class="p-4 sm:p-5">
               <div class="grid grid-cols-4 gap-3 sm:gap-4">
                 <CategoryCard
@@ -324,104 +195,250 @@ watch(
       </div>
     </section>
 
-    <!-- PROMO -->
-    <section id="promo" class="relative pt-6 sm:pt-24">
-      <div class="pl-4 sm:pl-[54px]">
-        <span class="text-base font-semibold sm:text-section-title">
-          Cek Promo Menarik
-        </span>
-      </div>
-
-      <div
-        ref="promoScroller"
-        class="overflow-x-auto no-scrollbar mx-4 sm:mx-[57px] pt-3 sm:pt-[17px] scroll-smooth snap-x snap-mandatory"
-      >
-        <div class="flex gap-4 sm:gap-8 min-w-max">
-          <template v-if="isLoadingPromo">
-            <PromoCardSkeleton v-for="i in 5" :key="i" />
-          </template>
-
-          <template v-else>
-            <PromoCard
-              v-for="(promo, i) in promoList"
-              :key="promo.id || i"
-              :promo="promo"
-              class="snap-start shrink-0"
-            />
-          </template>
+    <!-- UMKM Section -->
+    <section id="umkm-recommendation" class="relative py-8 sm:py-16">
+      <div class="px-4 mx-auto max-w-7xl sm:px-6">
+        <!-- Section Header -->
+        <div class="flex items-center justify-between mb-6 sm:mb-10">
+          <div>
+            <h2 class="mb-1 text-xl font-bold text-gray-900 sm:text-2xl lg:text-3xl">
+              Temukan UMKM yang Kamu Butuhkan
+            </h2>
+            <p class="text-sm text-gray-600 sm:text-base">
+              UMKM lokal terpilih untuk Anda
+            </p>
+          </div>
         </div>
-      </div>
-    </section>
 
-    <!-- Section Rekomendasi UMKM -->
-    <section id="umkm-recommendation" class="relative pt-6">
-      <div class="pl-4 lg:pl-[54px]">
-        <div class="inline-flex items-center gap-2.5 w-auto h-[35px] py-[5px]">
-          <span
-            class="text-base font-semibold sm:text-2xl lg:text-section-title"
-            >Rekomendasi UMKM</span
-          >
+        <!-- Skeleton Loading -->
+        <div v-if="isLoadingMerchants" class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 sm:gap-6">
+          <ProductCardSkeleton v-for="i in 10" :key="i" />
         </div>
-      </div>
 
-      <div class="px-4 lg:px-[52px] mt-6 lg:mt-10">
-        <div
-          class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8 sm:gap-6"
-        >
-          <!-- Skeleton loading -->
-          <template v-if="isLoadingMerchants">
-            <ProductCardSkeleton v-for="i in 8" :key="i" />
-          </template>
-          <!-- Actual merchants -->
-          <template v-else>
+        <!-- Merchants Grid -->
+        <div v-else-if="recommendedMerchants.length > 0">
+          <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 sm:gap-6">
             <MerchantCard
-              v-for="merchant in merchantList"
+              v-for="merchant in recommendedMerchants"
               :key="merchant.id"
               :merchant="merchant"
             />
-          </template>
+          </div>
         </div>
 
-        <!-- Tombol Muat Lebih Banyak -->
-        <div class="flex justify-center mt-6">
-          <Button
-            @click="loadMoreMerchants"
-            :disabled="isLoadMore"
-            variant="primary-outline"
+        <!-- Empty State -->
+        <div v-else class="py-20 text-center">
+          <i class="mb-4 text-6xl text-gray-300 pi pi-shop"></i>
+          <p class="mb-2 text-lg font-semibold text-gray-700">Belum ada UMKM terdaftar</p>
+          <p class="text-gray-500">Coba lagi nanti</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAP PREVIEW SECTION -->
+    <MapPreviewSection />
+
+    <!-- STATISTICS SECTION -->
+    <section class="relative py-12 bg-white sm:py-16">
+      <div class="relative px-4 mx-auto max-w-7xl sm:px-6">
+        <!-- Section Header -->
+        <div class="mb-8 text-center sm:mb-12">
+          <h3 class="mb-3 text-2xl font-bold text-gray-900 sm:text-3xl">
+            Berkembang Bersama UMKM Banyuanyar Lainnya
+          </h3>
+          <p class="text-sm text-gray-600 sm:text-base">
+            Ragam usaha dan layanan UMKM Banyuanyar kini terhimpun dalam satu platform. Mulai dari kebutuhan harian hingga layanan lokal, semuanya dapat diakses dengan lebih mudah, cepat, dan nyaman oleh masyarakat.
+          </p>
+        </div>
+        
+        <!-- Statistics Cards -->
+        <div class="grid grid-cols-1 gap-6 sm:flex sm:items-stretch sm:divide-x sm:divide-gray-200 sm:gap-0">
+          <!-- Total Merchants -->
+          <div
+            class="relative overflow-hidden transition-all duration-300 bg-white group sm:flex-1 sm:px-6 sm:py-6 rounded-2xl sm:rounded-none sm:first:rounded-l-2xl sm:last:rounded-r-2xl"
+            @mouseenter="replayMerchants++"
           >
-            <span v-if="!isLoadMore">Muat Lebih Banyak</span>
-            <span v-else>Memuat...</span>
-          </Button>
+            <div class="p-6 sm:p-0 h-full flex flex-col justify-center">
+              <!-- Counter -->
+              <div class="mb-2 text-4xl font-bold text-center transition-all duration-300 text-gray-900 sm:text-5xl hover:text-secondary">
+                <AnimatedCounter :value="statistics.total_merchants" suffix="+" :duration="1200" :replayKey="replayMerchants"/>
+              </div>
+
+              <!-- Label -->
+              <div class="text-sm font-medium text-center text-gray-600 sm:text-base">
+                UMKM Terdaftar
+              </div>
+            </div>
+          </div>
+
+          <!-- Total Products -->
+          <div
+            class="relative overflow-hidden transition-all duration-300 bg-white group sm:flex-1 sm:px-6 sm:py-6 rounded-2xl sm:rounded-none sm:first:rounded-l-2xl sm:last:rounded-r-2xl"
+            @mouseenter="replayProducts++"
+          >
+            <div class="p-6 sm:p-0 h-full flex flex-col justify-center">
+              <!-- Counter -->
+              <div class="mb-2 text-4xl font-bold text-center transition-all duration-300 text-gray-900 sm:text-5xl hover:text-secondary">
+                <AnimatedCounter :value="statistics.total_products" suffix="+" :duration="1200" :replayKey="replayProducts" />
+              </div>
+
+              <!-- Label -->
+              <div class="text-sm font-medium text-center text-gray-600 sm:text-base">
+                Produk & Jasa
+              </div>
+            </div>
+          </div>
+
+          <!-- Total Categories -->
+          <div
+            class="relative overflow-hidden transition-all duration-300 bg-white group sm:flex-1 sm:px-6 sm:py-6 rounded-2xl sm:rounded-none sm:first:rounded-l-2xl sm:last:rounded-r-2xl"
+            @mouseenter="replayCategories++"
+          >
+            <div class="p-6 sm:p-0 h-full flex flex-col justify-center">
+              <!-- Counter -->
+              <div class="mb-2 text-4xl font-bold text-center transition-all duration-300 text-gray-900 sm:text-5xl hover:text-secondary">
+                <AnimatedCounter :value="statistics.total_categories" suffix="+" :duration="1200" :replayKey="replayCategories" />
+              </div>
+
+              <!-- Label -->
+              <div class="text-sm font-medium text-center text-gray-600 sm:text-base">
+                Kategori
+              </div>
+            </div>
+          </div>
         </div>
+
+
       </div>
     </section>
 
-    <!-- EVENT -->
-    <section id="event" class="relative pt-6 pb-6 sm:pt-24 sm:pb-12">
-      <div class="pl-4 sm:pl-[54px]">
-        <span class="text-base font-semibold sm:text-section-title">
-          Event
-        </span>
+<!-- MODERN FOOTER -->
+<footer class="relative overflow-hidden text-white bg-primary">
+  <!-- Subtle decorative blobs -->
+  <div class="absolute inset-0 pointer-events-none opacity-10">
+    <div class="absolute w-72 h-72 rounded-full -top-32 -left-32 bg-white/30 blur-3xl"></div>
+    <div class="absolute w-96 h-96 rounded-full -bottom-48 -right-40 bg-white/20 blur-3xl"></div>
+  </div>
+
+  <div class="relative px-4 mx-auto max-w-7xl sm:px-6">
+    <!-- Top -->
+    <div class="grid gap-10 py-12 md:grid-cols-3 md:py-16">
+      
+      <!-- Brand -->
+      <div>
+        <div class="flex items-center gap-3 mb-4">
+          <img :src="WhiteWithText" alt="SUMILIR" class="h-10" />
+        </div>
+
+        <p class="text-sm leading-relaxed text-white/80 max-w-sm">
+          SUMILIR adalah platform digital yang mempertemukan UMKM Banyuanyar dengan masyarakat,
+          agar produk lokal lebih mudah ditemukan, dipercaya, dan dibeli.
+        </p>
+
+        <!-- Social -->
+        <div class="flex items-center gap-3 mt-6">
+          <a
+            href="https://www.facebook.com/pages/Kantor-Kelurahan-Banyuanyar"
+            target="_blank"
+            class="flex items-center justify-center w-10 h-10 border rounded-full border-white/20 hover:border-white/40 hover:bg-white/10 transition"
+            aria-label="Facebook"
+          >
+            <i class="pi pi-facebook text-lg"></i>
+          </a>
+
+          <a
+            href="https://www.instagram.com/explore/locations/251082119/kantor-kelurahan-banyuanyar"
+            target="_blank"
+            class="flex items-center justify-center w-10 h-10 border rounded-full border-white/20 hover:border-white/40 hover:bg-white/10 transition"
+            aria-label="Instagram"
+          >
+            <i class="pi pi-instagram text-lg"></i>
+          </a>
+        </div>
+
+        <!-- Micro note -->
+        <p class="mt-4 text-xs text-white/60">
+          Informasi & pembaruan kegiatan dapat diikuti melalui kanal resmi di atas.
+        </p>
       </div>
 
-      <div
-        class="overflow-x-auto no-scrollbar mx-4 sm:mx-[57px] pt-3 sm:pt-[17px] scroll-smooth snap-x snap-mandatory"
-      >
-        <div class="flex gap-4 sm:gap-8 min-w-max">
-          <template v-if="isLoadingEvent">
-            <EventCardSkeleton v-for="i in 5" :key="i" />
-          </template>
+      <!-- Navigation -->
+      <div>
+        <h4 class="text-base font-semibold tracking-wide">Navigasi</h4>
+        <ul class="mt-4 space-y-3 text-sm">
+          <li>
+            <router-link
+              to="/explore"
+              class="inline-flex items-center gap-2 text-white/80 hover:text-white transition"
+            >
+              <i class="pi pi-angle-right text-xs opacity-80"></i> Daftar UMKM
+            </router-link>
+          </li>
+          <li>
+            <router-link
+              to="/explore"
+              class="inline-flex items-center gap-2 text-white/80 hover:text-white transition"
+            >
+              <i class="pi pi-angle-right text-xs opacity-80"></i> Semua Produk
+            </router-link>
+          </li>
+          <li>
+            <router-link
+              to="/map"
+              class="inline-flex items-center gap-2 text-white/80 hover:text-white transition"
+            >
+              <i class="pi pi-angle-right text-xs opacity-80"></i> Peta UMKM
+            </router-link>
+          </li>
+          <li>
+            <router-link
+              to="/community"
+              class="inline-flex items-center gap-2 text-white/80 hover:text-white transition"
+            >
+              <i class="pi pi-angle-right text-xs opacity-80"></i> Komunitas
+            </router-link>
+          </li>
+        </ul>
+      </div>
 
-          <template v-else>
-            <EventCard
-              v-for="(event, i) in eventList"
-              :key="i"
-              :event="event"
-            />
-          </template>
+      <!-- Info / CTA -->
+      <div>
+        <h4 class="text-base font-semibold tracking-wide">Informasi</h4>
+
+        <div class="mt-4 space-y-4">
+          <!-- Address -->
+          <div class="flex gap-3 text-sm text-white/80">
+            <i class="pi pi-map-marker mt-0.5 shrink-0 opacity-80"></i>
+            <p>
+              Kelurahan Banyuanyar, Surakarta, Jawa Tengah
+              <span class="block text-xs text-white/60 mt-1">
+                l. Adi Sumarmo No.163, Banyuanyar, Kec. Banjarsari, Kota Surakarta, Jawa Tengah 57137
+              </span>
+            </p>
+          </div>
+
+          <!-- CTA -->
+          <div class="pt-2">
+            <router-link
+              to="/merchant-register"
+              class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-white text-primary hover:bg-white/90 transition"
+            >
+              <i class="pi pi-plus text-xs"></i>
+              Daftarkan UMKM
+            </router-link>
+
+            <p class="mt-2 text-xs text-white/60">
+              Ingin UMKM Anda tampil di SUMILIR? Ajukan melalui menu pendaftaran UMKM atau datang langsung ke Kantor Kelurahan Banyuanyar.
+            </p>
+          </div>
         </div>
       </div>
-    </section>
+
+    </div>
+
+  </div>
+</footer>
+
   </div>
 </template>
 
@@ -453,12 +470,5 @@ watch(
 
 :deep(.carousel__viewport:active) {
   cursor: grabbing;
-}
-
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 </style>
