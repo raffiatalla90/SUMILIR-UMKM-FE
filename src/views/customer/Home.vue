@@ -412,7 +412,7 @@ onMounted(async () => {
             <p>
               Kelurahan Banyuanyar, Surakarta, Jawa Tengah
               <span class="block text-xs text-white/60 mt-1">
-                l. Adi Sumarmo No.163, Banyuanyar, Kec. Banjarsari, Kota Surakarta, Jawa Tengah 57137
+                Jl. Adi Sumarmo No.163, Banyuanyar, Kec. Banjarsari, Kota Surakarta, Jawa Tengah 57137
               </span>
             </p>
           </div>

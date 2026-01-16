@@ -64,17 +64,37 @@ export function getEventBannerUrl(event) {
 }
 
 /**
- * Get merchant logo URL
+ * Get merchant logo URL via streaming API
+ * Konsisten dengan event banner dan user profile picture
  */
 export function getMerchantLogoUrl(merchant) {
-  if (!merchant?.id) return '/placeholder.png';
-  return `${API_BASE_URL}/api/merchant-profile-pictures/${merchant.id}`;
+  if (!merchant?.id) {
+    return '/placeholder.png';
+  }
+
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
+  // ✅ ADD: Cache-busting with updated_at timestamp
+  const timestamp = merchant.updated_at
+    ? new Date(merchant.updated_at).getTime()
+    : Date.now();
+
+  return `${apiUrl}/api/merchant-logo/${merchant.id}?t=${timestamp}`;
 }
 
 /**
- * Get merchant banner URL
+ * Get user profile picture URL via streaming API
  */
-export function getMerchantBannerUrl(merchant) {
-  if (!merchant?.id) return '/placeholder.png';
-  return `${API_BASE_URL}/api/merchant-banner/${merchant.id}`;
+export function getUserProfileUrl(user) {
+  if (!user?.id) {
+    return '/placeholder.png';
+  }
+
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
+  const timestamp = user.updated_at
+    ? new Date(user.updated_at).getTime()
+    : Date.now();
+
+  return `${apiUrl}/api/user-profile/${user.id}?t=${timestamp}`;
 }

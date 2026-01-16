@@ -12,6 +12,7 @@ import MobilePagination from "@/components/common/MobilePagination.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import api from "@/libs/axios";
+import { getMerchantLogoUrl } from "@/libs/getImageUrl"; // ✅ ADD import
 
 const router = useRouter();
 const toast = useToast();
@@ -393,7 +394,12 @@ onMounted(() => {
         <template #cell-logo="{ item }">
           <div class="flex items-center justify-center">
             <div v-if="item.logo_path" class="w-10 h-10 rounded-full overflow-hidden">
-              <img :src="item.logo_path" :alt="item.name" class="w-full h-full object-cover" />
+              <img 
+                :src="getMerchantLogoUrl(item)" 
+                :alt="item.name" 
+                class="w-full h-full object-cover"
+                @error="(e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = `<span class='text-merchant-primary font-semibold text-sm'>${item.name?.charAt(0)?.toUpperCase()}</span>`; }"
+              />
             </div>
             <div v-else class="w-10 h-10 rounded-full bg-merchant-primary/10 flex items-center justify-center">
               <span class="text-merchant-primary font-semibold text-sm">
@@ -492,7 +498,12 @@ onMounted(() => {
         >
           <div class="flex items-start gap-3 mb-3">
             <div v-if="m.logo_path" class="w-12 h-12 rounded-full overflow-hidden shrink-0">
-              <img :src="m.logo_path" :alt="m.name" class="w-full h-full object-cover" />
+              <img 
+                :src="getMerchantLogoUrl(m)" 
+                :alt="m.name" 
+                class="w-full h-full object-cover"
+                @error="(e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = `<div class='w-12 h-12 rounded-full bg-merchant-primary/10 flex items-center justify-center shrink-0'><span class='text-merchant-primary font-semibold'>${m.name?.charAt(0)?.toUpperCase()}</span></div>`; }"
+              />
             </div>
             <div v-else class="w-12 h-12 rounded-full bg-merchant-primary/10 flex items-center justify-center shrink-0">
               <span class="text-merchant-primary font-semibold">

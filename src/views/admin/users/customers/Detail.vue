@@ -7,9 +7,16 @@
           <!-- Avatar -->
           <div class="shrink-0">
             <div
-              class="w-32 h-32 rounded-full bg-admin-primary/10 flex items-center justify-center border-2 border-gray-200"
+              class="w-32 h-32 rounded-full bg-admin-primary/10 flex items-center justify-center border-2 border-gray-200 overflow-hidden"
             >
-              <span class="text-5xl font-bold text-admin-primary">
+              <img
+                v-if="user.profile_picture_path"
+                :src="getUserProfileUrl(user)"
+                :alt="user.name"
+                class="w-full h-full object-cover"
+                @error="(e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = `<span class='text-5xl font-bold text-admin-primary'>${user.name?.charAt(0).toUpperCase()}</span>`; }"
+              />
+              <span v-else class="text-5xl font-bold text-admin-primary">
                 {{ user.name?.charAt(0).toUpperCase() }}
               </span>
             </div>
@@ -296,6 +303,7 @@ import { useToast } from "vue-toastification";
 import ApexCharts from "apexcharts";
 import api from "@/libs/axios";
 import { useUsers } from "@/composables/useUsers";
+import { getUserProfileUrl } from "@/libs/getImageUrl"; // ✅ ADD import
 
 import Button from "@/components/common/Button.vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";

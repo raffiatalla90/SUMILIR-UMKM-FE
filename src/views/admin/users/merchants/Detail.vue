@@ -7,6 +7,7 @@ import Button from "@/components/common/Button.vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import ApexCharts from "apexcharts";
+import { getMerchantLogoUrl } from "@/libs/getImageUrl"; // ✅ ADD import
 
 const route = useRoute();
 const router = useRouter();
@@ -400,10 +401,15 @@ onMounted(async () => {
           <!-- Avatar/Logo -->
           <div class="shrink-0">
             <div
-              v-if="merchant.logo_url"
+              v-if="merchant.logo_path"
               class="w-32 h-32 rounded-xl bg-merchant-primary/10 flex items-center justify-center border-2 border-gray-200 overflow-hidden"
             >
-              <img :src="merchant.logo_url" class="w-full h-full object-cover" alt="Logo" />
+              <img 
+                :src="getMerchantLogoUrl(merchant)" 
+                class="w-full h-full object-cover" 
+                alt="Logo"
+                @error="(e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = `<span class='text-5xl font-bold text-merchant-primary'>${merchant.name?.charAt(0).toUpperCase()}</span>`; }"
+              />
             </div>
             <div
               v-else
