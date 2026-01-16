@@ -99,6 +99,7 @@
                 >
                   {{ orderPriceTypeLabel }}
                 </span>
+                <!-- Hapus label status seperti 'Available' jika ada -->
               </div>
             </div>
           </div>
@@ -130,14 +131,6 @@
                 tidak wajib diisi.
               </p>
             </div>
-            <button
-              v-if="!isOnlineService && serviceType === 'on_site'"
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-200/90 hover:bg-amber-300 text-amber-900 text-xs font-semibold shadow-sm transition"
-              @click="useDeviceLocation"
-            >
-              <i class="pi pi-map-marker text-[11px]"></i>
-              <span>Ambil lokasi dari device</span>
-            </button>
           </div>
           <div class="flex items-start gap-2 text-sm text-gray-800">
             <span class="mt-0.5">
@@ -189,9 +182,8 @@
           </div>
         </section>
 
-        <!-- Promo (hanya jika sudah login) -->
+        <!-- Promo -->
         <section
-          v-if="!isGuest"
           class="overflow-hidden border border-gray-100 shadow-sm bg-white/95 rounded-2xl"
         >
           <div
@@ -209,7 +201,6 @@
             <button
               class="px-3 py-1 text-xs font-semibold rounded-full"
               style="background: #ffa30e; color: #fff"
-              :disabled="!promos.length"
               @click="selectedPromo ? clearPromo() : usePromo(promos[0])"
             >
               {{ selectedPromo ? "Batalkan" : "Pakai" }}
@@ -218,7 +209,6 @@
 
           <button
             class="flex items-center justify-between w-full px-4 py-3 text-sm text-gray-700"
-            :disabled="!promos.length"
             @click="openPromo = true"
           >
             Lihat promo lainnya
@@ -374,7 +364,7 @@
 
     <!-- Bottom Sheet Promo List -->
     <transition name="fade">
-      <div v-if="openPromo && !isGuest" class="fixed inset-0 z-40">
+      <div v-if="openPromo" class="fixed inset-0 z-40">
         <div
           class="absolute inset-0 bg-black/40"
           @click="openPromo = false"
@@ -389,20 +379,6 @@
           </div>
 
           <div class="space-y-3">
-            <div
-              v-if="promosLoading"
-              class="py-6 text-sm text-center text-gray-500"
-            >
-              Memuat voucher...
-            </div>
-
-            <div
-              v-else-if="!promos.length"
-              class="py-6 text-sm text-center text-gray-500"
-            >
-              Tidak ada voucher tersedia
-            </div>
-
             <div
               v-for="p in promos"
               :key="p.code"
@@ -492,23 +468,7 @@
               </div>
             </button>
 
-            <button
-              type="button"
-              class="flex items-center w-full gap-3 px-3 py-2 border border-gray-200 rounded-xl hover:bg-gray-50"
-              @click="useDeviceLocation"
-            >
-              <span
-                class="flex items-center justify-center w-8 h-8 text-lg text-blue-600 bg-blue-100 rounded-full"
-              >
-                <i class="pi pi-map-marker"></i>
-              </span>
-              <div class="flex-1 text-left">
-                <p class="font-semibold text-gray-800">Lokasi Perangkat</p>
-                <p class="text-xs text-gray-500">
-                  Deteksi lokasi sekarang dan isi alamat dengan koordinat.
-                </p>
-              </div>
-            </button>
+            <!-- Tombol ambil lokasi dari device dihapus, alamat hanya dari jasa/UMKM -->
           </div>
 
           <div class="flex justify-end mt-4">
@@ -691,7 +651,6 @@ import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import api from "@/libs/axios.js";
 import CalendarModal from "@/components/CalendarModal.vue";
-import { useVouchers } from "@/composables/useVouchers";
 
 const route = useRoute();
 const router = useRouter();
@@ -781,14 +740,13 @@ const clearNotification = () => {
 const isOnlineService = computed(() => serviceType.value === "online");
 
 // Validasi sederhana form sebelum lanjut pembayaran
+// Hanya butuh jadwal (tanggal & waktu). Data pemesan (nama & telp)
+// sudah dicek terpisah di sendToChat.
 const isFormValid = computed(() => {
-  const needsAddress = !isOnlineService.value;
   return (
-    (needsAddress ? !!form.value.alamat : true) &&
-    !!pay.value.method &&
-    form.value.tanggalLabel !== "—" &&
+    form.value.tanggalLabel !== "" &&
     !!form.value.waktu &&
-    form.value.waktu !== "—"
+    form.value.waktu !== ""
   );
 });
 
@@ -880,59 +838,64 @@ watch(
 // ===== Promo State =====
 const openPromo = ref(false);
 const selectedPromo = ref(null);
-const merchantSlugForVouchers = ref(null);
-const promos = computed(() =>
-  (vouchers.value || []).map((v) => ({
-    code: v.voucher_code,
-    title: v.voucher_name,
-    desc: v.voucher_description || "",
-    type: v.voucher_type, // percent | fixed
-    value: Number(v.value || 0),
-    max_discount: Number(v.max_discount_amount || 0),
-    min_purchase: Number(v.min_purchase_amount || 0),
-    usage: v.usage,
-    is_expired: v.is_expired,
-  }))
-);
+const promos = ref([]);
+const promosLoading = ref(false);
 
-function isPromoEligible(promo) {
-  const subtotal = Number(amounts.value.jasa || 0);
-  return !promo?.is_expired && subtotal >= Number(promo?.min_purchase || 0);
+async function loadVouchersForJasa(merchantId) {
+  if (!merchantId) return;
+  promosLoading.value = true;
+  try {
+    const { data } = await api.get(
+      `/api/public/merchants/${merchantId}/vouchers`,
+      {
+        params: { amount: order.price || 0 },
+      }
+    );
+
+    const list = Array.isArray(data?.data)
+      ? data.data
+      : Array.isArray(data)
+      ? data
+      : [];
+
+    promos.value = list.map((v) => ({
+      code: v.voucher_code,
+      title: v.voucher_name,
+      desc: v.voucher_description || "",
+      type: v.voucher_type === "percent" ? "percent" : "flat",
+      value: v.value,
+      raw: v,
+    }));
+  } catch (e) {
+    console.error("[PembayaranJasa] Gagal memuat voucher merchant", e);
+  } finally {
+    promosLoading.value = false;
+  }
 }
 
 function computeDiscount(promo) {
-  const subtotal = Number(amounts.value.jasa || 0);
-
   if (!promo) return 0;
-  if (promo.is_expired) return 0;
-  if (subtotal < Number(promo.min_purchase || 0)) return 0;
 
-  if (promo.type === "fixed") {
-    return Math.min(Number(promo.value || 0), subtotal);
-  }
+  const base = Number(order.price || 0);
+  const raw = promo.raw || {};
+  const type = raw.voucher_type || promo.type;
+  const value = Number(raw.value ?? promo.value ?? 0);
 
-  if (promo.type === "percent") {
-    let discount = Math.floor((Number(promo.value || 0) / 100) * subtotal);
-    if (promo.max_discount && discount > promo.max_discount) {
-      discount = promo.max_discount;
+  let discount = 0;
+  if (type === "percent") {
+    discount = Math.round((value / 100) * base);
+    if (raw.max_discount_amount) {
+      discount = Math.min(discount, Number(raw.max_discount_amount));
     }
-    return discount;
+  } else {
+    discount = value;
   }
 
-  return 0;
+  return Math.max(0, Math.min(discount, base));
 }
 
 function usePromo(p) {
   if (!p) return;
-
-  if (!isPromoEligible(p)) {
-    errorMessage.value = p?.is_expired
-      ? "Voucher sudah tidak berlaku"
-      : `Minimal pembelian Rp ${formatIDR(
-          p?.min_purchase || 0
-        )} untuk voucher ini`;
-    return;
-  }
 
   const discount = computeDiscount(p);
   if (discount <= 0) {
@@ -950,33 +913,12 @@ function clearPromo() {
   selectedPromo.value = null;
   amounts.value.diskon = 0;
 }
-
-watch(
-  () => amounts.value.jasa,
-  () => {
-    if (selectedPromo.value) {
-      const discount = computeDiscount(selectedPromo.value);
-      if (discount <= 0) {
-        clearPromo();
-      } else {
-        amounts.value.diskon = discount;
-      }
-    }
-  }
-);
 // ===== Chat / WhatsApp integration =====
 const showChat = ref(false);
 const summaryText = ref("");
 const showDetails = ref(false);
 
 const authStore = useAuthStore();
-const isGuest = computed(() => !authStore.isAuthenticated);
-
-const {
-  fetchVouchersByMerchant,
-  vouchers,
-  loading: promosLoading,
-} = useVouchers();
 
 // Modal pilihan alamat
 const openAlamatOptions = ref(false);
@@ -1038,42 +980,7 @@ async function reverseGeocode(lat, lng) {
   }
 }
 
-// Gunakan geolocation perangkat untuk mengisi alamat sebagai koordinat
-function useDeviceLocation() {
-  if (!navigator.geolocation) {
-    errorMessage.value =
-      "Perangkat atau browser tidak mendukung deteksi lokasi otomatis.";
-    return;
-  }
-
-  navigator.geolocation.getCurrentPosition(
-    async (pos) => {
-      const { latitude, longitude } = pos.coords;
-      // Coba ubah koordinat menjadi alamat teks
-      const pretty = await reverseGeocode(latitude, longitude);
-      if (pretty) {
-        form.value.alamat = pretty;
-      } else {
-        form.value.alamat = `Lokasi saat ini: ${latitude.toFixed(
-          5
-        )}, ${longitude.toFixed(5)}`;
-      }
-      openAlamatOptions.value = false;
-      successMessage.value =
-        "Lokasi perangkat berhasil dideteksi. Alamat sudah diisi otomatis, silakan cek kembali.";
-    },
-    (err) => {
-      console.error("Geolocation error", err);
-      errorMessage.value =
-        "Gagal mendeteksi lokasi perangkat. Pastikan izin lokasi sudah diizinkan.";
-    },
-    {
-      enableHighAccuracy: false,
-      timeout: 10000,
-      maximumAge: 60000,
-    }
-  );
-}
+// Fungsi pengambilan lokasi device dihapus, alamat hanya dari jasa/UMKM
 
 // Isi nama & nomor telepon dari profil user (opsional, tetap bisa diedit manual)
 function useProfileContact() {
@@ -1115,18 +1022,17 @@ onMounted(async () => {
     jasaOperatingTimes.value = payload?.operating_times || "";
     jasaWhatsappLink.value = payload?.whatsapp_link || "";
 
-    const merchantSlug =
-      route.query.merchant_slug ||
-      route.query.merchantSlug ||
-      payload?.merchant?.slug ||
-      payload?.merchant_slug ||
-      payload?.merchantSlug ||
-      null;
+    // Otomatis isi alamat dari jasa atau merchant
+    if (payload?.location_address) {
+      form.value.alamat = payload.location_address;
+    } else if (payload?.merchant?.address) {
+      form.value.alamat = payload.merchant.address;
+    } else if (payload?.merchant?.alamat) {
+      form.value.alamat = payload.merchant.alamat;
+    }
 
-    merchantSlugForVouchers.value = merchantSlug;
-
-    if (!isGuest.value && merchantSlug) {
-      await fetchVouchersByMerchant(merchantSlug);
+    if (payload?.merchant_id) {
+      await loadVouchersForJasa(payload.merchant_id);
     }
 
     if (!serviceType.value && payload?.service_type) {
@@ -1156,65 +1062,64 @@ onMounted(async () => {
   }
 });
 
-watch(
-  isGuest,
-  async (guest) => {
-    if (guest) {
-      openPromo.value = false;
-      clearPromo();
-      return;
-    }
-
-    if (merchantSlugForVouchers.value) {
-      await fetchVouchersByMerchant(merchantSlugForVouchers.value);
-    }
-  },
-  { immediate: true }
-);
-
 // Bangun pesan WhatsApp untuk dikirim ke penjual
+// Format: Mendapat Pesanan Layanan Jasa Sumilir +
+// data pemesan, jadwal, layanan, dan ringkasan pembayaran
 function buildWhatsappMessage() {
-  const lines = [
-    "Halo, saya ingin memesan jasa berikut melalui Sumilir:",
-    "",
-    `Nama Pemesan : ${form.value.nama || "-"}`,
-    `No. Telepon  : ${form.value.tel || "-"}`,
-    "",
-    `Jasa         : ${order.title}`,
-    `Harga        : Rp ${formatIDR(order.price)}`,
-  ];
+  const lines = [];
 
+  // Header
+  lines.push("Mendapat Pesanan Layanan Jasa Sumilir");
+  lines.push("");
+
+  // Data pemesan
+  lines.push("=== Data Pemesan ===");
+  lines.push(`Nama Pemesan : ${form.value.nama || "-"}`);
+  lines.push(`No. Telepon  : ${form.value.tel || "-"}`);
+  lines.push("");
+
+  // Jadwal layanan
+  lines.push("=== Jadwal Layanan ===");
   if (form.value.tanggalLabel && form.value.tanggalLabel !== "—") {
-    lines.push(`Tanggal      : ${form.value.tanggalLabel}`);
+    lines.push(`Tanggal : ${form.value.tanggalLabel}`);
   }
   if (form.value.waktu && form.value.waktu !== "—") {
-    lines.push(`Waktu        : ${form.value.waktu}`);
+    lines.push(`Waktu   : ${form.value.waktu}`);
   }
+  lines.push("");
 
+  // Detail layanan jasa
+  lines.push("=== Layanan Jasa ===");
+  lines.push(`Nama Jasa : ${order.title}`);
+  lines.push(`Harga     : Rp ${formatIDR(order.price)}`);
+  if (orderPriceTypeLabel.value) {
+    lines.push(`Tipe Harga: ${orderPriceTypeLabel.value}`);
+  }
   if (!isOnlineService.value) {
-    lines.push(`Alamat       : ${form.value.alamat || "-"}`);
+    lines.push(`Alamat    : ${form.value.alamat || "-"}`);
   }
-
   if (form.value.catatan) {
-    lines.push(`Catatan      : ${form.value.catatan}`);
+    lines.push(`Catatan   : ${form.value.catatan}`);
   }
   if (form.value.catatanAlamat && !isOnlineService.value) {
     lines.push(`Catatan Alamat : ${form.value.catatanAlamat}`);
   }
+  lines.push("");
 
+  // Ringkasan pembayaran
+  lines.push("=== Ringkasan Pembayaran ===");
+  lines.push(`Harga Jasa       : Rp ${formatIDR(amounts.value.jasa)}`);
+  lines.push(`Biaya Pengantaran: Rp ${formatIDR(amounts.value.ongkir)}`);
   if (selectedPromo.value) {
     lines.push(
-      "",
-      `Kode Promo   : ${selectedPromo.value.code} (Diskon Rp ${formatIDR(
+      `Diskon (${selectedPromo.value.code}) : Rp ${formatIDR(
         amounts.value.diskon
-      )})`
+      )}`
     );
+  } else {
+    lines.push(`Diskon            : Rp ${formatIDR(amounts.value.diskon)}`);
   }
-
-  lines.push(
-    "",
-    `Perkiraan Total : Rp ${formatIDR(total.value || order.price)}`
-  );
+  lines.push(`Total Pembayaran  : Rp ${formatIDR(total.value || order.price)}`);
 
   return lines.join("\n");
 }
@@ -1238,9 +1143,8 @@ const sendToChat = async () => {
 
   // Notif awal: pastikan form sudah terisi benar
   if (!isFormValid.value) {
-    errorMessage.value = isOnlineService.value
-      ? "Mohon lengkapi data pemesan, jadwal, dan metode pembayaran terlebih dahulu."
-      : "Mohon lengkapi data pemesan, jadwal, alamat, dan metode pembayaran terlebih dahulu.";
+    errorMessage.value =
+      "Mohon lengkapi data pemesan dan jadwal terlebih dahulu.";
     return;
   }
 
@@ -1256,19 +1160,13 @@ const sendToChat = async () => {
   // Susun URL WhatsApp
   const encoded = encodeURIComponent(message);
   let url = jasaWhatsappLink.value.trim();
-
-  // Jika link sudah berbentuk URL lengkap
-  if (
-    url.startsWith("https://wa.me/6282138540196") ||
-    url.startsWith("https://wa.me/6282138540196")
-  ) {
+  if (url.startsWith("http")) {
     url += url.includes("?") ? `&text=${encoded}` : `?text=${encoded}`;
   } else {
     // Anggap sebagai nomor telepon (tanpa +), gunakan wa.me
     const phone = url.replace(/[^0-9]/g, "");
-    url = `https://wa.me/6282138540196${phone}?text=${encoded}`;
+    url = `https://wa.me/${phone}?text=${encoded}`;
   }
-
   // Redirect ke WhatsApp (tab baru jika memungkinkan)
   window.open(url, "_blank");
 };
