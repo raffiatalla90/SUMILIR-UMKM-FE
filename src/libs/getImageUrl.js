@@ -1,10 +1,11 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 export const getImageUrl = (imageId) => {
   if (!imageId) return "";
   const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
   return `${baseURL}/api/images/${encodeURIComponent(imageId)}`;
-}
+};
 
 export const getImageUrlJasa = (imageIdOrPath) => {
   if (!imageIdOrPath) return "";
@@ -50,10 +51,10 @@ export const getImageUrlJasa = (imageIdOrPath) => {
  */
 export function getEventBannerUrl(event) {
   if (!event?.id || !event?.banner_img_path) {
-    return '/placeholder.png';
+    return null;
   }
 
-  const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
   // ✅ ADD: Cache-busting with updated_at timestamp
   const timestamp = event.updated_at
@@ -67,7 +68,7 @@ export function getEventBannerUrl(event) {
  * Get merchant logo URL
  */
 export function getMerchantLogoUrl(merchant) {
-  if (!merchant?.id) return '/placeholder.png';
+  if (!merchant?.id) return "/placeholder.png";
   return `${API_BASE_URL}/api/merchant-profile-pictures/${merchant.id}`;
 }
 
@@ -75,6 +76,6 @@ export function getMerchantLogoUrl(merchant) {
  * Get merchant banner URL
  */
 export function getMerchantBannerUrl(merchant) {
-  if (!merchant?.id) return '/placeholder.png';
+  if (!merchant?.id) return "/placeholder.png";
   return `${API_BASE_URL}/api/merchant-banner/${merchant.id}`;
 }
