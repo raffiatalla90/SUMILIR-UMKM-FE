@@ -25,6 +25,19 @@ const currentMerchantName = computed(() => {
   return merchant?.name || "UMKM";
 });
 
+const currentMerchantSegmentation = computed(() => {
+  const merchant = authStore.getMerchantBySlug(currentMerchantSlug.value);
+  return merchant?.segmentation ?? null;
+});
+
+const isJasaMerchant = computed(() => {
+  const segId = Number(currentMerchantSegmentation.value?.id);
+  const segName = String(currentMerchantSegmentation.value?.name ?? "");
+  return segId === 3 || segName.toLowerCase().includes("jasa");
+});
+
+const catalogLabel = computed(() => (isJasaMerchant.value ? "Jasa" : "Produk"));
+
 const breadcrumbItems = computed(() => [
   {
     label: "Dashboard",
@@ -140,47 +153,58 @@ const fetchDashboard = async () => {
 
     const voucherStats = data?.voucher_stats || {};
 
-    dashboardStats.value = [
+    const label = catalogLabel.value;
+    const catalogIcon = isJasaMerchant.value ? "pi pi-briefcase" : "pi pi-box";
+
+    const stats = [
       {
-        title: "Total Produk",
+        title: `Total ${label}`,
         value: data.stats.total,
-        icon: "pi pi-box",
+        icon: catalogIcon,
         color: "bg-blue-100 text-blue-600",
       },
       {
-        title: "Produk Dipublish",
+        title: `${label} Dipublish`,
         value: data.stats.published,
         icon: "pi pi-check-circle",
         color: "bg-green-100 text-green-600",
       },
       {
-        title: "Produk Draft",
+        title: `${label} Draft`,
         value: data.stats.draft,
         icon: "pi pi-file-edit",
         color: "bg-yellow-100 text-yellow-600",
       },
       {
-        title: "Produk Diarsipkan",
+        title: `${label} Diarsipkan`,
         value: data.stats.archived,
         icon: "pi pi-folder-open",
         color: "bg-red-100 text-red-600",
       },
-      {
-        title: "Stok Menipis",
-        value: data.stats.low_stock,
-        icon: "pi pi-exclamation-triangle",
-        color: "bg-yellow-100 text-yellow-600",
-      },
-      {
-        title: "Stok Habis",
-        value: data.stats.out_of_stock,
-        icon: "pi pi-exclamation-triangle",
-        color: "bg-red-100 text-red-600",
-      },
+    ];
 
-      // ======================
-      // VOUCHER STATS
-      // ======================
+    // Untuk UMKM Jasa, info stok tidak relevan
+    if (!isJasaMerchant.value) {
+      stats.push(
+        {
+          title: "Stok Menipis",
+          value: data.stats.low_stock,
+          icon: "pi pi-exclamation-triangle",
+          color: "bg-yellow-100 text-yellow-600",
+        },
+        {
+          title: "Stok Habis",
+          value: data.stats.out_of_stock,
+          icon: "pi pi-exclamation-triangle",
+          color: "bg-red-100 text-red-600",
+        }
+      );
+    }
+
+    // ======================
+    // VOUCHER STATS
+    // ======================
+    stats.push(
       {
         title: "Total Voucher",
         value: voucherStats.total ?? 0,
@@ -210,8 +234,10 @@ const fetchDashboard = async () => {
         value: voucherStats.used ?? 0,
         icon: "pi pi-chart-line",
         color: "bg-purple-100 text-purple-600",
-      },
-    ];
+      }
+    );
+
+    dashboardStats.value = stats;
 
     // ⬇️ PENTING
     loading.value = false;
@@ -336,14 +362,18 @@ onMounted(fetchDashboard);
       <div class="px-4 mt-8 mb-4 space-y-4 sm:px-6">
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div class="p-4 bg-white shadow-sm rounded-2xl">
-            <h3 class="mb-3 text-sm font-semibold">Status Produk</h3>
+            <h3 class="mb-3 text-sm font-semibold">
+              Status {{ catalogLabel }}
+            </h3>
             <div class="relative h-[220px]">
               <canvas ref="statusChartRef"></canvas>
             </div>
           </div>
 
           <div class="p-4 bg-white shadow-sm rounded-2xl">
-            <h3 class="mb-3 text-sm font-semibold">Produk per Kategori</h3>
+            <h3 class="mb-3 text-sm font-semibold">
+              {{ catalogLabel }} per Kategori
+            </h3>
             <div class="relative h-[220px]">
               <canvas ref="categoryChartRef"></canvas>
             </div>

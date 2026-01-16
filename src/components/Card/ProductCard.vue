@@ -30,8 +30,20 @@ const formatIDR = (v) =>
   Number(v || 0).toLocaleString("id-ID", { minimumFractionDigits: 0 });
 // Format harga dengan range
 const formattedPrice = computed(() => {
-  const minPrice = props.product.min_price;
-  const maxPrice = props.product.max_price;
+  const fixed = Number(props.product?.fixed_price || 0);
+  const base = Number(props.product?.base_price || 0);
+
+  if (fixed > 0) {
+    return `Rp ${formatIDR(fixed)}`;
+  }
+
+  if (base > 0) {
+    return `Mulai Rp ${formatIDR(base)}`;
+  }
+
+  // Fallback to generic min/max range (used by products and some jasa payloads).
+  const minPrice = Number(props.product?.min_price || 0);
+  const maxPrice = Number(props.product?.max_price || 0);
 
   if (!minPrice && !maxPrice) return "Rp 0";
 

@@ -71,33 +71,47 @@ watch(
 );
 
 // ✅ Menu items dengan dynamic merchantId
-const menuItems = computed(() => [
-  {
-    label: "Dashboard",
-    icon: "pi-chart-bar",
-    route: `/merchant-center/${currentMerchantSlug.value}/dashboard`,
-  },
-  // {
-  //   label: "Pesanan",
-  //   icon: "pi-shopping-bag",
-  //   route: `/merchant-center/${currentMerchantId.value}/orders`,
-  // },
-  {
-    label: "Produk",
-    icon: "pi-box",
-    route: `/merchant-center/${currentMerchantSlug.value}/products`,
-  },
-  // {
-  //   label: "Komunitas",
-  //   icon: "pi-comments",
-  //   route: `/merchant-center/${currentMerchantId.value}/community`,
-  // },
-  {
-    label: "Voucher",
-    icon: "pi-tag",
-    route: `/merchant-center/${currentMerchantSlug.value}/vouchers`,
-  },
-]);
+const menuItems = computed(() => {
+  const segmentationId = Number(currentMerchant.value?.segmentation?.id);
+
+  const productOrServiceItem =
+    segmentationId === 3
+      ? {
+          label: "Jasa",
+          icon: "pi-briefcase",
+          route: `/merchant-center/${currentMerchantSlug.value}/jasas`,
+        }
+      : {
+          label: "Produk",
+          icon: "pi-box",
+          route: `/merchant-center/${currentMerchantSlug.value}/products`,
+        };
+
+  return [
+    {
+      label: "Dashboard",
+      icon: "pi-chart-bar",
+      route: `/merchant-center/${currentMerchantSlug.value}/dashboard`,
+    },
+    // {
+    //   label: "Pesanan",
+    //   icon: "pi-shopping-bag",
+    //   route: `/merchant-center/${currentMerchantSlug.value}/orders`,
+    // },
+
+    productOrServiceItem,
+    // {
+    //   label: "Komunitas",
+    //   icon: "pi-comments",
+    //   route: `/merchant-center/${currentMerchantSlug.value}/community`,
+    // },
+    {
+      label: "Voucher",
+      icon: "pi-tag",
+      route: `/merchant-center/${currentMerchantSlug.value}/vouchers`,
+    },
+  ];
+});
 
 const logout = async () => {
   try {
@@ -304,7 +318,7 @@ defineExpose({
           ]"
           :title="!isOpen ? 'Log Out' : ''"
         >
-          <i class="shrink-0 text-lg pi pi-sign-out"></i>
+          <i class="text-lg shrink-0 pi pi-sign-out"></i>
           <span
             :class="[
               'transition-all duration-300',
@@ -324,7 +338,7 @@ defineExpose({
         >
           <div class="flex items-center gap-3">
             <div
-              class="flex items-center justify-center shrink-0 w-10 h-10 text-lg font-bold rounded-full bg-white/20"
+              class="flex items-center justify-center w-10 h-10 text-lg font-bold rounded-full shrink-0 bg-white/20"
             >
               {{ userInitial }}
             </div>
@@ -351,7 +365,7 @@ defineExpose({
               @click="
                 navigateTo(`/merchant-center/${currentMerchantSlug}/profile`)
               "
-              class="flex items-center justify-center shrink-0 w-6 h-6 transition rounded-full hover:bg-white/20"
+              class="flex items-center justify-center w-6 h-6 transition rounded-full shrink-0 hover:bg-white/20"
               title="Pengaturan"
             >
               <i class="text-sm pi pi-ellipsis-v"></i>

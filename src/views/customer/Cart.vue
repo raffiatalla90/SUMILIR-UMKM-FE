@@ -158,7 +158,7 @@
               @click="goToProductPage(item.slug)"
             >
               <img
-                :src="item.image"
+                :src="item.image?.src_url"
                 :alt="item.name"
                 class="object-cover w-full h-full"
               />

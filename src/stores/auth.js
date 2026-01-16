@@ -57,18 +57,72 @@ export const useAuthStore = defineStore("auth", () => {
   // =========================
   // HELPERS
   // =========================
+  function addQueryParam(url, key, value) {
+    if (!url) return url;
+    const k = encodeURIComponent(String(key));
+    const v = encodeURIComponent(String(value));
+
+    const re = new RegExp(`([?&])${k}=[^&]*`);
+    if (re.test(url)) return url.replace(re, `$1${k}=${v}`);
+
+    return url.includes("?") ? `${url}&${k}=${v}` : `${url}?${k}=${v}`;
+  }
+
+  function getPersistedProfilePicture(userId) {
+    try {
+      const raw = localStorage.getItem("profile");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      const profileUser = parsed?.user;
+      if (!profileUser || Number(profileUser?.id) !== Number(userId))
+        return null;
+      const url = profileUser?.profile_picture;
+      if (typeof url !== "string") return null;
+      const trimmed = url.trim();
+      return trimmed ? trimmed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function withProfilePictureCacheBuster(url, data) {
+    if (!url) return url;
+    const isStreaming = String(url).includes("/profile-pictures/");
+    if (!isStreaming) return url;
+
+    // Prefer deterministic versioning (so it only changes when user changes)
+    const version = data?.updated_at || data?.id || Date.now();
+    return addQueryParam(url, "v", version);
+  }
+
   function persistUser(data) {
+    const persistedProfilePicture = getPersistedProfilePicture(data?.id);
+    const serverProfilePicture =
+      typeof data?.profile_picture === "string"
+        ? withProfilePictureCacheBuster(data.profile_picture, data)
+        : null;
+
     const minimal = {
       id: data.id,
       name: data.name,
       email: data.email,
-      profile_picture: data.profile_picture || null,
+      profile_picture: persistedProfilePicture || serverProfilePicture || null,
       roles: data.roles,
       merchants: data.merchants || [],
     };
 
     user.value = minimal;
     localStorage.setItem("user", JSON.stringify(minimal));
+  }
+
+  function updateLocalUser(partial) {
+    if (!partial || typeof partial !== "object") return;
+
+    const current =
+      user.value && typeof user.value === "object" ? user.value : {};
+    const next = { ...current, ...partial };
+    user.value = next;
+    localStorage.setItem("user", JSON.stringify(next));
   }
 
   function clearUser() {
@@ -194,6 +248,9 @@ export const useAuthStore = defineStore("auth", () => {
     isAdmin,
     isMerchant,
     isCustomer,
+
+    // helpers
+    updateLocalUser,
 
     // merchant
     allMerchants,

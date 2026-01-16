@@ -61,6 +61,7 @@
         </button>
         <!-- Cart -->
         <button
+          v-if="!isAdmin"
           @click="goToCart"
           class="relative w-10 h-10 transition rounded-full hover:bg-gray-100 active:scale-95"
         >
@@ -755,6 +756,7 @@
     <div v-else class="flex items-center gap-3">
       <!-- Tombol Keranjang -->
       <button
+        v-if="!isAdmin"
         @click="addToCart"
         class="w-12 h-12 rounded-xl border-2 border-[#FFA30E] text-[#FFA30E] hover:bg-orange-50 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center hover:-translate-y-0.5 active:scale-95"
         :disabled="getCurrentStock() === 0 || isArchived"
@@ -781,7 +783,8 @@
         @click="buyNow"
         variant="primary"
         customClass="w-full"
-        :disabled="getCurrentStock() === 0 || isArchived"
+        :disabled="getCurrentStock() === 0 || isArchived || isAdmin"
+        :title="isAdmin ? 'Admin tidak dapat melakukan pembelian' : undefined"
       >
         {{ getCurrentStock() === 0 ? "Stok Habis" : "Beli Sekarang" }}
       </Button>
@@ -837,6 +840,7 @@
 
           <!-- Tombol Keranjang Desktop -->
           <Button
+            v-if="!isAdmin"
             @click="addToCart"
             variant="primary-outline"
             :disabled="getCurrentStock() === 0 || isArchived"
@@ -864,8 +868,11 @@
           <!-- Tombol Beli Sekarang -->
           <Button
             @click="buyNow"
-            :disabled="getCurrentStock() === 0 || isArchived"
+            :disabled="getCurrentStock() === 0 || isArchived || isAdmin"
             variant="primary"
+            :title="
+              isAdmin ? 'Admin tidak dapat melakukan pembelian' : undefined
+            "
           >
             {{ getCurrentStock() === 0 ? "Stok Habis" : "Beli Sekarang" }}
           </Button>
@@ -1198,7 +1205,7 @@ import {
   onUnmounted,
   onBeforeUnmount,
 } from "vue";
-import { setMeta } from "@/router/seo";
+import { setMeta, setJsonLd } from "@/router/seo";
 import { useRoute, useRouter } from "vue-router";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock.js";
@@ -1214,6 +1221,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useCart } from "@/composables/useCart";
 const { addToCart: addCart, loading: loadingCart, fetchCartCount } = useCart();
 const authStore = useAuthStore();
+const isAdmin = computed(() => authStore.isAdmin);
 const cartStore = useCartStore();
 const toast = useToast();
 const showFullDescription = ref(false);
@@ -1292,6 +1300,11 @@ function getOptionValueSrcUrl(optionIndex, valueId) {
 }
 
 async function addToCart() {
+  if (authStore.isAdmin) {
+    toast.warning("Admin tidak dapat menambahkan produk ke keranjang.");
+    return;
+  }
+
   if (!authStore.isAuthenticated) {
     toast.info("Silakan login terlebih dahulu untuk menambahkan ke keranjang.");
     router.push({
@@ -1450,6 +1463,11 @@ const isAnyModalOpen = computed(
   () => showAddonModal.value || showShareModal.value
 );
 const goToCart = () => {
+  if (authStore.isAdmin) {
+    toast.warning("Admin tidak dapat mengakses keranjang.");
+    return;
+  }
+
   if (!authStore.isAuthenticated) {
     toast.info("Silakan login terlebih dahulu untuk mengakses keranjang.");
     router.push({
@@ -1874,11 +1892,73 @@ onMounted(async () => {
 watch(product, (p) => {
   if (!p) return;
 
+  const merchantName =
+    p?.merchant?.name || p?.store?.name || p?.merchant_name || "SUMILIR";
+
+  const descRaw =
+    typeof p?.description === "string"
+      ? p.description
+      : String(p?.description || "");
+  const description = descRaw
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 170);
+
+  const ogImage = selectedImage.value || productImages.value?.[0] || undefined;
+
+  let ogImageAbs = ogImage;
+  try {
+    ogImageAbs = ogImage
+      ? new URL(ogImage, window.location.origin).href
+      : ogImage;
+  } catch (e) {
+    // keep as-is
+  }
+
+  const canonicalUrl = `${window.location.origin}/products/${p?.slug || ""}`;
+
   setMeta({
-    title: `${p.name} –  ${p.merchant?.name || "Lokal"}`,
-    description: p.description?.slice(0, 155),
-    image: selectedImage.value,
+    title: `${p.name} | ${merchantName} – SUMILIR`,
+    description,
+    image: ogImage,
+    url: canonicalUrl,
+    type: "product",
   });
+
+  // Basic Product JSON-LD (helps SEO + share previews where supported)
+  const price = Number(getCurrentPrice() || p?.price || 0);
+  const stock = Number(getCurrentStock() || 0);
+  const images = [ogImageAbs].filter(Boolean);
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: p?.name || "Produk",
+    description,
+    image: images.length ? images : undefined,
+    brand: merchantName ? { "@type": "Brand", name: merchantName } : undefined,
+    offers: {
+      "@type": "Offer",
+      url: canonicalUrl,
+      priceCurrency: "IDR",
+      price: Number.isFinite(price) ? String(price) : undefined,
+      availability:
+        !isArchived.value && stock > 0
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
+    },
+  };
+
+  // Remove undefined keys so JSON-LD is clean
+  for (const k of Object.keys(jsonLd)) {
+    if (jsonLd[k] === undefined) delete jsonLd[k];
+  }
+  for (const k of Object.keys(jsonLd.offers || {})) {
+    if (jsonLd.offers[k] === undefined) delete jsonLd.offers[k];
+  }
+
+  setJsonLd("jsonld-product", jsonLd);
 });
 watch(
   () => authStore.authReady,
@@ -1929,6 +2009,11 @@ function handleScroll() {
 
 // buyNow: keep your existing behavior, but use safe fields
 function buyNow() {
+  if (authStore.isAdmin) {
+    toast.warning("Admin tidak dapat melakukan pembelian.");
+    return;
+  }
+
   const qty = Number(quantity.value || 1);
   const unitPrice =
     Number(getCurrentPrice()) || Number(product.value?.price || 0);

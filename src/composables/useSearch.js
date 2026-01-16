@@ -10,6 +10,10 @@ export function useSearch() {
   const productsMeta = ref({});
   const loadingProducts = ref(false);
 
+  // Jasa (returned by /api/public/search)
+  const jasas = ref([]);
+  const jasasMeta = ref({});
+
   // Merchant
   const merchants = ref([]);
   const merchantsMeta = ref({});
@@ -26,9 +30,21 @@ export function useSearch() {
         products.value = data.data ?? [];
       }
       productsMeta.value = data.meta ?? {};
+
+      // Also hydrate jasa results if present
+      if (append) {
+        jasas.value.push(...(data.jasas ?? []));
+      } else {
+        jasas.value = data.jasas ?? [];
+      }
+      jasasMeta.value = data.jasas_meta ?? {};
     } catch (err) {
       toast.error("Gagal memuat produk.");
-      if (!append) products.value = [];
+      if (!append) {
+        products.value = [];
+        jasas.value = [];
+        jasasMeta.value = {};
+      }
     } finally {
       loadingProducts.value = false;
     }
@@ -59,6 +75,9 @@ export function useSearch() {
     productsMeta,
     loadingProducts,
     fetchProducts,
+    // Jasa
+    jasas,
+    jasasMeta,
     // Merchant
     merchants,
     merchantsMeta,

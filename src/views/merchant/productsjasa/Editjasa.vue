@@ -10,7 +10,7 @@ import TextField from "@/components/forms/TextField.vue";
 import SelectField from "@/components/forms/SelectField.vue";
 import Button from "@/components/common/Button.vue";
 import api from "@/libs/axios";
-import { getImageUrl } from "@/libs/getImageUrl.js";
+import { getImageUrl, getImageUrlJasa } from "@/libs/getImageUrl.js";
 
 // Format currency helper
 const formatCurrency = (value) => {
@@ -30,17 +30,18 @@ const toast = useToast();
 const authStore = useAuthStore();
 
 const currentMerchantSlug = computed(() => {
-  return route.params.merchantSlug
+  return route.params && route.params.merchantSlug
     ? String(route.params.merchantSlug)
-    : authStore.merchantSlug || null;
+    : authStore.merchantSlug ?? null;
 });
 
 const currentMerchantId = computed(() => {
-  const merchant = currentMerchantSlug.value
-    ? authStore.getMerchantBySlug(currentMerchantSlug.value)
-    : authStore.activeMerchant;
-
-  return merchant?.id ?? null;
+  const slug = currentMerchantSlug.value;
+  if (slug) {
+    const merchant = authStore.getMerchantBySlug(slug);
+    return merchant?.id ?? authStore.merchantId ?? null;
+  }
+  return authStore.merchantId ?? null;
 });
 
 const currentJasaId = computed(() => {
@@ -65,12 +66,22 @@ const formKey = ref(0);
 // Image management
 const existingImages = ref([]);
 const imagesToRemove = ref([]);
-const newImageFiles = ref([]);
+const newImageFiles = ref([]); // Array<File> untuk gambar baru yang diupload
+const newImagePreviews = ref([]); // Array<string> blob URLs untuk preview gambar baru
+const currentCoverId = ref(null);
 
-// Helper for previewing new image files
-const getNewImagePreviewUrl = (file) => {
-  if (!file) return "";
-  return URL.createObjectURL(file);
+// Helper untuk membuat URL preview satu kali per file
+const buildNewImagePreviews = (files) => {
+  // Bersihkan URL lama agar tidak bocor memori
+  newImagePreviews.value.forEach((url) => {
+    try {
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      // ignore
+    }
+  });
+
+  newImagePreviews.value = files.map((file) => URL.createObjectURL(file));
 };
 
 // Form data
@@ -82,7 +93,6 @@ const formData = ref({
   fixed_price: 0,
   base_price: 0,
   service_type: "at_location",
-  location_address: "",
   service_area: "",
   special_notes: "",
   payment_methods: "cod",
@@ -228,10 +238,58 @@ const validationSchema = yup.object({
       return originalValue === "" || originalValue === null ? null : value;
     })
     .nullable(),
-  fixed_price: yup.number().min(0).required("Harga tetap wajib diisi"),
-  base_price: yup.number().min(0).required("Harga mulai dari wajib diisi"),
+  // Harga: wajib pilih salah satu, tidak boleh keduanya sekaligus > 0
+  fixed_price: yup
+    .number()
+    .min(0)
+    .test(
+      "fixed-or-base-required",
+      "Isi salah satu: harga tetap ATAU harga mulai dari",
+      function (value) {
+        const { base_price } = this.parent;
+        const fixed = Number(value || 0);
+        const base = Number(base_price || 0);
+        return fixed > 0 || base > 0;
+      }
+    )
+    .test(
+      "not-both-fixed-and-base",
+      "Pilih salah satu: jangan isi keduanya sekaligus",
+      function (value) {
+        const { base_price } = this.parent;
+        const fixed = Number(value || 0);
+        const base = Number(base_price || 0);
+        const fixedFilled = fixed > 0;
+        const baseFilled = base > 0;
+        return !(fixedFilled && baseFilled);
+      }
+    ),
+  base_price: yup
+    .number()
+    .min(0)
+    .test(
+      "base-or-fixed-required",
+      "Isi salah satu: harga tetap ATAU harga mulai dari",
+      function (value) {
+        const { fixed_price } = this.parent;
+        const base = Number(value || 0);
+        const fixed = Number(fixed_price || 0);
+        return base > 0 || fixed > 0;
+      }
+    )
+    .test(
+      "not-both-base-and-fixed",
+      "Pilih salah satu: jangan isi keduanya sekaligus",
+      function (value) {
+        const { fixed_price } = this.parent;
+        const base = Number(value || 0);
+        const fixed = Number(fixed_price || 0);
+        const baseFilled = base > 0;
+        const fixedFilled = fixed > 0;
+        return !(baseFilled && fixedFilled);
+      }
+    ),
   service_type: yup.string().required("Tipe layanan wajib dipilih"),
-  location_address: yup.string().nullable(),
   service_area: yup.string().nullable(),
   special_notes: yup.string().nullable(),
   payment_methods: yup.string().nullable(),
@@ -273,16 +331,60 @@ const handleCategoryChange = async (value) => {
   await loadSubcategories(value);
 };
 
-// Handle new image file selection
+// Handle new image file selection (bisa tambah berkali-kali dan hapus sebelum simpan)
 const handleNewImageChange = (e) => {
   const files = e.target.files;
   if (files && files.length) {
-    newImageFiles.value = Array.from(files);
+    const picked = Array.from(files);
+    const merged = [...newImageFiles.value];
+
+    picked.forEach((file) => {
+      const exists = merged.some(
+        (f) =>
+          f.name === file.name &&
+          f.size === file.size &&
+          f.lastModified === file.lastModified
+      );
+      if (!exists) {
+        merged.push(file);
+      }
+    });
+
+    newImageFiles.value = merged;
+    buildNewImagePreviews(newImageFiles.value);
     console.log(
-      "New images selected:",
+      "New images selected (total):",
       newImageFiles.value.length,
       newImageFiles.value.map((f) => f.name)
     );
+
+    // reset input supaya bisa pilih file yang sama lagi jika perlu
+    e.target.value = "";
+  }
+};
+
+const removeNewImage = (index) => {
+  if (index < 0 || index >= newImageFiles.value.length) return;
+  newImageFiles.value.splice(index, 1);
+  buildNewImagePreviews(newImageFiles.value);
+};
+
+const setAsCover = (image) => {
+  if (!image || !image.id) return;
+  currentCoverId.value = image.id;
+  existingImages.value = existingImages.value.map((img) => ({
+    ...img,
+    is_cover: img.id === image.id,
+  }));
+};
+
+const removeExistingImage = (image) => {
+  if (!image || !image.id) return;
+  if (!imagesToRemove.value.includes(image.id)) {
+    imagesToRemove.value.push(image.id);
+  }
+  if (currentCoverId.value === image.id) {
+    currentCoverId.value = null;
   }
 };
 
@@ -322,6 +424,9 @@ const loadJasa = async () => {
     imagesToRemove.value = [];
     newImageFiles.value = [];
 
+    const cover = existingImages.value.find((img) => img.is_cover && img.id);
+    currentCoverId.value = cover ? cover.id : null;
+
     // Initialize form with loaded data
     formData.value = {
       title: jasaData.title || "",
@@ -331,7 +436,6 @@ const loadJasa = async () => {
       fixed_price: parseInt(jasaData.fixed_price) || 0,
       base_price: parseInt(jasaData.base_price) || 0,
       service_type: jasaData.service_type || "at_location",
-      location_address: jasaData.location_address || "",
       service_area: jasaData.service_area || "",
       special_notes: jasaData.special_notes || "",
       payment_methods: jasaData.payment_methods || "cod",
@@ -355,6 +459,10 @@ const loadJasa = async () => {
   }
 };
 
+// Catatan: Di halaman edit jasa, alamat layanan selalu mengacu pada lokasi UMKM
+// dan/atau area layanan yang diinput merchant. Kita tidak lagi mengambil
+// lokasi perangkat customer di sini; lokasi customer hanya diminta saat booking.
+
 const submitForm = async (values) => {
   if (!currentJasaId.value) {
     toast.error("Jasa ID tidak ditemukan");
@@ -376,14 +484,10 @@ const submitForm = async (values) => {
     // Laravel doesn't parse multipart PUT requests correctly, use POST with _method
     fd.append("_method", "PUT");
 
-    // Add all form fields
+    // Add all form fields (location_address sudah tidak digunakan lagi)
     Object.entries(values).forEach(([key, value]) => {
-      if (key === "title" || key === "location_address") {
-        // Use formData values for fields with v-model
-        fd.append(key, formData.value[key] ?? "");
-      } else {
-        fd.append(key, value ?? "");
-      }
+      if (key === "location_address") return;
+      fd.append(key, value ?? "");
     });
 
     // Explicitly add fields that use v-model on formData
@@ -404,6 +508,11 @@ const submitForm = async (values) => {
     // Add images to remove (if backend supports it)
     if (imagesToRemove.value.length) {
       fd.append("remove_images", JSON.stringify(imagesToRemove.value));
+    }
+
+    // Set cover image id if selected
+    if (currentCoverId.value) {
+      fd.append("cover_image_id", currentCoverId.value);
     }
 
     console.log("Submitting jasa with FormData", {
@@ -438,18 +547,39 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 p-4 sm:p-6">
+  <div class="min-h-screen p-4 bg-linear-to-br from-gray-50 to-gray-100 sm:p-6">
     <Breadcrumb :items="breadcrumbItems" />
 
-    <div class="mt-6 max-w-5xl mx-auto">
-      <div class="bg-white rounded-lg shadow-sm p-6">
-        <h1 class="text-2xl font-bold text-gray-800 mb-6">Edit Layanan Jasa</h1>
+    <div class="max-w-4xl mx-auto mt-6">
+      <!-- Header Card -->
+      <div class="mb-6 bg-white border border-gray-100 shadow-sm rounded-xl">
+        <div
+          class="px-6 py-8 bg-linear-to-r from-merchant-primary to-merchant-primary/80 rounded-t-xl"
+        >
+          <div class="flex items-start justify-between">
+            <div>
+              <h1 class="mb-2 text-3xl font-bold text-white">
+                Edit Layanan Jasa
+              </h1>
+              <p class="text-sm text-white/80">
+                Perbarui informasi layanan jasa Anda di formulir dibawah
+              </p>
+            </div>
+            <i class="text-4xl text-white pi pi-pencil opacity-20"></i>
+          </div>
+        </div>
 
         <!-- Loading State -->
-        <div v-if="loadingData" class="flex justify-center items-center py-20">
-          <div
-            class="animate-spin rounded-full h-12 w-12 border-b-2 border-merchant-primary"
-          ></div>
+        <div
+          v-if="loadingData"
+          class="flex items-center justify-center px-6 py-20"
+        >
+          <div class="text-center">
+            <div
+              class="w-12 h-12 mx-auto mb-4 border-b-2 rounded-full animate-spin border-merchant-primary"
+            ></div>
+            <p class="text-gray-500">Memuat data layanan...</p>
+          </div>
         </div>
 
         <Form
@@ -460,29 +590,47 @@ onMounted(() => {
           @submit="submitForm"
           v-slot="{ handleSubmit }"
         >
-          <form @submit.prevent="handleSubmit(submitForm)" class="space-y-6">
+          <form
+            @submit.prevent="handleSubmit(submitForm)"
+            class="p-6 space-y-6"
+          >
             <!-- 1. KLASIFIKASI LAYANAN -->
-            <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">
-                1. Klasifikasi Layanan
-              </h2>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1"
-                    >Nama Layanan <span class="text-red-500">*</span></label
-                  >
-                  <input
-                    v-model="formData.title"
-                    type="text"
-                    placeholder="Contoh: Jasa Kebersihan Rumah"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary"
-                    required
-                  />
+            <div
+              class="p-5 border border-blue-100 bg-linear-to-r from-blue-50 to-transparent rounded-xl"
+            >
+              <div class="flex items-center gap-3 mb-5">
+                <div
+                  class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white bg-blue-500 rounded-full"
+                >
+                  1
                 </div>
+                <h2 class="text-lg font-bold text-gray-800">
+                  Identitas Layanan
+                </h2>
+              </div>
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field name="title" v-slot="{ field, errors }">
+                  <div>
+                    <label
+                      class="block mb-2 text-sm font-semibold text-gray-700"
+                      >Nama Layanan</label
+                    >
+                    <input
+                      v-bind="field"
+                      type="text"
+                      placeholder="Contoh: Jasa Kebersihan Rumah"
+                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                    <p v-if="errors[0]" class="mt-1 text-sm text-red-500">
+                      {{ errors[0] }}
+                    </p>
+                  </div>
+                </Field>
 
                 <SelectField
                   name="jasa_category_id"
-                  label="Pilih Kategori Utama"
+                  label="Kategori Utama"
                   placeholder="Pilih kategori..."
                   :options="
                     jasaCategories.map((c) => ({
@@ -497,8 +645,12 @@ onMounted(() => {
 
                 <SelectField
                   name="jasa_subcategory_id"
-                  label="Pilih Jenis Layanan Lebih Spesifik"
-                  placeholder="Pilih sub kategori..."
+                  label="Jenis Layanan Spesifik"
+                  :placeholder="
+                    jasaSubcategories.length
+                      ? 'Pilih sub kategori...'
+                      : 'Tidak ada subkategori untuk kategori ini'
+                  "
                   :options="
                     jasaSubcategories.map((s) => ({
                       value: s.value ?? s.id,
@@ -506,18 +658,20 @@ onMounted(() => {
                     }))
                   "
                   v-model="formData.jasa_subcategory_id"
+                  :disabled="!jasaSubcategories.length"
                 />
 
                 <Field name="description" v-slot="{ field }">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1"
-                      >Jelaskan Layanan Anda</label
+                  <div class="sm:col-span-2">
+                    <label
+                      class="block mb-2 text-sm font-semibold text-gray-700"
+                      >Deskripsi Layanan</label
                     >
                     <textarea
                       v-bind="field"
-                      placeholder="Tuliskan detail tentang layanan yang Anda tawarkan..."
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary"
-                      rows="3"
+                      placeholder="Jelaskan detail tentang layanan Anda secara lengkap..."
+                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      rows="4"
                     />
                   </div>
                 </Field>
@@ -525,17 +679,31 @@ onMounted(() => {
             </div>
 
             <!-- 2. HARGA -->
-            <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">
-                2. Pengaturan Harga
-              </h2>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div
+              class="p-5 border bg-linear-to-r from-emerald-50 to-transparent rounded-xl border-emerald-100"
+            >
+              <div class="flex items-center gap-3 mb-5">
+                <div
+                  class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white rounded-full bg-emerald-500"
+                >
+                  2
+                </div>
+                <h2 class="text-lg font-bold text-gray-800">
+                  Pengaturan Harga
+                </h2>
+              </div>
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field name="fixed_price" v-slot="{ field, errors }">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1"
+                    <label
+                      class="block mb-2 text-sm font-semibold text-gray-700"
                       >Harga Tetap</label
                     >
                     <div class="relative">
+                      <span
+                        class="absolute font-medium text-gray-500 transform -translate-y-1/2 left-4 top-1/2"
+                        >Rp</span
+                      >
                       <input
                         :value="formatCurrency(field.value || 0)"
                         @input="
@@ -544,10 +712,11 @@ onMounted(() => {
                         @blur="field.onBlur"
                         type="text"
                         placeholder="0"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary"
+                        class="w-full py-3 pl-10 pr-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        :disabled="Number(values?.base_price || 0) > 0"
                       />
                     </div>
-                    <p v-if="errors[0]" class="text-red-500 text-sm mt-1">
+                    <p v-if="errors[0]" class="mt-1 text-sm text-red-500">
                       {{ errors[0] }}
                     </p>
                   </div>
@@ -555,10 +724,15 @@ onMounted(() => {
 
                 <Field name="base_price" v-slot="{ field, errors }">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1"
+                    <label
+                      class="block mb-2 text-sm font-semibold text-gray-700"
                       >Harga Mulai Dari</label
                     >
                     <div class="relative">
+                      <span
+                        class="absolute font-medium text-gray-500 transform -translate-y-1/2 left-4 top-1/2"
+                        >Rp</span
+                      >
                       <input
                         :value="formatCurrency(field.value || 0)"
                         @input="
@@ -567,10 +741,11 @@ onMounted(() => {
                         @blur="field.onBlur"
                         type="text"
                         placeholder="0"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary"
+                        class="w-full py-3 pl-10 pr-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        :disabled="Number(values?.fixed_price || 0) > 0"
                       />
                     </div>
-                    <p v-if="errors[0]" class="text-red-500 text-sm mt-1">
+                    <p v-if="errors[0]" class="mt-1 text-sm text-red-500">
                       {{ errors[0] }}
                     </p>
                   </div>
@@ -579,20 +754,27 @@ onMounted(() => {
             </div>
 
             <!-- 3. GAMBAR -->
-            <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">
-                3. Gambar
-              </h2>
+            <div
+              class="p-5 border border-purple-100 bg-linear-to-r from-purple-50 to-transparent rounded-xl"
+            >
+              <div class="flex items-center gap-3 mb-5">
+                <div
+                  class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white bg-purple-500 rounded-full"
+                >
+                  3
+                </div>
+                <h2 class="text-lg font-bold text-gray-800">Gambar Layanan</h2>
+              </div>
 
               <!-- Existing Images -->
               <div v-if="existingImages.length" class="mb-4">
                 <label
-                  class="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2"
+                  class="inline-flex items-center gap-2 mb-2 text-sm font-medium text-gray-700"
                 >
-                  <i class="pi pi-images text-gray-400 text-sm"></i>
+                  <i class="text-sm text-gray-400 pi pi-images"></i>
                   <span>Gambar Saat Ini</span>
                 </label>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   <div
                     v-for="(image, idx) in existingImages"
                     :key="image.id ?? idx"
@@ -603,9 +785,9 @@ onMounted(() => {
                       class="relative"
                     >
                       <img
-                        :src="getImageUrl(image.path || image.id)"
+                        :src="getImageUrlJasa(image.path || image.id)"
                         alt="preview"
-                        class="w-full h-28 object-cover rounded border border-gray-200 bg-gray-50"
+                        class="object-cover w-full border border-gray-200 rounded h-28 bg-gray-50"
                         @error="(e) => (e.target.style.display = 'none')"
                       />
                       <span
@@ -621,19 +803,28 @@ onMounted(() => {
                       </div>
                       <button
                         type="button"
-                        @click="imagesToRemove.push(image.id)"
-                        class="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition"
+                        @click="removeExistingImage(image)"
+                        class="absolute p-1 text-white transition bg-red-500 rounded-full opacity-0 top-1 right-1 group-hover:opacity-100"
                         title="Hapus gambar"
                       >
-                        <i class="pi pi-times text-xs"></i>
+                        <i class="text-xs pi pi-times"></i>
+                      </button>
+                      <button
+                        v-if="image.id && !image.is_cover"
+                        type="button"
+                        @click="setAsCover(image)"
+                        class="absolute bottom-1 left-1 bg-black/60 text-white px-1.5 py-0.5 rounded text-[10px] opacity-0 group-hover:opacity-100 transition"
+                        title="Jadikan cover"
+                      >
+                        Jadikan Cover
                       </button>
                     </div>
                     <div
                       v-else
-                      class="w-full h-28 bg-gray-100 rounded border flex items-center justify-center"
+                      class="flex items-center justify-center w-full bg-gray-100 border rounded h-28"
                     >
                       <div class="text-center">
-                        <i class="pi pi-trash text-gray-400 text-xl mb-1"></i>
+                        <i class="mb-1 text-xl text-gray-400 pi pi-trash"></i>
                         <p class="text-xs text-gray-500">Akan dihapus</p>
                       </div>
                     </div>
@@ -645,42 +836,53 @@ onMounted(() => {
               <div class="space-y-3">
                 <div>
                   <label
-                    class="text-sm font-medium text-gray-700 mb-1 flex items-center gap-2"
+                    for="edit_jasa_new_images"
+                    class="inline-flex items-center gap-2 mb-1 text-sm font-medium text-gray-700"
                   >
-                    <i class="pi pi-image text-gray-400 text-sm"></i>
+                    <i class="text-sm text-gray-400 pi pi-image"></i>
                     <span>Unggah Gambar Baru (opsional)</span>
                   </label>
                   <input
                     type="file"
                     accept="image/*"
                     multiple
+                    id="edit_jasa_new_images"
+                    name="new_images"
                     @change="handleNewImageChange"
                     class="block w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-merchant-primary/10 file:text-merchant-primary hover:file:bg-merchant-primary/20"
                   />
-                  <p class="text-xs text-gray-500 mt-1">
+                  <p class="mt-1 text-xs text-gray-500">
                     Gambar baru akan ditambahkan ke gambar yang ada.
                   </p>
                 </div>
 
                 <div
                   v-if="newImageFiles.length"
-                  class="grid grid-cols-2 sm:grid-cols-4 gap-3"
+                  class="grid grid-cols-2 gap-3 sm:grid-cols-4"
                 >
                   <div
                     v-for="(file, idx) in newImageFiles"
                     :key="idx"
-                    class="relative rounded-lg border border-gray-200 overflow-hidden group bg-gray-50"
+                    class="relative overflow-hidden border border-gray-200 rounded-lg group bg-gray-50"
                   >
                     <img
-                      :src="getNewImagePreviewUrl(file)"
+                      :src="newImagePreviews[idx] || ''"
                       alt="preview"
-                      class="w-full h-28 object-cover"
+                      class="object-cover w-full h-28"
                     />
                     <span
                       class="absolute top-1 left-1 bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded shadow"
                     >
                       Baru
                     </span>
+                    <button
+                      type="button"
+                      @click="removeNewImage(idx)"
+                      class="absolute p-1 text-white transition bg-red-500 rounded-full opacity-0 top-1 right-1 group-hover:opacity-100"
+                      title="Hapus gambar baru ini"
+                    >
+                      <i class="text-xs pi pi-times"></i>
+                    </button>
                     <div
                       class="absolute bottom-1 right-1 bg-white/90 text-gray-500 rounded-full p-1 shadow-sm flex items-center justify-center text-[10px] group-hover:bg-merchant-primary/90 group-hover:text-white transition"
                     >
@@ -688,101 +890,113 @@ onMounted(() => {
                     </div>
                   </div>
                 </div>
+                <p v-if="newImageFiles.length" class="text-xs text-gray-500">
+                  {{ newImageFiles.length }} gambar baru dipilih.
+                </p>
               </div>
             </div>
 
             <!-- 4. LOKASI -->
-            <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">
-                4. Lokasi & Area Layanan
-              </h2>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div
+              class="p-5 border border-orange-100 bg-linear-to-r from-orange-50 to-transparent rounded-xl"
+            >
+              <div class="flex items-center gap-3 mb-5">
+                <div
+                  class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white bg-orange-500 rounded-full"
+                >
+                  4
+                </div>
+                <h2 class="text-lg font-bold text-gray-800">
+                  Lokasi & Area Layanan
+                </h2>
+              </div>
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <SelectField
                   name="service_type"
-                  label="Tempat Layanan?"
+                  label="Tipe Layanan"
                   :options="[
-                    { value: 'at_location', label: 'Di Tempat Saya' },
-                    { value: 'on_site', label: 'Ke Rumah/Lokasi Pelanggan' },
-                    { value: 'online', label: 'Online' },
+                    { value: 'at_location', label: '📍 Di Tempat Saya' },
+                    { value: 'on_site', label: '🏠 Ke Rumah Pelanggan' },
+                    { value: 'online', label: '💻 Online' },
                   ]"
                   v-model="formData.service_type"
                   required
                 />
-
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1"
-                    >Alamat Tempat Layanan</label
-                  >
-                  <input
-                    v-model="formData.location_address"
-                    type="text"
-                    placeholder="Masukkan alamat..."
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary"
-                  />
-                </div>
               </div>
             </div>
 
             <!-- 5. HARI LAYANAN -->
-            <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">
-                5. Hari Layanan
-              </h2>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-3"
-                  >Pilih Hari Buka Layanan</label
+            <div
+              class="p-5 border border-pink-100 bg-linear-to-r from-pink-50 to-transparent rounded-xl"
+            >
+              <div class="flex items-center gap-3 mb-5">
+                <div
+                  class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white bg-pink-500 rounded-full"
                 >
+                  5
+                </div>
+                <h2 class="text-lg font-bold text-gray-800">Hari Layanan</h2>
+              </div>
+              <div>
+                <p class="mb-4 text-sm text-gray-600">
+                  Pilih hari-hari saat layanan Anda aktif:
+                </p>
                 <div class="flex flex-wrap gap-2">
                   <button
                     v-for="day in dayOptions"
                     :key="day.value"
                     type="button"
                     @click="toggleDay(day.value)"
-                    class="px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-200"
+                    class="px-4 py-2.5 rounded-lg border text-sm font-semibold transition-all duration-200 shadow-sm"
                     :class="[
                       selectedDays.includes(day.value)
-                        ? 'bg-merchant-primary text-white border-merchant-primary'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary',
+                        ? 'bg-pink-500 text-white border-pink-500 shadow-md'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-pink-500 hover:shadow-md',
                     ]"
                   >
                     {{ day.label }}
                   </button>
                 </div>
-                <p class="text-xs text-gray-500 mt-2">
-                  <i class="pi pi-info-circle mr-1"></i>
-                  Klik untuk memilih/membatalkan hari. Minimal pilih 1 hari.
+                <p class="mt-3 text-xs text-gray-500">
+                  <i class="mr-1 pi pi-check-circle"></i>
+                  {{ selectedDays.length }} hari dipilih
                 </p>
               </div>
             </div>
 
-            <!-- 6. JAM LAYANAN (OPTIONAL) -->
-            <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">
-                6. Jam Layanan
-                <span class="text-sm font-normal text-gray-500"
-                  >(Opsional)</span
+            <!-- 6. JAM LAYANAN -->
+            <div
+              class="p-5 border bg-linear-to-r from-cyan-50 to-transparent rounded-xl border-cyan-100"
+            >
+              class="flex items-center gap-2 mb-1 text-sm font-medium
+              text-gray-700"
+              <div class="flex items-center gap-3 mb-5">
+                <div
+                  class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white rounded-full bg-cyan-500"
                 >
-              </h2>
-              <p class="text-sm text-gray-600 mb-4">
-                Pilih jam-jam yang tersedia untuk layanan Anda. Kosongkan jika
-                tidak ingin membatasi jam.
-              </p>
+                  6
+                </div>
+                <h2 class="text-lg font-bold text-gray-800">
+                  Jam Layanan
+                  <span class="text-xs font-normal text-gray-500"
+                    >(Opsional)</span
+                  >
+                </h2>
+              </div>
 
               <!-- Pagi -->
-              <div class="mb-4">
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-sm font-medium text-gray-700"
-                    >Pagi (06.00 - 11.30)</span
+              <div class="mb-5">
+                <div class="flex items-center justify-between mb-3">
+                  <span class="text-sm font-semibold text-gray-700"
+                    >🌅 Pagi (06.00 - 11.30)</span
                   >
                   <button
                     type="button"
                     @click="selectAllPeriod('morning')"
-                    class="text-xs text-merchant-primary hover:underline"
+                    class="text-xs font-medium text-cyan-600 hover:text-cyan-700 hover:underline"
                   >
                     {{
-                      isAllPeriodSelected("morning")
-                        ? "Hapus Semua"
-                        : "Pilih Semua"
+                      isAllPeriodSelected("morning") ? "Hapus" : "Pilih Semua"
                     }}
                   </button>
                 </div>
@@ -792,11 +1006,11 @@ onMounted(() => {
                     :key="time.value"
                     type="button"
                     @click="toggleTime(time.value)"
-                    class="px-3 py-1.5 rounded-lg border text-sm transition-all duration-200"
+                    class="px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all duration-200"
                     :class="[
                       selectedTimes.includes(time.value)
-                        ? 'bg-merchant-primary text-white border-merchant-primary'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary',
+                        ? 'bg-cyan-500 text-white border-cyan-500'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-cyan-500',
                     ]"
                   >
                     {{ time.label }}
@@ -805,20 +1019,18 @@ onMounted(() => {
               </div>
 
               <!-- Siang -->
-              <div class="mb-4">
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-sm font-medium text-gray-700"
-                    >Siang (12.00 - 17.00)</span
+              <div class="mb-5">
+                <div class="flex items-center justify-between mb-3">
+                  <span class="text-sm font-semibold text-gray-700"
+                    >☀️ Siang (12.00 - 17.00)</span
                   >
                   <button
                     type="button"
                     @click="selectAllPeriod('afternoon')"
-                    class="text-xs text-merchant-primary hover:underline"
+                    class="text-xs font-medium text-cyan-600 hover:text-cyan-700 hover:underline"
                   >
                     {{
-                      isAllPeriodSelected("afternoon")
-                        ? "Hapus Semua"
-                        : "Pilih Semua"
+                      isAllPeriodSelected("afternoon") ? "Hapus" : "Pilih Semua"
                     }}
                   </button>
                 </div>
@@ -828,11 +1040,11 @@ onMounted(() => {
                     :key="time.value"
                     type="button"
                     @click="toggleTime(time.value)"
-                    class="px-3 py-1.5 rounded-lg border text-sm transition-all duration-200"
+                    class="px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all duration-200"
                     :class="[
                       selectedTimes.includes(time.value)
-                        ? 'bg-merchant-primary text-white border-merchant-primary'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary',
+                        ? 'bg-cyan-500 text-white border-cyan-500'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-cyan-500',
                     ]"
                   >
                     {{ time.label }}
@@ -842,19 +1054,17 @@ onMounted(() => {
 
               <!-- Malam -->
               <div>
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-sm font-medium text-gray-700"
-                    >Malam (17.30 - 21.00)</span
+                <div class="flex items-center justify-between mb-3">
+                  <span class="text-sm font-semibold text-gray-700"
+                    >🌙 Malam (17.30 - 21.00)</span
                   >
                   <button
                     type="button"
                     @click="selectAllPeriod('evening')"
-                    class="text-xs text-merchant-primary hover:underline"
+                    class="text-xs font-medium text-cyan-600 hover:text-cyan-700 hover:underline"
                   >
                     {{
-                      isAllPeriodSelected("evening")
-                        ? "Hapus Semua"
-                        : "Pilih Semua"
+                      isAllPeriodSelected("evening") ? "Hapus" : "Pilih Semua"
                     }}
                   </button>
                 </div>
@@ -864,104 +1074,162 @@ onMounted(() => {
                     :key="time.value"
                     type="button"
                     @click="toggleTime(time.value)"
-                    class="px-3 py-1.5 rounded-lg border text-sm transition-all duration-200"
+                    class="px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all duration-200"
                     :class="[
                       selectedTimes.includes(time.value)
-                        ? 'bg-merchant-primary text-white border-merchant-primary'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary',
+                        ? 'bg-cyan-500 text-white border-cyan-500'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-cyan-500',
                     ]"
                   >
                     {{ time.label }}
                   </button>
                 </div>
               </div>
-
-              <p class="text-xs text-gray-500 mt-3">
-                <i class="pi pi-info-circle mr-1"></i>
-                {{
-                  selectedTimes.length > 0
-                    ? `${selectedTimes.length} waktu dipilih`
-                    : "Tidak ada waktu dipilih (tersedia kapan saja)"
-                }}
-              </p>
             </div>
 
             <!-- 7. PEMBAYARAN -->
-            <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">
-                7. Pembayaran
-              </h2>
-              <div class="space-y-4">
-                <!-- Metode Pembayaran -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-3"
-                    >Metode Pembayaran yang Diterima</label
+            <div
+              class="p-5 border bg-linear-to-r from-violet-50 to-transparent rounded-xl border-violet-100"
+            >
+              <div class="flex items-center gap-3 mb-5">
+                <div
+                  class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white rounded-full bg-violet-500"
+                >
+                  7
+                </div>
+                <h2 class="text-lg font-bold text-gray-800">
+                  Metode Pembayaran
+                </h2>
+              </div>
+              <div class="space-y-3">
+                <div
+                  class="flex items-center gap-3 p-4 bg-white border border-violet-100 rounded-xl"
+                >
+                  <div
+                    class="flex items-center justify-center rounded-full w-9 h-9 bg-violet-100 text-violet-600"
                   >
-                  <div class="space-y-2">
-                    <div class="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        id="payment_cod"
-                        :checked="formData.payment_methods.includes('cod')"
-                        @change="
-                          (e) => {
-                            const methods = formData.payment_methods
-                              .split(',')
-                              .filter((m) => m)
-                              .map((m) => m.trim());
-                            if (e.target.checked) {
-                              if (!methods.includes('cod')) methods.push('cod');
-                            } else {
-                              methods.splice(methods.indexOf('cod'), 1);
-                            }
-                            formData.payment_methods = methods.length
-                              ? methods.join(',')
-                              : 'cod';
-                          }
-                        "
-                        class="w-4 h-4 text-merchant-primary rounded"
-                      />
-                      <label for="payment_cod" class="text-sm text-gray-700"
-                        >COD (Bayar di Tempat)</label
-                      >
-                    </div>
+                    <i class="pi pi-credit-card"></i>
+                  </div>
+                  <div>
+                    <p class="text-sm font-semibold text-gray-800">
+                      COD (Bayar di Tempat)
+                    </p>
+                    <p class="text-xs text-gray-500">
+                      Untuk saat ini, pembayaran jasa dilakukan langsung di
+                      lokasi (cash on delivery).
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- 8. ADMIN -->
-            <div class="pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">8. Admin</h2>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <SelectField
-                  name="status"
-                  label="Status Layanan"
-                  :options="[
-                    { value: 'draft', label: 'Simpan Dulu (Draft)' },
-                    { value: 'active', label: 'Aktif - Bisa Dipesan' },
-                    { value: 'inactive', label: 'Non-aktif - Sedang Tutup' },
-                  ]"
-                  v-model="formData.status"
-                />
+            <!-- 8. STATUS -->
+            <div
+              class="p-5 border border-red-100 bg-linear-to-r from-red-50 to-transparent rounded-xl"
+            >
+              <div class="flex items-center gap-3 mb-5">
+                <div
+                  class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white bg-red-500 rounded-full"
+                >
+                  8
+                </div>
+                <h2 class="text-lg font-bold text-gray-800">Status Layanan</h2>
+              </div>
+              <div>
+                <p
+                  class="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-800"
+                >
+                  Status saat ini:
+                  <span
+                    class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold"
+                    :class="[
+                      formData.status === 'draft'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : formData.status === 'published'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-gray-200 text-gray-700',
+                    ]"
+                  >
+                    <span v-if="formData.status === 'draft'">📝 Draft</span>
+                    <span v-else-if="formData.status === 'published'"
+                      >✅ Dipublish</span
+                    >
+                    <span v-else>🔒 Diarsipkan</span>
+                  </span>
+                </p>
+                <p class="mt-1 text-xs text-gray-600">
+                  Draft: belum tampil ke pelanggan. Dipublish: bisa dipesan
+                  pelanggan. Diarsipkan: disembunyikan dari pelanggan.
+                </p>
+
+                <div class="flex flex-wrap gap-3 mt-4">
+                  <!-- Dari draft bisa langsung publish -->
+                  <Button
+                    v-if="formData.status === 'draft'"
+                    type="button"
+                    variant="primary"
+                    @click="
+                      formData.status = 'published';
+                      handleSubmit(submitForm)();
+                    "
+                    class="flex items-center gap-2"
+                  >
+                    <i class="pi pi-check"></i>
+                    Publish Sekarang
+                  </Button>
+
+                  <!-- Dari published bisa diarsipkan -->
+                  <Button
+                    v-if="formData.status === 'published'"
+                    type="button"
+                    variant="muted-outline"
+                    @click="
+                      formData.status = 'archived';
+                      handleSubmit(submitForm)();
+                    "
+                    class="flex items-center gap-2 text-red-700 border-red-200 bg-red-50 hover:bg-red-100"
+                  >
+                    <i class="pi pi-box"></i>
+                    Arsipkan Layanan
+                  </Button>
+
+                  <!-- Dari archived bisa dipublish lagi -->
+                  <Button
+                    v-if="formData.status === 'archived'"
+                    type="button"
+                    variant="primary"
+                    @click="
+                      formData.status = 'published';
+                      handleSubmit(submitForm)();
+                    "
+                    class="flex items-center gap-2"
+                  >
+                    <i class="pi pi-upload"></i>
+                    Publikasikan Lagi
+                  </Button>
+                </div>
               </div>
             </div>
 
-            <!-- Buttons -->
-            <div class="flex gap-3">
+            <!-- Action Buttons -->
+            <div class="flex gap-3 pt-4 border-t border-gray-200">
               <Button
                 type="button"
                 variant="muted-outline"
                 @click="router.back()"
+                class="flex-1"
               >
-                Batal
+                <i class="mr-2 pi pi-arrow-left"></i>
+                Kembali
               </Button>
               <Button
                 type="submit"
                 variant="primary"
                 :disabled="loading"
                 :loading="loading"
+                class="flex-1"
               >
+                <i class="mr-2 pi pi-check"></i>
                 {{ loading ? "Menyimpan..." : "Simpan Perubahan" }}
               </Button>
             </div>

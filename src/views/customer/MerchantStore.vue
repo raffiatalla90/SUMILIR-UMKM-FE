@@ -97,6 +97,16 @@
           >
             <i class="text-gray-700 pi pi-arrow-left"></i>
           </button>
+          <!-- Share Button (aligned right) -->
+          <button
+            type="button"
+            @click="shareMerchant"
+            class="absolute flex items-center justify-center w-10 h-10 transition rounded-full shadow-lg sm:hidden top-4 right-4 bg-white/90 backdrop-blur-sm hover:bg-white"
+            aria-label="Bagikan toko"
+            title="Bagikan"
+          >
+            <i class="text-lg pi pi-share-alt"></i>
+          </button>
         </div>
 
         <!-- Card Info Toko (Overlay) -->
@@ -128,7 +138,7 @@
 
               <!-- Info Toko -->
               <div class="flex-1 min-w-0 pt-1">
-                <h1 class="text-xl font-bold text-black">
+                <h1 class="text-base font-bold text-black sm:text-xl">
                   {{ merchant.name }}
                 </h1>
 
@@ -158,13 +168,24 @@
                   </span>
                 </div>
               </div>
+
+              <!-- Share Button (aligned right) -->
+              <button
+                type="button"
+                @click="shareMerchant"
+                class="hidden w-10 h-10 transition-all rounded-full sm:inline shrink-0 backdrop-blur-sm hover:bg-gray-100 active:scale-95"
+                aria-label="Bagikan toko"
+                title="Bagikan"
+              >
+                <i class="text-lg pi pi-share-alt"></i>
+              </button>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Tabs Menu dan Informasi -->
-      <div class="px-4 mx-auto mt-6 max-w-7xl">
+      <div class="px-4 mx-auto mt-2 sm:mt-6 max-w-7xl">
         <div
           class="flex gap-1 p-1 bg-white border border-gray-100 shadow-sm rounded-xl"
         >
@@ -177,7 +198,9 @@
                 : 'text-gray-600 hover:bg-secondary-hover hover:text-white',
             ]"
           >
-            Menu
+            <span v-if="merchant.segmentation?.id === 1">Produk</span>
+            <span v-else-if="merchant.segmentation?.id === 2">Menu</span>
+            <span v-else>Layanan</span>
           </button>
           <button
             @click="activeTab = 'informasi'"
@@ -225,10 +248,21 @@
             class="transition cursor-pointer hover:shadow-md"
             @click="goToProductDetail(product)"
           />
+
+          <!-- SKELETON APPEND -->
+          <template v-if="isLoadingMore">
+            <ProductCardSkeleton
+              v-for="i in 6"
+              :key="'load-more-product-' + i"
+            />
+          </template>
         </div>
 
         <!-- Grid Jasa -->
-        <div v-else class="grid grid-cols-2 gap-3 sm:gap-4">
+        <div
+          v-else
+          class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+        >
           <router-link
             v-for="jasa in jasaList"
             :key="jasa.id"
@@ -277,7 +311,19 @@
               </p>
             </div>
           </router-link>
+
+          <!-- SKELETON APPEND -->
+          <template v-if="isLoadingMore">
+            <ProductCardSkeleton v-for="i in 6" :key="'load-more-jasa-' + i" />
+          </template>
         </div>
+
+        <!-- SENTINEL (Infinite Scroll) -->
+        <div
+          v-if="hasMore && activeTab === 'menu'"
+          ref="loadMoreRef"
+          class="h-1"
+        ></div>
       </div>
 
       <!-- Tab Content: Informasi -->
@@ -457,15 +503,32 @@
         </div>
       </div>
     </transition>
+
+    <!-- BACK TO TOP BUTTON -->
+    <button
+      v-show="showBackToTop"
+      @click="scrollToTop"
+      class="fixed z-50 flex items-center justify-center transition duration-200 bg-white border-2 rounded-full shadow-sm cursor-pointer border-muted-foreground/20 hover:shadow-lg bottom-24 right-8 w-11 h-11 active:scale-90 hover:-translate-y-1"
+      aria-label="Kembali ke atas"
+    >
+      <i class="text-xl pi pi-arrow-up text-secondary"></i>
+    </button>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import {
+  ref,
+  computed,
+  onMounted,
+  onBeforeUnmount,
+  watch,
+  nextTick,
+} from "vue";
 import { useRoute } from "vue-router";
 import { useRouter } from "vue-router";
 import api from "@/libs/axios.js";
-import { getImageUrl } from "@/libs/getImageUrl.js";
+import { getImageUrl, getImageUrlJasa } from "@/libs/getImageUrl.js";
 import { setMeta, setJsonLd } from "@/router/seo";
 import ChatWindow from "@/components/common/ChatWindow.vue";
 import LeafletMap from "@/components/LeafletMap.vue";
@@ -498,6 +561,39 @@ const selectedJasaId = ref(null);
 const activeTab = ref("menu");
 const menuKind = ref("jasa"); // 'product' | 'jasa'
 
+// Infinite scroll state (mirip SearchPage/ProductLayananHome)
+const loadMoreRef = ref(null);
+const observer = ref(null);
+const currentPage = ref(1);
+const perPage = 20;
+const hasMore = ref(false);
+const isLoadingMore = ref(false);
+const isLoadMoreQueued = ref(false);
+
+// Back to top
+const showBackToTop = ref(false);
+
+function handleScroll() {
+  showBackToTop.value = window.scrollY > 300;
+
+  // Fallback infinite scroll when IntersectionObserver doesn't fire
+  if (activeTab.value !== "menu") return;
+  if (!hasMore.value) return;
+  if (loading.value) return;
+  if (isLoadingMore.value) return;
+
+  const doc = document.documentElement;
+  const nearBottom =
+    window.innerHeight + window.scrollY >= doc.scrollHeight - 300;
+  if (nearBottom) {
+    queueLoadMore();
+  }
+}
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
 // Sync data state
 const merchantInfo = ref({
   address: "",
@@ -509,6 +605,9 @@ const longitude = ref(null);
 const myLatitude = ref(null);
 const myLongitude = ref(null);
 
+// Cache unauthorized state so we don't keep calling /api/profile/address for guests.
+const profileAddressUnauthorized = ref(false);
+
 function setMyCoordinates(lat, lng) {
   const latNum = parseFloat(lat);
   const lngNum = parseFloat(lng);
@@ -516,16 +615,28 @@ function setMyCoordinates(lat, lng) {
   myLongitude.value = Number.isFinite(lngNum) ? lngNum : null;
 }
 
-async function loadMyCoordinatesFromProfile() {
-  try {
-    const res = await api.get("api/profile/address");
-    const addr = res?.data?.data;
-    setMyCoordinates(addr?.latitude, addr?.longitude);
-    return hasMyCoordinates.value;
-  } catch (e) {
-    setMyCoordinates(null, null);
-    return false;
+async function loadMyCoordinatesFromProfile(
+  { fallbackToDevice } = { fallbackToDevice: false }
+) {
+  // 1) Try profile address first (if available)
+  if (!profileAddressUnauthorized.value) {
+    try {
+      const res = await api.get("api/profile/address");
+      const addr = res?.data?.data;
+      setMyCoordinates(addr?.latitude, addr?.longitude);
+      if (hasMyCoordinates.value) return true;
+    } catch (e) {
+      const status = e?.response?.status;
+      if (status === 401 || status === 403) {
+        profileAddressUnauthorized.value = true;
+      }
+      setMyCoordinates(null, null);
+    }
   }
+
+  // 2) If no saved address (or unauthenticated), fall back to GPS when asked
+  if (!fallbackToDevice) return false;
+  return await requestMyLocation();
 }
 
 async function requestMyLocation() {
@@ -672,18 +783,71 @@ function pickSeoImage(m) {
   return m?.banner_url || m?.logo_url || "https://sumilir.web.id/og-image.png";
 }
 
+const shareMerchantUrl = computed(() => {
+  const slug = route?.params?.slug || "";
+  return `${window.location.origin}/merchant/${slug}`;
+});
+
+const shareMerchantText = computed(() => {
+  const name = merchant.value?.name || "Toko";
+  const seg = merchant.value?.segmentation?.name;
+  return seg ? `${name} - ${seg}` : name;
+});
+
+async function shareMerchant() {
+  const url = shareMerchantUrl.value;
+  const title = merchant.value?.name || "Toko";
+  const text = shareMerchantText.value;
+
+  if (!url) return;
+
+  // ✅ Native share (mobile)
+  if (navigator.share) {
+    try {
+      await navigator.share({ title, text, url });
+      return;
+    } catch (e) {
+      // user cancelled or not supported, fallback below
+    }
+  }
+
+  // ✅ Fallback: copy to clipboard
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link toko berhasil disalin");
+      return;
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  // ✅ Last resort: prompt for manual copy
+  window.prompt("Salin link toko:", url);
+}
+
 function applyMerchantSeo(merchantData, merchantSlug) {
   const name = merchantData?.name || "Toko";
   const segmentation = merchantData?.segmentation?.name || "UMKM";
   const descRaw = merchantData?.description || "";
   const addrText = merchantInfo.value?.address || "";
 
+  const seoImage = pickSeoImage(merchantData);
+  let seoImageAbs = seoImage;
+  try {
+    seoImageAbs = seoImage
+      ? new URL(seoImage, window.location.origin).href
+      : seoImage;
+  } catch (e) {
+    // keep as-is
+  }
+
   const description =
     descRaw?.trim() ||
     [
       `${segmentation} di Sumilir.`,
       addrText ? `Alamat: ${addrText}.` : "",
-      "Lihat menu, informasi toko, dan jam operasional.",
+      "Lihat produk atau layanan, informasi toko, dan jam operasional.",
     ]
       .filter(Boolean)
       .join(" ");
@@ -693,7 +857,7 @@ function applyMerchantSeo(merchantData, merchantSlug) {
   setMeta({
     title: `${name} | SUMILIR`,
     description,
-    image: pickSeoImage(merchantData),
+    image: seoImage,
     url: pageUrl,
     type: "business.business",
   });
@@ -706,7 +870,7 @@ function applyMerchantSeo(merchantData, merchantSlug) {
     "@type": "LocalBusiness",
     name,
     url: pageUrl,
-    image: [pickSeoImage(merchantData)],
+    image: seoImageAbs ? [seoImageAbs] : undefined,
     telephone: merchantData?.phone || undefined,
     address: addrText
       ? { "@type": "PostalAddress", streetAddress: addrText }
@@ -726,16 +890,26 @@ function applyMerchantSeo(merchantData, merchantSlug) {
 
 // Resolve gambar jasa
 const resolveJasaImage = (jasa) => {
+  // Prefer API-provided cover image URL (id-based)
+  if (jasa?.cover_img?.src_url) {
+    return jasa.cover_img.src_url;
+  }
+
   if (jasa.images && jasa.images.length > 0) {
     const coverImage =
       jasa.images.find((img) => img.is_cover) || jasa.images[0];
-    const path = coverImage.path || coverImage.url || coverImage.image;
-    if (path) {
-      return getImageUrl(path);
-    }
+
+    // New API returns url/src_url; keep backward-compat
+    const url = coverImage.src_url || coverImage.url;
+    if (url) return url;
+
+    // Fallbacks
+    if (coverImage.id) return getImageUrl(coverImage.id);
+    if (coverImage.path || coverImage.image)
+      return getImageUrlJasa(coverImage.path || coverImage.image);
   }
   if (jasa.image) {
-    return getImageUrl(jasa.image);
+    return getImageUrlJasa(jasa.image);
   }
   return null;
 };
@@ -759,49 +933,203 @@ function getSegmentationId(data) {
   return Number.isFinite(num) ? num : null;
 }
 
-async function fetchMerchantMenu(merchantData, merchantSlug) {
+function parseLaravelPaginator(payload) {
+  // Support: array (legacy) OR Laravel paginator object
+  if (Array.isArray(payload)) {
+    return {
+      items: payload,
+      current: 1,
+      last: 1,
+    };
+  }
+
+  // Support: endpoints that wrap paginator in { data: { data: [], current_page, ... } }
+  const paginator =
+    payload?.data &&
+    typeof payload.data === "object" &&
+    !Array.isArray(payload.data) &&
+    Array.isArray(payload.data?.data)
+      ? payload.data
+      : payload;
+
+  return {
+    items: Array.isArray(paginator?.data) ? paginator.data : [],
+    current: Number(
+      paginator?.current_page ?? paginator?.meta?.current_page ?? 1
+    ),
+    last: Number(paginator?.last_page ?? paginator?.meta?.last_page ?? 1),
+  };
+}
+
+async function ensureSentinelObserved() {
+  await nextTick();
+  if (!observer.value) return;
+  if (!loadMoreRef.value) return;
+  if (!hasMore.value) return;
+  observer.value.observe(loadMoreRef.value);
+}
+
+function setupObserver() {
+  if (observer.value) observer.value.disconnect();
+
+  observer.value = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0];
+      if (!entry?.isIntersecting) return;
+      if (activeTab.value !== "menu") return;
+      queueLoadMore();
+    },
+    {
+      root: null,
+      rootMargin: "200px",
+      threshold: 0,
+    }
+  );
+
+  if (loadMoreRef.value) {
+    observer.value.observe(loadMoreRef.value);
+  }
+}
+
+function resetInfiniteScroll() {
+  currentPage.value = 1;
+  hasMore.value = false;
+  isLoadMoreQueued.value = false;
+  if (observer.value) observer.value.disconnect();
+}
+
+async function queueLoadMore() {
+  if (!hasMore.value) return;
+  if (loading.value) return;
+  if (isLoadingMore.value) return;
+  if (isLoadMoreQueued.value) return;
+  if (menuKind.value !== "product" && menuKind.value !== "jasa") return;
+
+  isLoadMoreQueued.value = true;
+  currentPage.value += 1;
+
+  try {
+    await fetchMerchantMenu(merchant.value, route.params.slug, {
+      append: true,
+    });
+  } finally {
+    isLoadMoreQueued.value = false;
+  }
+}
+
+async function fetchMerchantMenu(
+  merchantData,
+  merchantSlug,
+  { append } = { append: false }
+) {
   const segId = getSegmentationId(merchantData);
 
   // Reset lists to avoid stale UI when navigating between merchants
-  jasaList.value = [];
-  productList.value = [];
+  if (!append) {
+    jasaList.value = [];
+    productList.value = [];
+    currentPage.value = 1;
+    hasMore.value = false;
+  }
 
   // 1/2 => toko/kuliner (produk)
   if (segId === 1 || segId === 2) {
     menuKind.value = "product";
 
-    const { data } = await api.get(
-      `/api/public/merchants/${merchantSlug}/products`,
-      {
-        params: { per_page: 50 },
-      }
-    );
+    if (append) {
+      isLoadingMore.value = true;
+    }
 
-    const paginator = data?.products ?? data?.data ?? data;
-    productList.value =
-      paginator?.data ?? (Array.isArray(paginator) ? paginator : []);
+    try {
+      const { data } = await api.get(
+        `/api/public/merchants/${merchantSlug}/products`,
+        {
+          params: { per_page: perPage, page: currentPage.value },
+        }
+      );
+
+      const paginator = data?.products ?? data?.data ?? data;
+      const parsed = parseLaravelPaginator(paginator);
+
+      if (append) {
+        productList.value.push(...(parsed.items ?? []));
+      } else {
+        productList.value = parsed.items ?? [];
+      }
+
+      hasMore.value = parsed.current < parsed.last;
+      await ensureSentinelObserved();
+    } finally {
+      if (append) isLoadingMore.value = false;
+    }
     return;
   }
 
   // 3 => jasa
   if (segId === 3) {
     menuKind.value = "jasa";
-    const { data } = await api.get("/api/public/jasas");
-    jasaList.value = Array.isArray(data) ? data : data?.data ?? [];
+
+    if (append) {
+      isLoadingMore.value = true;
+    }
+
+    try {
+      const { data } = await api.get(
+        `/api/public/merchants/${merchantSlug}/jasas`,
+        {
+          params: { per_page: perPage, page: currentPage.value },
+        }
+      );
+
+      const parsed = parseLaravelPaginator(data);
+      const mapped = (parsed.items ?? []).map((j) => ({
+        ...j,
+        // keep image resolver compat
+        image: j?.image ?? null,
+      }));
+
+      if (append) {
+        jasaList.value.push(...mapped);
+      } else {
+        jasaList.value = mapped;
+      }
+
+      hasMore.value = parsed.current < parsed.last;
+      await ensureSentinelObserved();
+    } finally {
+      if (append) isLoadingMore.value = false;
+    }
     return;
   }
 
   // Fallback: treat as product merchant
   menuKind.value = "product";
-  const { data } = await api.get(
-    `/api/public/merchants/${merchantSlug}/products`,
-    {
-      params: { per_page: 50 },
+
+  if (append) {
+    isLoadingMore.value = true;
+  }
+
+  try {
+    const { data } = await api.get(
+      `/api/public/merchants/${merchantSlug}/products`,
+      {
+        params: { per_page: perPage, page: currentPage.value },
+      }
+    );
+    const paginator = data?.products ?? data?.data ?? data;
+    const parsed = parseLaravelPaginator(paginator);
+
+    if (append) {
+      productList.value.push(...(parsed.items ?? []));
+    } else {
+      productList.value = parsed.items ?? [];
     }
-  );
-  const paginator = data?.products ?? data?.data ?? data;
-  productList.value =
-    paginator?.data ?? (Array.isArray(paginator) ? paginator : []);
+
+    hasMore.value = parsed.current < parsed.last;
+    await ensureSentinelObserved();
+  } finally {
+    if (append) isLoadingMore.value = false;
+  }
 }
 
 // Fetch data merchant dan jasa-jasanya
@@ -838,7 +1166,11 @@ const fetchMerchantData = async () => {
     applyMerchantSeo(data, merchantSlug);
 
     // Fetch menu berdasarkan segmentation
-    await fetchMerchantMenu(data, merchantSlug);
+    resetInfiniteScroll();
+    await fetchMerchantMenu(data, merchantSlug, { append: false });
+
+    await nextTick();
+    setupObserver();
   } catch (error) {
     console.error("Error fetching merchant:", error);
     merchant.value = null;
@@ -857,8 +1189,29 @@ const fetchMerchantData = async () => {
 
 onMounted(() => {
   // Preload profile coordinates (no geolocation prompt).
-  loadMyCoordinatesFromProfile();
+  // If user has no saved address (or is unauthenticated), use GPS so distance/features still work.
+  loadMyCoordinatesFromProfile({ fallbackToDevice: true });
+
+  window.addEventListener("scroll", handleScroll, { passive: true });
 });
+
+onBeforeUnmount(() => {
+  window.removeEventListener("scroll", handleScroll);
+  if (observer.value) observer.value.disconnect();
+});
+
+watch(
+  () => activeTab.value,
+  async (tab) => {
+    if (tab !== "menu") {
+      if (observer.value) observer.value.disconnect();
+      return;
+    }
+
+    await nextTick();
+    setupObserver();
+  }
+);
 
 watch(() => route.params.slug, fetchMerchantData, { immediate: true });
 </script>

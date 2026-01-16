@@ -18,6 +18,25 @@ function setOrCreateLink(rel, href) {
   el.setAttribute("href", href || "");
 }
 
+function toAbsoluteUrl(maybeUrl) {
+  if (!maybeUrl) return "";
+  const str = String(maybeUrl).trim();
+  if (!str) return "";
+
+  // Already absolute (http, https, data, blob)
+  if (/^(https?:)?\/\//i.test(str) || /^(data|blob):/i.test(str)) {
+    // protocol-relative URL (//example.com/a.png) -> https://example.com/a.png
+    if (str.startsWith("//")) return `https:${str}`;
+    return str;
+  }
+
+  try {
+    return new URL(str, window.location.origin).href;
+  } catch (e) {
+    return str;
+  }
+}
+
 export function setMeta({ title, description, image, url, type }) {
   // TITLE
   if (title) {
@@ -39,14 +58,18 @@ export function setMeta({ title, description, image, url, type }) {
 
   // OpenGraph
   const defaultOgImage = "https://sumilir.web.id/og-image.png";
-  const resolvedImage = image || defaultOgImage;
+  const resolvedImage = toAbsoluteUrl(image || defaultOgImage);
   const resolvedType = type || "website";
+
+  const siteName = "SUMILIR";
 
   setOrCreateMeta("property", "og:title", title || document.title);
   setOrCreateMeta("property", "og:description", description || "");
   setOrCreateMeta("property", "og:image", resolvedImage);
+  setOrCreateMeta("property", "og:image:secure_url", resolvedImage);
   setOrCreateMeta("property", "og:url", canonicalUrl);
   setOrCreateMeta("property", "og:type", resolvedType);
+  setOrCreateMeta("property", "og:site_name", siteName);
 
   // Twitter
   setOrCreateMeta("name", "twitter:card", "summary_large_image");

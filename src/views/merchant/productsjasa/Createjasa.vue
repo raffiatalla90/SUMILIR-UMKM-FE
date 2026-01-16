@@ -22,7 +22,7 @@ const getNewImagePreviewUrl = (file) => {
 const formatCurrency = (value) => {
   if (!value) return "";
   const num = Number(value);
-  return `Rp ${num.toLocaleString("id-ID")}`;
+  return ` ${num.toLocaleString("id-ID")}`;
 };
 
 const parseCurrency = (value) => {
@@ -36,17 +36,19 @@ const toast = useToast();
 const authStore = useAuthStore();
 
 const currentMerchantSlug = computed(() => {
-  return route.params.merchantSlug
+  return route.params && route.params.merchantSlug
     ? String(route.params.merchantSlug)
-    : authStore.merchantSlug || null;
+    : authStore.merchantSlug ?? null;
 });
 
+// Needed for API endpoints that still require merchantId
 const currentMerchantId = computed(() => {
-  const merchant = currentMerchantSlug.value
-    ? authStore.getMerchantBySlug(currentMerchantSlug.value)
-    : authStore.activeMerchant;
-
-  return merchant?.id ?? null;
+  const slug = currentMerchantSlug.value;
+  if (slug) {
+    const merchant = authStore.getMerchantBySlug(slug);
+    return merchant?.id ?? authStore.merchantId ?? null;
+  }
+  return authStore.merchantId ?? null;
 });
 
 const breadcrumbItems = computed(() => [
@@ -71,7 +73,6 @@ const formData = ref({
   fixed_price: 0,
   base_price: 0,
   service_type: "at_location",
-  location_address: "",
   service_area: "",
   special_notes: "",
   payment_methods: "cod",
@@ -223,10 +224,60 @@ const validationSchema = yup.object({
       return originalValue === "" || originalValue === null ? null : value;
     })
     .nullable(),
-  fixed_price: yup.number().min(0).required("Harga tetap wajib diisi"),
-  base_price: yup.number().min(0).required("Harga mulai dari wajib diisi"),
+  // Harga: wajib pilih salah satu, tidak boleh keduanya sekaligus > 0
+  fixed_price: yup
+    .number()
+    .min(0)
+    .test(
+      "fixed-or-base-required",
+      "Isi salah satu: harga tetap ATAU harga mulai dari",
+      function (value) {
+        const { base_price } = this.parent;
+        const fixed = Number(value || 0);
+        const base = Number(base_price || 0);
+        // minimal salah satu > 0
+        return fixed > 0 || base > 0;
+      }
+    )
+    .test(
+      "not-both-fixed-and-base",
+      "Pilih salah satu: jangan isi keduanya sekaligus",
+      function (value) {
+        const { base_price } = this.parent;
+        const fixed = Number(value || 0);
+        const base = Number(base_price || 0);
+        // valid jika hanya salah satu yang > 0
+        const fixedFilled = fixed > 0;
+        const baseFilled = base > 0;
+        return !(fixedFilled && baseFilled);
+      }
+    ),
+  base_price: yup
+    .number()
+    .min(0)
+    .test(
+      "base-or-fixed-required",
+      "Isi salah satu: harga tetap ATAU harga mulai dari",
+      function (value) {
+        const { fixed_price } = this.parent;
+        const base = Number(value || 0);
+        const fixed = Number(fixed_price || 0);
+        return base > 0 || fixed > 0;
+      }
+    )
+    .test(
+      "not-both-base-and-fixed",
+      "Pilih salah satu: jangan isi keduanya sekaligus",
+      function (value) {
+        const { fixed_price } = this.parent;
+        const base = Number(value || 0);
+        const fixed = Number(fixed_price || 0);
+        const baseFilled = base > 0;
+        const fixedFilled = fixed > 0;
+        return !(baseFilled && fixedFilled);
+      }
+    ),
   service_type: yup.string().required("Tipe layanan wajib dipilih"),
-  location_address: yup.string().nullable(),
   service_area: yup.string().nullable(),
   special_notes: yup.string().nullable(),
   payment_methods: yup.string().nullable(),
@@ -268,17 +319,40 @@ const handleCategoryChange = async (value) => {
   await loadSubcategories(value);
 };
 
-// Handle image file selection
+// Handle image file selection (bisa tambah berkali-kali)
 const handleImageChange = (e) => {
   const files = e.target.files;
   if (files && files.length) {
-    imageFiles.value = Array.from(files);
+    const picked = Array.from(files);
+    const merged = [...imageFiles.value];
+
+    picked.forEach((file) => {
+      const exists = merged.some(
+        (f) =>
+          f.name === file.name &&
+          f.size === file.size &&
+          f.lastModified === file.lastModified
+      );
+      if (!exists) {
+        merged.push(file);
+      }
+    });
+
+    imageFiles.value = merged;
     console.log(
-      "Images selected:",
+      "Images selected (total):",
       imageFiles.value.length,
       imageFiles.value.map((f) => f.name)
     );
+
+    // reset input supaya bisa pilih file yang sama lagi jika perlu
+    e.target.value = "";
   }
+};
+
+const removeSelectedImage = (index) => {
+  if (index < 0 || index >= imageFiles.value.length) return;
+  imageFiles.value.splice(index, 1);
 };
 
 const addPackage = () => {
@@ -294,6 +368,11 @@ const removePackage = (index) => {
 };
 
 const submitForm = async (values) => {
+  if (!currentMerchantSlug.value) {
+    toast.error("Merchant slug tidak ditemukan");
+    return;
+  }
+
   if (!currentMerchantId.value) {
     toast.error("Merchant ID tidak ditemukan");
     return;
@@ -311,8 +390,12 @@ const submitForm = async (values) => {
     // Build multipart form data
     const fd = new FormData();
     Object.entries(values).forEach(([k, v]) => {
+      // location_address sudah tidak digunakan lagi
+      if (k === "location_address") return;
       fd.append(k, v ?? "");
     });
+    // Paksa status selalu disimpan sebagai draft saat create
+    fd.set("status", "draft");
     // Tambahkan operating_days dan operating_times dari formData
     fd.append("operating_days", formData.value.operating_days);
     fd.append("operating_times", formData.value.operating_times || "");
@@ -330,7 +413,7 @@ const submitForm = async (values) => {
 
     // Biarkan axios yang set header multipart/form-data + boundary secara otomatis
     const { data } = await api.post(
-      `/api/merchants/${currentMerchantId.value}/jasas`,
+      `/api/merchants/${currentMerchantSlug.value}/jasas`,
       fd
     );
 
@@ -351,14 +434,26 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 p-4 sm:p-6">
+  <div class="min-h-screen p-4 bg-linear-to-br from-gray-50 to-gray-100 sm:p-6">
     <Breadcrumb :items="breadcrumbItems" />
 
-    <div class="mt-6 max-w-5xl mx-auto">
-      <div class="bg-white rounded-lg shadow-sm p-6">
-        <h1 class="text-2xl font-bold text-gray-800 mb-6">
-          Buat Layanan Jasa Baru
-        </h1>
+    <div class="max-w-4xl mx-auto mt-6">
+      <div class="mb-6 bg-white border border-gray-100 shadow-sm rounded-xl">
+        <div
+          class="px-6 py-8 bg-linear-to-r from-merchant-primary to-merchant-primary/80 rounded-t-xl"
+        >
+          <div class="flex items-start justify-between">
+            <div>
+              <h1 class="mb-2 text-3xl font-bold text-white">
+                Buat Layanan Jasa Baru
+              </h1>
+              <p class="text-sm text-white/80">
+                Isi formulir dibawah untuk menambahkan layanan jasa baru Anda
+              </p>
+            </div>
+            <i class="text-4xl text-white pi pi-plus-circle opacity-20"></i>
+          </div>
+        </div>
 
         <Form
           :validationSchema="validationSchema"
@@ -366,26 +461,45 @@ onMounted(() => {
           :initialValues="formData"
           v-slot="{ handleSubmit }"
         >
-          <form @submit.prevent="handleSubmit(submitForm)" class="space-y-6">
+          <form
+            @submit.prevent="handleSubmit(submitForm)"
+            class="p-6 space-y-6"
+          >
             <!-- 1. KLASIFIKASI LAYANAN -->
-            <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">
-                1. Identitas Layanan
-              </h2>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div
+              class="p-5 border border-blue-100 bg-linear-to-r from-blue-50 to-transparent rounded-xl"
+            >
+              <div class="flex items-center gap-3 mb-5">
+                <div
+                  class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white bg-blue-500 rounded-full"
+                >
+                  1
+                </div>
+                <h2 class="text-lg font-bold text-gray-800">
+                  Identitas Layanan
+                </h2>
+              </div>
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field name="title" v-slot="{ field, errors }">
-                  <TextField
-                    label="Nama Layanan"
-                    placeholder="Contoh: Jasa Kebersihan Rumah"
-                    v-bind="field"
-                    :error="errors[0]"
-                    required
-                  />
+                  <div>
+                    <TextField
+                      :name="field.name"
+                      :modelValue="field.value"
+                      @update:modelValue="field.onChange"
+                      @blur="field.onBlur"
+                      label="Nama Layanan"
+                      placeholder="Contoh: Jasa Kebersihan Rumah"
+                      required
+                    />
+                    <p v-if="errors[0]" class="mt-1 text-sm text-red-500">
+                      {{ errors[0] }}
+                    </p>
+                  </div>
                 </Field>
 
                 <SelectField
                   name="jasa_category_id"
-                  label="Pilih Kategori Utama"
+                  label="Kategori Utama"
                   placeholder="Pilih kategori..."
                   :options="
                     jasaCategories.map((c) => ({
@@ -400,8 +514,12 @@ onMounted(() => {
 
                 <SelectField
                   name="jasa_subcategory_id"
-                  label="Pilih Jenis Layanan Lebih Spesifik"
-                  placeholder="Pilih sub kategori..."
+                  label="Jenis Layanan Spesifik"
+                  :placeholder="
+                    jasaSubcategories.length
+                      ? 'Pilih sub kategori...'
+                      : 'Tidak ada subkategori untuk kategori ini'
+                  "
                   :options="
                     jasaSubcategories.map((s) => ({
                       value: s.value ?? s.id,
@@ -409,18 +527,20 @@ onMounted(() => {
                     }))
                   "
                   v-model="formData.jasa_subcategory_id"
+                  :disabled="!jasaSubcategories.length"
                 />
 
                 <Field name="description" v-slot="{ field }">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1"
-                      >Jelaskan Layanan Anda</label
+                  <div class="sm:col-span-2">
+                    <label
+                      class="block mb-2 text-sm font-semibold text-gray-700"
+                      >Deskripsi Layanan</label
                     >
                     <textarea
                       v-bind="field"
-                      placeholder="Tuliskan detail tentang layanan yang Anda tawarkan..."
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary"
-                      rows="3"
+                      placeholder="Jelaskan detail tentang layanan Anda secara lengkap..."
+                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      rows="4"
                     />
                   </div>
                 </Field>
@@ -428,17 +548,31 @@ onMounted(() => {
             </div>
 
             <!-- 2. HARGA -->
-            <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">
-                2. Pengaturan Harga
-              </h2>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div
+              class="p-5 border bg-linear-to-r from-emerald-50 to-transparent rounded-xl border-emerald-100"
+            >
+              <div class="flex items-center gap-3 mb-5">
+                <div
+                  class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white rounded-full bg-emerald-500"
+                >
+                  2
+                </div>
+                <h2 class="text-lg font-bold text-gray-800">
+                  Pengaturan Harga
+                </h2>
+              </div>
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field name="fixed_price" v-slot="{ field, errors }">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1"
+                    <label
+                      class="block mb-2 text-sm font-semibold text-gray-700"
                       >Harga Tetap</label
                     >
                     <div class="relative">
+                      <span
+                        class="absolute font-medium text-gray-500 transform -translate-y-1/2 left-4 top-1/2"
+                        >Rp</span
+                      >
                       <input
                         :value="formatCurrency(field.value || 0)"
                         @input="
@@ -447,10 +581,11 @@ onMounted(() => {
                         @blur="field.onBlur"
                         type="text"
                         placeholder="0"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary"
+                        class="w-full py-3 pl-10 pr-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        :disabled="Number(values?.base_price || 0) > 0"
                       />
                     </div>
-                    <p v-if="errors[0]" class="text-red-500 text-sm mt-1">
+                    <p v-if="errors[0]" class="mt-1 text-sm text-red-500">
                       {{ errors[0] }}
                     </p>
                   </div>
@@ -458,10 +593,15 @@ onMounted(() => {
 
                 <Field name="base_price" v-slot="{ field, errors }">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1"
+                    <label
+                      class="block mb-2 text-sm font-semibold text-gray-700"
                       >Harga Mulai Dari</label
                     >
                     <div class="relative">
+                      <span
+                        class="absolute font-medium text-gray-500 transform -translate-y-1/2 left-4 top-1/2"
+                        >Rp</span
+                      >
                       <input
                         :value="formatCurrency(field.value || 0)"
                         @input="
@@ -470,10 +610,11 @@ onMounted(() => {
                         @blur="field.onBlur"
                         type="text"
                         placeholder="0"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary"
+                        class="w-full py-3 pl-10 pr-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        :disabled="Number(values?.fixed_price || 0) > 0"
                       />
                     </div>
-                    <p v-if="errors[0]" class="text-red-500 text-sm mt-1">
+                    <p v-if="errors[0]" class="mt-1 text-sm text-red-500">
                       {{ errors[0] }}
                     </p>
                   </div>
@@ -482,25 +623,36 @@ onMounted(() => {
             </div>
 
             <!-- 3. GAMBAR -->
-            <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">
-                3. Gambar
-              </h2>
+            <div
+              class="p-5 border border-purple-100 bg-linear-to-r from-purple-50 to-transparent rounded-xl"
+            >
+              <div class="flex items-center gap-3 mb-5">
+                <div
+                  class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white bg-purple-500 rounded-full"
+                >
+                  3
+                </div>
+                <h2 class="text-lg font-bold text-gray-800">Gambar Layanan</h2>
+              </div>
               <div class="space-y-3">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1"
+                  <label
+                    for="create_jasa_images"
+                    class="block mb-1 text-sm font-medium text-gray-700"
                     >Unggah Gambar (satu atau lebih)</label
                   >
                   <input
                     type="file"
                     accept="image/*"
                     multiple
+                    id="create_jasa_images"
+                    name="images"
                     @change="handleImageChange"
                     class="block w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-merchant-primary/10 file:text-merchant-primary hover:file:bg-merchant-primary/20"
                   />
-                  <p class="text-xs text-gray-500 mt-1">
+                  <p class="mt-1 text-xs text-gray-500">
                     <span class="inline-flex items-center gap-1">
-                      <i class="pi pi-image text-gray-400 text-xs"></i>
+                      <i class="text-xs text-gray-400 pi pi-image"></i>
                       <span>Gambar pertama akan dijadikan cover.</span>
                     </span>
                   </p>
@@ -508,17 +660,17 @@ onMounted(() => {
 
                 <div
                   v-if="imageFiles.length"
-                  class="grid grid-cols-2 sm:grid-cols-4 gap-3"
+                  class="grid grid-cols-2 gap-3 sm:grid-cols-4"
                 >
                   <div
                     v-for="(file, idx) in imageFiles"
                     :key="idx"
-                    class="relative rounded-lg border border-gray-200 overflow-hidden group bg-gray-50"
+                    class="relative overflow-hidden border border-gray-200 rounded-lg group bg-gray-50"
                   >
                     <img
                       :src="getNewImagePreviewUrl(file)"
                       alt="preview"
-                      class="w-full h-28 object-cover"
+                      class="object-cover w-full h-28"
                     />
                     <span
                       v-if="idx === 0"
@@ -526,6 +678,14 @@ onMounted(() => {
                     >
                       Cover
                     </span>
+                    <button
+                      type="button"
+                      @click="removeSelectedImage(idx)"
+                      class="absolute p-1 text-white transition bg-red-500 rounded-full opacity-0 top-1 right-1 group-hover:opacity-100"
+                      title="Hapus gambar ini"
+                    >
+                      <i class="text-xs pi pi-times"></i>
+                    </button>
                     <div
                       class="absolute bottom-1 right-1 bg-white/90 text-gray-500 rounded-full p-1 shadow-sm flex items-center justify-center text-[10px] group-hover:bg-merchant-primary/90 group-hover:text-white transition"
                     >
@@ -541,11 +701,20 @@ onMounted(() => {
             </div>
 
             <!-- 4. LOKASI -->
-            <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">
-                4. Lokasi & Area Layanan
-              </h2>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div
+              class="p-5 border border-orange-100 bg-linear-to-r from-orange-50 to-transparent rounded-xl"
+            >
+              <div class="flex items-center gap-3 mb-5">
+                <div
+                  class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white bg-orange-500 rounded-full"
+                >
+                  4
+                </div>
+                <h2 class="text-lg font-bold text-gray-800">
+                  Lokasi & Area Layanan
+                </h2>
+              </div>
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <SelectField
                   name="service_type"
                   label="Tempat Layanan?"
@@ -557,20 +726,23 @@ onMounted(() => {
                   v-model="formData.service_type"
                   required
                 />
-
-                <Field name="location_address" v-slot="{ field }">
-                  <TextField label="Alamat Tempat Layanan" v-bind="field" />
-                </Field>
               </div>
             </div>
 
             <!-- 5. HARI LAYANAN -->
-            <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">
-                5. Hari Layanan
-              </h2>
+            <div
+              class="p-5 border border-pink-100 bg-linear-to-r from-pink-50 to-transparent rounded-xl"
+            >
+              <div class="flex items-center gap-3 mb-5">
+                <div
+                  class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white bg-pink-500 rounded-full"
+                >
+                  5
+                </div>
+                <h2 class="text-lg font-bold text-gray-800">Hari Layanan</h2>
+              </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-3"
+                <label class="block mb-3 text-sm font-medium text-gray-700"
                   >Pilih Hari Buka Layanan</label
                 >
                 <div class="flex flex-wrap gap-2">
@@ -579,7 +751,7 @@ onMounted(() => {
                     :key="day.value"
                     type="button"
                     @click="toggleDay(day.value)"
-                    class="px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-200"
+                    class="px-4 py-2 text-sm font-medium transition-all duration-200 border rounded-lg"
                     :class="[
                       selectedDays.includes(day.value)
                         ? 'bg-merchant-primary text-white border-merchant-primary'
@@ -589,22 +761,31 @@ onMounted(() => {
                     {{ day.label }}
                   </button>
                 </div>
-                <p class="text-xs text-gray-500 mt-2">
-                  <i class="pi pi-info-circle mr-1"></i>
+                <p class="mt-2 text-xs text-gray-500">
+                  <i class="mr-1 pi pi-info-circle"></i>
                   Klik untuk memilih/membatalkan hari. Minimal pilih 1 hari.
                 </p>
               </div>
             </div>
 
             <!-- 6. JAM LAYANAN (OPTIONAL) -->
-            <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">
-                6. Jam Layanan
-                <span class="text-sm font-normal text-gray-500"
-                  >(Opsional)</span
+            <div
+              class="p-5 border bg-linear-to-r from-cyan-50 to-transparent rounded-xl border-cyan-100"
+            >
+              <div class="flex items-center gap-3 mb-5">
+                <div
+                  class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white rounded-full bg-cyan-500"
                 >
-              </h2>
-              <p class="text-sm text-gray-600 mb-4">
+                  6
+                </div>
+                <h2 class="text-lg font-bold text-gray-800">
+                  Jam Layanan
+                  <span class="text-sm font-normal text-gray-500"
+                    >(Opsional)</span
+                  >
+                </h2>
+              </div>
+              <p class="mb-4 text-sm text-gray-600">
                 Pilih jam-jam yang tersedia untuk layanan Anda. Kosongkan jika
                 tidak ingin membatasi jam.
               </p>
@@ -717,8 +898,8 @@ onMounted(() => {
                 </div>
               </div>
 
-              <p class="text-xs text-gray-500 mt-3">
-                <i class="pi pi-info-circle mr-1"></i>
+              <p class="mt-3 text-xs text-gray-500">
+                <i class="mr-1 pi pi-info-circle"></i>
                 {{
                   selectedTimes.length > 0
                     ? `${selectedTimes.length} waktu dipilih`
@@ -728,82 +909,85 @@ onMounted(() => {
             </div>
 
             <!-- 7. PEMBAYARAN -->
-            <div class="border-b pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">
-                6. Pembayaran
-              </h2>
+            <div
+              class="p-5 border bg-linear-to-r from-violet-50 to-transparent rounded-xl border-violet-100"
+            >
+              <div class="flex items-center gap-3 mb-5">
+                <div
+                  class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white rounded-full bg-violet-500"
+                >
+                  7
+                </div>
+                <h2 class="text-lg font-bold text-gray-800">
+                  Metode Pembayaran
+                </h2>
+              </div>
               <div class="space-y-4">
-                <!-- Metode Pembayaran -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-3"
-                    >Metode Pembayaran yang Diterima</label
+                <!-- Metode Pembayaran (hanya COD) -->
+                <div
+                  class="flex items-center gap-3 p-4 bg-white border border-violet-100 rounded-xl"
+                >
+                  <div
+                    class="flex items-center justify-center rounded-full w-9 h-9 bg-violet-100 text-violet-600"
                   >
-                  <div class="space-y-2">
-                    <div class="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        id="payment_cod"
-                        :checked="formData.payment_methods.includes('cod')"
-                        @change="
-                          (e) => {
-                            const methods = formData.payment_methods
-                              .split(',')
-                              .filter((m) => m)
-                              .map((m) => m.trim());
-                            if (e.target.checked) {
-                              if (!methods.includes('cod')) methods.push('cod');
-                            } else {
-                              methods.splice(methods.indexOf('cod'), 1);
-                            }
-                            formData.payment_methods = methods.length
-                              ? methods.join(',')
-                              : 'cod';
-                          }
-                        "
-                        class="w-4 h-4 text-merchant-primary rounded"
-                      />
-                      <label for="payment_cod" class="text-sm text-gray-700"
-                        >COD (Bayar di Tempat)</label
-                      >
-                    </div>
+                    <i class="pi pi-credit-card"></i>
+                  </div>
+                  <div>
+                    <p class="text-sm font-semibold text-gray-800">
+                      COD (Bayar di Tempat)
+                    </p>
+                    <p class="text-xs text-gray-500">
+                      Untuk saat ini, pembayaran jasa dilakukan langsung di
+                      lokasi (cash on delivery).
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- 8. ADMIN -->
-            <div class="pb-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">8. Admin</h2>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <SelectField
-                  name="status"
-                  label="Status Layanan"
-                  :options="[
-                    { value: 'draft', label: 'Simpan Dulu (Draft)' },
-                    { value: 'active', label: 'Aktif - Bisa Dipesan' },
-                    { value: 'inactive', label: 'Non-aktif - Sedang Tutup' },
-                  ]"
-                  v-model="formData.status"
-                />
+            <!-- 8. STATUS -->
+            <div
+              class="p-5 border border-red-100 bg-linear-to-r from-red-50 to-transparent rounded-xl"
+            >
+              <div class="flex items-center gap-3 mb-5">
+                <div
+                  class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white bg-red-500 rounded-full"
+                >
+                  8
+                </div>
+                <h2 class="text-lg font-bold text-gray-800">Status Layanan</h2>
+              </div>
+              <div>
+                <p class="mb-2 text-sm text-gray-700">
+                  Layanan baru akan disimpan sebagai
+                  <span class="font-semibold text-orange-600">Draft</span>.
+                </p>
+                <p class="text-xs text-gray-500">
+                  Setelah tersimpan, Anda dapat membuka halaman Edit untuk
+                  mem-publish layanan atau mengarsipkannya sesuai kebutuhan.
+                </p>
               </div>
             </div>
 
             <!-- Buttons -->
-            <div class="flex gap-3">
+            <div class="flex gap-3 pt-4">
               <Button
                 type="button"
                 variant="muted-outline"
                 @click="router.back()"
+                class="flex-1"
               >
-                Batal
+                <i class="mr-2 pi pi-arrow-left"></i>Batal
               </Button>
               <Button
                 type="submit"
                 variant="primary"
                 :disabled="loading"
                 :loading="loading"
+                class="flex-1"
               >
-                {{ loading ? "Menyimpan..." : "Simpan Jasa" }}
+                <i class="mr-2 pi pi-check"></i
+                >{{ loading ? "Menyimpan..." : "Simpan Jasa" }}
               </Button>
             </div>
           </form>
