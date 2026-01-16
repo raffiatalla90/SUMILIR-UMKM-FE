@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useProfileStore } from "@/stores/profile";
+import { useAuthStore } from "@/stores/auth";
 import { useToast } from "vue-toastification";
 import TextField from "@/components/forms/TextField.vue";
 import MobileHeader from "@/components/customer/MobileHeader.vue";
@@ -9,6 +10,7 @@ import AppButton from "@/components/common/Button.vue";
 
 const router = useRouter();
 const profileStore = useProfileStore();
+const authStore = useAuthStore();
 const toast = useToast();
 
 // Form data
@@ -82,6 +84,14 @@ const handleSave = async () => {
     }
 
     await profileStore.updateProfile(payload);
+    // Pastikan data terbaru (termasuk URL profile_picture) sudah tersinkron.
+    await profileStore.fetchProfile();
+
+    // CustomerLayout membaca avatar dari authStore.user, jadi perlu disinkron juga.
+    authStore.updateLocalUser({
+      profile_picture: profileStore.user?.profile_picture || null,
+    });
+
     toast.success("Profil berhasil diperbarui");
     router.push("/profile");
   } catch (error) {
@@ -105,12 +115,32 @@ const handlePhotoUpload = () => {
   fileInput.value.click();
 };
 
+const MAX_PROFILE_IMAGE_MB = 5;
+const MAX_PROFILE_IMAGE_BYTES = MAX_PROFILE_IMAGE_MB * 1024 * 1024;
+
 const onFileChange = (e) => {
   const file = e.target.files[0];
-  if (file) {
-    profilePictureFile.value = file;
-    formData.value.profile_picture = URL.createObjectURL(file);
+
+  if (!file) return;
+
+  if (!String(file.type || "").startsWith("image/")) {
+    toast.error("File harus berupa gambar");
+    profilePictureFile.value = null;
+    formData.value.profile_picture = "";
+    if (e?.target) e.target.value = "";
+    return;
   }
+
+  if (file.size > MAX_PROFILE_IMAGE_BYTES) {
+    toast.error(`Ukuran gambar maksimal ${MAX_PROFILE_IMAGE_MB}MB`);
+    profilePictureFile.value = null;
+    formData.value.profile_picture = "";
+    if (e?.target) e.target.value = "";
+    return;
+  }
+
+  profilePictureFile.value = file;
+  formData.value.profile_picture = URL.createObjectURL(file);
 };
 
 onMounted(() => {
@@ -209,7 +239,7 @@ onMounted(() => {
               </button>
 
               <p class="mt-2 text-xs text-center text-gray-500">
-                Format: JPG, PNG<br />Max size: 2MB
+                Format: JPG, PNG<br />Max size: 5MB
               </p>
             </div>
           </div>

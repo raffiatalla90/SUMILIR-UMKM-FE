@@ -97,6 +97,16 @@
           >
             <i class="text-gray-700 pi pi-arrow-left"></i>
           </button>
+          <!-- Share Button (aligned right) -->
+          <button
+            type="button"
+            @click="shareMerchant"
+            class="absolute flex items-center justify-center w-10 h-10 transition rounded-full shadow-lg sm:hidden top-4 right-4 bg-white/90 backdrop-blur-sm hover:bg-white"
+            aria-label="Bagikan toko"
+            title="Bagikan"
+          >
+            <i class="text-lg pi pi-share-alt"></i>
+          </button>
         </div>
 
         <!-- Card Info Toko (Overlay) -->
@@ -128,7 +138,7 @@
 
               <!-- Info Toko -->
               <div class="flex-1 min-w-0 pt-1">
-                <h1 class="text-xl font-bold text-black">
+                <h1 class="text-base font-bold text-black sm:text-xl">
                   {{ merchant.name }}
                 </h1>
 
@@ -158,13 +168,24 @@
                   </span>
                 </div>
               </div>
+
+              <!-- Share Button (aligned right) -->
+              <button
+                type="button"
+                @click="shareMerchant"
+                class="hidden w-10 h-10 transition-all rounded-full sm:inline shrink-0 backdrop-blur-sm hover:bg-gray-100 active:scale-95"
+                aria-label="Bagikan toko"
+                title="Bagikan"
+              >
+                <i class="text-lg pi pi-share-alt"></i>
+              </button>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Tabs Menu dan Informasi -->
-      <div class="px-4 mx-auto mt-6 max-w-7xl">
+      <div class="px-4 mx-auto mt-2 sm:mt-6 max-w-7xl">
         <div
           class="flex gap-1 p-1 bg-white border border-gray-100 shadow-sm rounded-xl"
         >
@@ -584,6 +605,9 @@ const longitude = ref(null);
 const myLatitude = ref(null);
 const myLongitude = ref(null);
 
+// Cache unauthorized state so we don't keep calling /api/profile/address for guests.
+const profileAddressUnauthorized = ref(false);
+
 function setMyCoordinates(lat, lng) {
   const latNum = parseFloat(lat);
   const lngNum = parseFloat(lng);
@@ -591,16 +615,28 @@ function setMyCoordinates(lat, lng) {
   myLongitude.value = Number.isFinite(lngNum) ? lngNum : null;
 }
 
-async function loadMyCoordinatesFromProfile() {
-  try {
-    const res = await api.get("api/profile/address");
-    const addr = res?.data?.data;
-    setMyCoordinates(addr?.latitude, addr?.longitude);
-    return hasMyCoordinates.value;
-  } catch (e) {
-    setMyCoordinates(null, null);
-    return false;
+async function loadMyCoordinatesFromProfile(
+  { fallbackToDevice } = { fallbackToDevice: false }
+) {
+  // 1) Try profile address first (if available)
+  if (!profileAddressUnauthorized.value) {
+    try {
+      const res = await api.get("api/profile/address");
+      const addr = res?.data?.data;
+      setMyCoordinates(addr?.latitude, addr?.longitude);
+      if (hasMyCoordinates.value) return true;
+    } catch (e) {
+      const status = e?.response?.status;
+      if (status === 401 || status === 403) {
+        profileAddressUnauthorized.value = true;
+      }
+      setMyCoordinates(null, null);
+    }
   }
+
+  // 2) If no saved address (or unauthenticated), fall back to GPS when asked
+  if (!fallbackToDevice) return false;
+  return await requestMyLocation();
 }
 
 async function requestMyLocation() {
@@ -747,11 +783,64 @@ function pickSeoImage(m) {
   return m?.banner_url || m?.logo_url || "https://sumilir.web.id/og-image.png";
 }
 
+const shareMerchantUrl = computed(() => {
+  const slug = route?.params?.slug || "";
+  return `${window.location.origin}/merchant/${slug}`;
+});
+
+const shareMerchantText = computed(() => {
+  const name = merchant.value?.name || "Toko";
+  const seg = merchant.value?.segmentation?.name;
+  return seg ? `${name} - ${seg}` : name;
+});
+
+async function shareMerchant() {
+  const url = shareMerchantUrl.value;
+  const title = merchant.value?.name || "Toko";
+  const text = shareMerchantText.value;
+
+  if (!url) return;
+
+  // ✅ Native share (mobile)
+  if (navigator.share) {
+    try {
+      await navigator.share({ title, text, url });
+      return;
+    } catch (e) {
+      // user cancelled or not supported, fallback below
+    }
+  }
+
+  // ✅ Fallback: copy to clipboard
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link toko berhasil disalin");
+      return;
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  // ✅ Last resort: prompt for manual copy
+  window.prompt("Salin link toko:", url);
+}
+
 function applyMerchantSeo(merchantData, merchantSlug) {
   const name = merchantData?.name || "Toko";
   const segmentation = merchantData?.segmentation?.name || "UMKM";
   const descRaw = merchantData?.description || "";
   const addrText = merchantInfo.value?.address || "";
+
+  const seoImage = pickSeoImage(merchantData);
+  let seoImageAbs = seoImage;
+  try {
+    seoImageAbs = seoImage
+      ? new URL(seoImage, window.location.origin).href
+      : seoImage;
+  } catch (e) {
+    // keep as-is
+  }
 
   const description =
     descRaw?.trim() ||
@@ -768,7 +857,7 @@ function applyMerchantSeo(merchantData, merchantSlug) {
   setMeta({
     title: `${name} | SUMILIR`,
     description,
-    image: pickSeoImage(merchantData),
+    image: seoImage,
     url: pageUrl,
     type: "business.business",
   });
@@ -781,7 +870,7 @@ function applyMerchantSeo(merchantData, merchantSlug) {
     "@type": "LocalBusiness",
     name,
     url: pageUrl,
-    image: [pickSeoImage(merchantData)],
+    image: seoImageAbs ? [seoImageAbs] : undefined,
     telephone: merchantData?.phone || undefined,
     address: addrText
       ? { "@type": "PostalAddress", streetAddress: addrText }
@@ -1100,7 +1189,8 @@ const fetchMerchantData = async () => {
 
 onMounted(() => {
   // Preload profile coordinates (no geolocation prompt).
-  loadMyCoordinatesFromProfile();
+  // If user has no saved address (or is unauthenticated), use GPS so distance/features still work.
+  loadMyCoordinatesFromProfile({ fallbackToDevice: true });
 
   window.addEventListener("scroll", handleScroll, { passive: true });
 });

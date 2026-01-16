@@ -84,7 +84,7 @@ const routes = [
         path: "pembayaran-jasa",
         name: "Pembayaran Jasa",
         component: () => import("@/views/customer/PembayaranJasa.vue"),
-        meta: { title: "Pembayaran" },
+        meta: { title: "Pembayaran", denyRoles: ["admin"] },
       },
 
       {
@@ -100,6 +100,7 @@ const routes = [
         meta: {
           requiresAuth: true,
           roles: ["customer"],
+          denyRoles: ["admin"],
           title: "Keranjang",
         },
       },
@@ -111,6 +112,7 @@ const routes = [
         meta: {
           // requiresAuth: true,
           // roles: ["customer"],
+          denyRoles: ["admin"],
           title: "Pembayaran",
         },
       },
@@ -232,6 +234,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       roles: ["customer"],
+      denyRoles: ["admin"],
       title: "Merchant Register",
     },
   },
@@ -815,8 +818,25 @@ router.beforeEach(async (to, from, next) => {
     });
   }
 
-  // 2. halaman guest tapi user sudah login
-  // 2. halaman guest tapi user sudah login
+  // 2. Deny specific roles (even if other role checks would pass)
+  const denyRoles = to.meta.denyRoles || [];
+  if (denyRoles.length && authStore.isAuthenticated) {
+    const userRoles = (authStore.user?.roles || [])
+      .map((r) => (typeof r === "string" ? r : r.name))
+      .filter(Boolean)
+      .map((r) => r.toLowerCase());
+
+    const isDenied = denyRoles.some((role) =>
+      userRoles.includes(String(role).toLowerCase())
+    );
+
+    if (isDenied) {
+      return next("/");
+    }
+  }
+
+  // 3. halaman guest tapi user sudah login
+  // 3. halaman guest tapi user sudah login
   if (to.meta.guest && authStore.isAuthenticated) {
     const userRoles = (authStore.user?.roles || [])
       .map((r) => (typeof r === "string" ? r : r.name))
@@ -837,8 +857,8 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
-  // 3. Role-based access control
-  // 3. Role-based access control
+  // 4. Role-based access control
+  // 4. Role-based access control
   const requiredRoles = to.meta.roles || [];
   if (requiredRoles.length && authStore.isAuthenticated) {
     const userRoles = (authStore.user?.roles || [])

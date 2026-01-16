@@ -17,6 +17,30 @@ function buildProfilePictureUrl(path) {
   return `${storageBaseUrl}/${path}`;
 }
 
+function addQueryParam(url, key, value) {
+  if (!url) return url;
+  const k = encodeURIComponent(String(key));
+  const v = encodeURIComponent(String(value));
+
+  // Replace existing key if present
+  const re = new RegExp(`([?&])${k}=[^&]*`);
+  if (re.test(url)) return url.replace(re, `$1${k}=${v}`);
+
+  return url.includes("?") ? `${url}&${k}=${v}` : `${url}?${k}=${v}`;
+}
+
+function withProfilePictureCacheBuster(url, user) {
+  if (!url) return url;
+  // Streaming endpoint URL does not change when the underlying file changes, and it's cached aggressively.
+  const isStreaming = String(url).includes("/profile-pictures/");
+  if (!isStreaming) return url;
+
+  // Use a deterministic version so the URL only changes when profile changes.
+  const version =
+    user?.profile_picture_path || user?.updated_at || user?.id || Date.now();
+  return addQueryParam(url, "v", version);
+}
+
 function buildProfilePictureUrlFromUser(user) {
   if (!user) return "";
 
@@ -27,7 +51,11 @@ function buildProfilePictureUrlFromUser(user) {
     return "";
 
   // 1) Prefer backend-provided computed URL (signed route)
-  if (user.profile_picture) return buildProfilePictureUrl(user.profile_picture);
+  if (user.profile_picture)
+    return withProfilePictureCacheBuster(
+      buildProfilePictureUrl(user.profile_picture),
+      user
+    );
 
   // 2) Fallback: raw storage path (some APIs return path fields instead)
   const picturePath = user.profile_picture_path ?? user.avatar ?? null;
@@ -37,7 +65,10 @@ function buildProfilePictureUrlFromUser(user) {
   const apiBase = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
   if (user.profile_picture === undefined && user.id && apiBase) {
     // Use dash route; backend also provides underscore alias.
-    return `${apiBase}/profile-pictures/${user.id}`;
+    return withProfilePictureCacheBuster(
+      `${apiBase}/profile-pictures/${user.id}`,
+      user
+    );
   }
 
   return "";

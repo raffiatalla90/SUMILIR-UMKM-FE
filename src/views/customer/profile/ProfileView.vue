@@ -57,6 +57,9 @@ onMounted(async () => {
     await profileStore.fetchProfile();
   }
 
+  // Admin tidak perlu memuat data merchant di halaman profil.
+  if (authStore.isAdmin) return;
+
   try {
     merchantsLoading.value = true;
     const res = await getMyMerchants();
@@ -333,7 +336,34 @@ const needsProfileCompletion = computed(
               </button>
 
               <!-- Accordion for merchant access -->
-              <div class="border border-gray-200 rounded-xl bg-gray-50">
+              <div
+                v-if="authStore.isAdmin"
+                class="border border-gray-200 rounded-xl bg-gray-50"
+              >
+                <button
+                  class="flex items-center justify-between w-full px-5 py-4 text-left transition-all rounded-xl focus:outline-none hover:shadow-md hover:bg-merchant-primary/10"
+                  @click="router.push({ name: 'Admin - Dashboard' })"
+                >
+                  <span class="font-semibold text-gray-700"
+                    >Dashboard Admin</span
+                  >
+                  <svg
+                    class="w-5 h-5 text-gray-400 transition-transform"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              <div v-else class="border border-gray-200 rounded-xl bg-gray-50">
                 <button
                   class="flex items-center justify-between w-full px-5 py-4 text-left rounded-xl focus:outline-none"
                   @click="merchantAccordionOpen = !merchantAccordionOpen"
@@ -636,7 +666,32 @@ const needsProfileCompletion = computed(
             </button>
 
             <!-- Accordion for merchant access (mobile) -->
-            <div class="border border-gray-200 rounded-xl bg-gray-50">
+            <div
+              v-if="authStore.isAdmin"
+              class="border border-gray-200 rounded-xl bg-gray-50"
+            >
+              <button
+                class="flex items-center justify-between w-full px-4 py-4 text-left rounded-xl focus:outline-none"
+                @click="router.push({ name: 'Admin - Dashboard' })"
+              >
+                <span class="font-semibold text-gray-700">Dashboard Admin</span>
+                <svg
+                  class="w-5 h-5 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <div v-else class="border border-gray-200 rounded-xl bg-gray-50">
               <button
                 class="flex items-center justify-between w-full px-4 py-4 text-left rounded-xl focus:outline-none"
                 @click="merchantAccordionOpen = !merchantAccordionOpen"

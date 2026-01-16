@@ -15,6 +15,7 @@ const searchInputRef = ref(null);
 
 const isAuthenticated = computed(() => authStore.isAuthenticated);
 const user = computed(() => authStore.user);
+const isAdmin = computed(() => authStore.isAdmin);
 
 const baseMenus = [
   {
@@ -69,8 +70,7 @@ const baseMenus = [
 
 const menus = computed(() => {
   return baseMenus.filter((m) => {
-    // ❌ sembunyikan keranjang jika belum login
-    if (m.key === "keranjang" && !isAuthenticated.value) {
+    if (m.key === "keranjang" && (!isAuthenticated.value || isAdmin.value)) {
       return false;
     }
     return true;

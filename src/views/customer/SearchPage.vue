@@ -42,6 +42,10 @@ const toast = useToast();
 const myLatitude = ref(null);
 const myLongitude = ref(null);
 
+// If user is not authenticated, /api/profile/address will 401.
+// Cache that fact so we don't keep hitting the endpoint.
+const profileAddressUnauthorized = ref(false);
+
 const profileCoordsLoaded = ref(false);
 let profileCoordsPromise = null;
 
@@ -81,14 +85,20 @@ async function loadMyCoordinatesInternal(
   { allowDevice } = { allowDevice: false }
 ) {
   // 1) Prefer saved address (if logged in)
-  try {
-    const res = await api.get("api/profile/address");
-    const addr = res?.data?.data;
-    setMyCoordinates(addr?.latitude, addr?.longitude);
-    if (hasMyCoordinates.value) return true;
-  } catch (e) {
-    // ignore (likely 401 if not logged in)
-    setMyCoordinates(null, null);
+  if (!profileAddressUnauthorized.value) {
+    try {
+      const res = await api.get("api/profile/address");
+      const addr = res?.data?.data;
+      setMyCoordinates(addr?.latitude, addr?.longitude);
+      if (hasMyCoordinates.value) return true;
+    } catch (e) {
+      const status = e?.response?.status;
+      if (status === 401 || status === 403) {
+        profileAddressUnauthorized.value = true;
+      }
+      // ignore (fallback to device if allowed)
+      setMyCoordinates(null, null);
+    }
   }
 
   // 2) Fallback: device geolocation (only when explicitly allowed)
