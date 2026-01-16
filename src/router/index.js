@@ -437,7 +437,6 @@ const routes = [
         },
       },
       // ✅ UPDATED: Use slug instead of id
-      // ✅ UPDATED: Use slug instead of id
       {
         path: "products/:slug/edit",
         name: "Merchant - Product Edit",
@@ -639,14 +638,23 @@ const routes = [
           title: "Edit Voucher UMKM",
         },
       },
-      {
-        path: "orders",
-        name: "Merchant - Orders",
-        component: () => import("@/views/merchant/orders/Index.vue"),
-        meta: {
-          title: "Orders",
-        },
-      },
+      // {
+      //   path: "events",
+      //   name: "Merchant - Events",
+      //   component: () => import("@/views/merchant/events/Index.vue"),
+      //   meta: {
+      //     title: "Events",
+      //   },
+      // },
+
+      // {
+      //   path: "orders",
+      //   name: "Merchant - Orders",
+      //   component: () => import("@/views/merchant/orders/Index.vue"),
+      //   meta: {
+      //     title: "Orders",
+      //   },
+      // },
       {
         path: "profile",
         name: "Merchant - Profile",
