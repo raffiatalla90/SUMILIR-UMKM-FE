@@ -46,7 +46,14 @@
         <i class="text-base me-1 pi pi-shopping-bag text-primary"></i>
 
         <span class="line-clamp-1">
-          {{ merchant.products_count || 0 }} Produk
+          {{
+            merchant.products_count && merchant.products_count !== 0
+              ? merchant.products_count
+              : merchant.jasas_count && merchant.jasas_count !== 0
+              ? merchant.jasas_count
+              : 0
+          }}
+          Produk
         </span>
       </div>
 
