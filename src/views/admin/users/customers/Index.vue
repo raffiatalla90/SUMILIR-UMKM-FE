@@ -326,7 +326,11 @@ watch(searchQuery, () => {
               :src="getUserProfileUrl(item)" 
               :alt="item.name"
               class="w-full h-full object-cover"
-              @error="(e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = `<span class='text-merchant-primary font-semibold text-sm'>${item.name?.charAt(0)?.toUpperCase() || 'U'}</span>`; }"
+              @error="(e) => { 
+                console.error('Image load error for user:', item.id, item.name);
+                e.target.style.display = 'none'; 
+                e.target.parentElement.innerHTML = `<span class='text-merchant-primary font-semibold text-sm'>${item.name?.charAt(0)?.toUpperCase() || 'U'}</span>`;
+              }"
             />
             <span v-else class="text-merchant-primary font-semibold text-sm">
               {{ item.name?.charAt(0)?.toUpperCase() || "U" }}
@@ -418,7 +422,11 @@ watch(searchQuery, () => {
                 :src="getUserProfileUrl(u)" 
                 :alt="u.name"
                 class="w-full h-full object-cover"
-                @error="(e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = `<span class='text-merchant-primary font-semibold'>${u.name?.charAt(0)?.toUpperCase() || 'U'}</span>`; }"
+                @error="(e) => { 
+                  console.error('Image load error for user:', u.id, u.name);
+                  e.target.style.display = 'none'; 
+                  e.target.parentElement.innerHTML = `<span class='text-merchant-primary font-semibold'>${u.name?.charAt(0)?.toUpperCase() || 'U'}</span>`;
+                }"
               />
               <span v-else class="text-merchant-primary font-semibold">
                 {{ u.name?.charAt(0)?.toUpperCase() || "U" }}

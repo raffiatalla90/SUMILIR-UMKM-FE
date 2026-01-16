@@ -304,7 +304,7 @@ const prevPage = () => {
 
 watch(currentPage, () => loadMerchants());
 
-// ✅ FIXED: Register callback on mount
+// Register callback on mount
 onMounted(() => {
   loadMerchants();
   

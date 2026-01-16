@@ -74,7 +74,6 @@ export function getMerchantLogoUrl(merchant) {
 
   const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-  // ✅ ADD: Cache-busting with updated_at timestamp
   const timestamp = merchant.updated_at
     ? new Date(merchant.updated_at).getTime()
     : Date.now();
@@ -84,14 +83,22 @@ export function getMerchantLogoUrl(merchant) {
 
 /**
  * Get user profile picture URL via streaming API
+ * Konsisten dengan event banner dan merchant logo
  */
 export function getUserProfileUrl(user) {
   if (!user?.id) {
+    console.warn('getUserProfileUrl: user.id is missing', user);
+    return '/placeholder.png';
+  }
+
+  if (!user?.profile_picture_path) {
+    console.warn('getUserProfileUrl: user.profile_picture_path is missing', user);
     return '/placeholder.png';
   }
 
   const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
+  // ✅ Cache-busting with updated_at timestamp
   const timestamp = user.updated_at
     ? new Date(user.updated_at).getTime()
     : Date.now();

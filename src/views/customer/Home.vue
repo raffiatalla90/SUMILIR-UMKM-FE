@@ -1,8 +1,4 @@
 <script setup>
-import { ref, onMounted, watch, nextTick } from "vue";
-import { Form } from "vee-validate";
-import { Carousel, Slide } from "vue3-carousel";
-import "vue3-carousel/dist/carousel.css";
 import { ref, onMounted } from "vue";
 import { Carousel, Slide } from 'vue3-carousel'; 
 import 'vue3-carousel/dist/carousel.css'; 
@@ -22,9 +18,6 @@ import komunitasIcon from "@/assets/icons/Komunitas.svg";
 import WhiteWithText from "@/assets/icons/White-with-Text.png";
 
 import api from "@/libs/axios.js";
-import { useRoute, useRouter } from "vue-router";
-import { usePublicEvents } from "@/composables/usePublicEvents";
-import { getEventBannerUrl } from "@/libs/getImageUrl";
 import { useRouter } from "vue-router";
 import { usePublicEvents } from "@/composables/usePublicEvents"; 
 import { useHomeStatistics } from "@/composables/useHomeStatistics";
@@ -54,8 +47,8 @@ const carouselConfig = {
   autoplay: 5000,
   transition: 800,
   pauseAutoplayOnHover: true,
-  snapAlign: "center",
-  mouseDrag: true,
+  snapAlign: 'center',
+  mouseDrag: true, 
   touchDrag: true,
 };
 
@@ -80,11 +73,6 @@ const navigates = ref([
     icon: komunitasIcon,
     to: { name: "community" },
   },
-const categories = ref([
-  { label: "Kuliner", icon: kulinerIcon, to: { name: "Product Kuliner" } },
-  { label: "Toko", icon: tokoIcon, to: { name: "Product Toko" } },
-  { label: "Jasa", icon: jasaIcon, to: { name: "JasaTeknisi" } },
-  { label: "Komunitas", icon: komunitasIcon, to: { name: "community" } },
 ]);
 
 const recommendedMerchants = ref([]);
@@ -112,29 +100,6 @@ const onSearch = () => {
   router.push({ path: "/search", query: { q } });
 };
 
-const loadMoreMerchants = async () => {
-  isLoadMore.value = true;
-  try {
-    const merchantRes = await api.get("/api/public/merchants/random", {
-      params: { limit: 8 },
-    });
-
-    const incoming = merchantRes.data?.data || [];
-    const seen = new Set((merchantList.value || []).map((m) => m.id));
-    for (const m of incoming) {
-      if (!seen.has(m.id)) {
-        merchantList.value.push(m);
-        seen.add(m.id);
-      }
-    }
-  } catch (e) {
-    // Optional: tampilkan error
-  } finally {
-    isLoadMore.value = false;
-  }
-};
-
-// LOAD DATA
 // Navigate to map
 const viewMap = () => {
   router.push({ name: "Peta UMKM" });
@@ -151,7 +116,6 @@ onMounted(async () => {
       bannerUrl: getEventBannerUrl(event)
     }));
   } catch (e) {
-    console.error("Gagal memuat banner event:", e);
     console.error('Failed to load event banners:', e);
   } finally {
     isLoadingBanner.value = false;
@@ -164,14 +128,6 @@ onMounted(async () => {
 
 <template>
   <div class="relative app-container">
-    <!-- HERO -->
-    <section id="hero" class="relative">
-      <div
-        class="relative w-full overflow-hidden bg-gray-100 aspect-video sm:aspect-21/9 lg:aspect-24/9 xl:aspect-4/1"
-      >
-        <!-- Loading skeleton -->
-        <div
-          v-if="isLoadingBanner"
     <!-- HERO SECTION -->
     <section id="hero" class="relative pb-12 bg-linear-to-b from-gray-50 to-white">
       <!-- Banner Carousel -->
@@ -182,32 +138,14 @@ onMounted(async () => {
         >
           <div class="absolute inset-0 flex items-center justify-center">
             <i class="text-4xl text-gray-400 pi pi-spin pi-spinner"></i>
-            <i class="text-4xl text-gray-400 pi pi-spin pi-spinner"></i>
           </div>
         </div>
 
-        <Carousel
-          v-else-if="eventBanners.length > 0"
         <Carousel 
           v-else-if="eventBannersProcessed.length > 0" 
           v-bind="carouselConfig"
           class="h-full"
         >
-          <Slide
-            v-for="event in eventBanners"
-            :key="`${event.id}-${event.updated_at}`"
-          >
-            <div
-              class="relative w-full h-full group cursor-grab active:cursor-grabbing"
-            >
-              <!-- ✅ ADDED: Key menggunakan updated_at untuk force re-render -->
-              <img
-                :key="`banner-${event.id}-${event.updated_at}`"
-                :src="getEventBannerUrl(event)"
-                :alt="event.event_name"
-                class="object-cover w-full h-full pointer-events-none select-none"
-                draggable="false"
-                @error="(e) => (e.target.src = '/placeholder-banner.png')"
           <Slide v-for="event in eventBannersProcessed" :key="event.id">
             <div class="relative w-full h-full cursor-grab group active:cursor-grabbing">
               <img
@@ -223,16 +161,10 @@ onMounted(async () => {
           </Slide>
         </Carousel>
 
-        <!-- Fallback: No banners available -->
-        <div
-          v-else
-          class="absolute inset-0 flex items-center justify-center bg-secondary"
         <div 
           v-else 
           class="absolute inset-0 flex items-center justify-center bg-secondary"
         >
-          <div class="px-4 text-center text-white">
-            <i class="mb-4 text-5xl opacity-50 pi pi-calendar"></i>
           <div class="px-4 text-center text-white">
             <i class="mb-4 text-5xl opacity-50 pi pi-calendar"></i>
             <p class="text-lg font-semibold">Belum ada event aktif</p>
@@ -266,7 +198,7 @@ onMounted(async () => {
             <div class="p-4 sm:p-5">
               <div class="grid grid-cols-4 gap-3 sm:gap-4">
                 <CategoryCard
-                  v-for="cat in navigates"
+                  v-for="cat in categories"
                   :key="cat.label"
                   :label="cat.label"
                   :icon="cat.icon"
@@ -545,7 +477,7 @@ onMounted(async () => {
 
 :deep(.carousel__prev),
 :deep(.carousel__next) {
-  display: none !important;
+  display: none !important; 
 }
 
 :deep(.carousel__viewport) {
