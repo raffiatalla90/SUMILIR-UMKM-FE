@@ -641,15 +641,15 @@ const getSelectionTypeLabel = (group) => {
               </span>
             </div>
 
-            <!-- Location Address -->
-            <div v-if="jasa.location_address">
+            <!-- Location Address (ambil dari jasa atau profil UMKM) -->
+            <div v-if="jasa.location_address || jasa.merchant?.address || jasa.merchant?.alamat">
               <div class="mb-3 border-t border-gray-100"></div>
               <div class="flex items-start justify-between gap-3">
                 <span class="shrink-0 text-sm text-gray-600"
                   >Alamat Tempat Layanan</span
                 >
                 <span class="text-sm font-medium text-right text-gray-900">
-                  {{ jasa.location_address }}
+                  {{ jasa.location_address || jasa.merchant?.address || jasa.merchant?.alamat || '-' }}
                 </span>
               </div>
             </div>
