@@ -928,7 +928,9 @@ function usePromo(p) {
   if (!isPromoEligible(p)) {
     errorMessage.value = p?.is_expired
       ? "Voucher sudah tidak berlaku"
-      : `Minimal pembelian Rp ${formatIDR(p?.min_purchase || 0)} untuk voucher ini`;
+      : `Minimal pembelian Rp ${formatIDR(
+          p?.min_purchase || 0
+        )} untuk voucher ini`;
     return;
   }
 
@@ -970,8 +972,11 @@ const showDetails = ref(false);
 const authStore = useAuthStore();
 const isGuest = computed(() => !authStore.isAuthenticated);
 
-const { fetchVouchersByMerchant, vouchers, loading: promosLoading } =
-  useVouchers();
+const {
+  fetchVouchersByMerchant,
+  vouchers,
+  loading: promosLoading,
+} = useVouchers();
 
 // Modal pilihan alamat
 const openAlamatOptions = ref(false);

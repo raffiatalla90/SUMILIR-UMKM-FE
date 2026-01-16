@@ -177,7 +177,9 @@
                 : 'text-gray-600 hover:bg-secondary-hover hover:text-white',
             ]"
           >
-            Menu
+            <span v-if="merchant.segmentation?.id === 1">Produk</span>
+            <span v-else-if="merchant.segmentation?.id === 2">Menu</span>
+            <span v-else>Layanan</span>
           </button>
           <button
             @click="activeTab = 'informasi'"
@@ -686,7 +688,7 @@ function applyMerchantSeo(merchantData, merchantSlug) {
     [
       `${segmentation} di Sumilir.`,
       addrText ? `Alamat: ${addrText}.` : "",
-      "Lihat menu, informasi toko, dan jam operasional.",
+      "Lihat produk atau layanan, informasi toko, dan jam operasional.",
     ]
       .filter(Boolean)
       .join(" ");

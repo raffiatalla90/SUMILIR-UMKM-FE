@@ -144,7 +144,7 @@ const needsProfileCompletion = computed(
                   class="w-40 h-40 bg-gray-200 border-4 border-white rounded-full shadow-lg animate-pulse"
                 />
                 <img
-                  v-if="
+                  v-else-if="
                     !isInitialProfileLoading &&
                     !imgError &&
                     typeof user.profile_picture === 'string'
