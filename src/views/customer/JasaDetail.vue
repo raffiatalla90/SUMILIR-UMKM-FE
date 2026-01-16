@@ -54,7 +54,7 @@
     </section>
 
     <!-- Info utama -->
-    <div class="px-4 py-4 border-b border-gray-100 shadow-sm bg-white/95">
+    <div v-if="jasa" class="px-4 py-4 border-b border-gray-100 shadow-sm bg-white/95">
       <div class="max-w-3xl mx-auto lg:max-w-5xl lg:grid lg:grid-cols-12 lg:gap-6">
         <!-- Kolom kiri (desktop): gambar & galeri -->
         <div class="hidden lg:flex lg:flex-col lg:gap-3 lg:col-span-5">
@@ -113,10 +113,10 @@
         </div>
         <div class="flex-1 min-w-0">
           <h2 class="text-sm font-semibold text-gray-900 truncate">
-            {{ jasa?.merchant?.name || 'Nama Toko' }}
+            {{ jasa?.merchant?.name || '-' }}
           </h2>
           <p class="text-xs text-gray-500">
-            {{ jasa?.merchant?.segmentation?.name || 'UMKM Jasa' }}
+            {{ jasa?.merchant?.segmentation?.name || '-' }}
           </p>
         </div>
         <router-link
@@ -137,7 +137,7 @@
       <!-- Info Jasa -->
       <div class="mt-3">
         <h1 class="text-lg font-semibold leading-snug text-gray-900 sm:text-xl">
-          {{ jasa?.title || "Jasa Servis & Perawatan AC" }}
+          {{ jasa?.title || '-' }}
         </h1>
 
         <div class="flex items-baseline gap-2 mt-2">
@@ -391,7 +391,7 @@
             name: 'Pembayaran Jasa',
             query: {
               id: route.params.id,
-              title: jasa?.title || 'Jasa Servis & Perawatan AC',
+               title: jasa?.title || '-',
               image: jasaImage,
               price: jasa?.fixed_price || jasa?.base_price || 100000,
               tgl: selectedDate.toISOString(),
@@ -546,7 +546,7 @@ const initActiveTime = () => {
 const jasaImage = computed(() => {
   if (selectedImagePath.value) return selectedImagePath.value;
 
-  if (!jasa.value) return "https://picsum.photos/seed/jasa/1200/600";
+  if (!jasa.value) return "";
 
   // Cek dari array images (prioritas cover image)
   if (jasa.value.images && jasa.value.images.length > 0) {
@@ -559,8 +559,7 @@ const jasaImage = computed(() => {
   if (jasa.value.image) {
     return getImageUrlJasa(jasa.value.image);
   }
-
-  return "https://picsum.photos/seed/jasa/1200/600";
+  return "";
 });
 
 const onSelectGalleryImage = (img) => {
@@ -573,9 +572,7 @@ const onSelectGalleryImage = (img) => {
 
 // ----- deskripsi -----
 const jasaDesc = computed(
-  () =>
-    jasa.value?.description ||
-    "Layanan servis dan perawatan AC untuk menjaga udara tetap sejuk dan bersih. Termasuk cuci unit indoor/outdoor, pemeriksaan sistem pendingin, pengisian freon (jika dibutuhkan), dan pengecekan kelistrikan. Dikerjakan teknisi berpengalaman dengan garansi hasil kerja."
+  () => jasa.value?.description || "Belum ada deskripsi jasa."
 );
 
 // ----- tipe layanan (online / di tempat / ke alamat pelanggan) -----
