@@ -135,6 +135,27 @@ watch(usage_limit_per_user, (v) => setFieldValue("usage_limit_per_user", v));
 // ============================================================
 
 // ============================================================
+// HELPERS
+// ============================================================
+const normalizeDate = (value) => {
+  if (!value) return "";
+
+  if (typeof value === "string" && value.includes("/")) {
+    const parts = value.split("/");
+    if (parts.length === 3) {
+      const [day, month, year] = parts;
+      if (year?.length === 4) {
+        const d = String(day).padStart(2, "0");
+        const m = String(month).padStart(2, "0");
+        return `${year}-${m}-${d}`;
+      }
+    }
+  }
+
+  return value;
+};
+
+// ============================================================
 // SUBMIT HANDLER
 // ============================================================
 const onSubmit = veeHandleSubmit(async () => {
@@ -151,11 +172,11 @@ const onSubmit = veeHandleSubmit(async () => {
     voucher_description: voucher_description.value,
     voucher_type: voucher_type.value,
     value: value.value,
-    voucher_start_date: voucher_start_date.value,
-    voucher_end_date: voucher_end_date.value,
-    min_purchase_amount: min_purchase_amount.value,
+    voucher_start_date: normalizeDate(voucher_start_date.value),
+    voucher_end_date: normalizeDate(voucher_end_date.value),
+    min_purchase_amount: min_purchase_amount.value || 0,
     usage_limit_per_user: usage_limit_per_user.value,
-    usage_limit: usage_limit.value,
+    usage_limit: usage_limit.value || null,
   };
 
   // hanya kirim max_discount kalau percent
@@ -201,17 +222,6 @@ const onSubmit = veeHandleSubmit(async () => {
           <p class="text-xs text-muted-foreground sm:text-sm">
             Lengkapi informasi voucher Anda.
           </p>
-        </div>
-
-        <div class="flex items-center gap-3">
-          <Button
-            @click="onSubmit"
-            variant="merchant"
-            size="md"
-            :disabled="loading"
-          >
-            <span>{{ loading ? "Menyimpan..." : "Simpan" }}</span>
-          </Button>
         </div>
       </div>
     </div>
