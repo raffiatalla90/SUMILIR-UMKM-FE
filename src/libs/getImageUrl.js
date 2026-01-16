@@ -1,10 +1,11 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 export const getImageUrl = (imageId) => {
   if (!imageId) return "";
   const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
   return `${baseURL}/api/images/${encodeURIComponent(imageId)}`;
-}
+};
 
 export const getImageUrlJasa = (imageIdOrPath) => {
   if (!imageIdOrPath) return "";
@@ -50,17 +51,11 @@ export const getImageUrlJasa = (imageIdOrPath) => {
  * @returns {string} Event banner URL
  */
 export function getEventBannerUrl(event) {
-  if (!event?.id) {
-    console.warn('getEventBannerUrl: event.id is missing', event);
-    return '/placeholder.png';
+  if (!event?.id || !event?.banner_img_path) {
+    return null;
   }
 
-  if (!event?.banner_img_path) {
-    console.warn('getEventBannerUrl: event.banner_img_path is missing', event);
-    return '/placeholder.png';
-  }
-
-  const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
   // ✅ Cache-busting with updated_at timestamp
   const timestamp = event.updated_at
@@ -111,4 +106,7 @@ export function getUserProfileUrl(user) {
     : Date.now();
 
   return `${apiUrl}/api/user-profile/${user.id}?t=${timestamp}`;
+export function getMerchantBannerUrl(merchant) {
+  if (!merchant?.id) return "/placeholder.png";
+  return `${API_BASE_URL}/api/merchant-banner/${merchant.id}`;
 }
