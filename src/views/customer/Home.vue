@@ -1,7 +1,7 @@
 <script setup>
-import { ref, onMounted } from "vue";
-import { Carousel, Slide } from 'vue3-carousel'; 
-import 'vue3-carousel/dist/carousel.css'; 
+import { ref, onMounted, nextTick, watch } from "vue";
+import { Carousel, Slide } from "vue3-carousel";
+import "vue3-carousel/dist/carousel.css";
 
 import TextField from "@/components/forms/TextField.vue";
 import CategoryCard from "@/components/Card/CategoryCard.vue";
@@ -18,12 +18,15 @@ import komunitasIcon from "@/assets/icons/Komunitas.svg";
 import WhiteWithText from "@/assets/icons/White-with-Text.png";
 
 import api from "@/libs/axios.js";
-import { useRouter } from "vue-router";
-import { usePublicEvents } from "@/composables/usePublicEvents"; 
+import { useRoute, useRouter } from "vue-router";
+import { usePublicEvents } from "@/composables/usePublicEvents";
 import { useHomeStatistics } from "@/composables/useHomeStatistics";
-import { getEventBannerUrl } from "@/libs/getImageUrl"; 
+import { getEventBannerUrl } from "@/libs/getImageUrl";
 
+const route = useRoute();
 const router = useRouter();
+
+const searchInputRef = ref(null);
 
 const replayMerchants = ref(0);
 const replayProducts = ref(0);
@@ -33,12 +36,33 @@ const searchQuery = ref("");
 const isLoadingMerchants = ref(true);
 const isLoadingBanner = ref(true);
 
+// Fokus search bar jika dipicu dari CustomerLayout (?focusSearch=1)
+watch(
+  () => route.query.focusSearch,
+  async (val) => {
+    if (!val) return;
+
+    await nextTick();
+
+    searchInputRef.value?.scrollIntoView();
+    searchInputRef.value?.focus();
+
+    const { focusSearch, ...rest } = route.query;
+    router.replace({ query: rest });
+  },
+  { immediate: true }
+);
+
 // Banner carousel
 const { events: eventBanners, fetchPublicEvents } = usePublicEvents();
-const eventBannersProcessed = ref([]); 
+const eventBannersProcessed = ref([]);
 
 // Statistics with animated counter
-const { statistics, loading: statsLoading, fetchStatistics } = useHomeStatistics();
+const {
+  statistics,
+  loading: statsLoading,
+  fetchStatistics,
+} = useHomeStatistics();
 
 // Carousel config
 const carouselConfig = {
@@ -47,8 +71,8 @@ const carouselConfig = {
   autoplay: 5000,
   transition: 800,
   pauseAutoplayOnHover: true,
-  snapAlign: 'center',
-  mouseDrag: true, 
+  snapAlign: "center",
+  mouseDrag: true,
   touchDrag: true,
 };
 
@@ -80,11 +104,13 @@ const recommendedMerchants = ref([]);
 // Load recommended merchants
 const loadRecommendedMerchants = async () => {
   isLoadingMerchants.value = true;
-  
+
   try {
     const params = { limit: 10 };
-    
-    const response = await api.get("/api/public/home/recommended-merchants", { params });
+
+    const response = await api.get("/api/public/home/recommended-merchants", {
+      params,
+    });
     recommendedMerchants.value = response.data.data || [];
   } catch (error) {
     console.error("Failed to load merchants:", error);
@@ -110,13 +136,13 @@ onMounted(async () => {
   try {
     isLoadingBanner.value = true;
     await fetchPublicEvents();
-    
-    eventBannersProcessed.value = eventBanners.value.map(event => ({
+
+    eventBannersProcessed.value = eventBanners.value.map((event) => ({
       ...event,
-      bannerUrl: getEventBannerUrl(event)
+      bannerUrl: getEventBannerUrl(event),
     }));
   } catch (e) {
-    console.error('Failed to load event banners:', e);
+    console.error("Failed to load event banners:", e);
   } finally {
     isLoadingBanner.value = false;
   }
@@ -129,11 +155,16 @@ onMounted(async () => {
 <template>
   <div class="relative app-container">
     <!-- HERO SECTION -->
-    <section id="hero" class="relative pb-12 bg-linear-to-b from-gray-50 to-white">
+    <section
+      id="hero"
+      class="relative pb-12 bg-linear-to-b from-gray-50 to-white"
+    >
       <!-- Banner Carousel -->
-      <div class="relative w-full overflow-hidden bg-gray-100 sm:aspect-21/9 lg:aspect-24/9 xl:aspect-4/1">
-        <div 
-          v-if="isLoadingBanner" 
+      <div
+        class="relative w-full overflow-hidden bg-gray-100 sm:aspect-21/9 lg:aspect-24/9 xl:aspect-4/1"
+      >
+        <div
+          v-if="isLoadingBanner"
           class="absolute inset-0 bg-linear-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse"
         >
           <div class="absolute inset-0 flex items-center justify-center">
@@ -141,28 +172,30 @@ onMounted(async () => {
           </div>
         </div>
 
-        <Carousel 
-          v-else-if="eventBannersProcessed.length > 0" 
+        <Carousel
+          v-else-if="eventBannersProcessed.length > 0"
           v-bind="carouselConfig"
           class="h-full"
         >
           <Slide v-for="event in eventBannersProcessed" :key="event.id">
-            <div class="relative w-full h-full cursor-grab group active:cursor-grabbing">
+            <div
+              class="relative w-full h-full cursor-grab group active:cursor-grabbing"
+            >
               <img
                 :src="event.bannerUrl"
-                class="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-60"
+                class="absolute inset-0 object-cover w-full h-full scale-110 blur-xl opacity-60"
                 aria-hidden="true"
               />
               <img
                 :src="event.bannerUrl"
-                class="relative w-full h-full object-contain"
+                class="relative object-contain w-full h-full"
               />
             </div>
           </Slide>
         </Carousel>
 
-        <div 
-          v-else 
+        <div
+          v-else
           class="absolute inset-0 flex items-center justify-center bg-secondary"
         >
           <div class="px-4 text-center text-white">
@@ -228,7 +261,9 @@ onMounted(async () => {
         <!-- Section Header -->
         <div class="flex items-center justify-between mb-6 sm:mb-10">
           <div>
-            <h2 class="mb-1 text-xl font-bold text-gray-900 sm:text-2xl lg:text-3xl">
+            <h2
+              class="mb-1 text-xl font-bold text-gray-900 sm:text-2xl lg:text-3xl"
+            >
               Temukan UMKM yang Kamu Butuhkan
             </h2>
             <p class="text-sm text-gray-600 sm:text-base">
@@ -238,13 +273,18 @@ onMounted(async () => {
         </div>
 
         <!-- Skeleton Loading -->
-        <div v-if="isLoadingMerchants" class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 sm:gap-6">
+        <div
+          v-if="isLoadingMerchants"
+          class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 sm:gap-6"
+        >
           <ProductCardSkeleton v-for="i in 10" :key="i" />
         </div>
 
         <!-- Merchants Grid -->
         <div v-else-if="recommendedMerchants.length > 0">
-          <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 sm:gap-6">
+          <div
+            class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 sm:gap-6"
+          >
             <MerchantCard
               v-for="merchant in recommendedMerchants"
               :key="merchant.id"
@@ -256,7 +296,9 @@ onMounted(async () => {
         <!-- Empty State -->
         <div v-else class="py-20 text-center">
           <i class="mb-4 text-6xl text-gray-300 pi pi-shop"></i>
-          <p class="mb-2 text-lg font-semibold text-gray-700">Belum ada UMKM terdaftar</p>
+          <p class="mb-2 text-lg font-semibold text-gray-700">
+            Belum ada UMKM terdaftar
+          </p>
           <p class="text-gray-500">Coba lagi nanti</p>
         </div>
       </div>
@@ -274,25 +316,38 @@ onMounted(async () => {
             Berkembang Bersama UMKM Banyuanyar Lainnya
           </h3>
           <p class="text-sm text-gray-600 sm:text-base">
-            Ragam usaha dan layanan UMKM Banyuanyar kini terhimpun dalam satu platform. Mulai dari kebutuhan harian hingga layanan lokal, semuanya dapat diakses dengan lebih mudah, cepat, dan nyaman oleh masyarakat.
+            Ragam usaha dan layanan UMKM Banyuanyar kini terhimpun dalam satu
+            platform. Mulai dari kebutuhan harian hingga layanan lokal, semuanya
+            dapat diakses dengan lebih mudah, cepat, dan nyaman oleh masyarakat.
           </p>
         </div>
-        
+
         <!-- Statistics Cards -->
-        <div class="grid grid-cols-1 gap-6 sm:flex sm:items-stretch sm:divide-x sm:divide-gray-200 sm:gap-0">
+        <div
+          class="grid grid-cols-1 gap-6 sm:flex sm:items-stretch sm:divide-x sm:divide-gray-200 sm:gap-0"
+        >
           <!-- Total Merchants -->
           <div
             class="relative overflow-hidden transition-all duration-300 bg-white group sm:flex-1 sm:px-6 sm:py-6 rounded-2xl sm:rounded-none sm:first:rounded-l-2xl sm:last:rounded-r-2xl"
             @mouseenter="replayMerchants++"
           >
-            <div class="p-6 sm:p-0 h-full flex flex-col justify-center">
+            <div class="flex flex-col justify-center h-full p-6 sm:p-0">
               <!-- Counter -->
-              <div class="mb-2 text-4xl font-bold text-center transition-all duration-300 text-gray-900 sm:text-5xl hover:text-secondary">
-                <AnimatedCounter :value="statistics.total_merchants" suffix="+" :duration="1200" :replayKey="replayMerchants"/>
+              <div
+                class="mb-2 text-4xl font-bold text-center text-gray-900 transition-all duration-300 sm:text-5xl hover:text-secondary"
+              >
+                <AnimatedCounter
+                  :value="statistics.total_merchants"
+                  suffix="+"
+                  :duration="1200"
+                  :replayKey="replayMerchants"
+                />
               </div>
 
               <!-- Label -->
-              <div class="text-sm font-medium text-center text-gray-600 sm:text-base">
+              <div
+                class="text-sm font-medium text-center text-gray-600 sm:text-base"
+              >
                 UMKM Terdaftar
               </div>
             </div>
@@ -303,14 +358,23 @@ onMounted(async () => {
             class="relative overflow-hidden transition-all duration-300 bg-white group sm:flex-1 sm:px-6 sm:py-6 rounded-2xl sm:rounded-none sm:first:rounded-l-2xl sm:last:rounded-r-2xl"
             @mouseenter="replayProducts++"
           >
-            <div class="p-6 sm:p-0 h-full flex flex-col justify-center">
+            <div class="flex flex-col justify-center h-full p-6 sm:p-0">
               <!-- Counter -->
-              <div class="mb-2 text-4xl font-bold text-center transition-all duration-300 text-gray-900 sm:text-5xl hover:text-secondary">
-                <AnimatedCounter :value="statistics.total_products" suffix="+" :duration="1200" :replayKey="replayProducts" />
+              <div
+                class="mb-2 text-4xl font-bold text-center text-gray-900 transition-all duration-300 sm:text-5xl hover:text-secondary"
+              >
+                <AnimatedCounter
+                  :value="statistics.total_products"
+                  suffix="+"
+                  :duration="1200"
+                  :replayKey="replayProducts"
+                />
               </div>
 
               <!-- Label -->
-              <div class="text-sm font-medium text-center text-gray-600 sm:text-base">
+              <div
+                class="text-sm font-medium text-center text-gray-600 sm:text-base"
+              >
                 Produk & Jasa
               </div>
             </div>
@@ -321,151 +385,165 @@ onMounted(async () => {
             class="relative overflow-hidden transition-all duration-300 bg-white group sm:flex-1 sm:px-6 sm:py-6 rounded-2xl sm:rounded-none sm:first:rounded-l-2xl sm:last:rounded-r-2xl"
             @mouseenter="replayCategories++"
           >
-            <div class="p-6 sm:p-0 h-full flex flex-col justify-center">
+            <div class="flex flex-col justify-center h-full p-6 sm:p-0">
               <!-- Counter -->
-              <div class="mb-2 text-4xl font-bold text-center transition-all duration-300 text-gray-900 sm:text-5xl hover:text-secondary">
-                <AnimatedCounter :value="statistics.total_categories" suffix="+" :duration="1200" :replayKey="replayCategories" />
+              <div
+                class="mb-2 text-4xl font-bold text-center text-gray-900 transition-all duration-300 sm:text-5xl hover:text-secondary"
+              >
+                <AnimatedCounter
+                  :value="statistics.total_categories"
+                  suffix="+"
+                  :duration="1200"
+                  :replayKey="replayCategories"
+                />
               </div>
 
               <!-- Label -->
-              <div class="text-sm font-medium text-center text-gray-600 sm:text-base">
+              <div
+                class="text-sm font-medium text-center text-gray-600 sm:text-base"
+              >
                 Kategori
               </div>
             </div>
           </div>
         </div>
-
-
       </div>
     </section>
 
-<!-- MODERN FOOTER -->
-<footer class="relative overflow-hidden text-white bg-primary">
-  <!-- Subtle decorative blobs -->
-  <div class="absolute inset-0 pointer-events-none opacity-10">
-    <div class="absolute w-72 h-72 rounded-full -top-32 -left-32 bg-white/30 blur-3xl"></div>
-    <div class="absolute w-96 h-96 rounded-full -bottom-48 -right-40 bg-white/20 blur-3xl"></div>
-  </div>
-
-  <div class="relative px-4 mx-auto max-w-7xl sm:px-6">
-    <!-- Top -->
-    <div class="grid gap-10 py-12 md:grid-cols-3 md:py-16">
-      
-      <!-- Brand -->
-      <div>
-        <div class="flex items-center gap-3 mb-4">
-          <img :src="WhiteWithText" alt="SUMILIR" class="h-10" />
-        </div>
-
-        <p class="text-sm leading-relaxed text-white/80 max-w-sm">
-          SUMILIR adalah platform digital yang mempertemukan UMKM Banyuanyar dengan masyarakat,
-          agar produk lokal lebih mudah ditemukan, dipercaya, dan dibeli.
-        </p>
-
-        <!-- Social -->
-        <div class="flex items-center gap-3 mt-6">
-          <a
-            href="https://www.facebook.com/pages/Kantor-Kelurahan-Banyuanyar"
-            target="_blank"
-            class="flex items-center justify-center w-10 h-10 border rounded-full border-white/20 hover:border-white/40 hover:bg-white/10 transition"
-            aria-label="Facebook"
-          >
-            <i class="pi pi-facebook text-lg"></i>
-          </a>
-
-          <a
-            href="https://www.instagram.com/explore/locations/251082119/kantor-kelurahan-banyuanyar"
-            target="_blank"
-            class="flex items-center justify-center w-10 h-10 border rounded-full border-white/20 hover:border-white/40 hover:bg-white/10 transition"
-            aria-label="Instagram"
-          >
-            <i class="pi pi-instagram text-lg"></i>
-          </a>
-        </div>
-
-        <!-- Micro note -->
-        <p class="mt-4 text-xs text-white/60">
-          Informasi & pembaruan kegiatan dapat diikuti melalui kanal resmi di atas.
-        </p>
+    <!-- MODERN FOOTER -->
+    <footer class="relative overflow-hidden text-white bg-primary">
+      <!-- Subtle decorative blobs -->
+      <div class="absolute inset-0 pointer-events-none opacity-10">
+        <div
+          class="absolute rounded-full w-72 h-72 -top-32 -left-32 bg-white/30 blur-3xl"
+        ></div>
+        <div
+          class="absolute rounded-full w-96 h-96 -bottom-48 -right-40 bg-white/20 blur-3xl"
+        ></div>
       </div>
 
-      <!-- Navigation -->
-      <div>
-        <h4 class="text-base font-semibold tracking-wide">Navigasi</h4>
-        <ul class="mt-4 space-y-3 text-sm">
-          <li>
-            <router-link
-              to="/explore"
-              class="inline-flex items-center gap-2 text-white/80 hover:text-white transition"
-            >
-              <i class="pi pi-angle-right text-xs opacity-80"></i> Daftar UMKM
-            </router-link>
-          </li>
-          <li>
-            <router-link
-              to="/explore"
-              class="inline-flex items-center gap-2 text-white/80 hover:text-white transition"
-            >
-              <i class="pi pi-angle-right text-xs opacity-80"></i> Semua Produk
-            </router-link>
-          </li>
-          <li>
-            <router-link
-              to="/map"
-              class="inline-flex items-center gap-2 text-white/80 hover:text-white transition"
-            >
-              <i class="pi pi-angle-right text-xs opacity-80"></i> Peta UMKM
-            </router-link>
-          </li>
-          <li>
-            <router-link
-              to="/community"
-              class="inline-flex items-center gap-2 text-white/80 hover:text-white transition"
-            >
-              <i class="pi pi-angle-right text-xs opacity-80"></i> Komunitas
-            </router-link>
-          </li>
-        </ul>
-      </div>
+      <div class="relative px-4 mx-auto max-w-7xl sm:px-6">
+        <!-- Top -->
+        <div class="grid gap-10 py-12 md:grid-cols-3 md:py-16">
+          <!-- Brand -->
+          <div>
+            <div class="flex items-center gap-3 mb-4">
+              <img :src="WhiteWithText" alt="SUMILIR" class="h-10" />
+            </div>
 
-      <!-- Info / CTA -->
-      <div>
-        <h4 class="text-base font-semibold tracking-wide">Informasi</h4>
+            <p class="max-w-sm text-sm leading-relaxed text-white/80">
+              SUMILIR adalah platform digital yang mempertemukan UMKM Banyuanyar
+              dengan masyarakat, agar produk lokal lebih mudah ditemukan,
+              dipercaya, dan dibeli.
+            </p>
 
-        <div class="mt-4 space-y-4">
-          <!-- Address -->
-          <div class="flex gap-3 text-sm text-white/80">
-            <i class="pi pi-map-marker mt-0.5 shrink-0 opacity-80"></i>
-            <p>
-              Kelurahan Banyuanyar, Surakarta, Jawa Tengah
-              <span class="block text-xs text-white/60 mt-1">
-                Jl. Adi Sumarmo No.163, Banyuanyar, Kec. Banjarsari, Kota Surakarta, Jawa Tengah 57137
-              </span>
+            <!-- Social -->
+            <div class="flex items-center gap-3 mt-6">
+              <a
+                href="https://www.facebook.com/pages/Kantor-Kelurahan-Banyuanyar"
+                target="_blank"
+                class="flex items-center justify-center w-10 h-10 transition border rounded-full border-white/20 hover:border-white/40 hover:bg-white/10"
+                aria-label="Facebook"
+              >
+                <i class="text-lg pi pi-facebook"></i>
+              </a>
+
+              <a
+                href="https://www.instagram.com/explore/locations/251082119/kantor-kelurahan-banyuanyar"
+                target="_blank"
+                class="flex items-center justify-center w-10 h-10 transition border rounded-full border-white/20 hover:border-white/40 hover:bg-white/10"
+                aria-label="Instagram"
+              >
+                <i class="text-lg pi pi-instagram"></i>
+              </a>
+            </div>
+
+            <!-- Micro note -->
+            <p class="mt-4 text-xs text-white/60">
+              Informasi & pembaruan kegiatan dapat diikuti melalui kanal resmi
+              di atas.
             </p>
           </div>
 
-          <!-- CTA -->
-          <div class="pt-2">
-            <router-link
-              to="/merchant-register"
-              class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-white text-primary hover:bg-white/90 transition"
-            >
-              <i class="pi pi-plus text-xs"></i>
-              Daftarkan UMKM
-            </router-link>
+          <!-- Navigation -->
+          <div>
+            <h4 class="text-base font-semibold tracking-wide">Navigasi</h4>
+            <ul class="mt-4 space-y-3 text-sm">
+              <li>
+                <router-link
+                  to="/explore"
+                  class="inline-flex items-center gap-2 transition text-white/80 hover:text-white"
+                >
+                  <i class="text-xs pi pi-angle-right opacity-80"></i> Daftar
+                  UMKM
+                </router-link>
+              </li>
+              <li>
+                <router-link
+                  to="/explore"
+                  class="inline-flex items-center gap-2 transition text-white/80 hover:text-white"
+                >
+                  <i class="text-xs pi pi-angle-right opacity-80"></i> Semua
+                  Produk
+                </router-link>
+              </li>
+              <li>
+                <router-link
+                  to="/map"
+                  class="inline-flex items-center gap-2 transition text-white/80 hover:text-white"
+                >
+                  <i class="text-xs pi pi-angle-right opacity-80"></i> Peta UMKM
+                </router-link>
+              </li>
+              <li>
+                <router-link
+                  to="/community"
+                  class="inline-flex items-center gap-2 transition text-white/80 hover:text-white"
+                >
+                  <i class="text-xs pi pi-angle-right opacity-80"></i> Komunitas
+                </router-link>
+              </li>
+            </ul>
+          </div>
 
-            <p class="mt-2 text-xs text-white/60">
-              Ingin UMKM Anda tampil di SUMILIR? Ajukan melalui menu pendaftaran UMKM atau datang langsung ke Kantor Kelurahan Banyuanyar.
-            </p>
+          <!-- Info / CTA -->
+          <div>
+            <h4 class="text-base font-semibold tracking-wide">Informasi</h4>
+
+            <div class="mt-4 space-y-4">
+              <!-- Address -->
+              <div class="flex gap-3 text-sm text-white/80">
+                <i class="pi pi-map-marker mt-0.5 shrink-0 opacity-80"></i>
+                <p>
+                  Kelurahan Banyuanyar, Surakarta, Jawa Tengah
+                  <span class="block mt-1 text-xs text-white/60">
+                    Jl. Adi Sumarmo No.163, Banyuanyar, Kec. Banjarsari, Kota
+                    Surakarta, Jawa Tengah 57137
+                  </span>
+                </p>
+              </div>
+
+              <!-- CTA -->
+              <div class="pt-2">
+                <router-link
+                  to="/merchant-register"
+                  class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium transition bg-white rounded-xl text-primary hover:bg-white/90"
+                >
+                  <i class="text-xs pi pi-plus"></i>
+                  Daftarkan UMKM
+                </router-link>
+
+                <p class="mt-2 text-xs text-white/60">
+                  Ingin UMKM Anda tampil di SUMILIR? Ajukan melalui menu
+                  pendaftaran UMKM atau datang langsung ke Kantor Kelurahan
+                  Banyuanyar.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-
-    </div>
-
-  </div>
-</footer>
-
+    </footer>
   </div>
 </template>
 
@@ -488,7 +566,7 @@ onMounted(async () => {
 
 :deep(.carousel__prev),
 :deep(.carousel__next) {
-  display: none !important; 
+  display: none !important;
 }
 
 :deep(.carousel__viewport) {
