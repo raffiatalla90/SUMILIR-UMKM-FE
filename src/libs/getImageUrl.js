@@ -106,6 +106,11 @@ export function getUserProfileUrl(user) {
     : Date.now();
 
   return `${apiUrl}/api/user-profile/${user.id}?t=${timestamp}`;
+}
+
+/**
+ * Get merchant banner URL via streaming API
+ */
 export function getMerchantBannerUrl(merchant) {
   if (!merchant?.id) return "/placeholder.png";
   return `${API_BASE_URL}/api/merchant-banner/${merchant.id}`;
