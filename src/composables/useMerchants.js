@@ -1,8 +1,10 @@
 import { ref } from "vue";
 import api from "@/libs/axios";
+import * as merchantApi from "@/services/api/merchant";
 import { useToast } from "vue-toastification";
 
 export function useMerchants() {
+  const isDev = import.meta.env.DEV;
   const merchants = ref([]);
   const loading = ref(false);
   const pagination = ref({
@@ -87,6 +89,23 @@ export function useMerchants() {
     }
   };
 
+  // Public API
+  const fetchPublicMerchants = async (params = {}) => {
+    loading.value = true;
+    try {
+      const data = await merchantApi.getPublicMerchants(params);
+      merchants.value = data.data || [];
+      return merchants.value;
+    } catch (error) {
+      if (isDev) {
+        console.error("[useMerchants] Public fetch failed:", error);
+      }
+      toast.error("Gagal memuat data merchant publik");
+      merchants.value = [];
+    } finally {
+      loading.value = false;
+    }
+  };
   return {
     merchants,
     loading,
@@ -95,5 +114,6 @@ export function useMerchants() {
     fetchMerchantDetail,
     approveMerchant,
     rejectMerchant,
+    fetchPublicMerchants,
   };
 }

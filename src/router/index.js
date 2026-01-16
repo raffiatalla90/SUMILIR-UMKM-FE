@@ -1,7 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-// import { initializeCsrfToken } from "@/composables/useCsrfToken";
-// import { initializeCsrfToken } from "@/composables/useCsrfToken";
 import CommunityView from "@/views/CommunityView.vue";
 import CommunityDetailView from "@/views/CommunityDetailView.vue";
 import MyOrderLayout from "@/views/CustomerOrder/MyOrderLayout.vue";
@@ -53,21 +51,10 @@ const routes = [
         },
       },
       {
-        path: "product-toko",
-        name: "Product Toko",
-        component: () => import("@/views/customer/ProductTokoHome.vue"),
-        meta: { title: "Semua Produk Toko | SUMILIR" },
-      },
-      {
-        path: "product-kuliner",
-        name: "Product Kuliner",
-        component: () => import("@/views/customer/ProductKulinerHome.vue"),
-        meta: {
-          title: "Produk Kuliner UMKM Banyuanyar",
-          description:
-            "Temukan produk kuliner UMKM Banyuanyar yang enak dan terjangkau.",
-        },
-        meta: { title: "Semua Produk Kuliner | SUMILIR" },
+        path: "explore",
+        name: "UMKM & Produk-Layanan Jasa",
+        component: () => import("@/views/customer/Explore.vue"),
+        meta: { title: "Semua Produk & Layanan | SUMILIR" },
       },
       {
         path: "products/:slug",
@@ -79,21 +66,13 @@ const routes = [
         path: "merchant/:slug",
         name: "Merchant Detail",
         component: () => import("@/views/customer/MerchantStore.vue"),
-        meta: { title: "Detail Toko" },
+        meta: { title: "Detail Toko | SUMILIR" },
       },
       {
         path: "/map",
         name: "map",
         component: () => import("@/views/customer/PetaUmkm.vue"),
         meta: { title: "Peta UMKM Banyuanyar" },
-      },
-
-      // Halaman Jasa Teknisi & Pembayaran
-      {
-        path: "jasa-teknisi",
-        name: "JasaTeknisi",
-        component: () => import("@/views/customer/JasaTeknisi.vue"),
-        meta: { title: "Semua Jasa Teknisi" },
       },
       {
         path: "jasa/:id",
@@ -141,8 +120,6 @@ const routes = [
         component: () => import("@/views/customer/SearchPage.vue"),
         meta: { title: "Search | SUMILIR" },
         meta: {
-          // requiresAuth: true,
-          // roles: ["customer"],
           title: "Pembayaran",
         },
       },

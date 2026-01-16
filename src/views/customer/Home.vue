@@ -1,8 +1,8 @@
 <script setup>
 import { ref, onMounted, watch, nextTick } from "vue";
 import { Form } from "vee-validate";
-import { Carousel, Slide } from 'vue3-carousel'; 
-import 'vue3-carousel/dist/carousel.css'; 
+import { Carousel, Slide } from "vue3-carousel";
+import "vue3-carousel/dist/carousel.css";
 
 import TextField from "@/components/forms/TextField.vue";
 import CategoryCard from "@/components/Card/CategoryCard.vue";
@@ -20,8 +20,8 @@ import komunitasIcon from "@/assets/icons/Komunitas.svg";
 import Button from "@/components/common/Button.vue";
 import api from "@/libs/axios.js";
 import { useRoute, useRouter } from "vue-router";
-import { usePublicEvents } from "@/composables/usePublicEvents"; 
-import { getEventBannerUrl } from "@/libs/getImageUrl"; 
+import { usePublicEvents } from "@/composables/usePublicEvents";
+import { getEventBannerUrl } from "@/libs/getImageUrl";
 
 const route = useRoute();
 const router = useRouter();
@@ -44,26 +44,26 @@ const carouselConfig = {
   autoplay: 5000, // 5 seconds
   transition: 800,
   pauseAutoplayOnHover: true,
-  snapAlign: 'center',
-  mouseDrag: true, 
+  snapAlign: "center",
+  mouseDrag: true,
   touchDrag: true,
 };
 
-const categories = ref([
+const navigates = ref([
   {
     label: "Kuliner",
     icon: kulinerIcon,
-    to: { name: "Product Kuliner" },
+    to: { path: "/explore", query: { mode: "kuliner" } },
   },
   {
     label: "Toko",
     icon: tokoIcon,
-    to: { name: "Product Toko" },
+    to: { path: "/explore", query: { mode: "toko" } },
   },
   {
     label: "Jasa",
     icon: jasaIcon,
-    to: { name: "JasaTeknisi" },
+    to: { path: "/explore", query: { mode: "jasa" } },
   },
   {
     label: "Komunitas",
@@ -154,12 +154,18 @@ const onSearch = () => {
 const loadMoreMerchants = async () => {
   isLoadMore.value = true;
   try {
-    // Ambil produk baru dengan limit lebih banyak
-    const newProducts = await api.get("/api/public/merchants/random", {
+    const merchantRes = await api.get("/api/public/merchants/random", {
       params: { limit: 8 },
     });
-    productList.value = newProducts;
-    productLimit.value += 8;
+
+    const incoming = merchantRes.data?.data || [];
+    const seen = new Set((merchantList.value || []).map((m) => m.id));
+    for (const m of incoming) {
+      if (!seen.has(m.id)) {
+        merchantList.value.push(m);
+        seen.add(m.id);
+      }
+    }
   } catch (e) {
     // Optional: tampilkan error
   } finally {
@@ -173,7 +179,7 @@ onMounted(async () => {
     isLoadingBanner.value = true;
     await fetchPublicEvents();
   } catch (e) {
-    console.error('Gagal memuat banner event:', e);
+    console.error("Gagal memuat banner event:", e);
   } finally {
     isLoadingBanner.value = false;
   }
@@ -227,30 +233,37 @@ watch(
   <div class="relative app-container">
     <!-- HERO -->
     <section id="hero" class="relative">
-      <div class="relative w-full overflow-hidden bg-gray-100 aspect-video sm:aspect-21/9 lg:aspect-24/9 xl:aspect-4/1">
+      <div
+        class="relative w-full overflow-hidden bg-gray-100 aspect-video sm:aspect-21/9 lg:aspect-24/9 xl:aspect-4/1"
+      >
         <!-- Loading skeleton -->
-        <div 
-          v-if="isLoadingBanner" 
+        <div
+          v-if="isLoadingBanner"
           class="absolute inset-0 bg-linear-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse"
         >
           <div class="absolute inset-0 flex items-center justify-center">
-            <i class="pi pi-spin pi-spinner text-4xl text-gray-400"></i>
+            <i class="text-4xl text-gray-400 pi pi-spin pi-spinner"></i>
           </div>
         </div>
 
-        <Carousel 
-          v-else-if="eventBanners.length > 0" 
+        <Carousel
+          v-else-if="eventBanners.length > 0"
           v-bind="carouselConfig"
           class="h-full"
         >
-          <Slide v-for="event in eventBanners" :key="`${event.id}-${event.updated_at}`">
-            <div class="relative w-full h-full group cursor-grab active:cursor-grabbing">
+          <Slide
+            v-for="event in eventBanners"
+            :key="`${event.id}-${event.updated_at}`"
+          >
+            <div
+              class="relative w-full h-full group cursor-grab active:cursor-grabbing"
+            >
               <!-- ✅ ADDED: Key menggunakan updated_at untuk force re-render -->
-              <img 
+              <img
                 :key="`banner-${event.id}-${event.updated_at}`"
                 :src="getEventBannerUrl(event)"
                 :alt="event.event_name"
-                class="w-full h-full object-cover pointer-events-none select-none"
+                class="object-cover w-full h-full pointer-events-none select-none"
                 draggable="false"
                 @error="(e) => (e.target.src = '/placeholder-banner.png')"
               />
@@ -259,12 +272,12 @@ watch(
         </Carousel>
 
         <!-- Fallback: No banners available -->
-        <div 
-          v-else 
-          class="absolute inset-0 bg-secondary flex items-center justify-center"
+        <div
+          v-else
+          class="absolute inset-0 flex items-center justify-center bg-secondary"
         >
-          <div class="text-center text-white px-4">
-            <i class="pi pi-calendar text-5xl mb-4 opacity-50"></i>
+          <div class="px-4 text-center text-white">
+            <i class="mb-4 text-5xl opacity-50 pi pi-calendar"></i>
             <p class="text-lg font-semibold">Belum ada event aktif</p>
           </div>
         </div>
@@ -307,7 +320,7 @@ watch(
             <div class="p-4 sm:p-5">
               <div class="grid grid-cols-4 gap-3 sm:gap-4">
                 <CategoryCard
-                  v-for="cat in categories"
+                  v-for="cat in navigates"
                   :key="cat.label"
                   :label="cat.label"
                   :icon="cat.icon"
@@ -440,7 +453,7 @@ watch(
 
 :deep(.carousel__prev),
 :deep(.carousel__next) {
-  display: none !important; 
+  display: none !important;
 }
 
 :deep(.carousel__viewport) {

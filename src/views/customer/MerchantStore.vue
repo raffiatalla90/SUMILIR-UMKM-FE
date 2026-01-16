@@ -227,6 +227,14 @@
             class="transition cursor-pointer hover:shadow-md"
             @click="goToProductDetail(product)"
           />
+
+          <!-- SKELETON APPEND -->
+          <template v-if="isLoadingMore">
+            <ProductCardSkeleton
+              v-for="i in 6"
+              :key="'load-more-product-' + i"
+            />
+          </template>
         </div>
 
         <!-- Grid Jasa -->
@@ -282,7 +290,19 @@
               </p>
             </div>
           </router-link>
+
+          <!-- SKELETON APPEND -->
+          <template v-if="isLoadingMore">
+            <ProductCardSkeleton v-for="i in 6" :key="'load-more-jasa-' + i" />
+          </template>
         </div>
+
+        <!-- SENTINEL (Infinite Scroll) -->
+        <div
+          v-if="hasMore && activeTab === 'menu'"
+          ref="loadMoreRef"
+          class="h-1"
+        ></div>
       </div>
 
       <!-- Tab Content: Informasi -->
@@ -462,11 +482,28 @@
         </div>
       </div>
     </transition>
+
+    <!-- BACK TO TOP BUTTON -->
+    <button
+      v-show="showBackToTop"
+      @click="scrollToTop"
+      class="fixed z-50 flex items-center justify-center transition duration-200 bg-white border-2 rounded-full shadow-sm cursor-pointer border-muted-foreground/20 hover:shadow-lg bottom-24 right-8 w-11 h-11 active:scale-90 hover:-translate-y-1"
+      aria-label="Kembali ke atas"
+    >
+      <i class="text-xl pi pi-arrow-up text-secondary"></i>
+    </button>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import {
+  ref,
+  computed,
+  onMounted,
+  onBeforeUnmount,
+  watch,
+  nextTick,
+} from "vue";
 import { useRoute } from "vue-router";
 import { useRouter } from "vue-router";
 import api from "@/libs/axios.js";
@@ -502,6 +539,39 @@ const showChat = ref(false);
 const selectedJasaId = ref(null);
 const activeTab = ref("menu");
 const menuKind = ref("jasa"); // 'product' | 'jasa'
+
+// Infinite scroll state (mirip SearchPage/ProductLayananHome)
+const loadMoreRef = ref(null);
+const observer = ref(null);
+const currentPage = ref(1);
+const perPage = 20;
+const hasMore = ref(false);
+const isLoadingMore = ref(false);
+const isLoadMoreQueued = ref(false);
+
+// Back to top
+const showBackToTop = ref(false);
+
+function handleScroll() {
+  showBackToTop.value = window.scrollY > 300;
+
+  // Fallback infinite scroll when IntersectionObserver doesn't fire
+  if (activeTab.value !== "menu") return;
+  if (!hasMore.value) return;
+  if (loading.value) return;
+  if (isLoadingMore.value) return;
+
+  const doc = document.documentElement;
+  const nearBottom =
+    window.innerHeight + window.scrollY >= doc.scrollHeight - 300;
+  if (nearBottom) {
+    queueLoadMore();
+  }
+}
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
 
 // Sync data state
 const merchantInfo = ref({
@@ -774,51 +844,203 @@ function getSegmentationId(data) {
   return Number.isFinite(num) ? num : null;
 }
 
-async function fetchMerchantMenu(merchantData, merchantSlug) {
+function parseLaravelPaginator(payload) {
+  // Support: array (legacy) OR Laravel paginator object
+  if (Array.isArray(payload)) {
+    return {
+      items: payload,
+      current: 1,
+      last: 1,
+    };
+  }
+
+  // Support: endpoints that wrap paginator in { data: { data: [], current_page, ... } }
+  const paginator =
+    payload?.data &&
+    typeof payload.data === "object" &&
+    !Array.isArray(payload.data) &&
+    Array.isArray(payload.data?.data)
+      ? payload.data
+      : payload;
+
+  return {
+    items: Array.isArray(paginator?.data) ? paginator.data : [],
+    current: Number(
+      paginator?.current_page ?? paginator?.meta?.current_page ?? 1
+    ),
+    last: Number(paginator?.last_page ?? paginator?.meta?.last_page ?? 1),
+  };
+}
+
+async function ensureSentinelObserved() {
+  await nextTick();
+  if (!observer.value) return;
+  if (!loadMoreRef.value) return;
+  if (!hasMore.value) return;
+  observer.value.observe(loadMoreRef.value);
+}
+
+function setupObserver() {
+  if (observer.value) observer.value.disconnect();
+
+  observer.value = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0];
+      if (!entry?.isIntersecting) return;
+      if (activeTab.value !== "menu") return;
+      queueLoadMore();
+    },
+    {
+      root: null,
+      rootMargin: "200px",
+      threshold: 0,
+    }
+  );
+
+  if (loadMoreRef.value) {
+    observer.value.observe(loadMoreRef.value);
+  }
+}
+
+function resetInfiniteScroll() {
+  currentPage.value = 1;
+  hasMore.value = false;
+  isLoadMoreQueued.value = false;
+  if (observer.value) observer.value.disconnect();
+}
+
+async function queueLoadMore() {
+  if (!hasMore.value) return;
+  if (loading.value) return;
+  if (isLoadingMore.value) return;
+  if (isLoadMoreQueued.value) return;
+  if (menuKind.value !== "product" && menuKind.value !== "jasa") return;
+
+  isLoadMoreQueued.value = true;
+  currentPage.value += 1;
+
+  try {
+    await fetchMerchantMenu(merchant.value, route.params.slug, {
+      append: true,
+    });
+  } finally {
+    isLoadMoreQueued.value = false;
+  }
+}
+
+async function fetchMerchantMenu(
+  merchantData,
+  merchantSlug,
+  { append } = { append: false }
+) {
   const segId = getSegmentationId(merchantData);
 
   // Reset lists to avoid stale UI when navigating between merchants
-  jasaList.value = [];
-  productList.value = [];
+  if (!append) {
+    jasaList.value = [];
+    productList.value = [];
+    currentPage.value = 1;
+    hasMore.value = false;
+  }
 
   // 1/2 => toko/kuliner (produk)
   if (segId === 1 || segId === 2) {
     menuKind.value = "product";
 
-    const { data } = await api.get(
-      `/api/public/merchants/${merchantSlug}/products`,
-      {
-        params: { per_page: 50 },
-      }
-    );
+    if (append) {
+      isLoadingMore.value = true;
+    }
 
-    const paginator = data?.products ?? data?.data ?? data;
-    productList.value =
-      paginator?.data ?? (Array.isArray(paginator) ? paginator : []);
+    try {
+      const { data } = await api.get(
+        `/api/public/merchants/${merchantSlug}/products`,
+        {
+          params: { per_page: perPage, page: currentPage.value },
+        }
+      );
+
+      const paginator = data?.products ?? data?.data ?? data;
+      const parsed = parseLaravelPaginator(paginator);
+
+      if (append) {
+        productList.value.push(...(parsed.items ?? []));
+      } else {
+        productList.value = parsed.items ?? [];
+      }
+
+      hasMore.value = parsed.current < parsed.last;
+      await ensureSentinelObserved();
+    } finally {
+      if (append) isLoadingMore.value = false;
+    }
     return;
   }
 
   // 3 => jasa
   if (segId === 3) {
     menuKind.value = "jasa";
-    const { data } = await api.get(
-      `/api/public/merchants/${merchantSlug}/jasas`
-    );
-    jasaList.value = Array.isArray(data) ? data : data?.data ?? [];
+
+    if (append) {
+      isLoadingMore.value = true;
+    }
+
+    try {
+      const { data } = await api.get(
+        `/api/public/merchants/${merchantSlug}/jasas`,
+        {
+          params: { per_page: perPage, page: currentPage.value },
+        }
+      );
+
+      const parsed = parseLaravelPaginator(data);
+      const mapped = (parsed.items ?? []).map((j) => ({
+        ...j,
+        // keep image resolver compat
+        image: j?.image ?? null,
+      }));
+
+      if (append) {
+        jasaList.value.push(...mapped);
+      } else {
+        jasaList.value = mapped;
+      }
+
+      hasMore.value = parsed.current < parsed.last;
+      await ensureSentinelObserved();
+    } finally {
+      if (append) isLoadingMore.value = false;
+    }
     return;
   }
 
   // Fallback: treat as product merchant
   menuKind.value = "product";
-  const { data } = await api.get(
-    `/api/public/merchants/${merchantSlug}/products`,
-    {
-      params: { per_page: 50 },
+
+  if (append) {
+    isLoadingMore.value = true;
+  }
+
+  try {
+    const { data } = await api.get(
+      `/api/public/merchants/${merchantSlug}/products`,
+      {
+        params: { per_page: perPage, page: currentPage.value },
+      }
+    );
+    const paginator = data?.products ?? data?.data ?? data;
+    const parsed = parseLaravelPaginator(paginator);
+
+    if (append) {
+      productList.value.push(...(parsed.items ?? []));
+    } else {
+      productList.value = parsed.items ?? [];
     }
-  );
-  const paginator = data?.products ?? data?.data ?? data;
-  productList.value =
-    paginator?.data ?? (Array.isArray(paginator) ? paginator : []);
+
+    hasMore.value = parsed.current < parsed.last;
+    await ensureSentinelObserved();
+  } finally {
+    if (append) isLoadingMore.value = false;
+  }
 }
 
 // Fetch data merchant dan jasa-jasanya
@@ -855,7 +1077,11 @@ const fetchMerchantData = async () => {
     applyMerchantSeo(data, merchantSlug);
 
     // Fetch menu berdasarkan segmentation
-    await fetchMerchantMenu(data, merchantSlug);
+    resetInfiniteScroll();
+    await fetchMerchantMenu(data, merchantSlug, { append: false });
+
+    await nextTick();
+    setupObserver();
   } catch (error) {
     console.error("Error fetching merchant:", error);
     merchant.value = null;
@@ -875,7 +1101,27 @@ const fetchMerchantData = async () => {
 onMounted(() => {
   // Preload profile coordinates (no geolocation prompt).
   loadMyCoordinatesFromProfile();
+
+  window.addEventListener("scroll", handleScroll, { passive: true });
 });
+
+onBeforeUnmount(() => {
+  window.removeEventListener("scroll", handleScroll);
+  if (observer.value) observer.value.disconnect();
+});
+
+watch(
+  () => activeTab.value,
+  async (tab) => {
+    if (tab !== "menu") {
+      if (observer.value) observer.value.disconnect();
+      return;
+    }
+
+    await nextTick();
+    setupObserver();
+  }
+);
 
 watch(() => route.params.slug, fetchMerchantData, { immediate: true });
 </script>

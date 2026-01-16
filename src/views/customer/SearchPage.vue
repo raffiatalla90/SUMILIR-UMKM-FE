@@ -139,11 +139,17 @@ const {
   productsMeta,
   loadingProducts,
   fetchProducts: fetchProductsApi,
+  jasas,
+  jasasMeta,
   merchants,
   merchantsMeta,
   loadingMerchants,
   fetchMerchants: fetchMerchantsApi,
 } = useSearch();
+
+// Prevent "empty" message flashing before the first request finishes.
+const hasFetchedProductsOnce = ref(false);
+const hasFetchedMerchantsOnce = ref(false);
 function goBack() {
   router.back();
 }
@@ -160,6 +166,127 @@ const goToProductDetail = (product) => {
     params: { slug },
   });
 };
+
+const goToJasaDetail = (jasa) => {
+  const id = jasa?.jasa_id ?? jasa?.id;
+  if (!id) {
+    console.warn("[Search] Invalid jasa id:", jasa);
+    return;
+  }
+
+  router.push({
+    name: "JasaDetail",
+    params: { id },
+  });
+};
+
+const isLoadingSegments = computed(() => !!loadingSegmentations.value);
+const isLoadingCategories = computed(() => !!loadingLevel1.value);
+const isLoadingSubCategories = computed(() => !!loadingLevel2.value);
+
+function toNumberOrNull(v) {
+  const n = typeof v === "number" ? v : parseFloat(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function toTimeOrNull(v) {
+  if (!v) return null;
+  const t = new Date(v).getTime();
+  return Number.isFinite(t) ? t : null;
+}
+
+function compareNumberAsc(a, b) {
+  const av = a == null ? Number.POSITIVE_INFINITY : a;
+  const bv = b == null ? Number.POSITIVE_INFINITY : b;
+  return av - bv;
+}
+
+function compareNumberDesc(a, b) {
+  const av = a == null ? Number.NEGATIVE_INFINITY : a;
+  const bv = b == null ? Number.NEGATIVE_INFINITY : b;
+  return bv - av;
+}
+
+function compareTimeDesc(a, b) {
+  const av = a == null ? Number.NEGATIVE_INFINITY : a;
+  const bv = b == null ? Number.NEGATIVE_INFINITY : b;
+  return bv - av;
+}
+
+function compareTimeAsc(a, b) {
+  const av = a == null ? Number.POSITIVE_INFINITY : a;
+  const bv = b == null ? Number.POSITIVE_INFINITY : b;
+  return av - bv;
+}
+
+function compareBySortKey(a, b, sortKey) {
+  const aMin = toNumberOrNull(a?.min_price ?? a?.minPrice);
+  const bMin = toNumberOrNull(b?.min_price ?? b?.minPrice);
+  const aMax = toNumberOrNull(a?.max_price ?? a?.maxPrice);
+  const bMax = toNumberOrNull(b?.max_price ?? b?.maxPrice);
+  const aTime = toTimeOrNull(a?.created_at ?? a?.createdAt);
+  const bTime = toTimeOrNull(b?.created_at ?? b?.createdAt);
+  const aDist = toNumberOrNull(a?.distance);
+  const bDist = toNumberOrNull(b?.distance);
+
+  if (sortKey === "nearest") return compareNumberAsc(aDist, bDist);
+  if (sortKey === "cheapest") return compareNumberAsc(aMin, bMin);
+  if (sortKey === "expensive") return compareNumberDesc(aMax, bMax);
+  if (sortKey === "oldest") return compareTimeAsc(aTime, bTime);
+  // default / latest
+  return compareTimeDesc(aTime, bTime);
+}
+
+const combinedResults = computed(() => {
+  // Merge products + jasa into one list, then sort globally so jasa doesn't
+  // always appear after products.
+  const list = [...(products.value ?? []), ...(jasas.value ?? [])];
+
+  const hasNearest = activeInstantSorts.value.includes("nearest");
+  const primarySort = hasNearest
+    ? "nearest"
+    : pickSecondarySort(undefined, [
+        "latest",
+        "oldest",
+        "cheapest",
+        "expensive",
+      ]) || "latest";
+
+  if (primarySort !== "nearest") {
+    return list.sort((a, b) => compareBySortKey(a, b, primarySort));
+  }
+
+  // nearest + tie-breakers (harga dahulu, lalu tanggal)
+  const { secondary, tertiary } = pickNearestTieBreakersForProducts();
+
+  return list.sort((a, b) => {
+    const byDist = compareBySortKey(a, b, "nearest");
+    if (byDist !== 0) return byDist;
+
+    if (secondary) {
+      const bySecondary = compareBySortKey(a, b, secondary);
+      if (bySecondary !== 0) return bySecondary;
+    }
+
+    if (tertiary) {
+      const byTertiary = compareBySortKey(a, b, tertiary);
+      if (byTertiary !== 0) return byTertiary;
+    }
+
+    // final fallback: latest
+    return compareBySortKey(a, b, "latest");
+  });
+});
+
+function handleResultClick(item) {
+  const isJasa =
+    item?.type === "jasa" ||
+    item?.jasa_id != null ||
+    (item?.slug == null && item?.id != null);
+
+  if (isJasa) return goToJasaDetail(item);
+  return goToProductDetail(item);
+}
 const showBackToTop = ref(false);
 
 function handleScroll() {
@@ -195,19 +322,35 @@ const detailFilters = ref({
 
 const tempDetailFilters = ref({ ...detailFilters.value, subCategories: [] });
 
-const isEmptyProducts = computed(
-  () =>
-    !loadingProducts.value &&
-    activeTab.value === "products" &&
-    products.value.length === 0
-);
+const showProductsSkeleton = computed(() => {
+  if (activeTab.value !== "products") return false;
+  const hasQuery = !!route.query.q;
+  const isBusy = !!loadingProducts.value || !!isLoadingMoreProducts.value;
+  const isInitial = hasQuery && !hasFetchedProductsOnce.value;
+  return (isBusy || isInitial) && combinedResults.value.length === 0;
+});
 
-const isEmptyMerchants = computed(
-  () =>
-    !loadingMerchants.value &&
-    activeTab.value === "merchants" &&
-    merchants.value.length === 0
-);
+const isEmptyProducts = computed(() => {
+  if (activeTab.value !== "products") return false;
+  if (!hasFetchedProductsOnce.value) return false;
+  if (loadingProducts.value || isLoadingMoreProducts.value) return false;
+  return combinedResults.value.length === 0;
+});
+
+const showMerchantsSkeleton = computed(() => {
+  if (activeTab.value !== "merchants") return false;
+  const hasQuery = !!route.query.q;
+  const isBusy = !!loadingMerchants.value || !!isLoadingMoreMerchants.value;
+  const isInitial = hasQuery && !hasFetchedMerchantsOnce.value;
+  return (isBusy || isInitial) && merchants.value.length === 0;
+});
+
+const isEmptyMerchants = computed(() => {
+  if (activeTab.value !== "merchants") return false;
+  if (!hasFetchedMerchantsOnce.value) return false;
+  if (loadingMerchants.value || isLoadingMoreMerchants.value) return false;
+  return merchants.value.length === 0;
+});
 
 /* ================= AVAILABLE CATEGORIES ================= */
 const availableCategories = computed(() =>
@@ -256,26 +399,61 @@ function safeString(v) {
 
 /* ================= SORT OPTIONS ================= */
 const instantSortOptions = [
-  { key: "latest", label: "Terbaru", conflict: ["oldest", "nearest"] },
-  { key: "oldest", label: "Terlama", conflict: ["latest", "nearest"] },
+  { key: "latest", label: "Terbaru", conflict: ["oldest"] },
+  { key: "oldest", label: "Terlama", conflict: ["latest"] },
   {
     key: "nearest",
     label: "Terdekat",
-    conflict: ["latest", "oldest", "cheapest", "expensive"],
+    // boleh dipilih bersamaan dengan sort lain
+    conflict: [],
   },
   {
     key: "cheapest",
     label: "Termurah",
     productOnly: true,
-    conflict: ["expensive", "nearest"],
+    conflict: ["expensive"],
   },
   {
     key: "expensive",
     label: "Termahal",
     productOnly: true,
-    conflict: ["cheapest", "nearest"],
+    conflict: ["cheapest"],
   },
 ];
+
+function pickSecondarySort(excludeKey, allowed) {
+  // pilih sort terakhir selain excludeKey (agar terasa natural)
+  const allowList = Array.isArray(allowed)
+    ? allowed
+    : ["latest", "oldest", "cheapest", "expensive"];
+  for (let i = activeInstantSorts.value.length - 1; i >= 0; i--) {
+    const k = activeInstantSorts.value[i];
+    if (k === excludeKey) continue;
+    if (allowList.includes(k)) return k;
+  }
+  return undefined;
+}
+
+function pickNearestTieBreakersForProducts() {
+  // Rule: jika user pilih harga + tanggal bersamaan saat nearest aktif,
+  // maka harga jadi prioritas tiebreaker pertama, lalu tanggal.
+  const hasCheapest = activeInstantSorts.value.includes("cheapest");
+  const hasExpensive = activeInstantSorts.value.includes("expensive");
+  const hasLatest = activeInstantSorts.value.includes("latest");
+  const hasOldest = activeInstantSorts.value.includes("oldest");
+
+  const priceSort = hasCheapest
+    ? "cheapest"
+    : hasExpensive
+    ? "expensive"
+    : undefined;
+  const dateSort = hasLatest ? "latest" : hasOldest ? "oldest" : undefined;
+
+  return {
+    secondary: priceSort ?? dateSort,
+    tertiary: priceSort && dateSort ? dateSort : undefined,
+  };
+}
 
 const filteredInstantSorts = computed(() =>
   instantSortOptions.filter(
@@ -318,6 +496,8 @@ async function fetchMerchants(reset = false) {
 
     await fetchMerchantsApi(params, !reset);
 
+    hasFetchedMerchantsOnce.value = true;
+
     const current = Number(merchantsMeta.value?.current_page ?? 1);
     const last = Number(merchantsMeta.value?.last_page ?? 1);
     merchantHasMore.value = current < last;
@@ -332,6 +512,7 @@ async function fetchProducts(reset = false) {
   if (reset) {
     page.value = 1;
     products.value = [];
+    jasas.value = [];
     hasMore.value = true;
   }
 
@@ -361,9 +542,17 @@ async function fetchProducts(reset = false) {
 
     await fetchProductsApi(params, !reset);
 
-    const current = Number(productsMeta.value?.current_page ?? 1);
-    const last = Number(productsMeta.value?.last_page ?? 1);
-    hasMore.value = current < last;
+    hasFetchedProductsOnce.value = true;
+
+    const pCurrent = Number(productsMeta.value?.current_page ?? 1);
+    const pLast = Number(productsMeta.value?.last_page ?? 1);
+    const pHasMore = pCurrent < pLast;
+
+    const jCurrent = Number(jasasMeta.value?.current_page ?? 1);
+    const jLast = Number(jasasMeta.value?.last_page ?? 1);
+    const jHasMore = jCurrent < jLast;
+
+    hasMore.value = pHasMore || jHasMore;
   } finally {
     isLoadingMoreProducts.value = false;
   }
@@ -402,6 +591,15 @@ function buildMerchantQuery() {
     ["latest", "oldest", "nearest"].includes(s)
   );
 
+  const sortKey = activeInstantSorts.value.includes("nearest")
+    ? "nearest"
+    : sort;
+
+  const secondarySort =
+    sortKey === "nearest"
+      ? pickSecondarySort("nearest", ["latest", "oldest"])
+      : undefined;
+
   return {
     q: route.query.q || undefined,
     segments: detailFilters.value.segments.length
@@ -419,7 +617,8 @@ function buildMerchantQuery() {
     min_price: detailFilters.value.minPrice ?? undefined,
     max_price: detailFilters.value.maxPrice ?? undefined,
 
-    sort: sort || undefined,
+    sort: sortKey || undefined,
+    secondary_sort: secondarySort,
     lat: hasMyCoordinates.value ? myLatitude.value : undefined,
     lng: hasMyCoordinates.value ? myLongitude.value : undefined,
     page: merchantPage.value,
@@ -428,9 +627,24 @@ function buildMerchantQuery() {
 }
 
 function buildProductQuery() {
-  const sortKey = activeInstantSorts.value.find((s) =>
-    ["latest", "oldest", "cheapest", "expensive", "nearest"].includes(s)
-  );
+  const sortKey = activeInstantSorts.value.includes("nearest")
+    ? "nearest"
+    : pickSecondarySort(undefined, [
+        "latest",
+        "oldest",
+        "cheapest",
+        "expensive",
+      ]);
+
+  const secondarySort =
+    sortKey === "nearest"
+      ? pickNearestTieBreakersForProducts().secondary
+      : undefined;
+
+  const tertiarySort =
+    sortKey === "nearest"
+      ? pickNearestTieBreakersForProducts().tertiary
+      : undefined;
 
   return {
     q: route.query.q || undefined,
@@ -454,6 +668,8 @@ function buildProductQuery() {
       : undefined,
 
     sort: typeof sortKey === "string" ? sortKey : undefined,
+    secondary_sort: secondarySort,
+    tertiary_sort: tertiarySort,
     lat: hasMyCoordinates.value ? myLatitude.value : undefined,
     lng: hasMyCoordinates.value ? myLongitude.value : undefined,
 
@@ -497,7 +713,9 @@ watch(
     if (activeTab.value === "products") {
       page.value = 1;
       products.value = [];
+      jasas.value = [];
       hasMore.value = true;
+      hasFetchedProductsOnce.value = false;
       fetchProducts(true);
       nextTick(() => setupObserver());
       return;
@@ -507,6 +725,7 @@ watch(
       merchantPage.value = 1;
       merchants.value = [];
       merchantHasMore.value = true;
+      hasFetchedMerchantsOnce.value = false;
       fetchMerchants(true);
     }
   }
@@ -518,11 +737,13 @@ watch(
     resetAllFilters();
 
     if (tab === "products") {
+      hasFetchedProductsOnce.value = false;
       fetchProducts(true);
       nextTick(() => setupObserver());
     }
 
     if (tab === "merchants") {
+      hasFetchedMerchantsOnce.value = false;
       fetchMerchants(true);
       // nextTick(() => setupMerchantObserver());
     }
@@ -548,7 +769,9 @@ watch(
   (q) => {
     page.value = 1;
     products.value = [];
+    jasas.value = [];
     hasMore.value = true;
+    hasFetchedProductsOnce.value = false;
 
     if (!q) return;
 
@@ -556,6 +779,7 @@ watch(
     nextTick(setupObserver);
 
     if (activeTab.value === "merchants") {
+      hasFetchedMerchantsOnce.value = false;
       fetchMerchants(true);
     }
   },
@@ -753,7 +977,8 @@ onMounted(async () => {
   window.addEventListener("scroll", handleMerchantInfiniteScroll);
 
   // Only preload profile coordinates (no geolocation prompt).
-  await preloadProfileCoordinates();
+  // Do not await here, so initial skeleton can render immediately.
+  preloadProfileCoordinates();
 
   fetchLevel1Categories();
   fetchSegmentations();
@@ -763,11 +988,13 @@ onMounted(async () => {
   if (!q) return;
 
   if (activeTab.value === "products") {
+    hasFetchedProductsOnce.value = false;
     fetchProducts(true);
     nextTick(() => setupObserver());
   }
 
   if (activeTab.value === "merchants") {
+    hasFetchedMerchantsOnce.value = false;
     fetchMerchants(true);
   }
 });
@@ -829,7 +1056,7 @@ onBeforeUnmount(() => {
               : 'border-muted-foreground text-muted-foreground '
           "
         >
-          Produk
+          Produk & Jasa
         </button>
         <button
           @click="activeTab = 'merchants'"
@@ -889,22 +1116,31 @@ onBeforeUnmount(() => {
       </div>
 
       <!-- PRODUCTS -->
-      <section
-        v-if="activeTab === 'products'"
-        class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
-      >
-        <!-- DATA -->
-        <ProductCard
-          v-for="product in products"
-          :key="product.id"
-          :product="product"
-          @click="goToProductDetail(product)"
-        />
+      <section v-if="activeTab === 'products'">
+        <div
+          class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+        >
+          <template v-if="showProductsSkeleton">
+            <ProductCardSkeleton v-for="i in 12" :key="'init-skel-' + i" />
+          </template>
 
-        <!-- SKELETON APPEND -->
-        <template v-if="isLoadingMoreProducts">
-          <ProductCardSkeleton v-for="i in 6" :key="'loading-more-' + i" />
-        </template>
+          <template v-else>
+            <ProductCard
+              v-for="item in combinedResults"
+              :key="
+                (item?.type === 'jasa' ? 'jasa-' : 'product-') +
+                (item.jasa_id ?? item.id)
+              "
+              :product="item"
+              @click="handleResultClick(item)"
+            />
+
+            <!-- SKELETON APPEND -->
+            <template v-if="isLoadingMoreProducts">
+              <ProductCardSkeleton v-for="i in 6" :key="'loading-more-' + i" />
+            </template>
+          </template>
+        </div>
       </section>
 
       <!-- SENTINEL -->
@@ -919,7 +1155,7 @@ onBeforeUnmount(() => {
         v-if="isEmptyProducts"
         class="flex flex-col items-center justify-center py-16 text-center"
       >
-        <p class="text-sm text-primary">Produk tidak ditemukan</p>
+        <p class="text-sm text-primary">Produk / jasa tidak ditemukan</p>
         <p class="mt-1 text-xs text-muted-foreground">
           Coba ubah kata kunci atau filter pencarian
         </p>
@@ -930,15 +1166,27 @@ onBeforeUnmount(() => {
         v-if="activeTab === 'merchants'"
         class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
       >
-        <MerchantCard
-          v-for="merchant in merchants"
-          :key="merchant.id"
-          :merchant="merchant"
-        />
+        <template v-if="showMerchantsSkeleton">
+          <ProductCardSkeleton
+            v-for="i in 12"
+            :key="'merchant-init-skel-' + i"
+          />
+        </template>
 
-        <!-- skeleton append -->
-        <template v-if="isLoadingMoreMerchants">
-          <ProductCardSkeleton v-for="i in 6" :key="'merchant-loading-' + i" />
+        <template v-else>
+          <MerchantCard
+            v-for="merchant in merchants"
+            :key="merchant.id"
+            :merchant="merchant"
+          />
+
+          <!-- skeleton append -->
+          <template v-if="isLoadingMoreMerchants">
+            <ProductCardSkeleton
+              v-for="i in 6"
+              :key="'merchant-loading-' + i"
+            />
+          </template>
         </template>
       </section>
 

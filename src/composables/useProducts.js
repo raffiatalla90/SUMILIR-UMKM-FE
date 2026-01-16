@@ -259,40 +259,6 @@ export function useProducts() {
     }
   };
 
-  // PUBLIC PRODUCTS (UMKM Toko & Kuliner)
-
-  const fetchProductsToko = async (limit = 10) => {
-    loading.value = true;
-    try {
-      const data = await ProductService.getPublicProducts({
-        segments: ["UMKM Toko"],
-        limit,
-      });
-      return data.data || [];
-    } catch (error) {
-      toast.error("Gagal memuat produk toko");
-      throw error;
-    } finally {
-      loading.value = false;
-    }
-  };
-
-  const fetchProductsKuliner = async (limit = 10) => {
-    loading.value = true;
-    try {
-      const data = await ProductService.getPublicProducts({
-        segments: ["UMKM Kuliner"],
-        limit,
-      });
-      return data.data || [];
-    } catch (error) {
-      toast.error("Gagal memuat produk kuliner");
-      throw error;
-    } finally {
-      loading.value = false;
-    }
-  };
-
   const fetchPublicProductDetail = async (slug) => {
     loading.value = true;
     try {
@@ -605,8 +571,6 @@ export function useProducts() {
     deleteProduct,
     bulkDeleteProducts,
     bulkUpdateStatus,
-    fetchProductsToko,
-    fetchProductsKuliner,
     exportPDF,
     exportExcel,
   };

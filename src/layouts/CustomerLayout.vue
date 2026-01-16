@@ -114,11 +114,11 @@ const showSearch = ref(false);
 const searchQuery = ref("");
 
 function toggleSearch() {
-  if (route.path === "/") {
-    // HOME → fokus ke search utama
+  if (route.path === "/" || route.path === "/product-layanan") {
+    // HOME & PRODUCT/LAYANAN → fokus ke search utama di halaman
     router.push({
-      path: "/",
-      query: { focusSearch: "1" },
+      path: route.path,
+      query: { ...route.query, focusSearch: "1" },
     });
   } else {
     // PAGE LAIN → tampilkan searchbar fixed
@@ -272,7 +272,7 @@ watch(
     >
       <div
         v-if="showSearch"
-        class="hidden sm:block bg-white border-b border-gray-200 shadow-sm fixed top-[91px] left-0 right-0 z-1002"
+        class="hidden sm:block bg-white border-b border-gray-200 shadow-sm fixed top-[68px] left-0 right-0 z-1002"
       >
         <div class="max-w-[1440px] mx-auto px-4 py-4">
           <form @submit.prevent="submitSearch" class="relative">

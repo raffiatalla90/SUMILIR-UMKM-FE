@@ -23,11 +23,6 @@ export async function getPublicProductDetail(slug) {
   return data;
 }
 
-export async function getPublicProducts(params = {}) {
-  const { data } = await api.get("/api/public/products", { params });
-  return data;
-}
-
 export async function getPublicMerchantProducts(merchantSlug, params = {}) {
   const { data } = await api.get(
     `/api/public/merchants/${merchantSlug}/products`,
