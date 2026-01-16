@@ -323,7 +323,7 @@ import MerchantCard from "@/components/Card/MerchantCard.vue";
 import jasaIcon from "@/assets/icons/Jasa.svg";
 import kulinerIcon from "@/assets/icons/Kuliner.svg";
 import tokoIcon from "@/assets/icons/Toko.svg";
-import merchantIcon from "@/assets/icons/Merchant.svg";
+import merchantIcon from "@/assets/icons/merchant.svg";
 
 const toast = useToast();
 
