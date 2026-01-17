@@ -154,12 +154,11 @@ onMounted(async () => {
 
 <template>
   <div class="relative app-container">
-    <!-- HERO SECTION -->
+    <!-- Hero -->
     <section
       id="hero"
       class="relative pb-12 bg-linear-to-b from-gray-50 to-white"
     >
-      <!-- Banner Carousel -->
       <div
         class="relative w-full overflow-hidden bg-gray-100 sm:aspect-21/9 lg:aspect-24/9 xl:aspect-4/1"
       >
@@ -213,7 +212,7 @@ onMounted(async () => {
           <div
             class="overflow-hidden bg-white border border-gray-100 shadow-xl rounded-2xl"
           >
-            <!-- SEARCH -->
+            <!-- Search -->
             <div class="p-4 border-b border-gray-100 sm:p-5">
               <Form @submit="onSearch">
                 <div class="flex items-center w-full gap-2 sm:gap-3">
@@ -410,9 +409,8 @@ onMounted(async () => {
       </div>
     </section>
 
-    <!-- MODERN FOOTER -->
+    <!-- Footer -->
     <footer class="relative overflow-hidden text-white bg-primary">
-      <!-- Subtle decorative blobs -->
       <div class="absolute inset-0 pointer-events-none opacity-10">
         <div
           class="absolute rounded-full w-72 h-72 -top-32 -left-32 bg-white/30 blur-3xl"
@@ -423,9 +421,7 @@ onMounted(async () => {
       </div>
 
       <div class="relative px-4 mx-auto max-w-7xl sm:px-6">
-        <!-- Top -->
         <div class="grid gap-10 py-12 md:grid-cols-3 md:py-16">
-          <!-- Brand -->
           <div>
             <div class="flex items-center gap-3 mb-4">
               <img :src="WhiteWithText" alt="SUMILIR" class="h-10" />
@@ -437,7 +433,6 @@ onMounted(async () => {
               dipercaya, dan dibeli.
             </p>
 
-            <!-- Social -->
             <div class="flex items-center gap-3 mt-6">
               <a
                 href="https://www.facebook.com/pages/Kantor-Kelurahan-Banyuanyar"
@@ -457,15 +452,12 @@ onMounted(async () => {
                 <i class="text-lg pi pi-instagram"></i>
               </a>
             </div>
-
-            <!-- Micro note -->
             <p class="mt-4 text-xs text-white/60">
               Informasi & pembaruan kegiatan dapat diikuti melalui kanal resmi
               di atas.
             </p>
           </div>
 
-          <!-- Navigation -->
           <div>
             <h4 class="text-base font-semibold tracking-wide">Navigasi</h4>
             <ul class="mt-4 space-y-3 text-sm">
@@ -505,13 +497,10 @@ onMounted(async () => {
               </li>
             </ul>
           </div>
-
-          <!-- Info / CTA -->
           <div>
             <h4 class="text-base font-semibold tracking-wide">Informasi</h4>
 
             <div class="mt-4 space-y-4">
-              <!-- Address -->
               <div class="flex gap-3 text-sm text-white/80">
                 <i class="pi pi-map-marker mt-0.5 shrink-0 opacity-80"></i>
                 <p>
@@ -523,7 +512,6 @@ onMounted(async () => {
                 </p>
               </div>
 
-              <!-- CTA -->
               <div class="pt-2">
                 <router-link
                   to="/merchant-register"
