@@ -35,11 +35,6 @@ const menuItems = computed(() => [
     route: "/admin/vouchers",
   },
   {
-    label: "Paguyubans",
-    icon: "pi-sitemap",
-    route: "/admin/paguyubans",
-  },
-  {
     label: "Reports",
     icon: "pi-exclamation-triangle",
     route: "/admin/reports",
