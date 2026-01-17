@@ -132,11 +132,21 @@
               </p>
             </div>
           </div>
-          <div class="flex items-start gap-2 text-sm text-gray-800">
-            <span class="mt-0.5">
-              <i class="text-gray-500 pi pi-map-marker"></i>
-            </span>
-            <p class="leading-snug">{{ form.alamat }}</p>
+          <div class="flex items-start justify-between gap-2 mt-1 text-sm text-gray-800">
+            <div class="flex items-start gap-2 flex-1">
+              <span class="mt-0.5">
+                <i class="text-gray-500 pi pi-map-marker"></i>
+              </span>
+              <p class="leading-snug break-words">{{ form.alamat }}</p>
+            </div>
+            <button
+              v-if="serviceType === 'on_site'"
+              type="button"
+              class="ml-3 text-[11px] px-3 py-1 rounded-full border border-emerald-300 text-emerald-700 bg-emerald-50 whitespace-nowrap"
+              @click="openAlamatOptions = true"
+            >
+              Gunakan alamat profil
+            </button>
           </div>
           <input
             v-model="form.catatanAlamat"
@@ -649,6 +659,7 @@
 import { computed, ref, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+import { useProfileStore } from "@/stores/profile";
 import api from "@/libs/axios.js";
 import CalendarModal from "@/components/CalendarModal.vue";
 
@@ -919,6 +930,7 @@ const summaryText = ref("");
 const showDetails = ref(false);
 
 const authStore = useAuthStore();
+const profileStore = useProfileStore();
 
 // Modal pilihan alamat
 const openAlamatOptions = ref(false);
@@ -926,8 +938,12 @@ const openAlamatOptions = ref(false);
 // Coba gunakan alamat dari profil user (jika ada)
 function useProfileAddress() {
   const user = authStore.user;
-  // Sesuaikan jika nanti ada field alamat spesifik di profil
+  const profileUser = profileStore.user;
+  // Prioritas: alamat lengkap dari profil user (full_address), lalu address/alamat biasa
   const candidate =
+    profileUser?.full_address ||
+    profileUser?.address ||
+    profileUser?.alamat ||
     user?.address ||
     user?.alamat ||
     user?.profile?.address ||
@@ -940,7 +956,7 @@ function useProfileAddress() {
     successMessage.value = "Alamat berhasil diisi dari profil.";
   } else {
     errorMessage.value =
-      "Alamat profil belum tersedia. Silakan lengkapi profil atau gunakan lokasi perangkat.";
+      "Alamat profil belum tersedia. Silakan lengkapi profil terlebih dahulu.";
   }
 }
 
@@ -1020,7 +1036,17 @@ onMounted(async () => {
     const payload = data?.data ?? data;
     jasaOperatingDays.value = payload?.operating_days || "";
     jasaOperatingTimes.value = payload?.operating_times || "";
-    jasaWhatsappLink.value = payload?.whatsapp_link || "";
+
+    // Prioritas sumber nomor WhatsApp penjual:
+    // 1) Link khusus di jasa (whatsapp_link)
+    // 2) Nomor WhatsApp/telepon di profil UMKM (merchant.whatsapp atau merchant.phone)
+    // 3) Fallback: kosong (tampilkan error di sendToChat)
+    const rawWhatsapp =
+      payload?.whatsapp_link ||
+      payload?.merchant?.whatsapp ||
+      payload?.merchant?.phone ||
+      "";
+    jasaWhatsappLink.value = rawWhatsapp;
 
     // Otomatis isi alamat dari jasa atau merchant
     if (payload?.location_address) {

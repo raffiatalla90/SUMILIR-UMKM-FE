@@ -200,7 +200,7 @@
 
     <!-- Lokasi & Tipe Layanan -->
     <section
-      v-if="jasa?.service_type || jasa?.location_address"
+      v-if="jasa?.service_type || jasa?.location_address || jasa?.merchant?.address || jasa?.merchant?.alamat"
       class="px-4 py-4 mt-3 bg-white/95"
     >
       <div class="max-w-3xl mx-auto lg:max-w-5xl">
@@ -223,14 +223,14 @@
           </div>
 
           <div
-            v-if="jasa?.location_address && jasa?.service_type !== 'online'"
+            v-if="jasa?.service_type !== 'online'"
             class="flex items-start gap-2"
           >
             <span class="mt-0.5">
               <i class="text-gray-500 pi pi-map-marker"></i>
             </span>
             <p class="text-sm leading-snug text-gray-700">
-              {{ jasa.location_address }}
+              {{ jasa.location_address || jasa.merchant?.address || jasa.merchant?.alamat || '-' }}
             </p>
           </div>
         </div>
@@ -398,7 +398,7 @@
               waktu: activeTime,
               payment_methods: jasa?.payment_methods || '',
               service_type: jasa?.service_type || '',
-              alamat: jasa?.location_address || '',
+              alamat: jasa?.location_address || jasa?.merchant?.address || jasa?.merchant?.alamat || '',
               price_type:
                 jasa?.fixed_price && jasa.fixed_price > 0
                   ? 'fixed'

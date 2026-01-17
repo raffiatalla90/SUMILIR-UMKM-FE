@@ -178,7 +178,19 @@ export function useVouchers() {
       if (isDev) {
         console.error("[useVouchers] Create merchant voucher failed:", error);
       }
-      const message = error.response?.data?.message || "Gagal membuat voucher";
+      let message = error.response?.data?.message || "Gagal membuat voucher";
+
+      const fieldErrors = error.response?.data?.errors;
+      if (fieldErrors && typeof fieldErrors === "object") {
+        const firstKey = Object.keys(fieldErrors)[0];
+        const firstMsg = Array.isArray(fieldErrors[firstKey])
+          ? fieldErrors[firstKey][0]
+          : fieldErrors[firstKey];
+        if (firstMsg) {
+          message = firstMsg;
+        }
+      }
+
       toast.error(message);
       throw error;
     }

@@ -33,6 +33,8 @@ const emit = defineEmits(["update:modelValue"]);
 
 const inputRef = ref();
 
+const inputId = computed(() => props.name || `date-${Math.random().toString(36).slice(2, 9)}`);
+
 const focusRingClass = computed(() => {
   if (props.variant === "merchant") {
     return "focus:ring-merchant-primary";
@@ -108,13 +110,14 @@ function onInput(e) {
 
 <template>
   <div>
-    <label v-if="label || hideLabel" :class="labelClasses">
+    <label v-if="label || hideLabel" :for="inputId" :class="labelClasses">
       {{ label }}<span v-if="required" class="text-red-500">*</span>
     </label>
     <div class="relative">
     <input
     ref="inputRef"
     type="date"
+    :id="inputId"
     :name="name"
     :value="modelValue"
     :required="required"
