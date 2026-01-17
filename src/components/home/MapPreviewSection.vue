@@ -5,6 +5,8 @@ import 'vue3-carousel/dist/carousel.css';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import api from '@/libs/axios';
+import { getImageUrl } from '@/libs/getImageUrl';
+import { getMerchantBannerUrl } from '@/libs/getImageUrl'; 
 
 const merchants = ref([]);
 const loading = ref(true);
@@ -269,7 +271,7 @@ onMounted(async () => {
                       <div class="relative aspect-video bg-linear-to-br from-primary/10 to-merchant-primary/10 overflow-hidden">
                         <img
                           v-if="merchant.cover_path"
-                          :src="merchant.cover_path"
+                          :src="getMerchantBannerUrl(merchant)"
                           :alt="merchant.name"
                           class="w-full h-full object-cover"
                         />
@@ -363,7 +365,7 @@ onMounted(async () => {
                           <div class="relative aspect-video bg-linear-to-br from-primary/5 to-merchant-primary/5 overflow-hidden">
                             <img
                               v-if="merchant.cover_path"
-                              :src="merchant.cover_path"
+                              :src="getMerchantBannerUrl(merchant)"
                               :alt="merchant.name"
                               class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                             />
@@ -414,7 +416,7 @@ onMounted(async () => {
                       <div class="relative h-32 sm:h-68 bg-gradient-to-br from-primary/10 to-merchant-primary/10 overflow-hidden">
                         <img
                           v-if="merchant.cover_path"
-                          :src="merchant.cover_path"
+                          :src="getMerchantBannerUrl(merchant)"
                           :alt="merchant.name"
                           class="w-full h-full object-cover"
                         />
@@ -503,7 +505,7 @@ onMounted(async () => {
                     <div class="relative w-full h-full bg-gradient-to-br from-primary/5 to-merchant-primary/5 overflow-hidden">
                       <img
                         v-if="merchant.cover_path"
-                        :src="merchant.cover_path"
+                        :src="getMerchantBannerUrl(merchant)"
                         :alt="merchant.name"
                         class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                       />
