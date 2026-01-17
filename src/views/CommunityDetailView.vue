@@ -335,6 +335,7 @@ import { useRoute } from "vue-router";
 import api from "@/libs/axios";
 import CommentForm from "@/components/community/CommentForm.vue";
 import CommentThread from "@/components/community/CommentThread.vue";
+import { getCommunityImageUrl } from '@/libs/getImageUrl'; // ✅ ADD
 
 const route = useRoute();
 const post = ref(null);
@@ -503,7 +504,7 @@ function imageUrl(img) {
   return "/placeholder.png";
 }
 
-// ✅ UPDATED: Normalize images (same as CommunityView)
+// ✅ UPDATED: Normalize images dengan streaming API (same as CommunityView)
 function normalizeImages(arr) {
   if (!Array.isArray(arr)) return [];
   
@@ -511,12 +512,23 @@ function normalizeImages(arr) {
     .map((item) => {
       if (!item) return null;
       
-      if (typeof item === "string") {
-        return imageUrl(item);
+      // ✅ Gunakan streaming API endpoint
+      if (typeof item === "object" && item.id) {
+        return getCommunityImageUrl(item.id);
       }
       
-      if (typeof item === "object") {
-        return imageUrl(item);
+      // Fallback untuk backward compatibility
+      if (typeof item === "string") {
+        if (item.startsWith('http')) return item;
+        
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+        const backendUrl = apiBaseUrl.replace(/\/api$/, '');
+        
+        if (item.startsWith('/storage/')) {
+          return `${backendUrl}${item}`;
+        }
+        
+        return `${backendUrl}/storage/${item}`;
       }
       
       return null;
