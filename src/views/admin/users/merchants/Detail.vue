@@ -7,6 +7,7 @@ import Button from "@/components/common/Button.vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import ApexCharts from "apexcharts";
+import { getMerchantLogoUrl, getEventBannerUrl } from "@/libs/getImageUrl"; // ✅ ADD getEventBannerUrl
 
 const route = useRoute();
 const router = useRouter();
@@ -394,111 +395,121 @@ onMounted(async () => {
 <template>
   <div v-if="merchant && !loading" class="p-4 sm:p-6">
     <div class="max-w-6xl mx-auto space-y-6">
-      <!-- Merchant Profile -->
-      <div class="bg-white rounded-lg shadow-sm p-6">
-        <div class="flex flex-col sm:flex-row gap-6">
-          <!-- Avatar/Logo -->
-          <div class="shrink-0">
-            <div
-              v-if="merchant.logo_url"
-              class="w-32 h-32 rounded-xl bg-merchant-primary/10 flex items-center justify-center border-2 border-gray-200 overflow-hidden"
-            >
-              <img :src="merchant.logo_url" class="w-full h-full object-cover" alt="Logo" />
-            </div>
+      <!-- ✅ Merchant Profile Card - Modern Design like MerchantInfo.vue -->
+      <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <!-- Cover & Logo -->
+        <div class="relative mb-2 overflow-visible bg-white sm:mb-4">
+          <div class="relative w-full overflow-hidden sm:rounded-t-2xl aspect-24/9 lg:aspect-4/1">
+            <img
+              v-if="merchant.banner_url"
+              :src="merchant.banner_url"
+              alt="Cover"
+              class="absolute inset-0 object-cover w-full h-full"
+            />
             <div
               v-else
-              class="w-32 h-32 rounded-xl bg-merchant-primary/10 flex items-center justify-center border-2 border-gray-200"
+              class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-muted-background to-muted-foreground"
             >
-              <span class="text-5xl font-bold text-merchant-primary">
+              <svg class="w-12 h-12 text-white sm:w-16 sm:h-16" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM5 19V5h14v14H5zm8-7a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm-6 7l3-4 2.5 3 3.5-5 4 6H7z" />
+              </svg>
+            </div>
+          </div>
+
+          <div class="absolute -bottom-10 sm:-bottom-12 left-6 sm:left-8">
+            <div v-if="merchant.logo_path" class="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl bg-merchant-primary/10 flex items-center justify-center overflow-hidden border-4 border-white shadow-lg">
+              <img 
+                :src="getMerchantLogoUrl(merchant)"
+                alt="Logo"
+                class="w-full h-full object-cover"
+                @error="(e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = `<span class='text-3xl sm:text-5xl font-bold text-merchant-primary'>${merchant.name?.charAt(0).toUpperCase()}</span>`; }"
+              />
+            </div>
+            <div v-else class="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl bg-merchant-primary/10 flex items-center justify-center border-4 border-white shadow-lg">
+              <span class="text-3xl sm:text-5xl font-bold text-merchant-primary">
                 {{ merchant.name?.charAt(0).toUpperCase() }}
               </span>
             </div>
           </div>
+        </div>
 
-          <!-- Info -->
-          <div class="flex-1">
-            <div class="flex items-start justify-between mb-4">
+        <!-- Info Content -->
+        <div class="pt-14 sm:pt-16 p-6">
+          <div class="flex items-start justify-between mb-4">
+            <div>
+              <h2 class="text-2xl font-bold text-gray-900 mb-1">{{ merchant.name }}</h2>
+              <p class="text-gray-600 text-sm mb-2">{{ merchant.slug }}</p>
+              <StatusLabel :status="merchant.status" variant="merchant" size="sm" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            <div class="flex items-center gap-2">
+              <i class="pi pi-user text-merchant-primary"></i>
               <div>
-                <h2 class="text-2xl font-bold text-gray-900 mb-1">{{ merchant.name }}</h2>
-                <p class="text-gray-600 text-sm mb-2">{{ merchant.slug }}</p>
-                <StatusLabel :status="merchant.status" variant="merchant" size="sm" />
+                <p class="text-xs text-gray-500">Owner</p>
+                <p class="font-medium">{{ merchant.user?.name || "-" }}</p>
               </div>
             </div>
+            <div class="flex items-center gap-2">
+              <i class="pi pi-envelope text-merchant-primary"></i>
+              <div>
+                <p class="text-xs text-gray-500">Email</p>
+                <p class="font-medium">{{ merchant.user?.email || "-" }}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <i class="pi pi-phone text-merchant-primary"></i>
+              <div>
+                <p class="text-xs text-gray-500">Telepon</p>
+                <p class="font-medium">{{ merchant.phone || "-" }}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <i class="pi pi-tag text-merchant-primary"></i>
+              <div>
+                <p class="text-xs text-gray-500">Segmentasi</p>
+                <StatusLabel
+                  :status="merchant.segmentation?.code || merchant.segmentation?.name?.toLowerCase().replace(/\s/g, '_')"
+                  :label="merchant.segmentation?.name"
+                  variant="segmentation"
+                  size="sm"
+                />
+              </div>
+            </div>
+            <div v-if="merchant.paguyuban" class="flex items-center gap-2 sm:col-span-2">
+              <i class="pi pi-users text-merchant-primary"></i>
+              <div>
+                <p class="text-xs text-gray-500">Paguyuban</p>
+                <p class="font-medium">{{ merchant.paguyuban.name }}</p>
+              </div>
+            </div>
+          </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-              <div class="flex items-center gap-2">
-                <i class="pi pi-user text-merchant-primary"></i>
-                <div>
-                  <p class="text-xs text-gray-500">Owner</p>
-                  <p class="font-medium">{{ merchant.user?.name || "-" }}</p>
-                </div>
-              </div>
-              <div class="flex items-center gap-2">
-                <i class="pi pi-envelope text-merchant-primary"></i>
-                <div>
-                  <p class="text-xs text-gray-500">Email</p>
-                  <p class="font-medium">{{ merchant.user?.email || "-" }}</p>
-                </div>
-              </div>
-              <div class="flex items-center gap-2">
-                <i class="pi pi-phone text-merchant-primary"></i>
-                <div>
-                  <p class="text-xs text-gray-500">Telepon</p>
-                  <p class="font-medium">{{ merchant.phone || "-" }}</p>
-                </div>
-              </div>
-              <div class="flex items-center gap-2">
-                <i class="pi pi-tag text-merchant-primary"></i>
-                <div>
-                  <p class="text-xs text-gray-500">Segmentasi</p>
-                  <StatusLabel
-                    :status="merchant.segmentation?.code || merchant.segmentation?.name?.toLowerCase().replace(/\s/g, '_')"
-                    :label="merchant.segmentation?.name"
-                    variant="segmentation"
-                    size="sm"
-                  />
-                </div>
-              </div>
-              <div v-if="merchant.paguyuban" class="flex items-center gap-2 sm:col-span-2">
-                <i class="pi pi-users text-merchant-primary"></i>
-                <div>
-                  <p class="text-xs text-gray-500">Paguyuban</p>
-                  <p class="font-medium">{{ merchant.paguyuban.name }}</p>
-                </div>
-              </div>
-            </div>
-
-            <div v-if="merchant.description" class="mt-4 pt-4 border-t">
-              <p class="text-xs text-gray-500 mb-1">Deskripsi</p>
-              <p class="text-sm text-gray-700">{{ merchant.description }}</p>
-            </div>
+          <div v-if="merchant.description" class="mt-4 pt-4 border-t">
+            <p class="text-xs text-gray-500 mb-1">Deskripsi</p>
+            <p class="text-sm text-gray-700">{{ merchant.description }}</p>
           </div>
         </div>
 
         <!-- Address Section -->
-        <div v-if="merchant.addresses && merchant.addresses.length > 0" class="mt-6 pt-6 border-t">
+        <div v-if="merchant.primary_address" class="px-6 pb-6">
           <h3 class="text-sm font-semibold text-gray-800 mb-4">Alamat</h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div 
-              v-for="(address, idx) in merchant.addresses" 
-              :key="idx"
-              class="p-4 bg-gray-50 rounded-lg border border-gray-200"
-            >
-              <div class="flex items-center gap-2 mb-2">
-                <i class="pi pi-map-marker text-merchant-primary"></i>
-                <span class="font-semibold text-sm">{{ address.label || 'Alamat' }}</span>
-              </div>
-              <p class="text-sm text-gray-700 mb-2">{{ address.detail || '-' }}</p>
-              <div class="text-xs text-gray-500 space-y-1">
-                <p>{{ address.village?.name }}, {{ address.district?.name }}</p>
-                <p>{{ address.city?.name }}, {{ address.province?.name }}</p>
-              </div>
+          <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div class="flex items-center gap-2 mb-2">
+              <i class="pi pi-map-marker text-merchant-primary"></i>
+              <span class="font-semibold text-sm">{{ merchant.primary_address.label || 'Alamat Utama' }}</span>
+            </div>
+            <p class="text-sm text-gray-700 mb-2">{{ merchant.primary_address.detail || '-' }}</p>
+            <div class="text-xs text-gray-500 space-y-1">
+              <p>{{ merchant.primary_address.village?.name }}, {{ merchant.primary_address.district?.name }}</p>
+              <p>{{ merchant.primary_address.city?.name }}, {{ merchant.primary_address.province?.name }}</p>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Statistics -  KONSISTEN dengan Overview.vue (3 cards only) -->
+      <!-- Statistics -->
       <div class="bg-white rounded-lg shadow-sm p-6">
         <h3 class="text-lg font-semibold mb-4 text-gray-800">Statistik</h3>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -512,9 +523,6 @@ onMounted(async () => {
               <h4 class="font-bold text-gray-800 text-2xl sm:text-3xl mb-1">
                 {{ merchant.products_count ?? 0 }}
               </h4>
-              <span class="text-xs text-gray-400">
-                {{ merchant.aggregated?.total_published_products ?? 0 }} published
-              </span>
             </div>
           </div>
 
@@ -528,9 +536,6 @@ onMounted(async () => {
               <h4 class="font-bold text-gray-800 text-2xl sm:text-3xl mb-1">
                 {{ merchant.vouchers_count ?? 0 }}
               </h4>
-              <span class="text-xs text-gray-400">
-                {{ merchant.aggregated?.total_active_vouchers ?? 0 }} aktif
-              </span>
             </div>
           </div>
 
@@ -544,9 +549,6 @@ onMounted(async () => {
               <h4 class="font-bold text-gray-800 text-2xl sm:text-3xl mb-1">
                 {{ merchant.events_count ?? 0 }}
               </h4>
-              <span class="text-xs text-gray-400">
-                {{ merchant.aggregated?.total_active_events ?? 0 }} aktif
-              </span>
             </div>
           </div>
         </div>
@@ -555,34 +557,30 @@ onMounted(async () => {
       <!-- Charts Section -->
       <div class="bg-white rounded-lg shadow-sm p-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Line Chart: Total Transaksi -->
+          <!-- Line Chart -->
           <div class="border border-gray-200 rounded-xl p-4 flex flex-col">
             <div class="flex items-start justify-between gap-4 mb-2">
               <div>
                 <p class="text-sm font-semibold text-gray-800">Total Transaksi 30 Hari Terakhir</p>
               </div>
             </div>
-            <!--  Add min-height to ensure element exists -->
             <div ref="ordersChartEl" class="w-full h-60" style="min-height: 240px;"></div>
           </div>
           
-          <!-- Bar Chart: Produk Terorder per Kategori -->
+          <!-- Bar Chart -->
           <div class="border border-gray-200 rounded-xl p-4 flex flex-col">
             <div class="flex items-start justify-between gap-4 mb-2">
               <div>
                 <h3 class="text-sm font-semibold text-gray-800">Produk Terorder per Kategori (30 Hari)</h3>
-                <p class="mt-1 text-gray-500 text-xs">
-                  Total order per kategori produk merchant
-                </p>
+                <p class="mt-1 text-gray-500 text-xs">Total order per kategori produk</p>
               </div>
             </div>
-            <!--  Add min-height to ensure element exists -->
             <div ref="productChartEl" class="w-full h-60" style="min-height: 195px;"></div>
           </div>
         </div>
       </div>
 
-      <!-- Vouchers -  ALWAYS SHOW with empty state -->
+      <!-- Vouchers Section -->
       <div class="bg-white rounded-lg shadow-sm p-6">
         <div class="flex items-center justify-between mb-6">
           <div>
@@ -593,7 +591,7 @@ onMounted(async () => {
           </div>
         </div>
         
-        <!-- Vouchers Grid (when data exists) -->
+        <!-- Vouchers Grid -->
         <div v-if="merchant.vouchers && merchant.vouchers.length > 0">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div
@@ -601,6 +599,7 @@ onMounted(async () => {
               :key="voucher.id"
               class="border border-gray-200 rounded-xl p-5 hover:border-merchant-primary hover:shadow-md transition-all group"
             >
+              <!-- Voucher content -->
               <div class="flex items-start justify-between mb-3">
                 <div class="flex-1">
                   <div class="flex items-center gap-2 mb-2">
@@ -656,19 +655,17 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!--  Empty State for Vouchers -->
+        <!-- Empty State -->
         <div v-else class="text-center py-12">
           <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <i class="pi pi-ticket text-3xl text-gray-400"></i>
           </div>
           <p class="text-gray-600 font-medium mb-2">Belum ada voucher terdaftar</p>
-          <p class="text-sm text-gray-500">
-            Merchant ini belum memiliki voucher yang aktif
-          </p>
+          <p class="text-sm text-gray-500">Merchant ini belum memiliki voucher</p>
         </div>
       </div>
 
-      <!-- Events -  ALWAYS SHOW with empty state -->
+      <!-- Events Section -->
       <div class="bg-white rounded-lg shadow-sm p-6">
         <div class="flex items-center justify-between mb-6">
           <div>
@@ -681,61 +678,82 @@ onMounted(async () => {
         
         <!-- Events Grid (when data exists) -->
         <div v-if="merchant.events && merchant.events.length > 0">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div 
-              v-for="event in merchant.events" 
+          <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div
+              v-for="event in merchant.events"
               :key="event.id"
-              class="border border-gray-200 rounded-xl p-5 hover:border-merchant-primary hover:shadow-md transition-all cursor-pointer group"
+              class="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-merchant-primary/40 hover:shadow-lg cursor-pointer"
               @click="router.push({ name: 'Admin - Event Detail', params: { id: event.id } })"
             >
-              <div class="flex items-start gap-4 mb-4">
-                <img 
-                  v-if="event.banner_img_path" 
-                  :src="event.banner_img_path" 
-                  class="w-20 h-20 object-cover rounded-lg border-2 border-gray-200"
-                  alt="Event banner"
+              <!-- Banner 4:1 -->
+              <div class="relative w-full overflow-hidden bg-gray-100 aspect-[4/1]">
+                <img
+                  v-if="event.banner_img_path"
+                  :src="getEventBannerUrl(event)"
+                  :alt="event.event_name"
+                  class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                  @error="(e) => (e.target.src = '/placeholder-banner.png')"
                 />
-                <div v-else class="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-gray-200">
-                  <i class="pi pi-calendar text-3xl text-gray-300"></i>
+
+                <div v-else class="flex h-full w-full items-center justify-center">
+                  <i class="pi pi-calendar text-4xl text-gray-300"></i>
                 </div>
-                
-                <div class="flex-1 min-w-0">
-                  <h4 class="font-semibold text-gray-900 truncate mb-1 group-hover:text-merchant-primary transition">
-                    {{ event.event_name }}
-                  </h4>
-                  <p class="text-xs text-gray-500 line-clamp-2 mb-2">
-                    {{ event.event_description || '-' }}
-                  </p>
+
+                <!-- subtle overlay -->
+                <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-black/0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+
+                <!-- Status badge floating -->
+                <div class="absolute left-4 top-4">
                   <StatusLabel :status="event.status" variant="event" size="xs" />
                 </div>
               </div>
 
-              <div class="pt-3 border-t border-gray-100">
-                <div class="flex items-center gap-2 text-xs text-gray-500">
-                  <i class="pi pi-calendar"></i>
-                  <span>{{ new Date(event.event_start_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) }}</span>
-                  <span>-</span>
-                  <span>{{ new Date(event.event_end_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) }}</span>
+              <!-- Content -->
+              <div class="p-5">
+                <div class="flex items-start justify-between gap-3">
+                  <h4 class="min-w-0 text-base font-semibold text-gray-900 truncate group-hover:text-merchant-primary transition">
+                    {{ event.event_name }}
+                  </h4>
+
+                  <!-- Arrow icon -->
+                  <i class="pi pi-arrow-up-right text-sm text-gray-400 transition group-hover:text-merchant-primary"></i>
                 </div>
-                
-                <div class="flex items-center justify-between mt-2">
-                  <div class="flex items-center gap-3 text-xs text-gray-500">
-                    <span class="flex items-center gap-1">
-                      <i class="pi pi-ticket"></i>
-                      {{ event.vouchers_count || 0 }} Voucher
-                    </span>
-                    <span class="flex items-center gap-1">
-                      <i class="pi pi-building"></i>
-                      {{ event.merchants_count || 0 }} Merchant
-                    </span>
+
+                <p class="mt-2 text-sm text-gray-600 line-clamp-2">
+                  {{ event.event_description || '-' }}
+                </p>
+
+                <!-- Date Row -->
+                <div class="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
+                  <div class="inline-flex items-center gap-2 text-xs text-gray-500">
+                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-merchant-primary/10 text-merchant-primary">
+                      <i class="pi pi-calendar text-xs"></i>
+                    </div>
+
+                    <div class="leading-tight">
+                      <p class="font-medium text-gray-700">
+                        {{ new Date(event.event_start_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) }}
+                        -
+                        {{ new Date(event.event_end_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) }}
+                      </p>
+                      <p class="text-[11px] text-gray-400">
+                        Jadwal event
+                      </p>
+                    </div>
                   </div>
+
+                  <!-- optional: small tag -->
+                  <span class="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-600">
+                    Event
+                  </span>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!--  Empty State for Events -->
+
+        <!-- Empty State for Events -->
         <div v-else class="text-center py-12">
           <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <i class="pi pi-calendar text-3xl text-gray-400"></i>
@@ -747,39 +765,121 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- Products -->
-      <div v-if="merchant.products && merchant.products.length > 0" class="bg-white rounded-lg shadow-sm p-6">
-        <h3 class="text-lg font-semibold mb-4 text-gray-800">Products ({{ merchant.products.length }})</h3>
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategori</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Harga</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stok</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="product in merchant.products" :key="product.id" class="hover:bg-gray-50">
-                <td class="px-4 py-3 text-sm text-gray-900">{{ product.name }}</td>
-                <td class="px-4 py-3 text-sm text-gray-500">{{ product.sku ?? '-' }}</td>
-                <td class="px-4 py-3 text-sm text-gray-600">
-                  <span v-if="product.categories && product.categories.length > 0">
-                    {{ product.categories[0].name }}
-                  </span>
-                  <span v-else>-</span>
-                </td>
-                <td class="px-4 py-3 text-sm text-gray-900 font-medium">Rp {{ product.price?.toLocaleString() ?? 0 }}</td>
-                <td class="px-4 py-3 text-sm text-gray-500 text-center">{{ product.stock ?? 0 }}</td>
-                <td class="px-4 py-3">
-                  <StatusLabel :status="product.status" variant="product" size="sm" />
-                </td>
-              </tr>
-            </tbody>
-          </table>
+      <!-- ✅ Products Section -->
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900">Products</h3>
+            <p class="text-sm text-gray-500 mt-1">
+              {{ merchant.products?.length || 0 }} produk terdaftar
+            </p>
+          </div>
+        </div>
+
+        <!-- Desktop Table -->
+        <div v-if="merchant.products && merchant.products.length > 0" class="hidden sm:block">
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama Produk</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategori</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Harga</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stok</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <tr v-for="product in merchant.products" :key="product.id" class="hover:bg-gray-50">
+                  <td class="px-4 py-3">
+                    <p class="text-sm font-semibold text-gray-900 truncate">{{ product.name }}</p>
+                    <p class="text-xs text-gray-500 truncate">{{ product.slug }}</p>
+                  </td>
+                  <td class="px-4 py-3 text-sm text-gray-500">{{ product.sku || '-' }}</td>
+                  <td class="px-4 py-3">
+                    <div v-if="product.categories && product.categories.length > 0" class="flex flex-wrap gap-1">
+                      <span class="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
+                        {{ product.categories[0].name }}
+                      </span>
+                      <span 
+                        v-if="product.categories.length > 1"
+                        class="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full"
+                        :title="product.categories.slice(1).map(c => c.name).join(', ')"
+                      >
+                        +{{ product.categories.length - 1 }}
+                      </span>
+                    </div>
+                    <span v-else class="text-sm text-gray-400">-</span>
+                  </td>
+                  <td class="px-4 py-3 text-sm font-medium text-gray-900">
+                    {{ product.price ? formatCurrency(product.price) : '-' }}
+                  </td>
+                  <td class="px-4 py-3 text-sm text-gray-500 text-center">{{ product.stock ?? 0 }}</td>
+                  <td class="px-4 py-3">
+                    <StatusLabel :status="product.status" variant="product" size="sm" />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Mobile Cards -->
+        <div v-if="merchant.products && merchant.products.length > 0" class="sm:hidden space-y-4">
+          <div
+            v-for="product in merchant.products"
+            :key="product.id"
+            class="bg-white rounded-lg shadow-sm p-4 border border-gray-200"
+          >
+            <div class="flex items-start justify-between mb-3">
+              <div class="flex-1 min-w-0">
+                <p class="font-semibold text-gray-900 truncate">{{ product.name }}</p>
+                <p class="text-xs text-gray-500 truncate">{{ product.slug }}</p>
+              </div>
+              <StatusLabel :status="product.status" variant="product" size="sm" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-3">
+              <div class="bg-gray-50 rounded-lg p-2">
+                <p class="text-xs text-gray-500">SKU</p>
+                <p class="text-sm font-medium text-gray-900">{{ product.sku || '-' }}</p>
+              </div>
+              <div class="bg-gray-50 rounded-lg p-2">
+                <p class="text-xs text-gray-500">Stok</p>
+                <p class="text-sm font-medium text-gray-900">{{ product.stock ?? 0 }}</p>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <p class="text-xs text-gray-500 mb-1">Harga</p>
+              <p class="text-base font-bold text-merchant-primary">
+                {{ product.price ? formatCurrency(product.price) : '-' }}
+              </p>
+            </div>
+
+            <div v-if="product.categories && product.categories.length > 0" class="pt-3 border-t">
+              <p class="text-xs text-gray-500 mb-2">Kategori</p>
+              <div class="flex flex-wrap gap-1">
+                <span
+                  v-for="category in product.categories"
+                  :key="category.id"
+                  class="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full"
+                >
+                  {{ category.name }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else class="text-center py-12">
+          <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="pi pi-box text-3xl text-gray-400"></i>
+          </div>
+          <p class="text-gray-600 font-medium mb-2">Belum ada produk terdaftar</p>
+          <p class="text-sm text-gray-500">Merchant ini belum menambahkan produk</p>
         </div>
       </div>
 
@@ -817,7 +917,7 @@ onMounted(async () => {
                 <li>Statistik (Products, Vouchers, Events)</li>
                 <li>Daftar products yang dimiliki</li>
                 <li>Alamat merchant</li>
-                <li>Informasi timestamp dan status approval</li>
+                <li>Informasi timestamp dan status</li>
               </ul>
             </div>
           </div>

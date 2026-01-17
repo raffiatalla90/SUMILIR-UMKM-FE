@@ -1,10 +1,11 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 export const getImageUrl = (imageId) => {
   if (!imageId) return "";
   const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
   return `${baseURL}/api/images/${encodeURIComponent(imageId)}`;
-}
+};
 
 export const getImageUrlJasa = (imageIdOrPath) => {
   if (!imageIdOrPath) return "";
@@ -46,16 +47,17 @@ export const getImageUrlJasa = (imageIdOrPath) => {
 
 /**
  * Get event banner URL via streaming API
- * Konsisten dengan profile picture dan merchant logo
+ * @param {Object} event - Event object with id
+ * @returns {string} Event banner URL
  */
 export function getEventBannerUrl(event) {
   if (!event?.id || !event?.banner_img_path) {
-    return '/placeholder.png';
+    return null;
   }
 
-  const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
-  // ✅ ADD: Cache-busting with updated_at timestamp
+  // ✅ Cache-busting with updated_at timestamp
   const timestamp = event.updated_at
     ? new Date(event.updated_at).getTime()
     : Date.now();
@@ -64,17 +66,69 @@ export function getEventBannerUrl(event) {
 }
 
 /**
- * Get merchant logo URL
+ * Get merchant logo URL via streaming API
+ * Konsisten dengan event banner dan user profile picture
  */
 export function getMerchantLogoUrl(merchant) {
-  if (!merchant?.id) return '/placeholder.png';
-  return `${API_BASE_URL}/api/merchant-profile-pictures/${merchant.id}`;
+  if (!merchant?.id) {
+    return '/placeholder.png';
+  }
+
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
+  const timestamp = merchant.updated_at
+    ? new Date(merchant.updated_at).getTime()
+    : Date.now();
+
+  return `${apiUrl}/api/merchant-logo/${merchant.id}?t=${timestamp}`;
 }
 
 /**
- * Get merchant banner URL
+ * Get user profile picture URL via streaming API
+ * Konsisten dengan event banner dan merchant logo
+ */
+export function getUserProfileUrl(user) {
+  if (!user?.id) {
+    console.warn('getUserProfileUrl: user.id is missing', user);
+    return '/placeholder.png';
+  }
+
+  if (!user?.profile_picture_path) {
+    console.warn('getUserProfileUrl: user.profile_picture_path is missing', user);
+    return '/placeholder.png';
+  }
+
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
+  // ✅ Cache-busting with updated_at timestamp
+  const timestamp = user.updated_at
+    ? new Date(user.updated_at).getTime()
+    : Date.now();
+
+  return `${apiUrl}/api/user-profile/${user.id}?t=${timestamp}`;
+}
+
+/**
+ * Get merchant banner URL via streaming API
  */
 export function getMerchantBannerUrl(merchant) {
-  if (!merchant?.id) return '/placeholder.png';
+  if (!merchant?.id) return "/placeholder.png";
   return `${API_BASE_URL}/api/merchant-banner/${merchant.id}`;
+}
+
+/**
+ * Get community post image URL via streaming API
+ * Konsisten dengan event banner, merchant logo, dan user profile picture
+ */
+export function getCommunityImageUrl(imageId) {
+  if (!imageId) {
+    return '/placeholder.png';
+  }
+
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
+  // ✅ Cache-busting dengan timestamp
+  const timestamp = Date.now();
+
+  return `${apiUrl}/api/community-images/${imageId}?t=${timestamp}`;
 }

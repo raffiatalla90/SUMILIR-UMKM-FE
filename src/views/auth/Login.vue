@@ -11,7 +11,7 @@
           class="hidden sm:flex items-center justify-center bg-gradient-to-br from-primary to-[#FFA30E] p-12"
         >
           <img
-            :src="Illustration"
+            :src="WhiteWithText"
             alt="Ilustration Login"
             class="w-full max-w-md"
           />
@@ -120,7 +120,7 @@ import { Form } from "vee-validate";
 import * as yup from "yup";
 import { RouterLink } from "vue-router";
 
-import Illustration from "@/assets/images/login-illustration.svg";
+import WhiteWithText from "@/assets/icons/White-with-Text.png";
 import TextField from "@/components/forms/TextField.vue";
 import PasswordField from "@/components/forms/PasswordField.vue";
 import ErrorAlert from "@/components/forms/ErrorAlert.vue";

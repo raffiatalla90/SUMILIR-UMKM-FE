@@ -114,8 +114,8 @@ const showSearch = ref(false);
 const searchQuery = ref("");
 
 function toggleSearch() {
-  if (route.path === "/" || route.path === "/product-layanan") {
-    // HOME & PRODUCT/LAYANAN → fokus ke search utama di halaman
+  if (route.path === "/" || route.path === "/explore") {
+    // HOME / PRODUCT-LAYANAN / EXPLORE → fokus ke search utama di halaman
     router.push({
       path: route.path,
       query: { ...route.query, focusSearch: "1" },

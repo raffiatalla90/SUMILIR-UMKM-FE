@@ -338,70 +338,77 @@
             <!-- Gallery  -->
             <div class="w-full mb-3">
               <div v-if="post.images && post.images.length" class="w-full">
+                <!-- Single image -->
                 <div v-if="post.images.length === 1">
                   <img
-                    :src="imageUrl(post.images[0])"
+                    :src="post.images[0]"
                     alt=""
                     class="object-cover w-full h-48 rounded-lg cursor-pointer sm:h-56 md:h-72 lg:h-80"
                     loading="lazy"
                     @click="openLightbox(post.images, 0)"
+                    @error="(e) => { console.error('Image load error:', post.images[0]); e.target.src = '/placeholder.png'; }"
                   />
                 </div>
 
-                <div
-                  v-else-if="post.images.length === 2"
-                  class="grid grid-cols-2 gap-2"
-                >
+                <!-- Two images -->
+                <div v-else-if="post.images.length === 2" class="grid grid-cols-2 gap-2">
                   <img
-                    v-for="(img, i) in post.images.slice(0, 2)"
+                    v-for="(imgUrl, i) in post.images.slice(0, 2)"
                     :key="i"
-                    :src="imageUrl(img)"
+                    :src="imgUrl"
                     class="object-cover w-full h-40 rounded-lg cursor-pointer sm:h-48 md:h-56"
                     loading="lazy"
                     @click="openLightbox(post.images, i)"
+                    @error="(e) => { e.target.src = '/placeholder.png'; }"
                   />
                 </div>
 
+                <!-- Three images -->
                 <div v-else-if="post.images.length === 3">
                   <img
-                    :src="imageUrl(post.images[0])"
+                    :src="post.images[0]"
                     alt="hero"
                     class="object-cover w-full h-48 mb-2 rounded-lg cursor-pointer sm:h-56 md:h-72 lg:h-80"
                     loading="lazy"
                     @click="openLightbox(post.images, 0)"
+                    @error="(e) => { e.target.src = '/placeholder.png'; }"
                   />
                   <div class="grid grid-cols-2 gap-2">
                     <img
-                      v-for="(img, i) in post.images.slice(1, 3)"
+                      v-for="(imgUrl, i) in post.images.slice(1, 3)"
                       :key="i"
-                      :src="imageUrl(img)"
+                      :src="imgUrl"
                       class="object-cover w-full h-32 rounded-md cursor-pointer sm:h-40 md:h-44"
                       loading="lazy"
                       @click="openLightbox(post.images, i + 1)"
+                      @error="(e) => { e.target.src = '/placeholder.png'; }"
                     />
                   </div>
                 </div>
 
+                <!-- 4+ images -->
                 <div v-else>
                   <img
-                    :src="imageUrl(post.images[0])"
+                    :src="post.images[0]"
                     alt="hero"
                     class="object-cover w-full h-48 mb-2 rounded-lg cursor-pointer sm:h-56 md:h-72 lg:h-80"
                     loading="lazy"
                     @click="openLightbox(post.images, 0)"
+                    @error="(e) => { e.target.src = '/placeholder.png'; }"
                   />
                   <div class="gap-2">
                     <div class="grid grid-cols-3 gap-2 md:hidden">
                       <div
-                        v-for="(img, i) in post.images.slice(1, 4)"
+                        v-for="(imgUrl, i) in post.images.slice(1, 4)"
                         :key="i"
                         class="relative"
                       >
                         <img
-                          :src="imageUrl(img)"
+                          :src="imgUrl"
                           class="object-cover w-full h-24 rounded-md cursor-pointer"
                           loading="lazy"
                           @click="openLightbox(post.images, i + 1)"
+                          @error="(e) => { e.target.src = '/placeholder.png'; }"
                         />
                         <div
                           v-if="i === 2 && post.images.length > 4"
@@ -415,15 +422,16 @@
 
                     <div class="hidden gap-2 md:grid md:grid-cols-3">
                       <div
-                        v-for="(img, i) in post.images.slice(1, 4)"
+                        v-for="(imgUrl, i) in post.images.slice(1, 4)"
                         :key="i"
                         class="relative"
                       >
                         <img
-                          :src="imageUrl(img)"
+                          :src="imgUrl"
                           class="object-cover w-full h-40 rounded-md cursor-pointer md:h-44 lg:h-48"
                           loading="lazy"
                           @click="openLightbox(post.images, i + 1)"
+                          @error="(e) => { e.target.src = '/placeholder.png'; }"
                         />
                         <div
                           v-if="i === 2 && post.images.length > 4"
@@ -622,10 +630,11 @@
 
         <div class="flex items-center justify-center">
           <img
-            :src="imageUrl(lightbox.images[lightbox.index])"
+            :src="lightbox.images[lightbox.index]"
             class="max-h-[80vh] object-contain rounded-md"
             @touchstart="onTouchStart"
             @touchend="onTouchEnd"
+            @error="(e) => { e.target.src = '/placeholder.png'; }"
           />
         </div>
 
@@ -650,6 +659,7 @@ import CreatePostModal from "@/components/community/CreatePostModal.vue";
 import api from "@/libs/axios";
 import bannerImg from "@/assets/banner-community.png";
 import { setMeta } from "@/router/seo";
+import { getCommunityImageUrl } from '@/libs/getImageUrl'; // ✅ ADD
 
 /* STATE */
 const posts = ref([]);
@@ -762,23 +772,80 @@ function formatDateTime(d) {
   }
 }
 
+// ✅ UPDATED: Helper function untuk image URL
 function imageUrl(img) {
   if (!img) return "/placeholder.png";
-  if (typeof img === "string") return img;
-  return img.url || img.path || img.file_path || img.image_url || String(img);
+  
+  // Jika sudah berupa URL lengkap
+  if (typeof img === "string") {
+    if (img.startsWith('http')) return img;
+    
+    // Jika path relatif dari storage
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    const backendUrl = apiBaseUrl.replace(/\/api$/, '');
+    
+    if (img.startsWith('/storage/')) {
+      return `${backendUrl}${img}`;
+    }
+    
+    return `${backendUrl}/storage/${img}`;
+  }
+  
+  // Jika object dengan property
+  if (typeof img === "object") {
+    // Prioritas: image_url > url > path > file_path
+    const imgPath = img.image_url || img.url || img.path || img.file_path;
+    
+    if (!imgPath) return "/placeholder.png";
+    
+    if (imgPath.startsWith('http')) return imgPath;
+    
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    const backendUrl = apiBaseUrl.replace(/\/api$/, '');
+    
+    if (imgPath.startsWith('/storage/')) {
+      return `${backendUrl}${imgPath}`;
+    }
+    
+    return `${backendUrl}/storage/${imgPath}`;
+  }
+  
+  return "/placeholder.png";
 }
 
+// ✅ UPDATED: Normalize images dengan streaming API
 function normalizeImages(arr) {
   if (!Array.isArray(arr)) return [];
+  
   return arr
     .map((item) => {
       if (!item) return null;
-      if (typeof item === "string") return item;
-      return item.url || item.path || item.file_path || item.image_url || item;
+      
+      // ✅ Gunakan streaming API endpoint
+      if (typeof item === "object" && item.id) {
+        return getCommunityImageUrl(item.id);
+      }
+      
+      // Fallback untuk backward compatibility
+      if (typeof item === "string") {
+        if (item.startsWith('http')) return item;
+        
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+        const backendUrl = apiBaseUrl.replace(/\/api$/, '');
+        
+        if (item.startsWith('/storage/')) {
+          return `${backendUrl}${item}`;
+        }
+        
+        return `${backendUrl}/storage/${item}`;
+      }
+      
+      return null;
     })
     .filter(Boolean);
 }
 
+// ✅ ADD: extractHashtags function
 function extractHashtags(text = "") {
   const tags = [];
   try {
@@ -800,20 +867,27 @@ async function fetchPosts() {
   loading.value = true;
   try {
     const res = await api.get("/api/community/posts");
-    if (Array.isArray(res.data)) posts.value = res.data;
-    else if (Array.isArray(res.data?.items)) posts.value = res.data.items;
-    else if (Array.isArray(res.data?.data)) posts.value = res.data.data;
-    else if (Array.isArray(res.data?.posts)) posts.value = res.data.posts;
-    else posts.value = [];
+    
+    // ✅ Handle different response structures
+    let rawPosts = [];
+    if (Array.isArray(res.data)) rawPosts = res.data;
+    else if (Array.isArray(res.data?.items)) rawPosts = res.data.items;
+    else if (Array.isArray(res.data?.data)) rawPosts = res.data.data;
+    else if (Array.isArray(res.data?.posts)) rawPosts = res.data.posts;
+    else rawPosts = [];
 
-    posts.value = posts.value.map((p) => ({
+    // ✅ Normalize posts with proper image URLs
+    posts.value = rawPosts.map((p) => ({
       ...p,
       user: p.user || {},
       author: p.author || {},
-      images: normalizeImages(p.images || []),
+      images: normalizeImages(p.images || []), // ✅ Normalize images
       comments_count: p.comments_count ?? 0,
       views_count: p.views_count ?? p.views ?? 0,
     }));
+    
+    console.log('[CommunityView] Posts loaded:', posts.value.length);
+    console.log('[CommunityView] Sample image URLs:', posts.value[0]?.images);
   } catch (e) {
     console.error("[CommunityView] Failed to fetch posts:", e.message);
     posts.value = [];

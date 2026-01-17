@@ -1,177 +1,272 @@
 <template>
   <div v-if="user" class="p-4 sm:p-6">
     <div class="max-w-6xl mx-auto space-y-6">
-      <!-- User Profile -->
-      <div class="bg-white rounded-lg shadow-sm p-6">
-        <div class="flex flex-col sm:flex-row gap-6">
-          <!-- Avatar -->
-          <div class="shrink-0">
-            <div
-              class="w-32 h-32 rounded-full bg-admin-primary/10 flex items-center justify-center border-2 border-gray-200"
-            >
-              <span class="text-5xl font-bold text-admin-primary">
-                {{ user.name?.charAt(0).toUpperCase() }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Info -->
-          <div class="flex-1">
-            <div class="flex items-start justify-between mb-4">
-              <div>
-                <h2 class="text-2xl font-bold text-gray-900 mb-1">{{ user.name }}</h2>
-                <p class="text-gray-600">{{ user.email }}</p>
-              </div>
-              <StatusLabel :status="user.computed_status || user.status" variant="user" />
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div class="flex items-center gap-2">
-                <i class="pi pi-phone text-admin-primary"></i>
-                <span>{{ user.phone || "-" }}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <i class="pi pi-id-card text-admin-primary"></i>
-                <span>NIK: {{ user.nik || "-" }}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <i class="pi pi-verified text-admin-primary"></i>
-                <span>{{ user.email_verified_at ? "Email Verified" : "Email Not Verified" }}</span>
-              </div>
-            </div>
-
-            <!-- Roles -->
-            <div class="mt-4">
-              <p class="text-sm text-gray-500 mb-2">Roles:</p>
-              <div class="flex flex-wrap gap-2">
-                <span
-                  v-for="role in user.roles || []"
-                  :key="role.id || role.name"
-                  class="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full"
-                >
-                  {{ role.name || role }}
+      <!-- User Profile Card - Modern Design -->
+      <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="p-6">
+          <div class="flex flex-col sm:flex-row gap-6">
+            <!-- Avatar Section -->
+            <div class="shrink-0">
+              <div class="w-32 h-32 rounded-full bg-admin-primary/10 flex items-center justify-center border-2 border-gray-200 overflow-hidden">
+                <img
+                  v-if="user.profile_picture_path"
+                  :src="getUserProfileUrl(user)"
+                  :alt="user.name"
+                  class="w-full h-full object-cover"
+                  @error="(e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = `<span class='text-5xl font-bold text-admin-primary'>${user.name?.charAt(0).toUpperCase()}</span>`; }"
+                />
+                <span v-else class="text-5xl font-bold text-admin-primary">
+                  {{ user.name?.charAt(0).toUpperCase() }}
                 </span>
+              </div>
+            </div>
+
+            <!-- User Info Section -->
+            <div class="flex-1">
+              <div class="flex items-start justify-between mb-4">
+                <div>
+                  <h2 class="text-2xl font-bold text-gray-900 mb-1">{{ user.name }}</h2>
+                  <p class="text-gray-600">{{ user.email }}</p>
+                </div>
+                <StatusLabel :status="user.computed_status || user.status" variant="user" />
+              </div>
+
+              <!-- Contact Info Grid -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="flex items-center gap-3">
+                  <div class="p-2 bg-admin-primary/10 rounded-lg">
+                    <i class="pi pi-phone text-admin-primary"></i>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500">Telepon</p>
+                    <p class="font-medium text-gray-900">{{ user.phone || "-" }}</p>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                  <div class="p-2 bg-admin-primary/10 rounded-lg">
+                    <i class="pi pi-id-card text-admin-primary"></i>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500">NIK</p>
+                    <p class="font-medium text-gray-900">{{ user.nik || "-" }}</p>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                  <div class="p-2 bg-admin-primary/10 rounded-lg">
+                    <i class="pi pi-verified text-admin-primary"></i>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500">Status Verifikasi</p>
+                    <p class="font-medium text-gray-900">
+                      {{ user.email_verified_at ? "Email Terverifikasi" : "Belum Verifikasi" }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Roles Section -->
+              <div class="mt-4 pt-4 border-t border-gray-100">
+                <p class="text-sm font-medium text-gray-700 mb-2">Roles:</p>
+                <div class="flex flex-wrap gap-2">
+                  <span
+                    v-for="role in user.roles || []"
+                    :key="role.id || role.name"
+                    class="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full font-medium"
+                  >
+                    {{ role.name || role }}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Overview -->
+      <!-- Overview Section -->
       <div class="bg-white rounded-lg shadow-sm p-6">
-        <h3 class="text-lg font-semibold mb-4">Ringkasan</h3>
+        <h3 class="text-lg font-semibold mb-4 text-gray-900">Ringkasan Aktivitas</h3>
 
         <!-- Login Chart -->
         <div class="border border-gray-200 rounded-xl p-4 mb-5">
-          <div class="flex items-start justify-between gap-4">
+          <div class="flex items-start justify-between gap-4 mb-2">
             <div>
-              <p class="text-sm font-semibold text-gray-800">Data Login Pengguna</p>
+              <p class="text-sm font-semibold text-gray-800">Data Login Pengguna (30 Hari)</p>
+              <p class="text-xs text-gray-500 mt-1">Grafik aktivitas login user dalam 30 hari terakhir</p>
             </div>
           </div>
-
           <div ref="loginChartEl" class="w-full h-60"></div>
         </div>
 
+        <!-- Stats Grid -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div class="p-4 rounded-lg border border-gray-200">
-            <p class="text-xs text-gray-500">Merchants</p>
-            <p class="text-xl font-semibold text-gray-900">{{ user.merchants_count ?? (user.merchants?.length || 0) }}</p>
+          <div class="p-4 rounded-xl border border-gray-200 bg-gradient-to-br from-blue-50 to-white hover:shadow-md transition-shadow">
+            <div class="flex items-center gap-3 mb-2">
+              <div class="p-2 bg-blue-100 rounded-lg">
+                <i class="pi pi-building text-blue-600"></i>
+              </div>
+              <p class="text-xs text-gray-600 font-medium">Merchants</p>
+            </div>
+            <p class="text-2xl font-bold text-gray-900">
+              {{ user.merchants_count ?? (user.merchants?.length || 0) }}
+            </p>
           </div>
-          <div class="p-4 rounded-lg border border-gray-200">
-            <p class="text-xs text-gray-500">Community Posts</p>
-            <p class="text-xl font-semibold text-gray-900">{{ user.community_posts_count ?? 0 }}</p>
+
+          <div class="p-4 rounded-xl border border-gray-200 bg-gradient-to-br from-green-50 to-white hover:shadow-md transition-shadow">
+            <div class="flex items-center gap-3 mb-2">
+              <div class="p-2 bg-green-100 rounded-lg">
+                <i class="pi pi-comments text-green-600"></i>
+              </div>
+              <p class="text-xs text-gray-600 font-medium">Community Posts</p>
+            </div>
+            <p class="text-2xl font-bold text-gray-900">{{ user.community_posts_count ?? 0 }}</p>
           </div>
-          <div class="p-4 rounded-lg border border-gray-200">
-            <p class="text-xs text-gray-500">Post Comments</p>
-            <p class="text-xl font-semibold text-gray-900">{{ user.post_comments_count ?? 0 }}</p>
+
+          <div class="p-4 rounded-xl border border-gray-200 bg-gradient-to-br from-purple-50 to-white hover:shadow-md transition-shadow">
+            <div class="flex items-center gap-3 mb-2">
+              <div class="p-2 bg-purple-100 rounded-lg">
+                <i class="pi pi-comment text-purple-600"></i>
+              </div>
+              <p class="text-xs text-gray-600 font-medium">Post Comments</p>
+            </div>
+            <p class="text-2xl font-bold text-gray-900">{{ user.post_comments_count ?? 0 }}</p>
           </div>
         </div>
       </div>
 
-      <!-- Merchants -->
+      <!-- Merchants Section - Modern Grid -->
       <div v-if="(user.merchants_count ?? (user.merchants?.length || 0)) > 0" class="bg-white rounded-lg shadow-sm p-6">
-        <h3 class="text-lg font-semibold mb-4">
-          Merchants ({{ user.merchants_count ?? (user.merchants?.length || 0) }})
-        </h3>
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900">
+              Merchants Terdaftar
+            </h3>
+            <p class="text-sm text-gray-500 mt-1">
+              {{ user.merchants_count ?? (user.merchants?.length || 0) }} merchant dimiliki user ini
+            </p>
+          </div>
+        </div>
 
-        <div class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div
             v-for="merchant in (user.merchants || [])"
             :key="merchant.id"
-            class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition"
+            class="border border-gray-200 rounded-xl p-5 hover:border-merchant-primary hover:shadow-md transition-all group"
           >
-            <div class="flex items-start justify-between mb-3">
-              <div class="flex-1">
-                <h4 class="font-semibold text-gray-900">{{ merchant.name }}</h4>
-                <p class="text-sm text-gray-600">{{ merchant.slug }}</p>
-                <p class="text-sm text-gray-600" v-if="merchant.phone">Phone: {{ merchant.phone }}</p>
-              </div>
-              <StatusLabel :status="merchant.status" />
-            </div>
+            <!-- Header with Logo and Info -->
+            <div class="flex items-start justify-between mb-4">
+              <div class="flex items-center gap-3 flex-1">
+                <div class="relative">
+                  <div
+                    v-if="merchant.logo_path"
+                    class="w-14 h-14 rounded-full bg-merchant-primary/10 flex items-center justify-center overflow-hidden border-2 border-gray-200"
+                  >
+                    <img
+                      :src="getMerchantLogoUrl(merchant)"
+                      alt="Logo"
+                      class="w-full h-full object-cover"
+                      @error="(e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = `<span class='text-xl font-bold text-merchant-primary'>${merchant.name?.charAt(0).toUpperCase()}</span>`; }"
+                    />
+                  </div>
+                  <div
+                    v-else
+                    class="w-14 h-14 rounded-full bg-merchant-primary/10 flex items-center justify-center border-2 border-gray-200"
+                  >
+                    <span class="text-xl font-bold text-merchant-primary">
+                      {{ merchant.name?.charAt(0).toUpperCase() }}
+                    </span>
+                  </div>
+                </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-              <div class="flex items-center gap-2">
-                <i class="pi pi-tag text-gray-400"></i>
-                <span>{{ merchant.segmentation?.name || "-" }}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <i class="pi pi-users text-gray-400"></i>
-                <span>{{ merchant.paguyuban?.name || "No Paguyuban" }}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <i class="pi pi-box text-gray-400"></i>
-                <span>
-                  {{ merchant.products_count ?? (merchant.products?.length || 0) }} Products
-                </span>
-              </div>
-              <div class="flex items-center gap-2">
-                <i class="pi pi-tag text-gray-400"></i>
-                <span>{{ merchant.vouchers_count ?? 0 }} Vouchers</span>
-              </div>
-            </div>
-
-            <div v-if="merchant.products?.length" class="mt-4">
-              <p class="text-sm font-medium text-gray-700 mb-2">Products:</p>
-              <div class="flex flex-wrap gap-2">
-                <span
-                  v-for="product in merchant.products.slice(0, 6)"
-                  :key="product.id"
-                  class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"
-                >
-                  {{ product.name }}
-                  <StatusLabel :status="product.status" size="sm" class="ml-1" />
-                </span>
-
-                <span
-                  v-if="merchant.products.length > 6"
-                  class="px-2 py-1 bg-gray-50 text-gray-500 text-xs rounded border border-gray-200"
-                  :title="merchant.products.slice(6).map(p => p.name).join(', ')"
-                >
-                  +{{ merchant.products.length - 6 }} lainnya
-                </span>
+                <div class="flex-1 min-w-0">
+                  <h4 class="font-semibold text-gray-900 truncate mb-1" :title="merchant.name">
+                    {{ merchant.name }}
+                  </h4>
+                  <p class="text-xs text-gray-500 truncate" :title="merchant.slug">
+                    @{{ merchant.slug }}
+                  </p>
+                  <StatusLabel :status="merchant.status" variant="merchant" size="xs" class="mt-1" />
+                </div>
               </div>
             </div>
 
-            <div v-if="merchant.status === 'pending'" class="mt-4 flex gap-2">
-              <Button @click="confirmApprove(merchant)" variant="success" size="sm">
+            <!-- Info Grid -->
+            <div class="grid grid-cols-2 gap-3 mb-4">
+              <div class="bg-gray-50 rounded-lg p-3">
+                <p class="text-xs text-gray-500 mb-1">Segmentasi</p>
+                <div class="flex items-center gap-1">
+                  <i class="pi pi-tag text-xs text-merchant-primary"></i>
+                  <p class="text-sm font-medium text-gray-900 truncate">
+                    {{ merchant.segmentation?.name || 'N/A' }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="bg-gray-50 rounded-lg p-3">
+                <p class="text-xs text-gray-500 mb-1">Paguyuban</p>
+                <div class="flex items-center gap-1">
+                  <i class="pi pi-users text-xs text-merchant-primary"></i>
+                  <p class="text-sm font-medium text-gray-900 truncate" :title="merchant.paguyuban?.name">
+                    {{ merchant.paguyuban?.name || 'Tidak ada' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Contact Info -->
+            <div v-if="merchant.phone" class="flex items-center gap-2 text-xs text-gray-600 mb-3">
+              <i class="pi pi-phone"></i>
+              <span>{{ merchant.phone }}</span>
+            </div>
+
+            <!-- Stats Bar -->
+            <div class="pt-3 border-t border-gray-100 mb-3">
+              <div class="flex items-center justify-between text-xs text-gray-500">
+                <span class="flex items-center gap-1">
+                  <i class="pi pi-box"></i>
+                  {{ merchant.products_count ?? (merchant.products?.length || 0) }} Produk
+                </span>
+                <span class="flex items-center gap-1">
+                  <i class="pi pi-ticket"></i>
+                  {{ merchant.vouchers_count ?? 0 }} Voucher
+                </span>
+              </div>
+            </div>
+
+            <!-- Approval Actions (if pending) -->
+            <div v-if="merchant.status === 'pending'" class="mb-3 flex gap-2">
+              <Button @click="confirmApprove(merchant)" variant="success" size="sm" class="flex-1">
                 <i class="pi pi-check mr-1"></i>
-                Approve Merchant
+                Approve
               </Button>
-              <Button @click="confirmReject(merchant)" variant="danger" size="sm">
+              <Button @click="confirmReject(merchant)" variant="danger" size="sm" class="flex-1">
                 <i class="pi pi-times mr-1"></i>
-                Reject Merchant
+                Reject
               </Button>
             </div>
 
-            <div class="mt-4 pt-4 border-t grid grid-cols-2 gap-4 text-xs text-gray-500">
+            <!-- Detail Button -->
+            <Button
+              @click="router.push({ name: 'Admin - Merchant Detail', params: { id: merchant.id } })"
+              variant="merchant-outline"
+              size="sm"
+              block
+            >
+              <i class="pi pi-eye mr-2"></i>
+              Lihat Detail Merchant
+            </Button>
+
+            <!-- Timeline Info -->
+            <div class="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 gap-4 text-xs text-gray-500">
               <div>
-                <p>Registered:</p>
+                <p class="mb-1">Registered:</p>
                 <p class="font-medium text-gray-700">
                   {{ new Date(merchant.created_at).toLocaleDateString("id-ID") }}
                 </p>
               </div>
               <div v-if="merchant.response_at">
-                <p>Reviewed:</p>
+                <p class="mb-1">Reviewed:</p>
                 <p class="font-medium text-gray-700">
                   {{ new Date(merchant.response_at).toLocaleDateString("id-ID") }}
                 </p>
@@ -182,22 +277,37 @@
       </div>
 
       <!-- No Merchants -->
-      <div v-else class="bg-white rounded-lg shadow-sm p-6 text-center">
-        <i class="pi pi-building text-5xl text-gray-300 mb-3"></i>
-        <p class="text-gray-500">User ini belum memiliki merchant</p>
+      <div v-else class="bg-white rounded-lg shadow-sm p-6">
+        <div class="text-center py-12">
+          <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="pi pi-building text-3xl text-gray-400"></i>
+          </div>
+          <p class="text-gray-600 font-medium mb-2">Belum ada merchant terdaftar</p>
+          <p class="text-sm text-gray-500">User ini belum memiliki merchant</p>
+        </div>
       </div>
 
-      <!-- Timestamps -->
+      <!-- Timeline -->
       <div class="bg-white rounded-lg shadow-sm p-6">
-        <h3 class="text-lg font-semibold mb-4">Timeline</h3>
+        <h3 class="text-lg font-semibold mb-4 text-gray-900">Timeline</h3>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <p class="text-sm text-gray-500">User Registered</p>
-            <p class="font-medium">{{ new Date(user.created_at).toLocaleString("id-ID") }}</p>
+          <div class="flex items-center gap-3">
+            <div class="p-2 bg-green-100 rounded-lg">
+              <i class="pi pi-calendar-plus text-green-600"></i>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500">User Registered</p>
+              <p class="font-medium text-gray-900">{{ new Date(user.created_at).toLocaleString("id-ID") }}</p>
+            </div>
           </div>
-          <div>
-            <p class="text-sm text-gray-500">Last Updated</p>
-            <p class="font-medium">{{ new Date(user.updated_at).toLocaleString("id-ID") }}</p>
+          <div class="flex items-center gap-3">
+            <div class="p-2 bg-blue-100 rounded-lg">
+              <i class="pi pi-clock text-blue-600"></i>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500">Last Updated</p>
+              <p class="font-medium text-gray-900">{{ new Date(user.updated_at).toLocaleString("id-ID") }}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -296,6 +406,8 @@ import { useToast } from "vue-toastification";
 import ApexCharts from "apexcharts";
 import api from "@/libs/axios";
 import { useUsers } from "@/composables/useUsers";
+import { getUserProfileUrl } from "@/libs/getImageUrl"; // ✅ ADD import
+import { getMerchantLogoUrl } from "@/libs/getImageUrl"; // ✅ ADD import
 
 import Button from "@/components/common/Button.vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";

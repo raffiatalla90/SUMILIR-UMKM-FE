@@ -65,47 +65,48 @@
         <!-- gallery -->
         <div class="mt-4 sm:mt-5">
           <div v-if="post.images && post.images.length">
-            <!-- single image -->
+            <!-- Single image -->
             <div v-if="post.images.length === 1">
               <img
-                :src="imageUrl(post.images[0])"
+                :src="post.images[0]"
                 class="object-cover w-full h-40 rounded-lg cursor-pointer sm:h-52 md:h-72 lg:h-96"
                 @click="openLightbox(post.images, 0)"
+                @error="(e) => { console.error('Image load error:', post.images[0]); e.target.src = '/placeholder.png'; }"
               />
             </div>
 
-            <!-- two images -->
-            <div
-              v-else-if="post.images.length === 2"
-              class="grid grid-cols-2 gap-2"
-            >
+            <!-- Two images -->
+            <div v-else-if="post.images.length === 2" class="grid grid-cols-2 gap-2">
               <img
-                v-for="(img, i) in post.images.slice(0, 2)"
+                v-for="(imgUrl, i) in post.images.slice(0, 2)"
                 :key="i"
-                :src="imageUrl(img)"
+                :src="imgUrl"
                 class="object-cover w-full h-32 rounded-lg cursor-pointer sm:h-40 md:h-56"
                 @click="openLightbox(post.images, i)"
+                @error="(e) => { e.target.src = '/placeholder.png'; }"
               />
             </div>
 
             <!-- 3+ images: hero + thumbnails -->
             <div v-else>
               <img
-                :src="imageUrl(post.images[0])"
+                :src="post.images[0]"
                 class="object-cover w-full h-40 mb-2 rounded-lg cursor-pointer sm:h-52 md:h-72 lg:h-96"
                 @click="openLightbox(post.images, 0)"
+                @error="(e) => { e.target.src = '/placeholder.png'; }"
               />
 
               <div class="grid grid-cols-3 gap-2">
                 <div
-                  v-for="(img, i) in post.images.slice(1, 4)"
+                  v-for="(imgUrl, i) in post.images.slice(1, 4)"
                   :key="i"
                   class="relative"
                 >
                   <img
-                    :src="imageUrl(img)"
+                    :src="imgUrl"
                     class="object-cover w-full rounded-md cursor-pointer h-18 sm:h-24 md:h-32"
                     @click="openLightbox(post.images, i + 1)"
+                    @error="(e) => { e.target.src = '/placeholder.png'; }"
                   />
                   <div
                     v-if="i === 2 && post.images.length > 4"
@@ -312,10 +313,11 @@
 
         <div class="flex items-center justify-center">
           <img
-            :src="imageUrl(lightbox.images[lightbox.index])"
+            :src="lightbox.images[lightbox.index]"
             class="max-h-[65vh] sm:max-h-[75vh] object-contain rounded-md"
             @touchstart="onTouchStart"
             @touchend="onTouchEnd"
+            @error="(e) => { e.target.src = '/placeholder.png'; }"
           />
         </div>
 
@@ -333,6 +335,7 @@ import { useRoute } from "vue-router";
 import api from "@/libs/axios";
 import CommentForm from "@/components/community/CommentForm.vue";
 import CommentThread from "@/components/community/CommentThread.vue";
+import { getCommunityImageUrl } from '@/libs/getImageUrl'; // ✅ ADD
 
 const route = useRoute();
 const post = ref(null);
@@ -464,19 +467,71 @@ function formatDateTime(d) {
   }
 }
 
+// ✅ UPDATED: Helper function untuk image URL (same as CommunityView)
 function imageUrl(img) {
   if (!img) return "/placeholder.png";
-  if (typeof img === "string") return img;
-  return img.url || img.path || img.file_path || img.image_url || String(img);
+  
+  if (typeof img === "string") {
+    if (img.startsWith('http')) return img;
+    
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    const backendUrl = apiBaseUrl.replace(/\/api$/, '');
+    
+    if (img.startsWith('/storage/')) {
+      return `${backendUrl}${img}`;
+    }
+    
+    return `${backendUrl}/storage/${img}`;
+  }
+  
+  if (typeof img === "object") {
+    const imgPath = img.image_url || img.url || img.path || img.file_path;
+    
+    if (!imgPath) return "/placeholder.png";
+    
+    if (imgPath.startsWith('http')) return imgPath;
+    
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    const backendUrl = apiBaseUrl.replace(/\/api$/, '');
+    
+    if (imgPath.startsWith('/storage/')) {
+      return `${backendUrl}${imgPath}`;
+    }
+    
+    return `${backendUrl}/storage/${imgPath}`;
+  }
+  
+  return "/placeholder.png";
 }
 
+// ✅ UPDATED: Normalize images dengan streaming API (same as CommunityView)
 function normalizeImages(arr) {
   if (!Array.isArray(arr)) return [];
+  
   return arr
     .map((item) => {
       if (!item) return null;
-      if (typeof item === "string") return item;
-      return item.url || item.path || item.file_path || item.image_url || item;
+      
+      // ✅ Gunakan streaming API endpoint
+      if (typeof item === "object" && item.id) {
+        return getCommunityImageUrl(item.id);
+      }
+      
+      // Fallback untuk backward compatibility
+      if (typeof item === "string") {
+        if (item.startsWith('http')) return item;
+        
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+        const backendUrl = apiBaseUrl.replace(/\/api$/, '');
+        
+        if (item.startsWith('/storage/')) {
+          return `${backendUrl}${item}`;
+        }
+        
+        return `${backendUrl}/storage/${item}`;
+      }
+      
+      return null;
     })
     .filter(Boolean);
 }
@@ -488,9 +543,14 @@ async function fetchPost() {
   try {
     const res = await api.get(`/api/community/posts/${route.params.slug}`);
     post.value = res.data?.data || res.data?.post || res.data;
+    
+    // ✅ Normalize images with proper URLs
     post.value.images = normalizeImages(
       post.value.images || post.value.post_images || []
     );
+    
+    console.log('[CommunityDetail] Post loaded:', post.value.post_title);
+    console.log('[CommunityDetail] Images:', post.value.images);
   } catch (e) {
     console.error("[CommunityDetailView] Failed to fetch post:", e.message);
     post.value = null;

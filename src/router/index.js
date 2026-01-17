@@ -70,7 +70,7 @@ const routes = [
       },
       {
         path: "/map",
-        name: "map",
+        name: "Peta UMKM",
         component: () => import("@/views/customer/PetaUmkm.vue"),
         meta: { title: "Peta UMKM Banyuanyar" },
       },
@@ -328,6 +328,7 @@ const routes = [
             component: () => import("@/views/admin/events/Detail.vue"),
             meta: { title: "Detail Event | Admin SUMILIR" },
           },
+          // ✅ ADD: Edit Event route
           {
             path: ":id/edit",
             name: "Admin - Edit Event",
@@ -358,7 +359,10 @@ const routes = [
             path: ":id",
             name: "Admin - Voucher Detail",
             component: () => import("@/views/admin/vouchers/Detail.vue"),
-            meta: { title: "Detail Voucher | Admin SUMILIR" },
+            meta: {
+              requiresAuth: true,
+              requiresAdmin: true,
+            },
           },
         ],
       },
@@ -432,7 +436,6 @@ const routes = [
           title: "Product Detail UMKM",
         },
       },
-      // ✅ UPDATED: Use slug instead of id
       // ✅ UPDATED: Use slug instead of id
       {
         path: "products/:slug/edit",
@@ -635,14 +638,23 @@ const routes = [
           title: "Edit Voucher UMKM",
         },
       },
-      {
-        path: "orders",
-        name: "Merchant - Orders",
-        component: () => import("@/views/merchant/orders/Index.vue"),
-        meta: {
-          title: "Orders",
-        },
-      },
+      // {
+      //   path: "events",
+      //   name: "Merchant - Events",
+      //   component: () => import("@/views/merchant/events/Index.vue"),
+      //   meta: {
+      //     title: "Events",
+      //   },
+      // },
+
+      // {
+      //   path: "orders",
+      //   name: "Merchant - Orders",
+      //   component: () => import("@/views/merchant/orders/Index.vue"),
+      //   meta: {
+      //     title: "Orders",
+      //   },
+      // },
       {
         path: "profile",
         name: "Merchant - Profile",

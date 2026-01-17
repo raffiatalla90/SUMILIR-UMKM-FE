@@ -453,9 +453,19 @@ onMounted(async () => {
                 </h2>
                 <p class="text-gray-600">{{ event.event_description }}</p>
               </div>
+              
+              <!-- ✅ ADD: Edit button next to status -->
               <div class="flex items-center gap-2">
                 <StatusLabel :status="event.status" variant="event"/>
-                <!-- ✅ REMOVED: Individual export button - now handled by parent header -->
+                
+                <Button
+                  @click="goToEdit"
+                  variant="merchant-outline"
+                  size="sm"
+                >
+                  <i class="pi pi-pencil mr-2"></i>
+                  Edit
+                </Button>
               </div>
             </div>
 
