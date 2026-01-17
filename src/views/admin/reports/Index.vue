@@ -1,152 +1,74 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
-import { useToast } from "vue-toastification";
-import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
-import AdminTable from "@/components/common/AdminTable.vue";
-import { useReports } from "@/composables/useReports";
-
 const router = useRouter();
-const toast = useToast();
-
-const { reports, loading, pagination, fetchReports } = useReports();
-
-const breadcrumbItems = [{ label: "Content Reports" }];
-
-// State
-const searchQuery = ref("");
-const currentPage = ref(1);
-const perPage = ref(15);
-const statusFilter = ref("");
-const typeFilter = ref("");
-
-// Load reports
-const loadReports = async () => {
-  const params = {
-    page: currentPage.value,
-    per_page: perPage.value,
-    search: searchQuery.value || undefined,
-    status: statusFilter.value || undefined,
-    reportable_type: typeFilter.value || undefined,
-  };
-
-  await fetchReports(params);
+const goBack = () => {
+  router.back();
 };
 
-// Actions
-const goToDetail = (report) => {
-  router.push({ name: "Admin - Report Detail", params: { id: report.id } });
-};
-
-// Pagination
-const goToPage = (page) => {
-  currentPage.value = page;
-  loadReports();
-};
-const nextPage = () => {
-  if (currentPage.value < pagination.value.last_page) {
-    currentPage.value++;
-    loadReports();
-  }
-};
-const prevPage = () => {
-  if (currentPage.value > 1) {
-    currentPage.value--;
-    loadReports();
-  }
-};
-
-// Table config
-const tableColumns = [
-  { key: "id", label: "ID", sortable: true },
-  { key: "reporter_name", label: "Pelapor", sortable: true },
-  { key: "reportable_type", label: "Tipe Konten", sortable: true },
-  { key: "reason", label: "Alasan", sortable: false },
-  { key: "status", label: "Status", sortable: true },
-  { key: "created_at", label: "Tanggal Lapor", sortable: true },
-  { key: "actions", label: "Aksi", sortable: false },
-];
-
-// Computed pagination info
-const paginationInfo = computed(() => ({
-  start: (pagination.value.current_page - 1) * pagination.value.per_page + 1,
-  end: Math.min(
-    pagination.value.current_page * pagination.value.per_page,
-    pagination.value.total
-  ),
-  total: pagination.value.total,
-}));
-
-const getContentTypeLabel = (type) => {
-  const types = {
-    "App\\Models\\Product": "Produk",
-    "App\\Models\\Service": "Jasa",
-    "App\\Models\\Merchant": "Merchant",
-    "App\\Models\\Post": "Post",
-    "App\\Models\\Comment": "Komentar",
-  };
-  return types[type] || type;
-};
-
-const handleRowClick = (report) => {
-  goToDetail(report);
-};
-
-watch([searchQuery, statusFilter, typeFilter], () => {
-  currentPage.value = 1;
-  loadReports();
-});
-
-onMounted(() => {
-  loadReports();
-});
+// ADD: emit untuk toggle sidebar
+const emit = defineEmits(["toggle-sidebar"]);
 </script>
 
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- Header -->
-    <div class="bg-white shadow-sm sticky top-0 z-20 px-4 sm:px-6 py-4">
-      <Breadcrumb :items="breadcrumbItems" />
-      <h1 class="text-xl sm:text-2xl font-bold text-admin-primary mt-4">
-        Content Reports
-      </h1>
+    <!-- Header - mobile hamburger -->
+    <div
+      class="fixed sm:static top-0 left-0 right-0 flex justify-between items-center py-6 px-4 sm:px-6 bg-white z-10"
+    >
+      <div class="flex items-center gap-3">
+        <button
+          @click="emit('toggle-sidebar')"
+          class="w-10 h-10 rounded-full bg-white flex items-center justify-center hover:bg-muted-background transition sm:hidden"
+        >
+          <i class="pi pi-bars text-muted-foreground"></i>
+        </button>
+        <div>
+          <h1 class="text-base sm:text-2xl font-semibold text-merchant-primary">
+            Laporan Pengguna
+          </h1>
+          <p class="text-xs sm:text-sm text-muted-foreground">
+            Sedang Dalam Pengembangan
+          </p>
+        </div>
+      </div>
     </div>
 
-    <!-- Content -->
-    <div class="px-4 sm:px-6 py-6">
-      <!-- Desktop Table -->
-      <div class="hidden sm:block">
-        <AdminTable
-          :items="reports"
-          :columns="tableColumns"
-          :loading="loading"
-          :current-page="currentPage"
-          :total-pages="pagination.last_page"
-          :pagination-info="paginationInfo"
-          :show-checkbox="false"
-          empty-message="Tidak ada laporan konten saat ini"
-          @row-click="goToDetail"
-          @page-change="goToPage"
+    <div class="h-24 sm:h-0"></div>
+
+    <!-- Main Content -->
+    <div class="flex items-center justify-center p-4">
+      <div class="max-w-2xl w-full text-center">
+        <!-- Icon -->
+        <div
+          class="w-32 h-32 mx-auto mb-6 bg-merchant-primary/10 rounded-full flex items-center justify-center"
         >
-          <!-- Custom cells -->
-        </AdminTable>
-      </div>
-
-      <!-- Mobile Cards -->
-      <div class="sm:hidden">
-        <div v-if="loading" class="flex justify-center py-12">
-          <i class="pi pi-spin pi-spinner text-4xl text-admin-primary"></i>
+          <i class="pi pi-wrench text-6xl text-merchant-primary"></i>
         </div>
 
-        <div v-else-if="reports.length === 0" class="text-center py-12">
-          <i class="pi pi-exclamation-triangle text-6xl text-gray-300 mb-4"></i>
-          <p class="text-gray-500">Tidak ada laporan</p>
-        </div>
+        <!-- Title -->
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+          Sedang Dalam Pengembangan
+        </h1>
 
-        <div v-else class="space-y-4">
-          <!-- Report cards -->
+        <!-- Description -->
+        <p class="text-base sm:text-lg text-gray-600 mb-8 max-w-md mx-auto">
+          Fitur Laporan Pengguna sedang kami kembangkan untuk memberikan pengalaman
+          terbaik bagi Anda.
+        </p>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+          <button
+            @click="goBack"
+            class="px-6 py-3 bg-merchant-primary text-white rounded-xl hover:bg-merchant-primary/90 transition font-semibold flex items-center justify-center gap-2"
+          >
+            <i class="pi pi-arrow-left"></i>
+            Kembali
+          </button>
         </div>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped></style>
