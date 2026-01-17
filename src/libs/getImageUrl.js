@@ -115,3 +115,20 @@ export function getMerchantBannerUrl(merchant) {
   if (!merchant?.id) return "/placeholder.png";
   return `${API_BASE_URL}/api/merchant-banner/${merchant.id}`;
 }
+
+/**
+ * Get community post image URL via streaming API
+ * Konsisten dengan event banner, merchant logo, dan user profile picture
+ */
+export function getCommunityImageUrl(imageId) {
+  if (!imageId) {
+    return '/placeholder.png';
+  }
+
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
+  // ✅ Cache-busting dengan timestamp
+  const timestamp = Date.now();
+
+  return `${apiUrl}/api/community-images/${imageId}?t=${timestamp}`;
+}

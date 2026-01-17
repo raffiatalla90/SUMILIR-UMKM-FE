@@ -659,6 +659,7 @@ import CreatePostModal from "@/components/community/CreatePostModal.vue";
 import api from "@/libs/axios";
 import bannerImg from "@/assets/banner-community.png";
 import { setMeta } from "@/router/seo";
+import { getCommunityImageUrl } from '@/libs/getImageUrl'; // ✅ ADD
 
 /* STATE */
 const posts = ref([]);
@@ -812,7 +813,7 @@ function imageUrl(img) {
   return "/placeholder.png";
 }
 
-// ✅ UPDATED: Normalize images dengan proper URL
+// ✅ UPDATED: Normalize images dengan streaming API
 function normalizeImages(arr) {
   if (!Array.isArray(arr)) return [];
   
@@ -820,14 +821,23 @@ function normalizeImages(arr) {
     .map((item) => {
       if (!item) return null;
       
-      // Jika sudah string URL
-      if (typeof item === "string") {
-        return imageUrl(item);
+      // ✅ Gunakan streaming API endpoint
+      if (typeof item === "object" && item.id) {
+        return getCommunityImageUrl(item.id);
       }
       
-      // Jika object
-      if (typeof item === "object") {
-        return imageUrl(item);
+      // Fallback untuk backward compatibility
+      if (typeof item === "string") {
+        if (item.startsWith('http')) return item;
+        
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+        const backendUrl = apiBaseUrl.replace(/\/api$/, '');
+        
+        if (item.startsWith('/storage/')) {
+          return `${backendUrl}${item}`;
+        }
+        
+        return `${backendUrl}/storage/${item}`;
       }
       
       return null;
