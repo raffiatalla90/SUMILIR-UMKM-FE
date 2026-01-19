@@ -50,8 +50,8 @@
             merchant.products_count && merchant.products_count !== 0
               ? merchant.products_count
               : merchant.jasas_count && merchant.jasas_count !== 0
-              ? merchant.jasas_count
-              : 0
+                ? merchant.jasas_count
+                : 0
           }}
           Produk
         </span>

@@ -1,11 +1,11 @@
 <template>
   <div
-    class="sm:bg-gray-50 bg-white flex min-h-svh sm:min-h-0 items-center sm:items-stretch justify-center p-4 sm:p-8"
+    class="flex items-center justify-center p-4 bg-white sm:bg-gray-50 min-h-svh sm:min-h-0 sm:items-stretch sm:p-8"
   >
     <div
-      class="w-full max-w-5xl bg-white rounded-2xl sm:shadow-lg shadow-none overflow-hidden"
+      class="w-full max-w-5xl overflow-hidden bg-white shadow-none rounded-2xl sm:shadow-lg"
     >
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-0">
+      <div class="grid grid-cols-1 gap-0 sm:grid-cols-2">
         <!-- Left Side - Illustration (Hidden on Mobile) -->
         <div
           class="hidden sm:flex items-center justify-center bg-gradient-to-br from-primary to-[#FFA30E] p-12"
@@ -18,21 +18,28 @@
         </div>
 
         <!-- Right Side - Form -->
-        <div class="p-4 sm:p-12 flex flex-col justify-center">
+        <div class="flex flex-col justify-center p-4 sm:p-12">
           <!-- Mobile Illustration -->
-          <img
+          <!-- <img
             :src="Illustration"
             alt="Ilustration Login"
-            class="mx-auto my-6 w-48 sm:hidden"
-          />
+            class="w-48 mx-auto my-6 sm:hidden"
+          /> -->
+          <div class="items-center justify-center py-4 sm:hidden">
+            <img
+              :src="LogoWithText"
+              alt="Ilustration Login"
+              class="w-full mx-auto max-w-52"
+            />
+          </div>
 
-          <h2
-            class="text-2xl sm:text-3xl font-bold text-center sm:text-left mb-2 text-black"
+          <!-- <h2
+            class="mb-2 text-2xl font-bold text-center text-black sm:text-3xl sm:text-left"
           >
             Selamat Datang
-          </h2>
+          </h2> -->
           <p
-            class="text-xs sm:text-sm text-center sm:text-left mb-8 text-gray-600"
+            class="mb-8 text-xs text-center text-gray-600 sm:text-sm sm:text-left"
           >
             Masukkan akunmu untuk melanjutkan perjalananmu
           </p>
@@ -59,7 +66,7 @@
             </div>
 
             <!-- Forgot Password -->
-            <div class="mb-6 mt-2">
+            <div class="mt-2 mb-6">
               <router-link to="forgot-password">
                 <p
                   class="text-xs text-[#FFA30E] flex justify-end underline cursor-pointer hover:text-secondary-hover transition-colors"
@@ -85,7 +92,7 @@
 
             <!-- Register -->
             <div>
-              <p class="text-black text-center text-xs md:text-sm">
+              <p class="text-xs text-center text-black md:text-sm">
                 Belum punya akun?
                 <router-link to="register">
                   <span
@@ -101,9 +108,9 @@
           <!-- Debug Info (Development Only) -->
           <div
             v-if="isDev"
-            class="mt-6 p-4 bg-gray-50 rounded-xl text-xs border border-gray-200"
+            class="p-4 mt-6 text-xs border border-gray-200 bg-gray-50 rounded-xl"
           >
-            <p class="font-semibold mb-2 text-gray-700">Debug Info:</p>
+            <p class="mb-2 font-semibold text-gray-700">Debug Info:</p>
             <p class="text-gray-600"><strong>API URL:</strong> {{ apiUrl }}</p>
           </div>
         </div>
@@ -121,6 +128,7 @@ import * as yup from "yup";
 import { RouterLink } from "vue-router";
 
 import WhiteWithText from "@/assets/icons/White-with-Text.png";
+import LogoWithText from "@/assets/icons/LogowithText.png";
 import TextField from "@/components/forms/TextField.vue";
 import PasswordField from "@/components/forms/PasswordField.vue";
 import ErrorAlert from "@/components/forms/ErrorAlert.vue";

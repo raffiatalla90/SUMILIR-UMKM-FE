@@ -9,7 +9,7 @@
           router.push(
             merchantSlug
               ? `/merchant-center/${merchantSlug}/profile`
-              : '/merchant-profile'
+              : '/merchant-profile',
           )
         "
         class="absolute flex items-center justify-center w-10 h-10 transition rounded-full left-4 hover:bg-white/10"
@@ -92,9 +92,7 @@
         class="mx-4 mb-4 overflow-hidden bg-white shadow-sm sm:hidden rounded-2xl"
       >
         <!-- Cover Image -->
-        <div
-          class="relative w-full overflow-hidden aspect-[24/9] lg:aspect-[4/1]"
-        >
+        <div class="relative w-full overflow-hidden aspect-24/9 lg:aspect-4/1">
           <img
             v-if="hasFormCover"
             :src="form.coverImage"
@@ -168,7 +166,7 @@
       >
         <div class="overflow-hidden rounded-xl">
           <div
-            class="relative w-full overflow-hidden aspect-[24/9] lg:aspect-[4/1]"
+            class="relative w-full overflow-hidden aspect-24/9 lg:aspect-4/1"
           >
             <img
               v-if="hasFormCover"
@@ -749,6 +747,8 @@ import MapPicker from "@/components/forms/MapPicker.vue";
 import { useToast } from "vue-toastification";
 import AppButton from "@/components/common/Button.vue";
 
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
@@ -862,7 +862,7 @@ watch(
     if (pid) {
       await loadCities(pid);
     }
-  }
+  },
 );
 
 watch(
@@ -877,7 +877,7 @@ watch(
     if (cid) {
       await loadDistricts(cid);
     }
-  }
+  },
 );
 
 watch(
@@ -889,7 +889,7 @@ watch(
     if (did) {
       await loadVillages(did);
     }
-  }
+  },
 );
 
 // Ambil data wilayah dari service
@@ -1051,6 +1051,12 @@ const onCoverSelected = (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
+  if (file.size > MAX_IMAGE_SIZE_BYTES) {
+    toast.error("Ukuran gambar maksimal 5MB");
+    e.target.value = "";
+    return;
+  }
+
   form.value.coverFile = file;
   form.value.coverImage = URL.createObjectURL(file);
 
@@ -1060,6 +1066,12 @@ const onCoverSelected = (e) => {
 const onLogoSelected = (e) => {
   const file = e.target.files[0];
   if (!file) return;
+
+  if (file.size > MAX_IMAGE_SIZE_BYTES) {
+    toast.error("Ukuran gambar maksimal 5MB");
+    e.target.value = "";
+    return;
+  }
 
   form.value.logoFile = file;
   form.value.logo = URL.createObjectURL(file);
@@ -1159,7 +1171,7 @@ const handleSave = async () => {
     // Operational hours
     fd.append(
       "operational_hours",
-      JSON.stringify(buildOperationalHoursPayload())
+      JSON.stringify(buildOperationalHoursPayload()),
     );
 
     // Images (optional)
@@ -1193,7 +1205,7 @@ const handleSave = async () => {
 
   const targetSlug = merchantSlug.value ?? authStore.merchantSlug;
   router.push(
-    targetSlug ? `/merchant-center/${targetSlug}/profile` : "/merchant-profile"
+    targetSlug ? `/merchant-center/${targetSlug}/profile` : "/merchant-profile",
   );
 };
 </script>

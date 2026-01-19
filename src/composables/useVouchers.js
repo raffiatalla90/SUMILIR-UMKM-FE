@@ -112,7 +112,7 @@ export function useVouchers() {
       if (isDev) {
         console.log(
           "[useVouchers] Fetched merchant vouchers:",
-          vouchers.value.length
+          vouchers.value.length,
         );
       }
       return vouchers.value;
@@ -132,7 +132,7 @@ export function useVouchers() {
   const fetchMerchantVoucherDetail = async (merchantSlug, voucherId) => {
     if (!merchantSlug || !voucherId) {
       toast.error(
-        "Merchant slug dan ID voucher diperlukan untuk memuat detail"
+        "Merchant slug dan ID voucher diperlukan untuk memuat detail",
       );
       throw new Error("Merchant slug and voucher ID are required");
     }
@@ -141,7 +141,7 @@ export function useVouchers() {
     try {
       const voucher = await voucherApi.getMerchantVoucherDetail(
         merchantSlug,
-        voucherId
+        voucherId,
       );
       if (isDev) {
         console.log("[useVouchers] Fetched merchant voucher detail:", voucher);
@@ -151,7 +151,7 @@ export function useVouchers() {
       if (isDev) {
         console.error(
           "[useVouchers] Fetch merchant voucher detail failed:",
-          error
+          error,
         );
       }
       const message =
@@ -167,7 +167,7 @@ export function useVouchers() {
     try {
       const voucher = await voucherApi.createMerchantVoucher(
         merchantSlug,
-        payload
+        payload,
       );
       toast.success("Voucher berhasil dibuat");
       if (isDev) {
@@ -178,19 +178,7 @@ export function useVouchers() {
       if (isDev) {
         console.error("[useVouchers] Create merchant voucher failed:", error);
       }
-      let message = error.response?.data?.message || "Gagal membuat voucher";
-
-      const fieldErrors = error.response?.data?.errors;
-      if (fieldErrors && typeof fieldErrors === "object") {
-        const firstKey = Object.keys(fieldErrors)[0];
-        const firstMsg = Array.isArray(fieldErrors[firstKey])
-          ? fieldErrors[firstKey][0]
-          : fieldErrors[firstKey];
-        if (firstMsg) {
-          message = firstMsg;
-        }
-      }
-
+      const message = error.response?.data?.message || "Gagal membuat voucher";
       toast.error(message);
       throw error;
     }
@@ -201,7 +189,7 @@ export function useVouchers() {
       const voucher = await voucherApi.editMerchantVoucher(
         merchantSlug,
         voucherId,
-        payload
+        payload,
       );
       toast.success("Voucher berhasil diperbarui");
       if (isDev) {
@@ -225,14 +213,14 @@ export function useVouchers() {
       const voucher = await voucherApi.editStatus(
         merchantSlug,
         voucherId,
-        status
+        status,
       );
       toast.success("Status voucher berhasil diperbarui");
       if (isDev) {
         console.log(
           "[useVouchers] Edited merchant voucher status:",
           voucherId,
-          status
+          status,
         );
       }
       return voucher;
@@ -240,7 +228,7 @@ export function useVouchers() {
       if (isDev) {
         console.error(
           "[useVouchers] Edit merchant voucher status failed:",
-          error
+          error,
         );
       }
       const message =
@@ -260,7 +248,7 @@ export function useVouchers() {
         console.log(
           "[useVouchers] Deleted merchant voucher:",
           merchantSlug,
-          voucherId
+          voucherId,
         );
       }
     } catch (error) {
@@ -282,14 +270,14 @@ export function useVouchers() {
         console.log(
           "[useVouchers] Bulk deleted merchant vouchers:",
           merchantSlug,
-          voucherIds
+          voucherIds,
         );
       }
     } catch (error) {
       if (isDev) {
         console.error(
           "[useVouchers] Bulk delete merchant vouchers failed:",
-          error
+          error,
         );
       }
       const message =
@@ -311,14 +299,14 @@ export function useVouchers() {
           "[useVouchers] Bulk edited merchant voucher statuses:",
           merchantSlug,
           voucherIds,
-          status
+          status,
         );
       }
     } catch (error) {
       if (isDev) {
         console.error(
           "[useVouchers] Bulk edit merchant voucher statuses failed:",
-          error
+          error,
         );
       }
       const message =
@@ -342,7 +330,7 @@ export function useVouchers() {
       if (isDev) {
         console.log(
           "[useVouchers] Fetched customer vouchers by merchant:",
-          vouchers.value.length
+          vouchers.value.length,
         );
       }
       return vouchers.value;
@@ -350,7 +338,7 @@ export function useVouchers() {
       if (isDev) {
         console.error(
           "[useVouchers] Fetch customer vouchers by merchant failed:",
-          error
+          error,
         );
       }
       const message =
@@ -371,7 +359,9 @@ export function useVouchers() {
       return response.data;
     } catch (error) {
       console.error("Failed to activate voucher:", error);
-      toast.error(error.response?.data?.message || "Gagal mengaktifkan voucher");
+      toast.error(
+        error.response?.data?.message || "Gagal mengaktifkan voucher",
+      );
       throw error;
     } finally {
       loading.value = false;
@@ -386,7 +376,9 @@ export function useVouchers() {
       return response.data;
     } catch (error) {
       console.error("Failed to deactivate voucher:", error);
-      toast.error(error.response?.data?.message || "Gagal menonaktifkan voucher");
+      toast.error(
+        error.response?.data?.message || "Gagal menonaktifkan voucher",
+      );
       throw error;
     } finally {
       loading.value = false;
