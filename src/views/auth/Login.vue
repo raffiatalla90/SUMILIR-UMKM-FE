@@ -20,11 +20,6 @@
         <!-- Right Side - Form -->
         <div class="flex flex-col justify-center p-4 sm:p-12">
           <!-- Mobile Illustration -->
-          <!-- <img
-            :src="Illustration"
-            alt="Ilustration Login"
-            class="w-48 mx-auto my-6 sm:hidden"
-          /> -->
           <div class="items-center justify-center py-4 sm:hidden">
             <img
               :src="LogoWithText"
@@ -128,7 +123,7 @@ import * as yup from "yup";
 import { RouterLink } from "vue-router";
 
 import WhiteWithText from "@/assets/icons/White-with-Text.png";
-import LogoWithText from "@/assets/icons/LogowithText.png";
+import LogoWithText from "@/assets/icons/LogoWithText.png";
 import TextField from "@/components/forms/TextField.vue";
 import PasswordField from "@/components/forms/PasswordField.vue";
 import ErrorAlert from "@/components/forms/ErrorAlert.vue";
