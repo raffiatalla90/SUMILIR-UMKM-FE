@@ -79,7 +79,7 @@ export const useCheckoutStore = defineStore("checkout", {
             sum +
             (Number(item.unitPrice) + Number(item.addonTotalPrice || 0)) *
               Number(item.quantity || 1),
-          0
+          0,
         );
       }
 
@@ -95,6 +95,13 @@ export const useCheckoutStore = defineStore("checkout", {
    * ===================== ACTIONS ========================
    * ===================================================== */
   actions: {
+    _resolveImageUrl(image) {
+      if (typeof image === "string") return image;
+      if (image && typeof image === "object") {
+        return image.src_url ?? image.url ?? "";
+      }
+      return "";
+    },
     /* ---------- FROM PRODUCT DETAIL ---------- */
     setFromProductDetail(payload) {
       this.from = "product";
@@ -136,7 +143,7 @@ export const useCheckoutStore = defineStore("checkout", {
 
       this.addonTotal = this.selectedAddons.reduce(
         (s, a) => s + Number(a.price || 0),
-        0
+        0,
       );
 
       // reset cart
@@ -160,7 +167,7 @@ export const useCheckoutStore = defineStore("checkout", {
       this.cartItems = payload.items.map((item) => ({
         id: item.id,
         name: item.name,
-        image: item.image,
+        image: this._resolveImageUrl(item.image),
         quantity: Number(item.quantity || 1),
         unitPrice: Number(item.unitPrice || 0),
         addonTotalPrice: Number(item.addonTotalPrice || 0),
@@ -227,7 +234,7 @@ export const useCheckoutStore = defineStore("checkout", {
       }));
       this.addonTotal = this.selectedAddons.reduce(
         (s, a) => s + Number(a.price || 0),
-        0
+        0,
       );
       this.lastUpdatedAt = Date.now();
     },

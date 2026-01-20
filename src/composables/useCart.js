@@ -5,6 +5,71 @@ import { useToast } from "vue-toastification";
 export function useCart() {
   const toast = useToast();
 
+  const toNumberOrNull = (v) => {
+    if (v === undefined || v === null) return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const normalizeSelectedAddons = (selected) => {
+    if (!Array.isArray(selected)) return [];
+    return selected
+      .map((a) => ({
+        addon_group_id: toNumberOrNull(a?.addon_group_id),
+        addon_id: toNumberOrNull(a?.addon_id),
+      }))
+      .filter((a) => a.addon_id !== null);
+  };
+
+  const resolveLiveSelectedAddons = (productDetails, selectedAddons) => {
+    const groups = productDetails?.addon_groups ?? [];
+    if (!Array.isArray(groups) || groups.length === 0) return [];
+
+    const result = [];
+
+    selectedAddons.forEach((sel) => {
+      const preferredGroup = groups.find(
+        (g) => toNumberOrNull(g?.id) === toNumberOrNull(sel?.addon_group_id),
+      );
+
+      const findInGroup = (g) =>
+        g?.options?.find(
+          (o) => toNumberOrNull(o?.addon_id) === toNumberOrNull(sel?.addon_id),
+        );
+
+      const opt =
+        findInGroup(preferredGroup) ??
+        groups.map((g) => findInGroup(g)).find((maybe) => maybe !== undefined);
+
+      if (!opt) return;
+
+      const groupId = toNumberOrNull(opt?.addon_group_id ?? preferredGroup?.id);
+      const addonId = toNumberOrNull(opt?.addon_id);
+      const label = opt?.addon?.addon_name ?? opt?.name ?? "";
+      const price = Number(opt?.addon_price ?? opt?.price ?? 0);
+
+      if (addonId === null) return;
+
+      result.push({
+        addon_group_id: groupId,
+        addon_id: addonId,
+        label,
+        price,
+      });
+    });
+
+    return result;
+  };
+
+  const resolveImageUrl = (snapshotImage, coverImageUrl) => {
+    if (typeof snapshotImage === "string") return snapshotImage;
+    if (snapshotImage && typeof snapshotImage === "object") {
+      return snapshotImage.src_url ?? snapshotImage.url ?? "";
+    }
+    if (typeof coverImageUrl === "string") return coverImageUrl;
+    return "";
+  };
+
   // =====================
   // STATE
   // =====================
@@ -35,6 +100,7 @@ export function useCart() {
       cartStores.value = (data.data || []).map((cart) => ({
         id: cart.cart_id,
         name: cart.merchant.name,
+        slug: cart.merchant.slug,
         phone: cart.merchant.phone,
         address: cart.merchant.address,
 
@@ -46,20 +112,45 @@ export function useCart() {
           slug: item.product_details.slug,
           name: item.snapshot.name,
 
-          image:
-            item.snapshot.image ??
-            item.product_details.cover_image?.src_url ??
-            "",
+          image: resolveImageUrl(
+            item.snapshot.image,
+            item.product_details.cover_image?.src_url,
+          ),
 
           unitPrice: item.changes?.price_changed
             ? Number(item.live.unit_price)
             : Number(item.snapshot.unit_price),
 
-          addonTotalPrice: Number(item.snapshot.addon_total_price || 0),
-          addons: item.snapshot.addons || [],
-
           selectedVariantId: item.selected_configuration.variant_id,
-          selectedAddons: item.selected_configuration.addon_ids || [],
+          selectedAddons: normalizeSelectedAddons(
+            item.selected_configuration?.addon_ids,
+          ),
+
+          // Prefer live addon prices from product details; fallback to snapshot.
+          addons: (() => {
+            const live = resolveLiveSelectedAddons(
+              item.product_details,
+              normalizeSelectedAddons(item.selected_configuration?.addon_ids),
+            );
+            if (live.length > 0) {
+              return live.map((a) => ({
+                addon_id: a.addon_id,
+                label: a.label,
+                price: a.price,
+              }));
+            }
+            return item.snapshot.addons || [];
+          })(),
+          addonTotalPrice: (() => {
+            const live = resolveLiveSelectedAddons(
+              item.product_details,
+              normalizeSelectedAddons(item.selected_configuration?.addon_ids),
+            );
+            if (live.length > 0) {
+              return live.reduce((sum, a) => sum + Number(a.price || 0), 0);
+            }
+            return Number(item.snapshot.addon_total_price || 0);
+          })(),
 
           isOverStock: item.changes?.is_over_stock ?? false,
           isUnavailable:

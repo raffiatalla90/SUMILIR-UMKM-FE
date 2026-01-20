@@ -109,7 +109,7 @@
                   Rp
                   {{
                     formatIDR(
-                      (item.price + getAddonTotal(item)) * item.quantity
+                      (item.price + getAddonTotal(item)) * item.quantity,
                     )
                   }}
                 </span>
@@ -574,7 +574,7 @@ const schema = yup.object({
     .max(13, "No. Telepon maksimal 13 digit")
     .matches(
       /^08[0-9]{8,11}$/,
-      "Format nomor telepon tidak valid, harus diawali dengan 08, lebih dari 10 digit"
+      "Format nomor telepon tidak valid, harus diawali dengan 08, lebih dari 10 digit",
     )
     .min(10, "No. Telepon minimal 10 digit"),
 
@@ -591,7 +591,10 @@ const checkoutItems = computed(() => {
     return checkout.cartItems.map((item) => ({
       id: item.id,
       name: item.name,
-      image: item.image,
+      image:
+        typeof item.image === "string"
+          ? item.image
+          : (item.image?.src_url ?? item.image?.url ?? ""),
       quantity: item.quantity,
       price: item.unitPrice,
       addons: item.addons || [],
@@ -659,7 +662,7 @@ watch(
   (v) => {
     amounts.value.product = v;
   },
-  { immediate: true }
+  { immediate: true },
 );
 const getAddonTotal = (item) => {
   if (!item.addons || !item.addons.length) return 0;
@@ -710,7 +713,7 @@ const promos = computed(() =>
     min_purchase: Number(v.min_purchase_amount || 0),
     usage: v.usage,
     is_expired: v.is_expired,
-  }))
+  })),
 );
 
 // Form & promo (tetap)
@@ -736,7 +739,7 @@ watch(
       pay.value.method = "COD";
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 watch(
   () => isGuest.value,
@@ -753,7 +756,7 @@ watch(
       fetchVouchersByMerchant(order.value.store.slug);
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 watch(
   () => amounts.value.product,
@@ -766,7 +769,7 @@ watch(
         amounts.value.diskon = discount;
       }
     }
-  }
+  },
 );
 
 function isPromoEligible(promo) {
@@ -807,7 +810,7 @@ function usePromo(p) {
 
   if (amounts.value.product < p.min_purchase) {
     toast.warning(
-      `Minimal pembelian Rp ${formatIDR(p.min_purchase)} untuk voucher ini`
+      `Minimal pembelian Rp ${formatIDR(p.min_purchase)} untuk voucher ini`,
     );
     return;
   }
@@ -825,7 +828,7 @@ function clearPromo() {
 // Nama/telp dari auth
 const customerName = computed(() => auth.user?.name || form.value.nama || "");
 const customerPhone = computed(() =>
-  normalizePhone(auth.user?.phone || form.value.tel || "")
+  normalizePhone(auth.user?.phone || form.value.tel || ""),
 );
 
 // Validasi
@@ -878,8 +881,8 @@ const openWhatsapp = () => {
           (i.size ? `Ukuran: ${i.size}\n` : "") +
           `Jumlah: ${i.quantity}x\n` +
           `Harga: Rp ${formatIDR(
-            (i.unitPrice + i.addonTotalPrice) * i.quantity
-          )}`
+            (i.unitPrice + i.addonTotalPrice) * i.quantity,
+          )}`,
       )
       .join("\n\n");
   } else {
@@ -934,7 +937,7 @@ const openWhatsapp = () => {
       : "",
     amounts.value.diskon > 0
       ? `Diskon (${selectedPromo.value?.code}): -Rp ${formatIDR(
-          amounts.value.diskon
+          amounts.value.diskon,
         )}`
       : "",
     `*Total: Rp ${formatIDR(total.value)}*`,
@@ -943,7 +946,7 @@ const openWhatsapp = () => {
     .join("\n");
 
   const phone = normalizePhone(
-    merchantPhone.value || order.value.store.phone || ""
+    merchantPhone.value || order.value.store.phone || "",
   );
   const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   window.open(url, "_blank");

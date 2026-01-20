@@ -162,7 +162,7 @@ const {
 } = useProductCombinations({
   variants,
   useVariants,
-  maxOptions,
+  maxCombinations: MAX_COMBINATIONS,
   toast,
 });
 
@@ -258,7 +258,7 @@ const canAddAddOnGroup = computed(
 );
 
 const combinationsExceedLimit = computed(
-  () => totalCombinations.value > maxOptions,
+  () => totalCombinations.value > MAX_COMBINATIONS,
 );
 
 const allCombinationsSelected = computed(() => {
@@ -392,14 +392,6 @@ const fetchProductData = async () => {
 // ======================================================
 const onSubmit = handleSubmit(
   async (values) => {
-    combinations.value.forEach((combo) => {
-      const hasNewOption = combo.attributes.some((a) => !a.option_value_id);
-
-      if (hasNewOption) {
-        combo.id = null; // 🔥 FORCE CREATE
-      }
-    });
-
     if (useVariants.value && totalCombinations.value > MAX_COMBINATIONS) {
       toast.error(`Kombinasi varian maksimal ${MAX_COMBINATIONS}`);
       return;
@@ -475,7 +467,7 @@ const onSubmit = handleSubmit(
       }
 
       if (combinationsExceedLimit.value) {
-        toast.error(`Kombinasi maksimal ${maxOptions}`);
+        toast.error(`Kombinasi maksimal ${MAX_COMBINATIONS}`);
         return;
       }
 
@@ -617,9 +609,9 @@ const onSubmit = handleSubmit(
             `combinations[${cIndex}][combination]`,
             combo.combination,
           );
-          if (combo.id && combo.attributes.every((a) => a.option_value_id)) {
+          // If this combination comes from backend, keep the id so BE updates (no delete+recreate)
+          if (combo.id)
             formData.append(`combinations[${cIndex}][id]`, combo.id);
-          }
           formData.append(`combinations[${cIndex}][sku]`, combo.sku || "");
           formData.append(`combinations[${cIndex}][price]`, combo.price);
           formData.append(`combinations[${cIndex}][stock]`, combo.stock);
@@ -682,11 +674,6 @@ const onSubmit = handleSubmit(
               );
             }
           });
-        }
-      });
-      combinations.value.forEach((combo) => {
-        if (combo.id && combo.attributes.some((a) => !a.option_value_id)) {
-          combo.id = null;
         }
       });
 
@@ -1507,7 +1494,8 @@ const formMinPurchase = computed({
               class="flex items-center gap-1 mt-2 text-xs font-medium text-danger-foreground"
             >
               <i class="pi pi-exclamation-triangle"></i>
-              Kombinasi melebihi batas maksimal ({{ maxOptions }})
+              Kombinasi melebihi batas maksimal ({{ maxOptions }}) Kombinasi
+              melebihi batas maksimal ({{ MAX_COMBINATIONS }})
             </p>
           </div>
         </div>

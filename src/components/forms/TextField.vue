@@ -35,14 +35,22 @@ Events:
 - update:modelValue => emit saat nilai berubah (opsional jika ingin two-way binding)
 */
 import { Field, ErrorMessage } from "vee-validate";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 const inputRef = ref(null);
 
-const formatThousandsDot = (value) => {
+const toDigits = (value) => {
   if (value === null || value === undefined) return "";
+  return String(value).replace(/\D/g, "");
+};
 
-  // Keep only digits (supports integer use-cases like price/stock)
-  const digits = String(value).replace(/\D/g, "");
+const normalizeDigits = (digits) => {
+  // Prevent leading zeros: "02000" -> "2000", but keep single "0"
+  if (!digits) return "";
+  return String(digits).replace(/^0+(?=\d)/, "");
+};
+
+const formatThousandsDot = (value) => {
+  const digits = normalizeDigits(toDigits(value));
   if (!digits) return "";
 
   // Add dot thousand separators: 10000 -> 10.000
@@ -52,35 +60,17 @@ const formatThousandsDot = (value) => {
 const clampNumber = (num) => {
   let next = num;
 
-  if (props.max !== null && next > Number(props.max)) {
-    next = Number(props.max);
+  if (props.max !== null && props.max !== undefined && props.max !== "") {
+    const maxValue = Number(props.max);
+    if (!Number.isNaN(maxValue) && next > maxValue) next = maxValue;
   }
 
-  if (props.min !== null && next < Number(props.min)) {
-    next = Number(props.min);
+  if (props.min !== null && props.min !== undefined && props.min !== "") {
+    const minValue = Number(props.min);
+    if (!Number.isNaN(minValue) && next < minValue) next = minValue;
   }
 
   return next;
-};
-
-const handleNumberInput = (event, field) => {
-  let value = event.target.value;
-
-  if (props.type === "number") {
-    // Allow user to type with thousand separators (.) but keep stored value as number
-    const rawDigits = String(value).replace(/\D/g, "");
-    let num = Number(rawDigits || 0);
-    num = clampNumber(num);
-
-    // Update underlying vee-validate field value (number)
-    field.onChange(num);
-
-    // Update the visible value with formatting immediately
-    event.target.value = formatThousandsDot(num);
-    return;
-  }
-
-  field.onChange(value);
 };
 
 const props = defineProps({
@@ -105,6 +95,58 @@ const props = defineProps({
   max: { type: [String, Number], default: null }, // NEW: nilai maksimum untuk input number
 });
 const emit = defineEmits(["update:modelValue"]);
+
+const isNumberInput = computed(
+  () => props.type === "number" && !props.textarea,
+);
+const isNumberEditing = ref(false);
+const numberDisplay = ref("");
+
+const syncNumberDisplayFromModel = (value) => {
+  if (!isNumberInput.value) return;
+  if (isNumberEditing.value) return;
+  numberDisplay.value = formatThousandsDot(value);
+};
+
+watch(
+  () => props.modelValue,
+  (value) => {
+    syncNumberDisplayFromModel(value);
+  },
+  { immediate: true },
+);
+
+const setFieldFromDigits = (digits, field) => {
+  if (!digits) {
+    field.onChange("");
+    return;
+  }
+
+  let num = Number(digits);
+  if (Number.isNaN(num)) {
+    field.onChange("");
+    return;
+  }
+
+  num = clampNumber(num);
+  field.onChange(num);
+};
+
+const handleNumberFocus = (field) => {
+  isNumberEditing.value = true;
+  numberDisplay.value = normalizeDigits(toDigits(field.value));
+};
+
+const handleNumberBlur = (field) => {
+  isNumberEditing.value = false;
+  numberDisplay.value = formatThousandsDot(field.value);
+};
+
+const handleNumberInput = (event, field) => {
+  const digits = normalizeDigits(toDigits(event.target.value));
+  numberDisplay.value = digits;
+  setFieldFromDigits(digits, field);
+};
 
 defineExpose({
   focus() {
@@ -211,13 +253,6 @@ const inputClasses = (invalid, isTextarea) => {
 
   return baseClasses.filter(Boolean).join(" ");
 };
-
-const displayValue = (value) => {
-  if (props.type === "number" && !props.textarea) {
-    return formatThousandsDot(value);
-  }
-  return value;
-};
 </script>
 
 <template>
@@ -260,9 +295,22 @@ const displayValue = (value) => {
           :rows="textarea ? rows : undefined"
           :readonly="readonly"
           :class="inputClasses(meta.touched && errors.length, textarea)"
-          inputmode="numeric"
-          :value="displayValue(field.value)"
-          @input="(e) => handleNumberInput(e, field)"
+          :inputmode="
+            props.type === 'number' && !textarea ? 'numeric' : undefined
+          "
+          :value="
+            isNumberInput
+              ? isNumberEditing
+                ? numberDisplay
+                : formatThousandsDot(field.value)
+              : field.value
+          "
+          @focus="() => (isNumberInput ? handleNumberFocus(field) : null)"
+          @blur="() => (isNumberInput ? handleNumberBlur(field) : null)"
+          @input="
+            (e) =>
+              isNumberInput ? handleNumberInput(e, field) : field.onChange(e)
+          "
         />
 
         <!-- Suffix -->

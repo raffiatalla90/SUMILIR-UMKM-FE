@@ -114,7 +114,7 @@
               </div>
               <span
                 class="font-semibold text-gray-900 transition-colors duration-200 cursor-pointer hover:text-primary"
-                @click="goToStorePage(store.id)"
+                @click="goToStorePage(store.slug)"
                 >{{ store.name }}</span
               >
             </div>
@@ -158,7 +158,7 @@
               @click="goToProductPage(item.slug)"
             >
               <img
-                :src="item.image?.src_url"
+                :src="item.image"
                 :alt="item.name"
                 class="object-cover w-full h-full"
               />
@@ -659,7 +659,7 @@ const getVariantLabel = (item) => {
   if (!product || !item.selectedVariantId || !product.variants) return "";
 
   const variant = item.productDetails.variants.find(
-    (v) => v.id === item.selectedVariantId
+    (v) => v.id === item.selectedVariantId,
   );
 
   if (!variant || !variant.option_values?.length) {
@@ -789,7 +789,7 @@ onMounted(async () => {
 
 // ✅ Body Scroll Lock for Modals
 const isAnyModalOpen = computed(
-  () => showConfirmModal.value || showEditModal.value
+  () => showConfirmModal.value || showEditModal.value,
 );
 useBodyScrollLock(isAnyModalOpen);
 
@@ -820,7 +820,7 @@ const toggleItemSelection = (itemId, storeId) => {
   // ❌ BLOCK jika over stock
   if (item.isOverStock) {
     toast.warning(
-      "Jumlah melebihi stok. Silakan sesuaikan jumlah terlebih dahulu."
+      "Jumlah melebihi stok. Silakan sesuaikan jumlah terlebih dahulu.",
     );
     return;
   }
@@ -835,8 +835,8 @@ const toggleItemSelection = (itemId, storeId) => {
     if (selectedStoreId && selectedStoreId !== storeId) {
       toast.warning(
         `Tidak dapat memilih item dari toko berbeda.\nSilakan checkout toko "${getStoreName(
-          selectedStoreId
-        )}" terlebih dahulu atau batalkan pilihan.`
+          selectedStoreId,
+        )}" terlebih dahulu atau batalkan pilihan.`,
       );
       return;
     }
@@ -851,7 +851,7 @@ const getSelectedStoreId = () => {
 
   for (const store of cartStores.value) {
     const hasItem = store.items.some((item) =>
-      selectedItems.value.includes(item.id)
+      selectedItems.value.includes(item.id),
     );
     if (hasItem) return store.id;
   }
@@ -871,7 +871,7 @@ const isStoreSelected = (storeId) => {
   if (!store) return false;
 
   const selectableItems = store.items.filter(
-    (item) => !item.isUnavailable && !item.isOverStock
+    (item) => !item.isUnavailable && !item.isOverStock,
   );
 
   return (
@@ -886,7 +886,7 @@ const toggleStoreSelection = (storeId) => {
   if (!store) return;
 
   const selectableItems = store.items.filter(
-    (item) => !item.isUnavailable && !item.isOverStock
+    (item) => !item.isUnavailable && !item.isOverStock,
   );
 
   if (selectableItems.length === 0) {
@@ -895,7 +895,7 @@ const toggleStoreSelection = (storeId) => {
   }
 
   const allSelected = selectableItems.every((item) =>
-    selectedItems.value.includes(item.id)
+    selectedItems.value.includes(item.id),
   );
 
   const selectedStoreId = getSelectedStoreId();
@@ -909,8 +909,8 @@ const toggleStoreSelection = (storeId) => {
     if (selectedStoreId && selectedStoreId !== storeId) {
       toast.warning(
         `Tidak dapat memilih item dari toko berbeda.\nSilakan checkout toko "${getStoreName(
-          selectedStoreId
-        )}" terlebih dahulu atau batalkan pilihan.`
+          selectedStoreId,
+        )}" terlebih dahulu atau batalkan pilihan.`,
       );
       return;
     }
@@ -927,7 +927,7 @@ const hasOverStockSelected = (storeId) => {
   if (!store) return false;
 
   return store.items.some(
-    (item) => selectedItems.value.includes(item.id) && item.isOverStock
+    (item) => selectedItems.value.includes(item.id) && item.isOverStock,
   );
 };
 
@@ -939,33 +939,93 @@ const getStoreSelectedCount = (storeId) => {
   return store.items.filter((item) => selectedItems.value.includes(item.id))
     .length;
 };
-const isAddonSelected = (addon) =>
-  tempAddons.value.some(
+const toNumberOrNull = (v) => {
+  if (v === undefined || v === null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+const normalizeSelectedAddonsForGroups = (selected, groups) => {
+  if (!Array.isArray(selected) || selected.length === 0) return [];
+  if (!Array.isArray(groups) || groups.length === 0) {
+    return selected
+      .map((a) => ({
+        addon_group_id: toNumberOrNull(a?.addon_group_id),
+        addon_id: toNumberOrNull(a?.addon_id),
+      }))
+      .filter((a) => a.addon_id !== null);
+  }
+
+  const result = [];
+
+  selected.forEach((a) => {
+    const addonId = toNumberOrNull(a?.addon_id);
+    if (addonId === null) return;
+
+    // Prefer same group id if it still exists; fallback by addon_id lookup.
+    const preferredGroup = groups.find(
+      (g) => toNumberOrNull(g?.id) === toNumberOrNull(a?.addon_group_id),
+    );
+
+    const inPreferred = preferredGroup?.options?.some(
+      (o) => toNumberOrNull(o?.addon_id) === addonId,
+    );
+
+    const group =
+      (inPreferred ? preferredGroup : null) ??
+      groups.find((g) =>
+        g?.options?.some((o) => toNumberOrNull(o?.addon_id) === addonId),
+      );
+
+    result.push({
+      addon_group_id: toNumberOrNull(group?.id ?? a?.addon_group_id),
+      addon_id: addonId,
+    });
+  });
+
+  // Deduplicate
+  const seen = new Set();
+  return result.filter((x) => {
+    const key = `${x.addon_group_id}:${x.addon_id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const isAddonSelected = (addon) => {
+  const addonId = toNumberOrNull(addon?.addon_id);
+  const groupId = toNumberOrNull(addon?.addon_group_id);
+  return tempAddons.value.some(
     (a) =>
-      a.addon_id === addon.addon_id && a.addon_group_id === addon.addon_group_id
+      toNumberOrNull(a?.addon_id) === addonId &&
+      toNumberOrNull(a?.addon_group_id) === groupId,
   );
+};
 
 const selectSingleAddon = (addon, group) => {
   tempAddons.value = tempAddons.value.filter(
-    (a) => a.addon_group_id !== group.id
+    (a) => a.addon_group_id !== group.id,
   );
 
   tempAddons.value.push({
-    addon_group_id: group.id,
-    addon_id: addon.addon_id,
+    addon_group_id: toNumberOrNull(group?.id),
+    addon_id: toNumberOrNull(addon?.addon_id),
   });
 };
 const toggleAddon = (addon, group) => {
   const idx = tempAddons.value.findIndex(
-    (a) => a.addon_id === addon.addon_id && a.addon_group_id === group.id
+    (a) =>
+      toNumberOrNull(a?.addon_id) === toNumberOrNull(addon?.addon_id) &&
+      toNumberOrNull(a?.addon_group_id) === toNumberOrNull(group?.id),
   );
 
   if (idx >= 0) {
     tempAddons.value.splice(idx, 1);
   } else {
     tempAddons.value.push({
-      addon_group_id: group.id,
-      addon_id: addon.addon_id,
+      addon_group_id: toNumberOrNull(group?.id),
+      addon_id: toNumberOrNull(addon?.addon_id),
     });
   }
 };
@@ -980,7 +1040,7 @@ const calculateStoreSubtotal = (storeId) => {
     .reduce(
       (sum, item) =>
         sum + (item.unitPrice + item.addonTotalPrice) * item.quantity,
-      0
+      0,
     );
 };
 
@@ -1038,7 +1098,7 @@ const confirmRemove = async (itemId) => {
     }
 
     cartStores.value = cartStores.value.filter(
-      (store) => store.items.length > 0
+      (store) => store.items.length > 0,
     );
 
     await cartStore.fetchCartCount(true);
@@ -1054,8 +1114,8 @@ const confirmRemove = async (itemId) => {
 const getEditCurrentStock = () => {
   const combo = editStockCombinations.value.find((c) =>
     Object.entries(tempSelections.value).every(
-      ([optName, optValue]) => c.options[optName] === optValue
-    )
+      ([optName, optValue]) => c.options[optName] === optValue,
+    ),
   );
 
   return combo ? combo.stock : 0;
@@ -1068,8 +1128,8 @@ const getEditCurrentStock = () => {
 const editVariantPrice = computed(() => {
   const combo = editStockCombinations.value.find((c) =>
     Object.entries(tempSelections.value).every(
-      ([optName, optValue]) => c.options[optName] === optValue
-    )
+      ([optName, optValue]) => c.options[optName] === optValue,
+    ),
   );
 
   return combo ? combo.price : 0;
@@ -1079,7 +1139,7 @@ const hasDeletedVariant = (item) => {
   if (!item.productDetails || !item.productDetails.variants) return true;
 
   return !item.productDetails.variants.some(
-    (v) => v.id === item.selectedVariantId
+    (v) => v.id === item.selectedVariantId,
   );
 };
 
@@ -1088,7 +1148,7 @@ const hasDeletedAddon = (item) => {
   if (!item.productDetails || !item.productDetails.addon_groups) return true;
 
   const validAddonIds = item.productDetails.addon_groups.flatMap((g) =>
-    g.options.map((o) => o.addon_id)
+    g.options.map((o) => o.addon_id),
   );
 
   return item.selectedAddons.some((a) => !validAddonIds.includes(a.addon_id));
@@ -1105,12 +1165,14 @@ const editAddonTotal = computed(() => {
 
   tempAddons.value.forEach((selected) => {
     const group = addonGroups.value.find(
-      (g) => g.id === selected.addon_group_id
+      (g) => toNumberOrNull(g?.id) === toNumberOrNull(selected?.addon_group_id),
     );
 
     if (!group) return;
 
-    const addon = group.options.find((o) => o.addon_id === selected.addon_id);
+    const addon = group.options.find(
+      (o) => toNumberOrNull(o?.addon_id) === toNumberOrNull(selected?.addon_id),
+    );
 
     if (addon) {
       total += Number(addon.price || 0);
@@ -1178,7 +1240,7 @@ const editItemVariant = (itemId, storeId) => {
   tempSelections.value = {};
 
   const currentVariant = product.variants.find(
-    (v) => v.id === item.selectedVariantId
+    (v) => v.id === item.selectedVariantId,
   );
 
   if (currentVariant) {
@@ -1204,12 +1266,10 @@ const editItemVariant = (itemId, storeId) => {
     })),
   }));
 
-  tempAddons.value = item.selectedAddons?.length
-    ? item.selectedAddons.map((a) => ({
-        addon_group_id: a.addon_group_id,
-        addon_id: a.addon_id,
-      }))
-    : [];
+  tempAddons.value = normalizeSelectedAddonsForGroups(
+    item.selectedAddons,
+    addonGroups.value,
+  );
 
   if (!tempAddons.value.length) {
     initRequiredAddons();
@@ -1233,8 +1293,8 @@ const saveLoading = ref(false);
 const saveVariantChanges = async () => {
   const combo = editStockCombinations.value.find((c) =>
     Object.entries(tempSelections.value).every(
-      ([optName, optValue]) => c.options[optName] === optValue
-    )
+      ([optName, optValue]) => c.options[optName] === optValue,
+    ),
   );
 
   if (!combo) {
@@ -1281,7 +1341,7 @@ const checkoutFromCart = (storeId) => {
   if (!store) return;
 
   const selectedStoreItems = store.items.filter((item) =>
-    selectedItems.value.includes(item.id)
+    selectedItems.value.includes(item.id),
   );
 
   if (selectedStoreItems.length === 0) {
@@ -1314,12 +1374,22 @@ const checkoutFromCart = (storeId) => {
   return true;
 };
 
-const goToStorePage = (storeId) => {
-  router.push({ name: "TokoDetail", params: { id: storeId } });
+const goToStorePage = (slug) => {
+  const s = typeof slug === "string" ? slug.trim() : String(slug ?? "").trim();
+  if (!s || s === "[object Object]") {
+    toast.error("Toko tidak ditemukan");
+    return;
+  }
+  router.push({ name: "Merchant Detail", params: { slug: s } });
 };
 
 const goToProductPage = (slug) => {
-  router.push({ name: "Product Detail", params: { slug } });
+  const s = typeof slug === "string" ? slug.trim() : String(slug ?? "").trim();
+  if (!s || s === "[object Object]") {
+    toast.error("Produk tidak ditemukan");
+    return;
+  }
+  router.push({ name: "Product Detail", params: { slug: s } });
 };
 </script>
 
