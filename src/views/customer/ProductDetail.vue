@@ -450,8 +450,8 @@
                         getSizeStock(size.name) === 0
                           ? 'text-red-500'
                           : getSizeStock(size.name) <= 10
-                          ? 'text-amber-600'
-                          : 'text-gray-500'
+                            ? 'text-amber-600'
+                            : 'text-gray-500'
                       "
                     >
                       {{ getSizeStock(size.name) === 0 ? "Habis" : "" }}
@@ -490,7 +490,7 @@
                     <span
                       :class="{
                         'line-through text-gray-400': !isVariantAvailable(
-                          variant.id
+                          variant.id,
                         ),
                       }"
                     >
@@ -502,8 +502,8 @@
                         getVariantStock(variant.id) === 0
                           ? 'text-red-500'
                           : getVariantStock(variant.id) <= 10
-                          ? 'text-amber-600'
-                          : 'text-gray-500'
+                            ? 'text-amber-600'
+                            : 'text-gray-500'
                       "
                     >
                       {{
@@ -1209,7 +1209,6 @@ import { setMeta, setJsonLd } from "@/router/seo";
 import { useRoute, useRouter } from "vue-router";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock.js";
-import { getVariantImageUrl } from "@/libs/getVariantImageUrl.js";
 import Button from "@/components/common/Button.vue";
 import { useCheckoutStore } from "@/stores/checkout";
 import ProductCard from "@/components/Card/ProductCard.vue";
@@ -1336,7 +1335,7 @@ async function addToCart() {
     const matchedCombo = stockCombinations.value.find(
       (c) =>
         Number(c.sizeId) === Number(sizeId) &&
-        Number(c.variantId) === Number(variantId)
+        Number(c.variantId) === Number(variantId),
     );
 
     if (!matchedCombo && (sizes.value.length || variants.value.length)) {
@@ -1383,7 +1382,7 @@ let abortController = null;
 // image / gallery state
 const productImages = ref([]);
 const selectedImage = computed(
-  () => productImages.value[currentImageIndex.value] || null
+  () => productImages.value[currentImageIndex.value] || null,
 );
 
 // product options/variants state
@@ -1410,7 +1409,7 @@ const shareUrl = computed(() => window.location.href);
 
 const shareText = computed(() => {
   return `${product.value?.name || "Produk menarik"} - Rp ${formatIDR(
-    getCurrentPrice()
+    getCurrentPrice(),
   )}`;
 });
 async function copyLink() {
@@ -1460,7 +1459,7 @@ function shareVia(platform) {
 
 // body scroll lock for modals
 const isAnyModalOpen = computed(
-  () => showAddonModal.value || showShareModal.value
+  () => showAddonModal.value || showShareModal.value,
 );
 const goToCart = () => {
   if (authStore.isAdmin) {
@@ -1502,7 +1501,7 @@ function getCurrentStock() {
   const found = stockCombinations.value.find(
     (c) =>
       Number(c.sizeId) === Number(sizeKey) &&
-      Number(c.variantId) === Number(variantKey)
+      Number(c.variantId) === Number(variantKey),
   );
   return Number(found?.stock ?? 0);
 }
@@ -1512,7 +1511,7 @@ function getVariantStock(variantId) {
   const found = stockCombinations.value.find(
     (c) =>
       Number(c.sizeId) === Number(sizeKey) &&
-      Number(c.variantId) === Number(variantId)
+      Number(c.variantId) === Number(variantId),
   );
   return Number(found?.stock ?? 0);
 }
@@ -1548,12 +1547,12 @@ function getCurrentPrice() {
       (c) =>
         Number(c.sizeId) === Number(sizeKey) &&
         Number(c.variantId) === Number(variantKey) &&
-        Number(c.stock) > 0
+        Number(c.stock) > 0,
     ) ||
     stockCombinations.value.find(
       (c) =>
         Number(c.sizeId) === Number(sizeKey) &&
-        Number(c.variantId) === Number(variantKey)
+        Number(c.variantId) === Number(variantKey),
     );
 
   if (!found) {
@@ -1684,10 +1683,10 @@ async function doFetchProduct(slug) {
             return typeof absoluteImagePath === "function"
               ? absoluteImagePath(img.image_path)
               : _absoluteImagePath
-              ? _absoluteImagePath(img.image_path)
-              : `${
-                  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
-                }/storage/${img.image_path}`;
+                ? _absoluteImagePath(img.image_path)
+                : `${
+                    import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
+                  }/storage/${img.image_path}`;
           }
         }
         return null;
@@ -1767,7 +1766,6 @@ async function doFetchProduct(slug) {
                       "http://localhost:8000"
                     }/storage/${v.image_path}`
                 : null) ||
-              getVariantImageUrl(v.id) ||
               null,
           })),
         })),
@@ -1781,14 +1779,14 @@ async function doFetchProduct(slug) {
       ...mapped.product,
       price: Number(mapped.price_range?.min ?? mapped.product?.price ?? 0),
       min_purchase: Number(
-        mapped.min_purchase ?? mapped.product?.min_purchase ?? 1
+        mapped.min_purchase ?? mapped.product?.min_purchase ?? 1,
       ),
       merchant_address:
         mapped.product &&
         mapped.product.merchant &&
         mapped.product.merchant.address
           ? mapped.product.merchant.address
-          : mapped.merchant_address ?? null,
+          : (mapped.merchant_address ?? null),
     };
     // IMAGES: normalisasi dari berbagai sumber
     if (Array.isArray(mapped.productImages) && mapped.productImages.length) {
@@ -1845,11 +1843,11 @@ async function doFetchProduct(slug) {
     // addon groups / related products
     addonGroups.value = Array.isArray(mapped.addonGroups)
       ? mapped.addonGroups
-      : mapped.product?.addon_groups ?? [];
+      : (mapped.product?.addon_groups ?? []);
 
     relatedProducts.value = Array.isArray(mapped.related_products)
       ? mapped.related_products
-      : mapped.relatedProducts ?? [];
+      : (mapped.relatedProducts ?? []);
     // defaults selected (mapped may already provide selectedSize/selectedVariant with id/name)
     selectedSize.value =
       mapped.selectedSize ?? (sizes.value.length ? sizes.value[0] : null);
@@ -1971,7 +1969,7 @@ watch(
       cartStore.reset();
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 onBeforeUnmount(() => {
@@ -2036,7 +2034,7 @@ function buyNow() {
   const matchedCombo = stockCombinations.value.find(
     (c) =>
       Number(c.sizeId) === Number(sizeId) &&
-      Number(c.variantId) === Number(optionVariantId)
+      Number(c.variantId) === Number(optionVariantId),
   );
 
   if (!matchedCombo) {
@@ -2080,7 +2078,7 @@ function buyNow() {
 
 function isAddonSelected(addon) {
   return tempSelectedAddons.value.some(
-    (a) => Number(a.addon_id) === Number(addon.addon_id)
+    (a) => Number(a.addon_id) === Number(addon.addon_id),
   );
 }
 
@@ -2090,7 +2088,7 @@ function toggleAddon(addon, group) {
   if (!addonId) return;
 
   const idx = tempSelectedAddons.value.findIndex(
-    (a) => Number(a.addon_id) === Number(addonId)
+    (a) => Number(a.addon_id) === Number(addonId),
   );
 
   if (idx >= 0) {
@@ -2113,7 +2111,7 @@ function selectSingleAddon(addon, group) {
   }
 
   tempSelectedAddons.value = tempSelectedAddons.value.filter(
-    (a) => Number(a.addon_group_id) !== Number(group.id)
+    (a) => Number(a.addon_group_id) !== Number(group.id),
   );
 
   tempSelectedAddons.value.push({
@@ -2127,7 +2125,7 @@ function selectSingleAddon(addon, group) {
 // Cek apakah group sudah mencapai batas pilihan (dipakai di template disable checkbox)
 function isGroupMaxed(group, addon) {
   const count = tempSelectedAddons.value.filter((a) =>
-    group.items.some((gi) => Number(gi.addon?.id) === Number(a.addon_id))
+    group.items.some((gi) => Number(gi.addon?.id) === Number(a.addon_id)),
   ).length;
   const maxSel = Number(group.maxSelection || 1);
   // jika addon belum dipilih dan count sudah max, maka group maxed
@@ -2139,7 +2137,7 @@ function isGroupMaxed(group, addon) {
 function calculateTempAddonPrice() {
   return tempSelectedAddons.value.reduce(
     (sum, a) => sum + Number(a.price || 0),
-    0
+    0,
   );
 }
 
@@ -2245,7 +2243,7 @@ watch(
     // Jika stok baru < qty, sesuaikan
     validateQuantity();
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 // ✅ Restore: total price calculator (base + addons) × quantity
@@ -2287,7 +2285,7 @@ watch(
     if (!newSlug || newSlug === oldSlug) return;
     doFetchProduct(String(newSlug));
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 // bersihkan saat unmount: cancel request & remove event listener
@@ -2308,10 +2306,10 @@ onUnmounted(() => {
 
 // ✅ Gunakan label opsi dari product.options agar tidak hardcode
 const option1Label = computed(
-  () => product.value?.options?.[0]?.option_name || "Opsi 1"
+  () => product.value?.options?.[0]?.option_name || "Opsi 1",
 );
 const option2Label = computed(
-  () => product.value?.options?.[1]?.option_name || "Opsi 2"
+  () => product.value?.options?.[1]?.option_name || "Opsi 2",
 );
 
 // ✅ Min pembelian (dipakai di template)

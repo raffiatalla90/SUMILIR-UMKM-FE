@@ -49,34 +49,7 @@
 
     <!-- Spacer for Mobile Only -->
     <div class="h-[88px] sm:h-0"></div>
-    <!-- <div
-      v-if="isLoading"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-sm"
-    >
-      <div class="flex flex-col items-center gap-4">
-        <svg
-          class="w-10 h-10 animate-spin text-merchant-primary"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <circle
-            class="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            stroke-width="4"
-          />
-          <path
-            class="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8v8H4z"
-          />
-        </svg>
-        <p class="text-sm font-medium text-gray-600">Memuat data UMKM...</p>
-      </div>
-    </div> -->
+
     <div
       v-if="isLoading"
       class="flex justify-center items-center min-h-[80dvh] w-full rounded-lg mx-0"
@@ -86,7 +59,34 @@
       ></div>
     </div>
     <!-- Container Responsive -->
-    <div v-else class="px-0 mx-auto sm:px-4 lg:px-6 sm:py-6 sm:pt-0">
+    <div v-else class="mx-auto sm:px-4 lg:px-6 sm:py-6 sm:pt-0">
+      <div
+        class="p-4 mx-4 mb-2 border border-blue-200 sm:mx-0 sm:mb-4 bg-blue-50 rounded-xl"
+      >
+        <div class="flex gap-3">
+          <i
+            class="pi pi-info-circle text-merchant-primary text-lg shrink-0 mt-0.5"
+          ></i>
+          <div class="flex-1">
+            <h4 class="mb-1 text-sm font-semibold text-merchant-primary">
+              Informasi Penting
+            </h4>
+            <ul class="pl-4 space-y-1 text-xs list-disc text-merchant-primary">
+              <li>Kontak toko harus aktif dan dapat dihubungi.</li>
+              <li>Lengkapi deskripsi untuk memperkenalkan toko Anda.</li>
+              <li>Pastikan alamat dan lokasi toko sudah benar dan lengkap.</li>
+              <li>
+                Unggah logo dan cover dengan ukuran maksimal 5 MB (format
+                JPG/PNG).
+              </li>
+              <li>Atur jam operasional sesuai waktu buka toko Anda.</li>
+              <li>
+                Data yang valid akan memudahkan pelanggan menemukan toko Anda.
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
       <!-- Mobile: Card with Cover & Logo -->
       <div
         class="mx-4 mb-4 overflow-hidden bg-white shadow-sm sm:hidden rounded-2xl"
@@ -273,7 +273,7 @@
       <div class="sm:pt-16">
         <!-- Mobile: Single Card -->
         <div
-          class="p-4 mx-4 space-y-5 bg-white shadow-sm sm:hidden rounded-2xl"
+          class="p-4 mx-4 mb-2 space-y-5 bg-white shadow-sm sm:hidden rounded-2xl"
         >
           <h2 class="text-lg font-bold text-merchant-primary">
             Informasi Toko

@@ -33,11 +33,11 @@
             />
           </div>
 
-          <!-- <h2
-            class="mb-2 text-2xl font-bold text-center text-black sm:text-3xl sm:text-left"
+          <h2
+            class="hidden mb-2 text-2xl font-bold text-center text-black sm:inline sm:text-3xl sm:text-left"
           >
             Selamat Datang
-          </h2> -->
+          </h2>
           <p
             class="mb-8 text-xs text-center text-gray-600 sm:text-sm sm:text-left"
           >

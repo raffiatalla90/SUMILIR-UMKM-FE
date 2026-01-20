@@ -244,7 +244,7 @@ onMounted(async () => {
       authStore.merchantSlug ??
       authStore.activeMerchant?.slug;
     router.push(
-      fallbackSlug ? `/merchant-center/${fallbackSlug}` : "/merchant-register"
+      fallbackSlug ? `/merchant-center/${fallbackSlug}` : "/merchant-register",
     );
     return;
   }
@@ -257,7 +257,7 @@ onMounted(async () => {
       authStore.merchantSlug ??
       authStore.activeMerchant?.slug;
     router.push(
-      fallbackSlug ? `/merchant-center/${fallbackSlug}` : "/merchant-register"
+      fallbackSlug ? `/merchant-center/${fallbackSlug}` : "/merchant-register",
     );
     return;
   }
@@ -302,28 +302,28 @@ watch(
   () => values.sku,
   (newVal) => {
     formSKU.value = newVal || "";
-  }
+  },
 );
 // ✅ Sync form values dengan reactive variables (untuk v-model)
 watch(
   () => values.price,
   (newVal) => {
     formPrice.value = newVal || 0;
-  }
+  },
 );
 
 watch(
   () => values.stock,
   (newVal) => {
     formStock.value = newVal || 0;
-  }
+  },
 );
 
 watch(
   () => values.min_purchase,
   (newVal) => {
     formMinPurchase.value = newVal || 1;
-  }
+  },
 );
 
 watch(formSKU, (newVal) => {
@@ -346,14 +346,14 @@ watch(formMinPurchase, (newVal) => {
 // COMPUTED PROPERTIES
 // ============================================================
 const canAddSubCategory = computed(
-  () => selectedSubCategories.value.length < 4
+  () => selectedSubCategories.value.length < 4,
 );
 const canAddAddOnGroup = computed(
-  () => addOnGroups.value.length < maxAddOnGroups
+  () => addOnGroups.value.length < maxAddOnGroups,
 );
 
 const combinationsExceedLimit = computed(
-  () => totalCombinations.value > maxOptions
+  () => totalCombinations.value > maxOptions,
 );
 
 const allCombinationsSelected = computed(() => {
@@ -369,12 +369,12 @@ const allCombinationsSelected = computed(() => {
 const onSubmit = veeHandleSubmit(
   async (values) => {
     const oversizedImage = productImages.value.find(
-      (img) => img.file.size > MAX_IMAGE_SIZE_BYTES
+      (img) => img.file.size > MAX_IMAGE_SIZE_BYTES,
     );
 
     if (oversizedImage) {
       toast.error(
-        `Ukuran gambar tidak boleh lebih dari ${MAX_IMAGE_SIZE_MB} MB`
+        `Ukuran gambar tidak boleh lebih dari ${MAX_IMAGE_SIZE_MB} MB`,
       );
       return;
     }
@@ -414,7 +414,7 @@ const onSubmit = veeHandleSubmit(
 
     // Add-on options
     const invalidAddonOption = addOnGroups.value.some(
-      (g) => g.options.length > maxAddOnOptions
+      (g) => g.options.length > maxAddOnOptions,
     );
     if (invalidAddonOption) {
       toast.error(`Maksimal ${maxAddOnOptions} opsi per grup add-on`);
@@ -434,7 +434,7 @@ const onSubmit = veeHandleSubmit(
       }
 
       const firstMsg = String(
-        messages[0] || "Mohon lengkapi semua field yang wajib diisi"
+        messages[0] || "Mohon lengkapi semua field yang wajib diisi",
       );
       toast.error(firstMsg);
       return;
@@ -453,7 +453,7 @@ const onSubmit = veeHandleSubmit(
       }
       const hasVariantWithAtLeastTwoOptions = variants.value.some((variant) => {
         const validOptionsCount = variant.options.filter(
-          (opt) => opt.name && opt.name.trim()
+          (opt) => opt.name && opt.name.trim(),
         ).length;
 
         return validOptionsCount >= 2;
@@ -461,7 +461,7 @@ const onSubmit = veeHandleSubmit(
 
       if (!hasVariantWithAtLeastTwoOptions) {
         toast.error(
-          "Jika menggunakan variasi, minimal salah satu varian harus memiliki 2 pilihan atau lebih"
+          "Jika menggunakan variasi, minimal salah satu varian harus memiliki 2 pilihan atau lebih",
         );
         return;
       }
@@ -473,7 +473,7 @@ const onSubmit = veeHandleSubmit(
       }
 
       const hasEmptyOptions = variants.value.some(
-        (v) => v.options.filter((opt) => opt.name.trim()).length === 0
+        (v) => v.options.filter((opt) => opt.name.trim()).length === 0,
       );
       if (hasEmptyOptions) {
         toast.error("Setiap varian harus memiliki minimal 1 opsi");
@@ -486,7 +486,7 @@ const onSubmit = veeHandleSubmit(
       }
 
       const hasInvalidCombo = combinations.value.some(
-        (c) => c.price < 0 || c.stock < 0
+        (c) => c.price < 0 || c.stock < 0,
       );
       if (hasInvalidCombo) {
         toast.error("Harga dan stok tidak boleh negatif");
@@ -499,7 +499,7 @@ const onSubmit = veeHandleSubmit(
         if (!group.name.trim()) return true;
 
         const validOptions = group.options.filter(
-          (opt) => opt.name.trim() && opt.price >= 0
+          (opt) => opt.name.trim() && opt.price >= 0,
         );
         if (validOptions.length === 0) return true;
 
@@ -512,7 +512,7 @@ const onSubmit = veeHandleSubmit(
 
       if (hasInvalidGroup) {
         toast.error(
-          "Pastikan setiap grup add-on memiliki nama, minimal 1 opsi valid, dan pengaturan min/max yang benar"
+          "Pastikan setiap grup add-on memiliki nama, minimal 1 opsi valid, dan pengaturan min/max yang benar",
         );
         return;
       }
@@ -553,14 +553,14 @@ const onSubmit = veeHandleSubmit(
           formData.append(`variants[${vIndex}][name]`, variant.name);
           formData.append(
             `variants[${vIndex}][uses_images]`,
-            variantUsesImages.value[variant.id] || 0
+            variantUsesImages.value[variant.id] || 0,
           );
 
           variant.options.forEach((opt, oIndex) => {
             if (opt.name.trim()) {
               formData.append(
                 `variants[${vIndex}][options][${oIndex}][name]`,
-                opt.name.trim()
+                opt.name.trim(),
               );
 
               if (
@@ -570,7 +570,7 @@ const onSubmit = veeHandleSubmit(
                 opt.images.forEach((img, iIndex) => {
                   formData.append(
                     `variants[${vIndex}][options][${oIndex}][images][${iIndex}][file]`,
-                    img.file
+                    img.file,
                   );
                 });
               }
@@ -581,7 +581,7 @@ const onSubmit = veeHandleSubmit(
         combinations.value.forEach((combo, cIndex) => {
           formData.append(
             `combinations[${cIndex}][combination]`,
-            combo.combination
+            combo.combination,
           );
           formData.append(`combinations[${cIndex}][sku]`, combo.sku || "");
           formData.append(`combinations[${cIndex}][price]`, combo.price);
@@ -590,11 +590,11 @@ const onSubmit = veeHandleSubmit(
           combo.attributes.forEach((attr, aIndex) => {
             formData.append(
               `combinations[${cIndex}][attributes][${aIndex}][name]`,
-              attr.name
+              attr.name,
             );
             formData.append(
               `combinations[${cIndex}][attributes][${aIndex}][value]`,
-              attr.value
+              attr.value,
             );
           });
         });
@@ -612,22 +612,22 @@ const onSubmit = veeHandleSubmit(
           formData.append(`add_on_groups[${gIndex}][name]`, group.name.trim());
           formData.append(
             `add_on_groups[${gIndex}][min_selection]`,
-            group.min_selection
+            group.min_selection,
           );
           formData.append(
             `add_on_groups[${gIndex}][max_selection]`,
-            group.max_selection
+            group.max_selection,
           );
 
           group.options.forEach((opt, oIndex) => {
             if (opt.name.trim()) {
               formData.append(
                 `add_on_groups[${gIndex}][options][${oIndex}][name]`,
-                opt.name.trim()
+                opt.name.trim(),
               );
               formData.append(
                 `add_on_groups[${gIndex}][options][${oIndex}][price]`,
-                opt.price
+                opt.price,
               );
             }
           });
@@ -645,7 +645,7 @@ const onSubmit = veeHandleSubmit(
           headers: {
             "Content-Type": "multipart/form-data",
           },
-        }
+        },
       );
 
       toast.success("Produk berhasil ditambahkan");
@@ -677,7 +677,7 @@ const onSubmit = veeHandleSubmit(
         toast.error("Anda tidak memiliki akses ke merchant ini");
       } else {
         toast.error(
-          error.response?.data?.message || "Gagal menambahkan produk"
+          error.response?.data?.message || "Gagal menambahkan produk",
         );
       }
     } finally {
@@ -715,7 +715,8 @@ const onSubmit = veeHandleSubmit(
             return v[0];
           if (v && typeof v === "object") {
             const inner = Object.values(v).find(
-              (iv) => typeof iv === "string" || (Array.isArray(iv) && iv.length)
+              (iv) =>
+                typeof iv === "string" || (Array.isArray(iv) && iv.length),
             );
             if (typeof inner === "string") return inner;
             if (Array.isArray(inner)) return String(inner[0]);
@@ -731,7 +732,7 @@ const onSubmit = veeHandleSubmit(
       "Mohon lengkapi semua field yang wajib diisi";
 
     toast.error(String(firstMsg));
-  }
+  },
 );
 </script>
 
@@ -785,7 +786,70 @@ const onSubmit = veeHandleSubmit(
     <div class="h-[72px] sm:h-0"></div>
 
     <!-- Container Responsive -->
-    <div class="px-0 mx-auto sm:px-6 sm:py-6 sm:pt-0">
+    <div class="px-4 pt-4 mx-auto sm:px-6 sm:py-6 sm:pt-0">
+      <!-- ✅ UPDATED: Info Banner -->
+      <div
+        class="p-4 mb-2 border border-blue-200 sm:mb-4 bg-blue-50 rounded-xl"
+      >
+        <div class="flex gap-3">
+          <i
+            class="pi pi-info-circle text-merchant-primary text-lg shrink-0 mt-0.5"
+          ></i>
+          <div class="flex-1">
+            <h4 class="mb-1 text-sm font-semibold text-merchant-primary">
+              Informasi Penting
+            </h4>
+            <ul class="pl-4 space-y-1 text-xs list-disc text-merchant-primary">
+              <li>
+                Upload minimal 1 foto produk, maksimal 6 foto (maksimal 5 MB per
+                foto).
+              </li>
+              <li>
+                Kategori utama wajib dipilih, sub-kategori opsional (maksimal
+                4).
+              </li>
+              <li>SKU produk bersifat opsional.</li>
+              <li>Stok maksimal 9.999 per produk/varian.</li>
+              <li>Minimal pembelian tidak boleh kurang dari 1.</li>
+              <li>
+                <b>Variasi Produk:</b>
+                <ul class="pl-4 mt-1 list-disc">
+                  <li>Maksimal 2 variasi, total kombinasi maksimal 50.</li>
+                  <li>
+                    Jika menggunakan variasi, minimal salah satu varian harus
+                    memiliki 2 opsi.
+                  </li>
+                  <li>
+                    Jika menggunakan variasi, atur SKU, harga, dan stok di
+                    setiap kombinasi.
+                  </li>
+                  <li>Hanya variasi pertama yang dapat memiliki gambar.</li>
+                </ul>
+              </li>
+              <li>
+                <b>Grup Add-on (Opsional):</b>
+                <ul class="pl-4 mt-1 list-disc">
+                  <li>Maksimal 10 grup, maksimal 10 opsi per grup.</li>
+                  <li>
+                    Setiap grup add-on memiliki pengaturan minimal dan maksimal
+                    pilihan:
+                    <ul class="pl-4 mt-1 list-disc">
+                      <li>
+                        <b>Min (Minimal Pilihan):</b> Jumlah minimum opsi yang
+                        harus dipilih pembeli dari grup ini.
+                      </li>
+                      <li>
+                        <b>Max (Maksimal Pilihan):</b> Jumlah maksimum opsi yang
+                        dapat dipilih pembeli dari grup ini.
+                      </li>
+                    </ul>
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
       <!-- ✅ FIXED: Remove ref, use @submit -->
       <Form @submit="onSubmit">
         <!-- Foto Produk -->
@@ -1295,7 +1359,7 @@ const onSubmit = veeHandleSubmit(
                                     handleOptionImageUpload(
                                       vIndex,
                                       oIndex,
-                                      $event
+                                      $event,
                                     )
                                   "
                                 />
@@ -1437,7 +1501,7 @@ const onSubmit = veeHandleSubmit(
               class="flex items-center gap-1 text-sm font-semibold text-merchant-primary hover:underline"
             >
               <i class="pi pi-plus"></i>
-              Tambah
+              Tambah Grup
             </button>
           </div>
 

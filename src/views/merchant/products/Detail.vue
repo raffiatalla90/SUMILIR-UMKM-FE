@@ -27,14 +27,6 @@ const currentMerchantSlug = computed(() => {
     : authStore.merchantSlug || null;
 });
 
-// ✅ Get merchantId (numeric) for APIs by mapping slug -> id
-const currentMerchantId = computed(() => {
-  const merchant = currentMerchantSlug.value
-    ? authStore.getMerchantBySlug(currentMerchantSlug.value)
-    : authStore.activeMerchant;
-
-  return merchant?.id ?? null;
-});
 // ===== Swipe state (mobile) =====
 const touchStartX = ref(0);
 const touchEndX = ref(0);
@@ -170,7 +162,7 @@ const totalAddOnOptions = computed(() => {
   if (!product.value?.addonGroups) return 0;
   return product.value.addonGroups.reduce(
     (total, group) => total + (group.options?.length || 0),
-    0
+    0,
   );
 });
 
@@ -180,7 +172,7 @@ const addOnPriceRange = computed(() => {
   }
 
   const prices = product.value.addonGroups.flatMap((group) =>
-    (group.options || []).map((opt) => opt.addon_price || 0)
+    (group.options || []).map((opt) => opt.addon_price || 0),
   );
   const nonZeroPrices = prices.filter((p) => p > 0);
 
@@ -313,7 +305,7 @@ const goBack = () => {
 
 const editProduct = () => {
   router.push(
-    `/merchant-center/${currentMerchantSlug.value}/products/${route.params.slug}/edit`
+    `/merchant-center/${currentMerchantSlug.value}/products/${route.params.slug}/edit`,
   );
 };
 
@@ -596,7 +588,7 @@ onMounted(() => {
             <div v-if="subCategories.length > 0">
               <div class="mb-3 border-t border-gray-100"></div>
               <div class="flex items-start justify-between gap-3">
-                <span class="shrink-0 text-sm text-gray-600">Sub Kategori</span>
+                <span class="text-sm text-gray-600 shrink-0">Sub Kategori</span>
                 <div class="flex flex-wrap gap-1.5 justify-end">
                   <span
                     v-for="cat in subCategories"
@@ -612,7 +604,7 @@ onMounted(() => {
             <div v-if="product.min_purchase">
               <div class="mb-3 border-t border-gray-100"></div>
               <div class="flex items-start justify-between gap-3 mt-3">
-                <span class="shrink-0 text-sm text-gray-600"
+                <span class="text-sm text-gray-600 shrink-0"
                   >Minimal Pembelian</span
                 >
                 <span class="text-sm font-medium text-gray-900">
@@ -630,7 +622,7 @@ onMounted(() => {
           >
             <div class="flex items-center gap-3">
               <div
-                class="flex items-center justify-center shrink-0 w-10 h-10 rounded-full bg-merchant-primary/10"
+                class="flex items-center justify-center w-10 h-10 rounded-full shrink-0 bg-merchant-primary/10"
               >
                 <i class="pi pi-box text-merchant-primary"></i>
               </div>
@@ -655,7 +647,7 @@ onMounted(() => {
           >
             <div class="flex items-center gap-3">
               <div
-                class="flex items-center justify-center shrink-0 w-10 h-10 rounded-full bg-merchant-primary/10"
+                class="flex items-center justify-center w-10 h-10 rounded-full shrink-0 bg-merchant-primary/10"
               >
                 <i class="pi pi-plus-circle text-merchant-primary"></i>
               </div>
@@ -773,7 +765,7 @@ onMounted(() => {
                         formatNumber(
                           variantsByOptionValue[
                             `${option.id}_${optionValue.id}`
-                          ].totalStock
+                          ].totalStock,
                         )
                       }}
                       unit
@@ -798,7 +790,7 @@ onMounted(() => {
                     {{
                       formatNumber(
                         variantsByOptionValue[`${option.id}_${optionValue.id}`]
-                          .totalStock
+                          .totalStock,
                       )
                     }}
                     unit
@@ -815,7 +807,7 @@ onMounted(() => {
         <!-- Variant List -->
         <div class="space-y-3">
           <h3
-            class="text-sm font-semibold text-black sticky -top-4 bg-white py-2 -mt-2 z-5"
+            class="sticky py-2 -mt-2 text-sm font-semibold text-black bg-white -top-4 z-5"
           >
             Daftar Kombinasi Varian
           </h3>

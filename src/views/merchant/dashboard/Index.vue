@@ -103,7 +103,7 @@ const createCategoryChart = (labels, data) => {
   categoryChart.value?.destroy();
 
   const colors = labels.map(
-    (_, i) => CATEGORY_COLORS[i] || CATEGORY_COLORS[CATEGORY_COLORS.length - 1]
+    (_, i) => CATEGORY_COLORS[i] || CATEGORY_COLORS[CATEGORY_COLORS.length - 1],
   );
 
   categoryChart.value = new Chart(categoryChartRef.value, {
@@ -146,12 +146,12 @@ const fetchDashboard = async () => {
     if (!currentMerchantSlug.value) {
       throw new Error("merchantSlug tidak ditemukan di route params");
     }
-
-    const { data } = await api.get(
-      `/api/merchant/${currentMerchantSlug.value}/dashboard`
+    const response = await api.get(
+      `/api/merchant/${currentMerchantSlug.value}/dashboard`,
     );
 
-    const voucherStats = data?.voucher_stats || {};
+    const data = response?.data?.data || {};
+    const voucherStats = data.voucher_stats || {};
 
     const label = catalogLabel.value;
     const catalogIcon = isJasaMerchant.value ? "pi pi-briefcase" : "pi pi-box";
@@ -197,7 +197,7 @@ const fetchDashboard = async () => {
           value: data.stats.out_of_stock,
           icon: "pi pi-exclamation-triangle",
           color: "bg-red-100 text-red-600",
-        }
+        },
       );
     }
 
@@ -234,7 +234,7 @@ const fetchDashboard = async () => {
         value: voucherStats.used ?? 0,
         icon: "pi pi-chart-line",
         color: "bg-purple-100 text-purple-600",
-      }
+      },
     );
 
     dashboardStats.value = stats;
@@ -259,7 +259,7 @@ const fetchDashboard = async () => {
     ) {
       createCategoryChart(
         data.charts.category.labels,
-        data.charts.category.datasets[0].data
+        data.charts.category.datasets[0].data,
       );
     }
   } catch (err) {

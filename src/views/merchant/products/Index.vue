@@ -324,7 +324,7 @@ const buildExportParams = () => {
     sort_by: buildSortByParam(activeFilters.value) || "newest",
   };
   Object.keys(params).forEach(
-    (k) => params[k] === undefined && delete params[k]
+    (k) => params[k] === undefined && delete params[k],
   );
   return params;
 };
@@ -383,7 +383,7 @@ const confirmDeleteProduct = async () => {
 
   await deleteProduct(
     currentMerchantSlug.value,
-    selectedProductForDelete.value.slug
+    selectedProductForDelete.value.slug,
   );
   closeDeleteModal();
 };
@@ -528,7 +528,7 @@ const confirmSingleStatusChange = async () => {
     await updateProductStatus(
       currentMerchantSlug.value,
       selectedProductForStatusChange.value.slug,
-      newStatusForChange.value
+      newStatusForChange.value,
     );
     const statusLabel = getStatusLabel(newStatusForChange.value);
     toast.success(`Status produk berhasil diubah menjadi ${statusLabel}`);
@@ -561,12 +561,12 @@ const confirmBulkStatusChange = async () => {
     await bulkUpdateStatus(
       currentMerchantSlug.value,
       selectedProducts.value,
-      newBulkStatus.value
+      newBulkStatus.value,
     );
 
     const statusLabel = getStatusLabel(newBulkStatus.value);
     toast.success(
-      `${selectedProductsCount.value} produk berhasil diubah menjadi ${statusLabel}`
+      `${selectedProductsCount.value} produk berhasil diubah menjadi ${statusLabel}`,
     );
 
     selectedProducts.value = [];
@@ -646,7 +646,7 @@ onMounted(async () => {
     authStore.activeMerchant;
   if (!merchant || merchant.status !== "approved") {
     toast.warning(
-      "UMKM Anda belum disetujui. Silakan menunggu persetujuan admin."
+      "UMKM Anda belum disetujui. Silakan menunggu persetujuan admin.",
     );
     router.push("/merchant-register");
     return;
@@ -1096,7 +1096,10 @@ const tableActions = [
     <!-- ✅ FIXED: Product List -->
     <div class="px-4 sm:px-6">
       <!-- Mobile: Card List -->
-      <div class="flex flex-col gap-2 py-2 sm:hidden">
+      <div
+        v-if="!loadingFetchProducts"
+        class="flex flex-col gap-2 py-2 sm:hidden"
+      >
         <ProductCard
           v-for="product in products"
           :key="product.id"
@@ -1122,7 +1125,7 @@ const tableActions = [
           :current-page="currentPage"
           :total-pages="totalPages"
           :pagination-info="paginationInfo"
-          empty-message="Tidak ada produk yang sesuai dengan filter"
+          empty-message="Tidak ada produk untuk ditampilkan."
           @update:selected-items="selectedProducts = $event"
           @update:select-all="
             selectAll = $event;
@@ -1137,7 +1140,7 @@ const tableActions = [
           <template #cell-name="{ item }">
             <div class="flex items-center gap-3 cursor-pointer">
               <div
-                class="shrink-0 w-12 h-12 overflow-hidden rounded-lg bg-muted-background"
+                class="w-12 h-12 overflow-hidden rounded-lg shrink-0 bg-muted-background"
               >
                 <!-- ✅ FIXED: Gunakan helper getImageUrl -->
                 <img
@@ -1260,6 +1263,17 @@ const tableActions = [
       </div>
     </div>
 
+    <div class="px-4 sm:hidden">
+      <div
+        v-if="loadingFetchProducts"
+        class="flex items-center justify-center py-10 h-[70dvh]"
+      >
+        <div
+          class="w-10 h-10 border-4 rounded-full border-muted-foreground border-t-merchant-primary animate-spin"
+        ></div>
+      </div>
+    </div>
+
     <!-- ✅ FIXED: Mobile Pagination (Bottom) -->
     <div
       v-if="!loadingFetchProducts && products.length > 0"
@@ -1272,6 +1286,12 @@ const tableActions = [
         @next="nextPage"
         @go-to="goToPage"
       />
+    </div>
+    <div
+      v-else
+      class="py-10 text-sm text-center sm:hidden text-muted-foreground"
+    >
+      Tidak ada produk untuk ditampilkan.
     </div>
 
     <!-- Spacer untuk Floating Bulk Action Bar (Mobile) -->
@@ -1321,7 +1341,7 @@ const tableActions = [
             label="Kategori"
             :options="categoryOptions"
             :disabled="loadingLevel1"
-            placeholder="Semua category"
+            placeholder="Semua kategori"
           />
 
           <!-- Price Range -->
@@ -1610,7 +1630,7 @@ const tableActions = [
           "
         >
           <div
-            class="flex items-center justify-center shrink-0 w-12 h-12 transition-transform rounded-lg bg-danger-background group-hover:scale-110"
+            class="flex items-center justify-center w-12 h-12 transition-transform rounded-lg shrink-0 bg-danger-background group-hover:scale-110"
           >
             <i class="text-2xl pi pi-file-pdf text-danger-foreground"></i>
           </div>
@@ -1635,7 +1655,7 @@ const tableActions = [
           "
         >
           <div
-            class="flex items-center justify-center shrink-0 w-12 h-12 transition-transform rounded-lg bg-success-background group-hover:scale-110"
+            class="flex items-center justify-center w-12 h-12 transition-transform rounded-lg shrink-0 bg-success-background group-hover:scale-110"
           >
             <i class="text-2xl pi pi-file-excel text-success-foreground"></i>
           </div>
@@ -1675,7 +1695,7 @@ const tableActions = [
           class="flex items-center w-full gap-4 p-4 text-left transition border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary group"
         >
           <div
-            class="flex items-center justify-center shrink-0 w-12 h-12 transition-transform rounded-lg bg-success-background group-hover:scale-110"
+            class="flex items-center justify-center w-12 h-12 transition-transform rounded-lg shrink-0 bg-success-background group-hover:scale-110"
           >
             <i class="text-2xl pi pi-check-circle text-success-foreground"></i>
           </div>
@@ -1695,7 +1715,7 @@ const tableActions = [
           class="flex items-center w-full gap-4 p-4 text-left transition border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary group"
         >
           <div
-            class="flex items-center justify-center shrink-0 w-12 h-12 transition-transform rounded-lg bg-danger-background group-hover:scale-110"
+            class="flex items-center justify-center w-12 h-12 transition-transform rounded-lg shrink-0 bg-danger-background group-hover:scale-110"
           >
             <i class="text-2xl pi pi-box text-danger-foreground"></i>
           </div>
@@ -1754,7 +1774,7 @@ const tableActions = [
           "
         >
           <div
-            class="flex items-center justify-center shrink-0 w-12 h-12 transition-transform rounded-lg bg-success-background"
+            class="flex items-center justify-center w-12 h-12 transition-transform rounded-lg shrink-0 bg-success-background"
             :class="
               selectedProductForVisibility?.status !== 'published' &&
               'group-hover:scale-110'
@@ -1784,7 +1804,7 @@ const tableActions = [
           "
         >
           <div
-            class="flex items-center justify-center shrink-0 w-12 h-12 transition-transform rounded-lg bg-danger-background"
+            class="flex items-center justify-center w-12 h-12 transition-transform rounded-lg shrink-0 bg-danger-background"
             :class="
               selectedProductForVisibility?.status !== 'archived' &&
               'group-hover:scale-110'
@@ -1844,7 +1864,7 @@ const tableActions = [
           v-if="selectedProductForDelete"
           class="flex items-center gap-3 p-4 bg-muted-background rounded-xl"
         >
-          <div class="shrink-0 w-16 h-16 overflow-hidden bg-white rounded-lg">
+          <div class="w-16 h-16 overflow-hidden bg-white rounded-lg shrink-0">
             <!-- ✅ FIXED: Gunakan helper getImageUrl -->
             <img
               v-if="selectedProductForDelete.cover_image?.src_url"
@@ -1941,7 +1961,7 @@ const tableActions = [
             class="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg"
           >
             <div
-              class="shrink-0 w-12 h-12 overflow-hidden rounded-lg bg-muted-background"
+              class="w-12 h-12 overflow-hidden rounded-lg shrink-0 bg-muted-background"
             >
               <!-- ✅ FIXED: Gunakan helper getImageUrl -->
               <img
@@ -2030,7 +2050,7 @@ const tableActions = [
           v-if="selectedProductForStatusChange"
           class="flex items-center gap-3 p-4 bg-muted-background rounded-xl"
         >
-          <div class="shrink-0 w-16 h-16 overflow-hidden bg-white rounded-lg">
+          <div class="w-16 h-16 overflow-hidden bg-white rounded-lg shrink-0">
             <!-- ✅ FIXED: Gunakan helper getImageUrl -->
             <img
               v-if="selectedProductForStatusChange.cover_image?.src_url"
@@ -2171,7 +2191,7 @@ const tableActions = [
             class="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg"
           >
             <div
-              class="shrink-0 w-12 h-12 overflow-hidden rounded-lg bg-muted-background"
+              class="w-12 h-12 overflow-hidden rounded-lg shrink-0 bg-muted-background"
             >
               <!-- ✅ FIXED: Gunakan helper getImageUrl -->
               <img

@@ -34,25 +34,49 @@ Props:
 Events:
 - update:modelValue => emit saat nilai berubah (opsional jika ingin two-way binding)
 */
-import { min } from "lodash";
 import { Field, ErrorMessage } from "vee-validate";
 import { computed, ref } from "vue";
 const inputRef = ref(null);
+
+const formatThousandsDot = (value) => {
+  if (value === null || value === undefined) return "";
+
+  // Keep only digits (supports integer use-cases like price/stock)
+  const digits = String(value).replace(/\D/g, "");
+  if (!digits) return "";
+
+  // Add dot thousand separators: 10000 -> 10.000
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+};
+
+const clampNumber = (num) => {
+  let next = num;
+
+  if (props.max !== null && next > Number(props.max)) {
+    next = Number(props.max);
+  }
+
+  if (props.min !== null && next < Number(props.min)) {
+    next = Number(props.min);
+  }
+
+  return next;
+};
+
 const handleNumberInput = (event, field) => {
   let value = event.target.value;
 
   if (props.type === "number") {
-    let num = Number(value);
+    // Allow user to type with thousand separators (.) but keep stored value as number
+    const rawDigits = String(value).replace(/\D/g, "");
+    let num = Number(rawDigits || 0);
+    num = clampNumber(num);
 
-    if (props.max !== null && num > Number(props.max)) {
-      num = Number(props.max);
-    }
+    // Update underlying vee-validate field value (number)
+    field.onChange(num);
 
-    if (props.min !== null && num < Number(props.min)) {
-      num = Number(props.min);
-    }
-
-    field.onChange(num); // ✅ INI PENTING
+    // Update the visible value with formatting immediately
+    event.target.value = formatThousandsDot(num);
     return;
   }
 
@@ -187,6 +211,13 @@ const inputClasses = (invalid, isTextarea) => {
 
   return baseClasses.filter(Boolean).join(" ");
 };
+
+const displayValue = (value) => {
+  if (props.type === "number" && !props.textarea) {
+    return formatThousandsDot(value);
+  }
+  return value;
+};
 </script>
 
 <template>
@@ -210,7 +241,7 @@ const inputClasses = (invalid, isTextarea) => {
         <!-- Prefix -->
         <span
           v-if="prefix && !textarea"
-          class="absolute left-4 top-1/2 -translate-y-1/2 text-sm pointer-events-none z-10"
+          class="absolute z-10 text-sm -translate-y-1/2 pointer-events-none left-4 top-1/2"
           :class="variant === 'muted' ? 'text-gray-400' : 'text-gray-500'"
         >
           {{ prefix }}
@@ -222,21 +253,22 @@ const inputClasses = (invalid, isTextarea) => {
           v-bind="field"
           ref="inputRef"
           :id="name"
-          :type="textarea ? undefined : type"
+          :type="textarea ? undefined : props.type === 'number' ? 'text' : type"
           :placeholder="placeholder"
           :min="!textarea ? min : undefined"
           :max="!textarea ? max : undefined"
           :rows="textarea ? rows : undefined"
           :readonly="readonly"
           :class="inputClasses(meta.touched && errors.length, textarea)"
-          :value="field.value"
+          inputmode="numeric"
+          :value="displayValue(field.value)"
           @input="(e) => handleNumberInput(e, field)"
         />
 
         <!-- Suffix -->
         <span
           v-if="suffix && !textarea"
-          class="absolute right-4 top-1/2 -translate-y-1/2 text-sm pointer-events-none z-10"
+          class="absolute z-10 text-sm -translate-y-1/2 pointer-events-none right-4 top-1/2"
           :class="variant === 'muted' ? 'text-gray-400' : 'text-gray-500'"
         >
           {{ suffix }}
@@ -244,6 +276,6 @@ const inputClasses = (invalid, isTextarea) => {
       </div>
     </Field>
 
-    <ErrorMessage :name="name" class="text-danger-foreground text-xs mt-1" />
+    <ErrorMessage :name="name" class="mt-1 text-xs text-danger-foreground" />
   </div>
 </template>

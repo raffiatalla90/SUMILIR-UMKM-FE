@@ -1,12 +1,12 @@
 <template>
   <div
-    class="min-h-screen sm:bg-gray-50 bg-primary flex items-center flex-col sm:justify-center justify-end sm:p-8"
+    class="flex flex-col items-center justify-end min-h-screen sm:bg-gray-50 bg-primary sm:justify-center sm:p-8"
   >
     <div
-      class="sm:hidden flex flex-col flex-1/3 justify-end sm:px-0 px-4 py-2 sm:pt-0 pt-8"
+      class="flex flex-col justify-end px-4 py-2 pt-8 sm:hidden flex-1/3 sm:px-0 sm:pt-0"
     >
       <h2
-        class="sm:hidden inline text-2xl sm:text-3xl font-bold text-center sm:text-left mb-2 text-white"
+        class="inline mb-2 text-2xl font-bold text-center text-white sm:hidden sm:text-3xl sm:text-left"
       >
         Daftarkan UMKM
       </h2>
@@ -18,17 +18,17 @@
       </p>
     </div>
     <div
-      class="flex flex-col justify-center sm:flex-0 flex-2/3 p-8 sm:p-12 sm:max-w-xl w-full bg-white sm:rounded-4xl rounded-t-4xl sm:shadow-lg shadow-none"
+      class="flex flex-col justify-center w-full p-8 bg-white shadow-none sm:flex-0 flex-2/3 sm:p-12 sm:max-w-xl sm:rounded-4xl rounded-t-4xl sm:shadow-lg"
     >
       <!-- Right Side - Form -->
-      <div class="sm:flex flex-col">
-        <div class="flex gap-3 mb-2 items-center">
+      <div class="flex-col sm:flex">
+        <div class="flex items-center gap-3 mb-2">
           <span
-            class="hidden sm:inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary"
+            class="items-center justify-center hidden w-10 h-10 rounded-full sm:inline-flex bg-primary/10 text-primary"
           >
             <!-- <svg
               xmlns="http://www.w3.org/2000/svg"
-              class="h-5 w-5"
+              class="w-5 h-5"
               viewBox="0 0 24 24"
               fill="currentColor"
             >
@@ -39,21 +39,21 @@
             <i class="pi pi-shop"></i>
           </span>
           <h2
-            class="hidden sm:inline text-2xl sm:text-xl font-bold text-center sm:text-left text-black"
+            class="hidden text-2xl font-bold text-center text-black sm:inline sm:text-xl sm:text-left"
           >
             Daftarkan UMKM
           </h2>
         </div>
 
         <p
-          class="hidden sm:inline text-xs sm:text-sm text-center sm:text-left mb-6 text-gray-600"
+          class="hidden mb-6 text-xs text-center text-gray-600 sm:inline sm:text-sm sm:text-left"
         >
           Isi data diri dan informasi UMKM-mu untuk memulai perjalananmu bersama
           kami
         </p>
 
         <Form @submit="handleRegister" :validation-schema="schema">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <!-- Nama Usaha -->
             <TextField
               name="name"
@@ -134,7 +134,7 @@
             </div>
 
             <!-- Koordinat (nested di address.*) -->
-            <TextField
+            <!-- <TextField
               name="address.latitude"
               label="Latitude"
               v-model="latitude"
@@ -147,7 +147,7 @@
               v-model="longitude"
               :readonly="true"
               placeholder="106.816666"
-            />
+            /> -->
 
             <!-- Detail alamat (nested di address.detail) -->
             <TextField
@@ -179,9 +179,9 @@
         <!-- Debug Info (Development Only) -->
         <div
           v-if="isDev"
-          class="mt-6 p-4 bg-gray-50 rounded-xl text-xs border border-gray-200"
+          class="p-4 mt-6 text-xs border border-gray-200 bg-gray-50 rounded-xl"
         >
-          <p class="font-semibold mb-2 text-gray-700">Debug Info:</p>
+          <p class="mb-2 font-semibold text-gray-700">Debug Info:</p>
           <p class="text-gray-600"><strong>API URL:</strong> {{ apiUrl }}</p>
         </div>
       </div>

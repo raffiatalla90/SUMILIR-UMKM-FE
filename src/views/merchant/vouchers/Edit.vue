@@ -135,7 +135,7 @@ onMounted(async () => {
   try {
     const res = await fetchMerchantVoucherDetail(
       currentMerchantSlug.value,
-      voucherId.value
+      voucherId.value,
     );
 
     // API kamu return { data: {...} }
@@ -247,7 +247,7 @@ const onSubmit = veeHandleSubmit(async () => {
     await editMerchantVoucher(
       currentMerchantSlug.value,
       voucherId.value,
-      payload
+      payload,
     );
 
     router.push(`/merchant-center/${currentMerchantSlug.value}/vouchers`);
@@ -321,7 +321,35 @@ const onSubmit = veeHandleSubmit(async () => {
     </div>
 
     <!-- Container Responsive -->
-    <div v-else class="px-0 mx-auto sm:px-6 sm:py-6 sm:pt-0">
+    <div v-else class="px-4 pt-4 mx-auto sm:px-6 sm:py-6 sm:pt-0">
+      <div
+        class="p-4 mb-2 border border-blue-200 sm:mb-4 bg-blue-50 rounded-xl"
+      >
+        <div class="flex gap-3">
+          <i
+            class="pi pi-info-circle text-merchant-primary text-lg shrink-0 mt-0.5"
+          ></i>
+          <div class="flex-1">
+            <h4 class="mb-1 text-sm font-semibold text-merchant-primary">
+              Informasi Penting
+            </h4>
+            <ul class="pl-4 space-y-1 text-xs list-disc text-merchant-primary">
+              <li>
+                Kode voucher tidak boleh sama dengan voucher lain di toko Anda.
+              </li>
+              <li>Pilih tipe voucher: Persentase (%) atau Nilai Tetap (Rp).</li>
+              <li>
+                Jika tipe Persentase (%), wajib mengisi nilai maksimal diskon
+                (Rp).
+              </li>
+              <li>
+                Minimal pembelian harus diisi dan tidak boleh kurang dari 0.
+              </li>
+              <li>Voucher hanya berlaku pada periode yang ditentukan.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
       <Form @submit="onSubmit">
         <!-- Info Dasar -->
         <div

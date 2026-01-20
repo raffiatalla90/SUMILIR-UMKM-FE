@@ -47,7 +47,12 @@ function unwrapApiData(payload) {
   // - { data: { data: merchant } }
   return payload?.data?.data ?? payload?.data ?? payload;
 }
-
+const allDaysClosed = computed(() => {
+  return (
+    operationalHours.value.length > 0 &&
+    operationalHours.value.every((day) => day.hours === "Tutup")
+  );
+});
 function formatFullAddress(addr) {
   if (!addr) return "-";
 
@@ -58,7 +63,7 @@ function formatFullAddress(addr) {
   const province = addr?.province?.name || "";
 
   const parts = [detail, village, district, city, province].filter(
-    (p) => typeof p === "string" && p.trim() !== ""
+    (p) => typeof p === "string" && p.trim() !== "",
   );
 
   return parts.length ? parts.join(", ") : "-";
@@ -101,7 +106,10 @@ const hasDescription = computed(() => {
 const needsMerchantCompletion = computed(
   () =>
     !isLoading.value &&
-    (!hasCover.value || !hasLogo.value || !hasDescription.value)
+    (!hasCover.value ||
+      !hasLogo.value ||
+      !hasDescription.value ||
+      allDaysClosed.value),
 );
 
 const DAYS = [
@@ -283,11 +291,11 @@ const goToEdit = () => {
     </div>
 
     <!-- Content -->
-    <div v-else class="px-0 pb-0 sm:pb-6 sm:px-6">
+    <div v-else class="px-4 pb-0 sm:pb-6 sm:px-6">
       <!-- Merchant completion banner -->
       <div
         v-if="needsMerchantCompletion"
-        class="p-4 mx-4 mb-3 border rounded-2xl sm:mx-0 bg-amber-50 border-amber-200"
+        class="p-4 mb-3 border rounded-2xl sm:mx-0 bg-amber-50 border-amber-200"
       >
         <div class="flex items-start gap-3">
           <svg
@@ -314,6 +322,9 @@ const goToEdit = () => {
               <span v-if="!hasCover && (!hasLogo || !hasDescription)"> </span>
               <span v-if="!hasLogo && !hasDescription"> </span>
               <span v-if="!hasDescription">Tentang toko belum diisi. </span>
+              <span v-if="allDaysClosed"
+                >Jam operasional belum diatur atau semua hari tutup.
+              </span>
               <span> Lengkapi agar toko terlihat lebih meyakinkan.</span>
             </div>
           </div>
@@ -323,7 +334,7 @@ const goToEdit = () => {
       <!-- Cover & Logo -->
       <div class="relative mb-2 overflow-visible bg-white sm:mb-4 sm:shadow-sm">
         <div
-          class="relative w-full overflow-hidden sm:rounded-2xl aspect-24/9 lg:aspect-4/1"
+          class="relative w-full overflow-hidden rounded-2xl aspect-24/9 lg:aspect-4/1"
         >
           <img
             v-if="hasCover"
@@ -350,7 +361,7 @@ const goToEdit = () => {
           </div>
         </div>
 
-        <div class="absolute -bottom-10 sm:-bottom-12 left-6 sm:left-8">
+        <div class="absolute -bottom-10 sm:-bottom-12 left-10 sm:left-8">
           <img
             v-if="hasLogo"
             :src="merchantInfo.logo"
@@ -374,7 +385,7 @@ const goToEdit = () => {
       <!-- Info Content -->
       <div class="pt-14 sm:pt-16">
         <div
-          class="p-4 mb-2 space-y-6 bg-white sm:mb-4 sm:p-6 sm:space-y-8 sm:rounded-xl sm:shadow-sm"
+          class="p-4 mb-2 space-y-6 bg-white shadow-sm sm:mb-4 sm:p-6 sm:space-y-8 rounded-2xl"
         >
           <!-- Title tanpa background (sama seperti "Produk") -->
           <h2 class="text-xl font-bold sm:text-2xl text-merchant-primary">

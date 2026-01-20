@@ -1,11 +1,11 @@
 // composables/useProducts.js
 import { ref } from "vue";
-import { getVariantImageUrl } from "@/libs/getVariantImageUrl.js";
 import * as ProductService from "@/services/api/product";
 import { useToast } from "vue-toastification";
 import { saveBlob } from "@/libs/saveBlob.js";
 
 export function useProducts() {
+  const isDev = import.meta.env.DEV;
   const toast = useToast();
   const products = ref([]);
   const loading = ref(false);
@@ -85,7 +85,7 @@ export function useProducts() {
       page,
     };
     Object.keys(params).forEach(
-      (k) => params[k] === undefined && delete params[k]
+      (k) => params[k] === undefined && delete params[k],
     );
 
     // Buat pendingRequest sebagai promise yang mengembalikan `data` (konsisten)
@@ -124,16 +124,24 @@ export function useProducts() {
       if (!merchantSlug) throw new Error("merchantSlug diperlukan");
       const payload = await ProductService.getProductDetail(
         merchantSlug,
-        productSlug
+        productSlug,
       );
       if (!payload) throw new Error("Product data tidak ditemukan");
 
-      if (payload.addon_groups) payload.addonGroups = payload.addon_groups;
-      if (!Array.isArray(payload.images)) {
-        payload.images = payload.images ? [payload.images] : [];
+      // Normalisasi struktur agar konsisten dipakai component (camelCase)
+      const data = payload.data ?? payload;
+
+      // BE mengirim snake_case: addon_groups
+      if (data?.addon_groups && !data.addonGroups) {
+        data.addonGroups = data.addon_groups;
       }
 
-      return payload;
+      // Pastikan images selalu array
+      if (!Array.isArray(data?.images)) {
+        data.images = data.images ? [data.images] : [];
+      }
+
+      return data;
     } catch (err) {
       toast.error("Gagal memuat detail produk");
       throw err;
@@ -214,6 +222,9 @@ export function useProducts() {
       const index = products.value.findIndex((p) => p.slug === productSlug);
       if (index !== -1) products.value[index].status = status;
     } catch (error) {
+      if (isDev) {
+        console.error(error);
+      }
       toast.error("Gagal memperbarui status produk");
       throw error;
     } finally {
@@ -227,11 +238,11 @@ export function useProducts() {
       if (!merchantSlug) throw new Error("merchantSlug diperlukan");
       await ProductService.deleteBulk(merchantSlug, productSlugs);
       products.value = products.value.filter(
-        (p) => !productSlugs.includes(p.slug)
+        (p) => !productSlugs.includes(p.slug),
       );
       pagination.value.total = Math.max(
         0,
-        pagination.value.total - productSlugs.length
+        pagination.value.total - productSlugs.length,
       );
     } catch (error) {
       toast.error("Gagal menghapus produk secara massal");
@@ -266,7 +277,8 @@ export function useProducts() {
 
       const payload = await ProductService.getPublicProductDetail(slug);
 
-      const productObj = payload.product ?? null;
+      const productObj = payload.data?.product ?? null;
+      const merchantObj = payload.data?.merchant ?? null;
       if (!productObj) {
         return {
           product: null,
@@ -290,15 +302,29 @@ export function useProducts() {
         };
       }
 
+      // Keep compatibility with existing UI code that still reads product.merchant
+      // (merchant is no longer nested in API response under product)
+      if (merchantObj && !productObj.merchant) {
+        productObj.merchant = merchantObj;
+      }
+
       // mapping (sama seperti implementasimu)
       const variantsFromBackend = productObj.variants ?? [];
+
+      // price_range is now provided by API under product.price_range
+      // fallback: derive from variants.price
+      const derivedMin = variantsFromBackend.length
+        ? Math.min(...variantsFromBackend.map((v) => Number(v.price ?? 0)))
+        : null;
+      const derivedMax = variantsFromBackend.length
+        ? Math.max(...variantsFromBackend.map((v) => Number(v.price ?? 0)))
+        : null;
+
+      const apiPriceRange =
+        productObj.price_range ?? productObj.priceRange ?? null;
       const priceRange = {
-        min: variantsFromBackend.length
-          ? Math.min(...variantsFromBackend.map((v) => Number(v.price ?? 0)))
-          : null,
-        max: variantsFromBackend.length
-          ? Math.max(...variantsFromBackend.map((v) => Number(v.price ?? 0)))
-          : null,
+        min: apiPriceRange?.min ?? derivedMin,
+        max: apiPriceRange?.max ?? derivedMax,
       };
 
       const imgs = Array.isArray(productObj.images)
@@ -308,8 +334,8 @@ export function useProducts() {
       const productImages = imgs.length
         ? imgs.map((img) => img?.src_url || null).filter(Boolean)
         : productObj.cover_image?.src_url
-        ? [productObj.cover_image.src_url]
-        : [];
+          ? [productObj.cover_image.src_url]
+          : [];
 
       const options = Array.isArray(productObj.options)
         ? productObj.options
@@ -326,9 +352,12 @@ export function useProducts() {
         .sort((a, b) => Number(a.id) - Number(b.id))
         .map((v) => ({ id: v.id, name: v.option_value, priceAdd: 0 }));
 
-      const rawCombinations = Array.isArray(payload.combinations)
-        ? payload.combinations
-        : [];
+      // combinations is now provided by API under product.combinations
+      const rawCombinations = Array.isArray(productObj.combinations)
+        ? productObj.combinations
+        : Array.isArray(payload.data?.combinations)
+          ? payload.data?.combinations
+          : [];
       const combinations = rawCombinations.map((c) => ({
         product_variant_id: c.product_variant_id ?? null,
         sizeId: Number(c.sizeId ?? 0),
@@ -342,8 +371,8 @@ export function useProducts() {
 
       const sizeWithStock = sizesRes.find((s) =>
         stockCombinations.some(
-          (c) => Number(c.sizeId) === Number(s.id) && Number(c.stock) > 0
-        )
+          (c) => Number(c.sizeId) === Number(s.id) && Number(c.stock) > 0,
+        ),
       );
       const selectedSize = sizeWithStock ?? sizesRes[0] ?? null;
 
@@ -355,8 +384,8 @@ export function useProducts() {
             (c) =>
               Number(c.sizeId) === Number(sizeKey) &&
               Number(c.variantId) === Number(v.id) &&
-              Number(c.stock) > 0
-          )
+              Number(c.stock) > 0,
+          ),
         );
         selectedVariant = variantWithStock ?? variantsRes[0] ?? null;
       }
@@ -368,13 +397,13 @@ export function useProducts() {
         uses_image: !!opt.uses_image,
         values: (opt.values ?? []).map((v) => {
           const preview =
+            v.src_url ||
             v.image_url ||
             (v.image_path
               ? typeof absoluteImagePath === "function"
                 ? absoluteImagePath(v.image_path)
                 : _absoluteImagePath(v.image_path)
               : null) ||
-            getVariantImageUrl(v.id) ||
             null;
 
           return {
@@ -384,7 +413,8 @@ export function useProducts() {
             product_option_id: v.product_option_id,
             option_value: v.option_value,
             image_path: v.image_path ?? null,
-            image_url: v.image_url ?? null,
+            image_url: v.src_url ?? v.image_url ?? null,
+            src_url: v.src_url ?? null,
             preview, // convenience
           };
         }),
@@ -402,7 +432,6 @@ export function useProducts() {
                 ? absoluteImagePath(val.image_path)
                 : _absoluteImagePath(val.image_path)
               : null) ||
-            getVariantImageUrl(val.id) ||
             null;
 
           const imagesArray = [];
@@ -469,39 +498,32 @@ export function useProducts() {
         });
       }
 
-      const addr = productObj.merchant?.primary_address ?? null;
+      // API no longer provides primary_address here; keep null unless future payload adds it
       const merchant_address =
-        addr?.full_address ??
-        ([
-          addr?.detail,
-          addr?.village?.name,
-          addr?.district?.name,
-          addr?.city?.name,
-          addr?.province?.name,
-        ]
-          .filter(Boolean)
-          .join(", ") ||
-          null);
+        productObj.merchant_address ?? merchantObj?.address ?? null;
 
-      const related_products = Array.isArray(payload.related_products)
-        ? payload.related_products
+      const related_products = Array.isArray(payload.data?.related_products)
+        ? payload.data?.related_products
         : [];
 
-      const total_stock = variantsFromBackend.reduce(
-        (acc, v) => acc + Number(v.stock ?? 0),
-        0
+      const total_stock = Number(
+        productObj.total_stock ??
+          variantsFromBackend.reduce((acc, v) => acc + Number(v.stock ?? 0), 0),
       );
-      const has_variants = variantsFromBackend.length > 0;
+      const has_variants =
+        typeof productObj.has_variants === "boolean"
+          ? productObj.has_variants
+          : variantsFromBackend.length > 0;
       const has_addons =
-        Array.isArray(productObj.addon_groups) &&
-        productObj.addon_groups.length > 0;
-      const option_labels = {
+        typeof productObj.has_addons === "boolean"
+          ? productObj.has_addons
+          : Array.isArray(productObj.addon_groups) &&
+            productObj.addon_groups.length > 0;
+      const option_labels = productObj.option_labels ?? {
         option1: opt1 ? opt1.option_name : null,
         option2: opt2 ? opt2.option_name : null,
       };
-      const min_purchase = Number(
-        payload.min_purchase ?? productObj.min_purchase ?? 1
-      );
+      const min_purchase = Number(productObj.min_purchase ?? 1);
 
       return {
         product: productObj,
@@ -543,7 +565,7 @@ export function useProducts() {
       if (!merchantSlug) throw new Error("merchantSlug diperlukan");
       const data = await ProductService.getPublicMerchantProducts(
         merchantSlug,
-        { limit }
+        { limit },
       );
       return data.data || [];
     } catch (error) {

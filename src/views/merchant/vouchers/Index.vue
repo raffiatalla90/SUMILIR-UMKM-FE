@@ -87,7 +87,7 @@ const currentPage = ref(1);
 const perPage = ref();
 const selectedVouchersCount = computed(() => selectedVouchers.value.length);
 const selectedVouchersData = computed(() =>
-  vouchers.value.filter((v) => selectedVouchers.value.includes(v.id))
+  vouchers.value.filter((v) => selectedVouchers.value.includes(v.id)),
 );
 
 const defaultFilters = {
@@ -229,7 +229,7 @@ const confirmBulkStatusChange = async () => {
     await editBulkStatus(
       currentMerchantSlug.value,
       selectedVouchers.value,
-      newBulkStatus.value
+      newBulkStatus.value,
     );
 
     toast.success(`${selectedVouchers.value.length} voucher berhasil diubah`);
@@ -291,7 +291,7 @@ const toggleVoucherSelection = (voucherId) => {
 
   if (selectedVouchers.value.includes(voucherId)) {
     selectedVouchers.value = selectedVouchers.value.filter(
-      (id) => id !== voucherId
+      (id) => id !== voucherId,
     );
   } else {
     selectedVouchers.value = [...selectedVouchers.value, voucherId];
@@ -330,7 +330,7 @@ const goToDetail = async (voucher) => {
 
     const res = await fetchMerchantVoucherDetail(
       currentMerchantSlug.value,
-      voucher.id
+      voucher.id,
     );
 
     // API kamu return { data: {...} }
@@ -351,7 +351,7 @@ const confirmDeleteVoucher = async () => {
   try {
     await deleteMerchantVoucher(
       currentMerchantSlug.value,
-      selectedVoucherForDelete.value.id
+      selectedVoucherForDelete.value.id,
     );
 
     closeDeleteModal();
@@ -379,7 +379,7 @@ const confirmSingleStatusChange = async () => {
     await editMerchantVoucherStatus(
       currentMerchantSlug.value,
       selectedVoucherForStatusChange.value.id,
-      newStatusForChange.value
+      newStatusForChange.value,
     );
 
     closeStatusChangeModal();
@@ -412,7 +412,7 @@ const confirmBulkDelete = async () => {
   try {
     await bulkDeleteMerchantVoucher(
       currentMerchantSlug.value,
-      selectedVouchers.value
+      selectedVouchers.value,
     );
 
     toast.success(`${selectedVouchers.value.length} voucher berhasil dihapus`);
@@ -460,7 +460,7 @@ watch(
       loadVouchers();
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 watch(currentPage, () => {
@@ -790,7 +790,7 @@ onBeforeRouteLeave(() => {
         :current-page="currentPage"
         :total-pages="totalPages"
         :pagination-info="paginationInfo"
-        empty-message="Voucher tidak ditemukan"
+        empty-message="Tidak ada voucher untuk ditampilkan."
         @row-click="goToDetail"
         @page-change="goToPage"
         @next-page="nextPage"
@@ -888,7 +888,7 @@ onBeforeRouteLeave(() => {
         v-else-if="!vouchers || vouchers.length === 0"
         class="py-10 text-sm text-center text-muted-foreground"
       >
-        Tidak ada voucher yang sesuai dengan filter
+        Tidak ada voucher untuk ditampilkan.
       </div>
 
       <div v-else class="mb-2 space-y-3">
@@ -1006,7 +1006,7 @@ onBeforeRouteLeave(() => {
       </div>
     </div>
 
-    <div v-if="!loading" class="px-4 pb-4 sm:hidden">
+    <div v-if="!loading && vouchers.length" class="px-4 pb-4 sm:hidden">
       <MobilePagination
         :current-page="currentPage"
         :total-pages="totalPages"

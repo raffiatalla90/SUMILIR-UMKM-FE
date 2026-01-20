@@ -241,11 +241,11 @@ export default {
   mounted() {
     this.map = L.map("map", { zoomControl: false }).setView(
       [-7.5420536, 110.8082958],
-      15
+      15,
     );
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(
-      this.map
+      this.map,
     );
 
     this.loadMyLocationMarker();
@@ -280,7 +280,7 @@ export default {
         this.myLocation.lat,
         this.myLocation.lng,
         itemLat,
-        itemLng
+        itemLng,
       );
       return distKm < 1
         ? `${(distKm * 1000).toFixed(0)}m`
@@ -398,14 +398,14 @@ export default {
             }
           },
           () => resolve(null),
-          { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
         );
       });
     },
 
     async loadMerchants() {
       const res = await api.get("api/public/merchants/map");
-      this.merchants = res.data;
+      this.merchants = res.data.data;
       this.filtered = this.merchants;
       this.renderMarkers();
     },
@@ -418,7 +418,7 @@ export default {
       } else {
         this.activeSeg = segId;
         this.filtered = this.merchants.filter(
-          (m) => m.segmentation?.id === segId
+          (m) => m.segmentation?.id === segId,
         );
       }
       this.results = [];
@@ -501,7 +501,7 @@ export default {
       if (this.query.length < 2) return (this.results = []);
       const key = this.query.toLowerCase();
       this.results = this.filtered.filter((m) =>
-        m.name.toLowerCase().includes(key)
+        m.name.toLowerCase().includes(key),
       );
     },
 
@@ -588,7 +588,9 @@ export default {
   border-radius: 9999px;
   background: var(--umkm-marker-color, #10b981);
   border: 3px solid rgba(255, 255, 255, 0.98);
-  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.15);
+  box-shadow:
+    0 10px 18px rgba(0, 0, 0, 0.22),
+    0 2px 6px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -623,7 +625,10 @@ export default {
   color: rgba(0, 0, 0, 0.6) !important;
   opacity: 1 !important;
   z-index: 10 !important;
-  transition: background 0.15s, color 0.15s, transform 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    transform 0.15s;
 }
 .leaflet-popup-close-button:hover {
   color: var(--color-primary) !important;
@@ -638,7 +643,9 @@ export default {
   border-radius: 16px;
   background: #fff;
   cursor: pointer;
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
 }
 
 .popup-card__body {

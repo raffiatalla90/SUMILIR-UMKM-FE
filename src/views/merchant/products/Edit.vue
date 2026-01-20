@@ -17,7 +17,6 @@ import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import { useCategories } from "@/composables/useCategories";
 import { useProducts } from "@/composables/useProducts";
-import { getVariantImageUrl } from "@/libs/getVariantImageUrl";
 
 // === SHARED COMPOSABLES (SAMA DENGAN CREATE) ===
 import { useProductImages } from "@/composables/product/forms/useProductImages";
@@ -60,7 +59,7 @@ watch(
 
     currentMerchantId.value = merchant?.id ?? null;
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 // ======================================================
@@ -252,14 +251,14 @@ watch(selectedCategory, async (v) => {
 // POPULATE EDIT DATA
 // ======================================================
 const canAddSubCategory = computed(
-  () => selectedSubCategories.value.length < 4
+  () => selectedSubCategories.value.length < 4,
 );
 const canAddAddOnGroup = computed(
-  () => addOnGroups.value.length < maxAddOnGroups
+  () => addOnGroups.value.length < maxAddOnGroups,
 );
 
 const combinationsExceedLimit = computed(
-  () => totalCombinations.value > maxOptions
+  () => totalCombinations.value > maxOptions,
 );
 
 const allCombinationsSelected = computed(() => {
@@ -286,7 +285,8 @@ const populateFormFromProduct = async (product) => {
     preview: img.src_url,
     existing: true,
   }));
-  coverImageIndex.value = product.images.findIndex((i) => i.is_cover) || 0;
+  const coverIdx = product.images.findIndex((i) => i.is_cover);
+  coverImageIndex.value = coverIdx >= 0 ? coverIdx : 0;
 
   // VARIANTS
   if (product.options?.length) {
@@ -306,8 +306,17 @@ const populateFormFromProduct = async (product) => {
           id: v.id,
           clientKey: crypto.randomUUID(),
           name: v.option_value,
-          images: v.image_path
-            ? [{ id: v.id, preview: getVariantImageUrl(v.id), existing: true }]
+          // useProductVariants expects `images` to be an array (max 1) with {preview,...}
+          images: v?.src_url
+            ? [
+                {
+                  id: v.id,
+                  preview: v.src_url,
+                  existing: true,
+                  image_url: v.image_url ?? null,
+                  image_path: v.image_path ?? null,
+                },
+              ]
             : [],
         })),
       };
@@ -366,7 +375,7 @@ const fetchProductData = async () => {
       throw new Error("merchantSlug tidak ditemukan");
     const product = await fetchProductDetail(
       currentMerchantSlug.value,
-      productSlug.value
+      productSlug.value,
     );
     await populateFormFromProduct(product);
   } catch (error) {
@@ -396,7 +405,7 @@ const onSubmit = handleSubmit(
       return;
     }
     const hasTooManyAddonOptions = addOnGroups.value.some(
-      (group) => group.options.length > maxAddOnOptions
+      (group) => group.options.length > maxAddOnOptions,
     );
 
     if (hasTooManyAddonOptions) {
@@ -420,7 +429,7 @@ const onSubmit = handleSubmit(
 
       // pastikan yang dikirim ke toast adalah string (hindari passing object)
       const firstMsg = String(
-        messages[0] || "Mohon lengkapi semua field yang wajib diisi"
+        messages[0] || "Mohon lengkapi semua field yang wajib diisi",
       );
       toast.error(firstMsg);
       return;
@@ -439,7 +448,7 @@ const onSubmit = handleSubmit(
       }
       const hasVariantWithAtLeastTwoOptions = variants.value.some((variant) => {
         const validOptionsCount = variant.options.filter(
-          (opt) => opt.name && opt.name.trim()
+          (opt) => opt.name && opt.name.trim(),
         ).length;
 
         return validOptionsCount >= 2;
@@ -447,7 +456,7 @@ const onSubmit = handleSubmit(
 
       if (!hasVariantWithAtLeastTwoOptions) {
         toast.error(
-          "Jika menggunakan variasi, minimal salah satu varian harus memiliki 2 pilihan atau lebih"
+          "Jika menggunakan variasi, minimal salah satu varian harus memiliki 2 pilihan atau lebih",
         );
         return;
       }
@@ -458,7 +467,7 @@ const onSubmit = handleSubmit(
       }
 
       const hasEmptyOptions = variants.value.some(
-        (v) => v.options.filter((opt) => opt.name.trim()).length === 0
+        (v) => v.options.filter((opt) => opt.name.trim()).length === 0,
       );
       if (hasEmptyOptions) {
         toast.error("Setiap varian harus memiliki minimal 1 opsi");
@@ -471,7 +480,7 @@ const onSubmit = handleSubmit(
       }
 
       const hasInvalidCombo = combinations.value.some(
-        (c) => c.price < 0 || c.stock < 0
+        (c) => c.price < 0 || c.stock < 0,
       );
       if (hasInvalidCombo) {
         toast.error("Harga dan stok tidak boleh negatif");
@@ -485,7 +494,7 @@ const onSubmit = handleSubmit(
         if (!group.name.trim()) return true;
 
         const validOptions = group.options.filter(
-          (opt) => opt.name.trim() && opt.price >= 0
+          (opt) => opt.name.trim() && opt.price >= 0,
         );
         if (validOptions.length === 0) return true;
 
@@ -498,14 +507,14 @@ const onSubmit = handleSubmit(
 
       if (hasInvalidGroup) {
         toast.error(
-          "Pastikan setiap grup add-on memiliki nama, minimal 1 opsi valid, dan pengaturan min/max yang benar"
+          "Pastikan setiap grup add-on memiliki nama, minimal 1 opsi valid, dan pengaturan min/max yang benar",
         );
         return;
       }
     }
 
     const oversizedImage = productImages.value.find(
-      (img) => img.file && img.file.size > MAX_IMAGE_SIZE_BYTES
+      (img) => img.file && img.file.size > MAX_IMAGE_SIZE_BYTES,
     );
 
     if (oversizedImage) {
@@ -544,7 +553,7 @@ const onSubmit = handleSubmit(
           formData.append(`existing_images[${existingIndex}][order]`, index);
           formData.append(
             `existing_images[${existingIndex}][is_cover]`,
-            index === coverImageIndex.value ? 1 : 0
+            index === coverImageIndex.value ? 1 : 0,
           );
           existingIndex++;
         } else {
@@ -565,7 +574,7 @@ const onSubmit = handleSubmit(
           formData.append(`variants[${vIndex}][name]`, variant.name);
           formData.append(
             `variants[${vIndex}][uses_images]`,
-            variantUsesImages.value[variant.clientKey] || 0
+            variantUsesImages.value[variant.clientKey] || 0,
           );
 
           variant.options.forEach((opt, oIndex) => {
@@ -573,12 +582,12 @@ const onSubmit = handleSubmit(
               if (opt.id) {
                 formData.append(
                   `variants[${vIndex}][options][${oIndex}][id]`,
-                  opt.id
+                  opt.id,
                 );
               }
               formData.append(
                 `variants[${vIndex}][options][${oIndex}][name]`,
-                opt.name.trim()
+                opt.name.trim(),
               );
 
               if (
@@ -589,12 +598,12 @@ const onSubmit = handleSubmit(
                   if (img.existing) {
                     formData.append(
                       `variants[${vIndex}][options][${oIndex}][existing_images][${iIndex}][id]`,
-                      img.id
+                      img.id,
                     );
                   } else {
                     formData.append(
                       `variants[${vIndex}][options][${oIndex}][images][${iIndex}][file]`,
-                      img.file
+                      img.file,
                     );
                   }
                 });
@@ -606,7 +615,7 @@ const onSubmit = handleSubmit(
         combinations.value.forEach((combo, cIndex) => {
           formData.append(
             `combinations[${cIndex}][combination]`,
-            combo.combination
+            combo.combination,
           );
           if (combo.id && combo.attributes.every((a) => a.option_value_id)) {
             formData.append(`combinations[${cIndex}][id]`, combo.id);
@@ -620,16 +629,16 @@ const onSubmit = handleSubmit(
             if (attr.option_value_id) {
               formData.append(
                 `combinations[${cIndex}][attributes][${aIndex}][option_value_id]`,
-                attr.option_value_id
+                attr.option_value_id,
               );
             }
             formData.append(
               `combinations[${cIndex}][attributes][${aIndex}][name]`,
-              attr.name
+              attr.name,
             );
             formData.append(
               `combinations[${cIndex}][attributes][${aIndex}][value]`,
-              attr.value
+              attr.value,
             );
           });
         });
@@ -648,11 +657,11 @@ const onSubmit = handleSubmit(
           formData.append(`add_on_groups[${gIndex}][name]`, group.name.trim());
           formData.append(
             `add_on_groups[${gIndex}][min_selection]`,
-            group.min_selection
+            group.min_selection,
           );
           formData.append(
             `add_on_groups[${gIndex}][max_selection]`,
-            group.max_selection
+            group.max_selection,
           );
 
           group.options.forEach((opt, oIndex) => {
@@ -660,16 +669,16 @@ const onSubmit = handleSubmit(
               if (Number.isInteger(opt.id)) {
                 formData.append(
                   `add_on_groups[${gIndex}][options][${oIndex}][id]`,
-                  opt.id
+                  opt.id,
                 );
               }
               formData.append(
                 `add_on_groups[${gIndex}][options][${oIndex}][name]`,
-                opt.name.trim()
+                opt.name.trim(),
               );
               formData.append(
                 `add_on_groups[${gIndex}][options][${oIndex}][price]`,
-                opt.price
+                opt.price,
               );
             }
           });
@@ -697,7 +706,7 @@ const onSubmit = handleSubmit(
           headers: {
             "Content-Type": "multipart/form-data",
           },
-        }
+        },
       );
 
       toast.success("Produk berhasil diperbarui");
@@ -776,7 +785,8 @@ const onSubmit = handleSubmit(
           if (v && typeof v === "object") {
             // dive one level
             const inner = Object.values(v).find(
-              (iv) => typeof iv === "string" || (Array.isArray(iv) && iv.length)
+              (iv) =>
+                typeof iv === "string" || (Array.isArray(iv) && iv.length),
             );
             if (typeof inner === "string") return inner;
             if (Array.isArray(inner)) return String(inner[0]);
@@ -793,7 +803,7 @@ const onSubmit = handleSubmit(
 
     // Pastikan kita kirim string, bukan object
     toast.error(String(firstMsg));
-  }
+  },
 );
 
 // ======================================================
@@ -877,7 +887,71 @@ const formMinPurchase = computed({
     </div>
 
     <!-- ✅ Content (Only show when data loaded) -->
-    <div v-else class="px-0 mx-auto sm:px-4 lg:px-6 sm:py-6 sm:pt-0">
+    <div v-else class="px-4 pt-4 mx-auto sm:px-6 sm:py-6 sm:pt-0">
+      <!-- ✅ UPDATED: Info Banner -->
+      <div
+        class="p-4 mb-2 border border-blue-200 sm:mb-4 bg-blue-50 rounded-xl"
+      >
+        <div class="flex gap-3">
+          <i
+            class="pi pi-info-circle text-merchant-primary text-lg shrink-0 mt-0.5"
+          ></i>
+          <div class="flex-1">
+            <h4 class="mb-1 text-sm font-semibold text-merchant-primary">
+              Informasi Penting
+            </h4>
+            <ul class="pl-4 space-y-1 text-xs list-disc text-merchant-primary">
+              <li>
+                Upload minimal 1 foto produk, maksimal 6 foto (maksimal 5 MB per
+                foto).
+              </li>
+              <li>
+                Kategori utama wajib dipilih, sub-kategori opsional (maksimal
+                4).
+              </li>
+              <li>SKU produk bersifat opsional.</li>
+              <li>Stok maksimal 9.999 per produk/varian.</li>
+              <li>Minimal pembelian tidak boleh kurang dari 1.</li>
+              <li>
+                <b>Variasi Produk:</b>
+                <ul class="pl-4 mt-1 list-disc">
+                  <li>Maksimal 2 variasi, total kombinasi maksimal 50.</li>
+                  <li>
+                    Jika menggunakan variasi, minimal salah satu varian harus
+                    memiliki 2 opsi.
+                  </li>
+                  <li>
+                    Jika menggunakan variasi, atur SKU, harga, dan stok di
+                    setiap kombinasi.
+                  </li>
+                  <li>Hanya variasi pertama yang dapat memiliki gambar.</li>
+                </ul>
+              </li>
+              <li>
+                <b>Grup Add-on (Opsional):</b>
+                <ul class="pl-4 mt-1 list-disc">
+                  <li>Maksimal 10 grup, maksimal 10 opsi per grup.</li>
+                  <li>
+                    Setiap grup add-on memiliki pengaturan minimal dan maksimal
+                    pilihan:
+                    <ul class="pl-4 mt-1 list-disc">
+                      <li>
+                        <b>Min (Minimal Pilihan):</b> Jumlah minimum opsi yang
+                        harus dipilih pembeli dari grup ini.
+                      </li>
+                      <li>
+                        <b>Max (Maksimal Pilihan):</b> Jumlah maksimum opsi yang
+                        dapat dipilih pembeli dari grup ini.
+                      </li>
+                    </ul>
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
       <Form ref="formRef" :validation-schema="schema" @submit="onSubmit">
         <!-- Foto Produk -->
         <div
@@ -1178,7 +1252,7 @@ const formMinPurchase = computed({
                   <button
                     @click="removeVariant(vIndex)"
                     type="button"
-                    class="flex items-center justify-center shrink-0 w-8 h-8 transition rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100"
+                    class="flex items-center justify-center w-8 h-8 transition rounded-lg shrink-0 bg-danger-background text-danger-foreground hover:bg-red-100"
                   >
                     <i class="text-sm pi pi-trash"></i>
                   </button>
@@ -1327,18 +1401,14 @@ const formMinPurchase = computed({
 
                               <div
                                 v-if="
-                                  option.images.length > 0 ||
-                                  option.image_path ||
-                                  option.image_url
+                                  option.images.length > 0 || option.src_url
                                 "
                                 class="relative w-20 h-20 overflow-hidden border-2 border-gray-200 rounded-lg group"
                               >
                                 <img
                                   :src="
                                     option.images?.[0]?.preview ||
-                                    (option.id
-                                      ? getVariantImageUrl(option.id)
-                                      : '')
+                                    option.src_url
                                   "
                                   class="object-cover w-full h-full"
                                 />
@@ -1372,7 +1442,7 @@ const formMinPurchase = computed({
                                     handleOptionImageUpload(
                                       vIndex,
                                       oIndex,
-                                      $event
+                                      $event,
                                     )
                                   "
                                 />
@@ -1554,7 +1624,7 @@ const formMinPurchase = computed({
                   <button
                     @click="removeAddOnGroupEdit(gIndex)"
                     type="button"
-                    class="flex items-center justify-center shrink-0 w-8 h-8 transition rounded-lg bg-danger-background text-danger-foreground hover:bg-red-100"
+                    class="flex items-center justify-center w-8 h-8 transition rounded-lg shrink-0 bg-danger-background text-danger-foreground hover:bg-red-100"
                   >
                     <i class="text-sm pi pi-trash"></i>
                   </button>

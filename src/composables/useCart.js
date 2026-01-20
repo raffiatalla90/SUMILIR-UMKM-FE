@@ -20,8 +20,8 @@ export function useCart() {
     cartStores.value.reduce(
       (sum, store) =>
         sum + store.items.reduce((s, item) => s + item.quantity, 0),
-      0
-    )
+      0,
+    ),
   );
 
   // =====================
@@ -80,7 +80,8 @@ export function useCart() {
   async function fetchCartCount() {
     try {
       const res = await cartService.fetchCartCount();
-      return Number(res.data?.count || 0);
+      const count = res.data?.data?.count ?? 0;
+      return Number(count);
     } catch (e) {
       console.warn("Gagal fetch cart count");
       return 0;
@@ -107,7 +108,7 @@ export function useCart() {
       store.items = store.items.filter((i) => i.id !== id);
     });
     cartStores.value = cartStores.value.filter(
-      (store) => store.items.length > 0
+      (store) => store.items.length > 0,
     );
   }
 

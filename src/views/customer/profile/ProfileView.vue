@@ -15,7 +15,7 @@ const myMerchants = ref([]);
 const merchantsLoading = ref(false);
 
 const isInitialProfileLoading = computed(
-  () => profileStore.loading && !profileStore.user
+  () => profileStore.loading && !profileStore.user,
 );
 
 const imgLoaded = ref(!!profileStore.user?.profile_picture);
@@ -31,7 +31,7 @@ const user = computed(
       nik: "",
       address: "",
       profile_picture: "https://via.placeholder.com/150", // Placeholder image
-    }
+    },
 );
 
 watch(
@@ -40,7 +40,7 @@ watch(
     // Only show image skeleton when we actually have a URL to load.
     imgLoaded.value = false;
     imgError.value = false;
-  }
+  },
 );
 
 const handleLogout = async () => {
@@ -62,8 +62,15 @@ onMounted(async () => {
 
   try {
     merchantsLoading.value = true;
-    const res = await getMyMerchants();
-    myMerchants.value = Array.isArray(res?.data) ? res.data : [];
+    const payload = await getMyMerchants();
+    // getMyMerchants() returns the response payload directly.
+    // Support both shapes: { message, data: [] } and { message, data: { data: [] } }.
+    const list =
+      (Array.isArray(payload?.data) && payload.data) ||
+      (Array.isArray(payload?.data?.data) && payload.data.data) ||
+      [];
+
+    myMerchants.value = list;
 
     // Refresh auth store so route guards recognize the merchant
     if (myMerchants.value.length) {
@@ -122,7 +129,7 @@ const hasProfilePicture = computed(() => {
 const needsProfileCompletion = computed(
   () =>
     !isInitialProfileLoading.value &&
-    (!hasProfilePicture.value || !hasAddress.value)
+    (!hasProfilePicture.value || !hasAddress.value),
 );
 </script>
 
@@ -369,7 +376,7 @@ const needsProfileCompletion = computed(
                   @click="merchantAccordionOpen = !merchantAccordionOpen"
                 >
                   <span class="font-semibold text-gray-700"
-                    >Akses & Kelola Toko</span
+                    >Akses & Kelola UMKM</span
                   >
                   <svg
                     :class="merchantAccordionOpen ? 'rotate-180' : ''"
@@ -402,9 +409,7 @@ const needsProfileCompletion = computed(
                   </template>
                   <template v-if="myMerchants.length">
                     <div
-                      v-for="m in myMerchants.filter(
-                        (m) => m && m.id && m.status === 'approved'
-                      )"
+                      v-for="m in myMerchants.filter((m) => m && m.id)"
                       :key="m.id"
                     >
                       <button
@@ -425,7 +430,7 @@ const needsProfileCompletion = computed(
                           />
                         </svg>
                         <span class="flex-1 font-medium text-gray-700"
-                          >Akses Toko ({{ m.name || m.id }})</span
+                          >Akses UMKM ({{ m.name || m.id }})</span
                         >
                         <svg
                           class="w-4 h-4 text-gray-400"
@@ -697,7 +702,7 @@ const needsProfileCompletion = computed(
                 @click="merchantAccordionOpen = !merchantAccordionOpen"
               >
                 <span class="font-semibold text-gray-700"
-                  >Akses & Kelola Toko</span
+                  >Akses & Kelola UMKM</span
                 >
                 <svg
                   :class="merchantAccordionOpen ? 'rotate-180' : ''"
@@ -721,9 +726,7 @@ const needsProfileCompletion = computed(
               >
                 <template v-if="myMerchants.length">
                   <div
-                    v-for="m in myMerchants.filter(
-                      (m) => m && m.id && m.status === 'approved'
-                    )"
+                    v-for="m in myMerchants.filter((m) => m && m.id)"
                     :key="m.id"
                   >
                     <button
@@ -744,8 +747,13 @@ const needsProfileCompletion = computed(
                         />
                       </svg>
                       <span class="flex-1 font-medium text-gray-700 truncate"
-                        >Akses Toko ({{ m.name || m.id }})</span
-                      >
+                        >{{ m.name }}
+                        <span v-if="m.segmentation_id == 1">(Toko)</span>
+                        <span v-else-if="m.segmentation_id == 2"
+                          >(Kuliner)</span
+                        >
+                        <span v-else>(Jasa)</span>
+                      </span>
                       <svg
                         class="w-4 h-4 text-gray-400"
                         fill="none"
@@ -781,7 +789,7 @@ const needsProfileCompletion = computed(
                     />
                   </svg>
                   <span class="flex-1 font-medium text-gray-700"
-                    >Buka Toko Baru +</span
+                    >Buka UMKM +</span
                   >
                 </button>
               </div>
