@@ -1,13 +1,19 @@
 <script setup>
 import { onMounted, computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
+import { useToast } from "vue-toastification";
+import { Form } from "vee-validate";
 import { useProfileStore } from "@/stores/profile";
 import { useAuthStore } from "@/stores/auth";
 import { getMyMerchants } from "@/services/api/merchant";
 import MobileHeader from "@/components/customer/MobileHeader.vue";
 import Button from "@/components/common/Button.vue";
+import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
+import profileAPI from "@/services/api/profile";
+import TextField from "@/components/forms/TextField.vue";
 
 const router = useRouter();
+const toast = useToast();
 const profileStore = useProfileStore();
 const authStore = useAuthStore();
 
@@ -45,6 +51,48 @@ watch(
 
 const handleLogout = async () => {
   await authStore.logout();
+  router.push("/auth/login");
+};
+
+const showDeleteAccountModal = ref(false);
+const deletePassword = ref("");
+const deletingAccount = ref(false);
+
+const canDeleteAccount = computed(() => {
+  return !deletingAccount.value && !!String(deletePassword.value || "").trim();
+});
+
+const openDeleteAccountModal = () => {
+  deletePassword.value = "";
+  showDeleteAccountModal.value = true;
+};
+
+const handleDeleteAccount = async () => {
+  if (!canDeleteAccount.value) return;
+
+  deletingAccount.value = true;
+  try {
+    await profileAPI.deleteAccount({ password: deletePassword.value });
+    toast.success("Akun berhasil dihapus");
+  } catch (error) {
+    const msg =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      "Gagal menghapus akun";
+    toast.error(msg);
+    return;
+  } finally {
+    deletingAccount.value = false;
+  }
+
+  // Clear session & local state (logout endpoint may fail because user is already deleted)
+  try {
+    await authStore.logout({ silent: true, skipRequest: true });
+  } catch {
+    // ignore
+  }
+
+  showDeleteAccountModal.value = false;
   router.push("/auth/login");
 };
 const goBack = () => {
@@ -288,6 +336,14 @@ const needsProfileCompletion = computed(
             <Button @click="handleLogout" class="w-full mt-4" variant="danger">
               Logout
             </Button>
+
+            <Button
+              @click="openDeleteAccountModal"
+              class="w-full mt-3"
+              variant="danger-outline"
+            >
+              Hapus Akun
+            </Button>
           </div>
         </div>
 
@@ -429,8 +485,13 @@ const needsProfileCompletion = computed(
                             d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
                           />
                         </svg>
-                        <span class="flex-1 font-medium text-gray-700"
-                          >Akses UMKM ({{ m.name || m.id }})</span
+                        <span class="flex-1 font-medium text-gray-700">
+                          {{ m.name }}
+                          <span v-if="m.segmentation_id == 1">(Toko)</span>
+                          <span v-else-if="m.segmentation_id == 2"
+                            >(Kuliner)</span
+                          >
+                          <span v-else>(Jasa)</span></span
                         >
                         <svg
                           class="w-4 h-4 text-gray-400"
@@ -620,6 +681,14 @@ const needsProfileCompletion = computed(
           <Button @click="handleLogout" variant="danger" class="w-full mt-4">
             Logout
           </Button>
+
+          <Button
+            @click="openDeleteAccountModal"
+            variant="danger-outline"
+            class="w-full mt-3"
+          >
+            Hapus Akun
+          </Button>
         </div>
 
         <div
@@ -798,5 +867,60 @@ const needsProfileCompletion = computed(
         </div>
       </div>
     </div>
+
+    <!-- Delete Account Confirmation -->
+    <ResponsiveModal
+      :show="showDeleteAccountModal"
+      @close="showDeleteAccountModal = false"
+      title="Hapus Akun"
+    >
+      <div class="space-y-4">
+        <div
+          class="p-4 border rounded-xl bg-danger-background/10 border-danger-foreground/20"
+        >
+          <div class="font-semibold text-danger-foreground">
+            Tindakan ini permanen
+          </div>
+          <p class="mt-1 text-sm text-gray-700">
+            Akun Anda akan dihapus, termasuk semua UMKM dan data terkait.
+          </p>
+        </div>
+
+        <Form class="space-y-2" @submit="handleDeleteAccount">
+          <TextField
+            name="delete_account_password"
+            label="Masukkan kata sandi untuk konfirmasi"
+            type="password"
+            autocomplete="current-password"
+            placeholder="Kata sandi"
+            variant="muted"
+            :alignWithPassword="false"
+            v-model="deletePassword"
+          />
+        </Form>
+      </div>
+
+      <template #footer>
+        <div class="flex gap-3">
+          <Button
+            variant="muted-outline"
+            class="w-full"
+            @click="showDeleteAccountModal = false"
+            :disabled="deletingAccount"
+          >
+            Batal
+          </Button>
+          <Button
+            class="w-full"
+            variant="danger"
+            @click="handleDeleteAccount"
+            :loading="deletingAccount"
+            :disabled="!canDeleteAccount"
+          >
+            Hapus Akun
+          </Button>
+        </div>
+      </template>
+    </ResponsiveModal>
   </div>
 </template>

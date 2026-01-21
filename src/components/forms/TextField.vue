@@ -78,6 +78,7 @@ const props = defineProps({
   label: { type: String, default: "" },
   type: { type: String, default: "text" },
   placeholder: { type: String, default: "" },
+  autocomplete: { type: String, default: "" },
   textarea: { type: Boolean, default: false },
   modelValue: { type: [String, Number], default: "" },
   alignWithPassword: { type: Boolean, default: true },
@@ -290,6 +291,7 @@ const inputClasses = (invalid, isTextarea) => {
           :id="name"
           :type="textarea ? undefined : props.type === 'number' ? 'text' : type"
           :placeholder="placeholder"
+          :autocomplete="!textarea && autocomplete ? autocomplete : undefined"
           :min="!textarea ? min : undefined"
           :max="!textarea ? max : undefined"
           :rows="textarea ? rows : undefined"

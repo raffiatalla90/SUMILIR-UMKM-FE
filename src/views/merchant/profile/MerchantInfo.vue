@@ -2,14 +2,19 @@
 import { ref, computed, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+import { useToast } from "vue-toastification";
+import { Form } from "vee-validate";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
 import LeafletMap from "@/components/LeafletMap.vue";
 import merchantProfile from "@/services/api/merchantProfile";
 import AppButton from "@/components/common/Button.vue";
+import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
+import TextField from "@/components/forms/TextField.vue";
 
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
+const toast = useToast();
 
 // Emit untuk toggle sidebar dari parent layout
 const emit = defineEmits(["toggle-sidebar"]);
@@ -85,6 +90,60 @@ const merchantInfo = ref({
   coverImage: "",
 });
 const operationalHours = ref([]);
+
+// Delete merchant UI state
+const showDeleteMerchantModal = ref(false);
+const deleteMerchantConfirmText = ref("");
+const deletingMerchant = ref(false);
+
+const merchantDisplayName = computed(() => {
+  return (
+    merchantName.value ||
+    merchantInfo.value?.name ||
+    authStore.activeMerchant?.name ||
+    ""
+  );
+});
+
+const canDeleteMerchant = computed(() => {
+  const expected = String(merchantDisplayName.value || "").trim();
+  const typed = String(deleteMerchantConfirmText.value || "").trim();
+  if (!expected) return false;
+  return !deletingMerchant.value && typed === expected;
+});
+
+const openDeleteMerchantModal = () => {
+  deleteMerchantConfirmText.value = "";
+  showDeleteMerchantModal.value = true;
+};
+
+const handleDeleteMerchant = async () => {
+  if (!merchantSlug.value || !canDeleteMerchant.value) return;
+
+  deletingMerchant.value = true;
+  try {
+    await merchantProfile.deleteMerchant(merchantSlug.value);
+    toast.success("UMKM berhasil dihapus");
+    showDeleteMerchantModal.value = false;
+
+    // Refresh auth snapshot so the app no longer thinks a merchant exists
+    try {
+      await authStore.initAuth();
+    } catch {
+      // ignore
+    }
+
+    router.push("/profile");
+  } catch (error) {
+    const msg =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      "Gagal menghapus UMKM";
+    toast.error(msg);
+  } finally {
+    deletingMerchant.value = false;
+  }
+};
 
 const hasLogo = computed(() => {
   const val = merchantInfo.value?.logo;
@@ -271,6 +330,15 @@ const goToEdit = () => {
 
       <!-- Desktop Edit Button -->
       <div class="hidden gap-3 sm:flex">
+        <AppButton
+          @click="openDeleteMerchantModal"
+          variant="danger-outline"
+          size="md"
+        >
+          <i class="pi pi-trash"></i>
+          <span>Hapus UMKM</span>
+        </AppButton>
+
         <AppButton @click="goToEdit" variant="merchant" size="md">
           <i class="pi pi-pencil"></i>
           <span>Edit UMKM</span>
@@ -518,7 +586,16 @@ const goToEdit = () => {
         </div>
 
         <!-- Desktop Edit Button (bawah) -->
-        <div class="justify-end hidden mt-4 sm:flex">
+        <div class="justify-end hidden gap-3 mt-4 sm:flex">
+          <AppButton
+            @click="openDeleteMerchantModal"
+            variant="danger-outline"
+            size="md"
+          >
+            <i class="pi pi-trash"></i>
+            <span>Hapus UMKM</span>
+          </AppButton>
+
           <AppButton @click="goToEdit" variant="merchant" size="md">
             <i class="pi pi-pencil"></i>
             <span>Edit UMKM</span>
@@ -529,19 +606,82 @@ const goToEdit = () => {
         <div
           class="fixed bottom-0 left-0 right-0 z-20 p-4 bg-white border-t border-gray-200 sm:hidden"
         >
-          <button
-            @click="goToEdit"
-            class="flex items-center justify-center w-full gap-2 py-3 text-sm font-semibold text-center text-white transition-opacity bg-merchant-primary rounded-xl hover:opacity-90"
-          >
-            <i class="pi pi-pencil"></i>
-            <span>Edit UMKM</span>
-          </button>
+          <div class="grid grid-cols-2 gap-3">
+            <AppButton
+              @click="openDeleteMerchantModal"
+              variant="danger-outline"
+            >
+              <i class="pi pi-trash"></i>
+              <span>Hapus</span>
+            </AppButton>
+            <AppButton @click="goToEdit" variant="merchant">
+              <i class="pi pi-pencil"></i>
+              <span>Edit</span>
+            </AppButton>
+          </div>
         </div>
 
         <!-- Spacer for Mobile Fixed Button -->
         <div class="h-20 sm:h-0"></div>
       </div>
     </div>
+
+    <!-- Delete Merchant Confirmation -->
+    <ResponsiveModal
+      :show="showDeleteMerchantModal"
+      @close="showDeleteMerchantModal = false"
+      title="Hapus UMKM"
+    >
+      <div class="space-y-4">
+        <div
+          class="p-4 border rounded-xl bg-danger-background/10 border-danger-foreground/20"
+        >
+          <div class="font-semibold text-danger-foreground">
+            Tindakan ini permanen
+          </div>
+          <p class="mt-1 text-sm text-gray-700">
+            UMKM ini akan dihapus beserta produk/jasa/voucher yang terkait.
+          </p>
+        </div>
+
+        <Form class="space-y-2" @submit="() => {}">
+          <TextField
+            name="merchant_delete_confirm"
+            label="Ketik nama UMKM untuk konfirmasi"
+            :placeholder="merchantDisplayName || 'Nama UMKM'"
+            variant="muted"
+            :alignWithPassword="false"
+            v-model="deleteMerchantConfirmText"
+          />
+          <p class="text-xs text-gray-500">
+            Nama harus sama persis:
+            <span class="font-semibold">{{ merchantDisplayName }}</span>
+          </p>
+        </Form>
+      </div>
+
+      <template #footer>
+        <div class="flex gap-3">
+          <AppButton
+            variant="muted-outline"
+            class="w-full"
+            @click="showDeleteMerchantModal = false"
+            :disabled="deletingMerchant"
+          >
+            Batal
+          </AppButton>
+          <AppButton
+            variant="danger"
+            class="w-full"
+            @click="handleDeleteMerchant"
+            :loading="deletingMerchant"
+            :disabled="!canDeleteMerchant"
+          >
+            Hapus UMKM
+          </AppButton>
+        </div>
+      </template>
+    </ResponsiveModal>
   </div>
 </template>
 

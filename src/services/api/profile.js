@@ -19,8 +19,15 @@ const changePassword = async (payload) => {
   return response.data;
 };
 
+const deleteAccount = async (payload) => {
+  // Backend expects: { password }
+  const response = await axios.delete("api/profile", { data: payload });
+  return response.data;
+};
+
 export default {
   getProfile,
   updateProfile,
   changePassword,
+  deleteAccount,
 };

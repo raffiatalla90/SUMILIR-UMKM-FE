@@ -23,7 +23,7 @@ export const useAuthStore = defineStore("auth", () => {
 
   const userRoles = computed(
     () =>
-      user.value?.roles?.map((r) => (typeof r === "string" ? r : r.name)) || []
+      user.value?.roles?.map((r) => (typeof r === "string" ? r : r.name)) || [],
   );
 
   const isAdmin = computed(() => userRoles.value.includes("admin"));
@@ -37,7 +37,7 @@ export const useAuthStore = defineStore("auth", () => {
 
     if (selectedMerchantId.value) {
       const found = allMerchants.value.find(
-        (m) => m.id === selectedMerchantId.value
+        (m) => m.id === selectedMerchantId.value,
       );
       if (found) return found;
     }
@@ -51,7 +51,7 @@ export const useAuthStore = defineStore("auth", () => {
   const merchantId = computed(() => activeMerchant.value?.id || null);
   const merchantSlug = computed(() => activeMerchant.value?.slug || null);
   const merchantName = computed(
-    () => activeMerchant.value?.name || user.value?.name || "User"
+    () => activeMerchant.value?.name || user.value?.name || "User",
   );
 
   // =========================
@@ -193,12 +193,21 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  async function logout() {
+  async function logout(options = {}) {
+    const { silent = false, skipRequest = false } =
+      options && typeof options === "object" ? options : {};
+
     try {
-      await api.post("/logout");
-      toast.success("Berhasil logout!", { timeout: 2000 });
+      if (!skipRequest) {
+        await api.post("/logout");
+      }
+      if (!silent) {
+        toast.success("Berhasil logout!", { timeout: 2000 });
+      }
     } catch {
-      toast.warning("Logout gagal, sesi dibersihkan");
+      if (!silent) {
+        toast.warning("Logout gagal, sesi dibersihkan");
+      }
     } finally {
       clearUser();
     }

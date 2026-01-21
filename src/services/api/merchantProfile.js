@@ -13,12 +13,18 @@ const updateMerchantProfile = async (merchantSlug, payload) => {
       headers: {
         "Content-Type": "multipart/form-data",
       },
-    }
+    },
   );
+  return response.data;
+};
+
+const deleteMerchant = async (merchantSlug) => {
+  const response = await axios.delete(`/api/merchant/${merchantSlug}`);
   return response.data;
 };
 
 export default {
   getMerchantProfile,
   updateMerchantProfile,
+  deleteMerchant,
 };
