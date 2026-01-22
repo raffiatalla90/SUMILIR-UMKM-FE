@@ -1,8 +1,10 @@
 import { ref } from "vue";
 import api from "@/libs/axios";
+import UserService from "@/services/api/user";
 import { useToast } from "vue-toastification";
 
 export function useUsers() {
+  const isDev = import.meta.env.DEV;
   const toast = useToast();
   const users = ref([]);
   const loading = ref(false);
@@ -139,7 +141,7 @@ export function useUsers() {
     try {
       const response = await api.patch(
         `/api/admin/users/${userId}/status`,
-        statusData
+        statusData,
       );
       toast.success("Status berhasil diubah");
       return response.data;
@@ -158,7 +160,9 @@ export function useUsers() {
       toast.success("Notification sent successfully");
     } catch (error) {
       console.error("[useUsers] Notify failed:", error);
-      toast.error(error.response?.data?.message || "Failed to send notification");
+      toast.error(
+        error.response?.data?.message || "Failed to send notification",
+      );
       throw error;
     } finally {
       loading.value = false;

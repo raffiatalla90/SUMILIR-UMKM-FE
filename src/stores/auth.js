@@ -1,5 +1,5 @@
 // src/stores/auth.js
-import { defineStore } from "pinia";
+import { defineStore, getActivePinia } from "pinia";
 import { ref, computed } from "vue";
 import api from "@/libs/axios";
 import { useToast } from "vue-toastification";
@@ -135,15 +135,35 @@ export const useAuthStore = defineStore("auth", () => {
     localStorage.removeItem("profile");
   }
 
+  function resetOtherStores() {
+    const pinia = getActivePinia();
+    if (!pinia || !pinia._s) return;
+
+    // Reset all stores except auth. Prefer $reset (option stores), fall back to reset/clear actions.
+    pinia._s.forEach((store) => {
+      if (!store || store.$id === "auth") return;
+
+      if (typeof store.$reset === "function") {
+        store.$reset();
+        return;
+      }
+
+      if (typeof store.reset === "function") {
+        store.reset();
+        return;
+      }
+
+      if (typeof store.clear === "function") {
+        store.clear();
+      }
+    });
+  }
+
   function loadSelectedMerchant() {
     const saved = localStorage.getItem("selected_merchant_id");
     if (saved) selectedMerchantId.value = Number(saved);
   }
 
-  function setActiveMerchant(id) {
-    selectedMerchantId.value = Number(id);
-    localStorage.setItem("selected_merchant_id", String(id));
-  }
   function getMerchantById(id) {
     return allMerchants.value.find((m) => Number(m.id) === Number(id)) || null;
   }
@@ -209,6 +229,7 @@ export const useAuthStore = defineStore("auth", () => {
         toast.warning("Logout gagal, sesi dibersihkan");
       }
     } finally {
+      resetOtherStores();
       clearUser();
     }
   }
@@ -268,7 +289,6 @@ export const useAuthStore = defineStore("auth", () => {
     merchantId,
     merchantSlug,
     merchantName,
-    setActiveMerchant,
     getMerchantById,
     getMerchantBySlug,
 

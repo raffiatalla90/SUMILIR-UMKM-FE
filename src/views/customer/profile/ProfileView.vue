@@ -1,62 +1,61 @@
 <script setup>
+// =========================
+// IMPORTS
+// =========================
 import { onMounted, computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { Form } from "vee-validate";
-import { useProfileStore } from "@/stores/profile";
+import { useUserStore } from "@/stores/user";
 import { useAuthStore } from "@/stores/auth";
 import { getMyMerchants } from "@/services/api/merchant";
-import MobileHeader from "@/components/customer/MobileHeader.vue";
 import Button from "@/components/common/Button.vue";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
-import profileAPI from "@/services/api/profile";
 import TextField from "@/components/forms/TextField.vue";
 
+// =========================
+// STATE & REFS
+// =========================
 const router = useRouter();
 const toast = useToast();
-const profileStore = useProfileStore();
+const userStore = useUserStore();
 const authStore = useAuthStore();
 
 const myMerchants = ref([]);
 const merchantsLoading = ref(false);
 
-const isInitialProfileLoading = computed(
-  () => profileStore.loading && !profileStore.user,
-);
-
-const imgLoaded = ref(!!profileStore.user?.profile_picture);
+const imgLoaded = ref(!!userStore.user?.profile_picture);
 const imgError = ref(false);
-
-// Menggunakan computed property untuk user dengan fallback
-const user = computed(
-  () =>
-    profileStore.user || {
-      name: "Guest",
-      email: "",
-      phone: "",
-      nik: "",
-      address: "",
-      profile_picture: "https://via.placeholder.com/150", // Placeholder image
-    },
-);
-
-watch(
-  () => user.value?.profile_picture,
-  () => {
-    // Only show image skeleton when we actually have a URL to load.
-    imgLoaded.value = false;
-    imgError.value = false;
-  },
-);
-
-const handleLogout = async () => {
-  await authStore.logout();
-  router.push("/auth/login");
-};
 
 const showDeleteAccountModal = ref(false);
 const deletePassword = ref("");
 const deletingAccount = ref(false);
+
+const merchantAccordionOpen = ref(false);
+
+// =========================
+// COMPUTED PROPERTIES
+// =========================
+const isInitialProfileLoading = computed(
+  () => userStore.loading && !userStore.user,
+);
+
+const user = computed(() => userStore.user || {});
+
+const hasProfilePictureUrl = computed(() => {
+  const url = user.value?.profile_picture;
+  return typeof url === "string" && url.trim().length > 0;
+});
+
+const addressText = computed(() => {
+  const a = userStore.user?.full_address ?? userStore.user?.address;
+  return a && String(a).trim() ? String(a).trim() : "-";
+});
+
+const hasAddress = computed(() => {
+  const a = userStore.user?.full_address ?? userStore.user?.address;
+  return !!(a && String(a).trim());
+});
 
 const canDeleteAccount = computed(() => {
   return !deletingAccount.value && !!String(deletePassword.value || "").trim();
@@ -67,12 +66,61 @@ const openDeleteAccountModal = () => {
   showDeleteAccountModal.value = true;
 };
 
+const menuItems = computed(() => [
+  {
+    icon: "M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z",
+    label: "Edit Profile",
+    action: () => router.push("/profile/edit"),
+  },
+  {
+    icon: "M12 2C8.686 2 6 4.686 6 8c0 5.25 6 12 6 12s6-6.75 6-12c0-3.314-2.686-6-6-6zm0 8a2 2 0 110-4 2 2 0 010 4z",
+    label: "Alamat Saya",
+    action: () => router.push("/profile/address"),
+  },
+  {
+    icon: "M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z",
+    label: "Ubah Kata Sandi",
+    action: () => router.push("/profile/change-password"),
+  },
+]);
+
+// =========================
+// WATCHERS
+// =========================
+watch(
+  () => user.value?.profile_picture,
+  () => {
+    // Only show image skeleton when we actually have a URL to load.
+    imgLoaded.value = false;
+    imgError.value = false;
+  },
+);
+
+// =========================
+// METHODS
+// =========================
+const handleLogout = async () => {
+  const isLoggingOut = ref(true);
+  try {
+    await authStore.logout();
+    router.push("/auth/login");
+  } catch (error) {
+    const msg =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      "Gagal logout";
+    toast.error(msg);
+  } finally {
+    isLoggingOut.value = false;
+  }
+};
+
 const handleDeleteAccount = async () => {
   if (!canDeleteAccount.value) return;
 
   deletingAccount.value = true;
   try {
-    await profileAPI.deleteAccount({ password: deletePassword.value });
+    await userStore.deleteAccount({ password: deletePassword.value });
     toast.success("Akun berhasil dihapus");
   } catch (error) {
     const msg =
@@ -95,14 +143,16 @@ const handleDeleteAccount = async () => {
   showDeleteAccountModal.value = false;
   router.push("/auth/login");
 };
-const goBack = () => {
-  router.back();
-};
+// =========================
+// LIFECYCLE
+// =========================
 
 onMounted(async () => {
-  // Ensure profile data is loaded
-  if (!profileStore.user) {
-    await profileStore.fetchProfile();
+  // Always refresh profile data so the page shows latest info after edits.
+  try {
+    await userStore.fetchProfile();
+  } catch {
+    // ignore: error state is handled elsewhere / via UI
   }
 
   // Admin tidak perlu memuat data merchant di halaman profil.
@@ -134,58 +184,10 @@ onMounted(async () => {
     merchantsLoading.value = false;
   }
 });
-
-const menuItems = computed(() => [
-  {
-    icon: "M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z",
-    label: "Edit Profile",
-    action: () => router.push("/profile/edit"),
-  },
-  {
-    icon: "M12 2C8.686 2 6 4.686 6 8c0 5.25 6 12 6 12s6-6.75 6-12c0-3.314-2.686-6-6-6zm0 8a2 2 0 110-4 2 2 0 010 4z",
-    label: "Alamat Saya",
-    action: () => router.push("/profile/address"),
-  },
-  {
-    icon: "M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z",
-    label: "Ubah Kata Sandi",
-    action: () => router.push("/profile/change-password"),
-  },
-]);
-
-const merchantAccordionOpen = ref(false);
-
-const addressText = computed(() => {
-  const a = profileStore.user?.full_address ?? profileStore.user?.address;
-  return a && String(a).trim() ? String(a).trim() : "-";
-});
-
-const hasAddress = computed(() => {
-  const a = profileStore.user?.full_address ?? profileStore.user?.address;
-  return !!(a && String(a).trim());
-});
-
-const hasProfilePicture = computed(() => {
-  const url = profileStore.user?.profile_picture;
-  if (!url) return false;
-  const normalized = String(url).trim();
-  if (!normalized) return false;
-  // Hindari menganggap placeholder sebagai foto profil yang sudah diisi.
-  return !normalized.includes("via.placeholder.com");
-});
-
-const needsProfileCompletion = computed(
-  () =>
-    !isInitialProfileLoading.value &&
-    (!hasProfilePicture.value || !hasAddress.value),
-);
 </script>
 
 <template>
   <div class="sm:pb-0">
-    <!-- Header -->
-    <!-- <MobileHeader title="Profil" @back="goBack()" /> -->
-
     <!-- Content Container -->
     <div class="px-4 py-4 mx-auto max-w-7xl">
       <!-- DESKTOP LAYOUT -->
@@ -198,15 +200,14 @@ const needsProfileCompletion = computed(
             <div class="flex flex-col items-center">
               <div class="relative w-40 h-40">
                 <div
-                  v-if="isInitialProfileLoading || (!imgLoaded && !imgError)"
+                  v-if="
+                    isInitialProfileLoading ||
+                    (hasProfilePictureUrl && !imgLoaded && !imgError)
+                  "
                   class="w-40 h-40 bg-gray-200 border-4 border-white rounded-full shadow-lg animate-pulse"
                 />
                 <img
-                  v-else-if="
-                    !isInitialProfileLoading &&
-                    !imgError &&
-                    typeof user.profile_picture === 'string'
-                  "
+                  v-else-if="hasProfilePictureUrl && !imgError"
                   :src="user.profile_picture"
                   :alt="user.name"
                   loading="lazy"
@@ -240,7 +241,7 @@ const needsProfileCompletion = computed(
               </h2>
 
               <!-- Quick Info -->
-              <div class="w-full mt-8 space-y-4">
+              <div class="w-full mt-4 space-y-4">
                 <div
                   class="flex items-center min-w-0 gap-3 text-gray-600 flex-nowrap"
                 >
@@ -333,7 +334,12 @@ const needsProfileCompletion = computed(
               </div>
             </div>
 
-            <Button @click="handleLogout" class="w-full mt-4" variant="danger">
+            <Button
+              @click="handleLogout"
+              class="w-full mt-4"
+              variant="danger"
+              :loading="isLoggingOut"
+            >
               Logout
             </Button>
 
@@ -543,15 +549,14 @@ const needsProfileCompletion = computed(
           <div class="flex flex-col items-center">
             <div class="relative w-32 h-32">
               <div
-                v-if="isInitialProfileLoading || (!imgLoaded && !imgError)"
+                v-if="
+                  isInitialProfileLoading ||
+                  (hasProfilePictureUrl && !imgLoaded && !imgError)
+                "
                 class="w-32 h-32 bg-gray-200 border-4 border-white rounded-full shadow-lg animate-pulse"
               />
               <img
-                v-if="
-                  !isInitialProfileLoading &&
-                  !imgError &&
-                  typeof user.profile_picture === 'string'
-                "
+                v-else-if="hasProfilePictureUrl && !imgError"
                 :src="user.profile_picture"
                 :alt="user.name"
                 loading="lazy"
@@ -585,7 +590,7 @@ const needsProfileCompletion = computed(
             </h2>
 
             <!-- Quick Info -->
-            <div class="w-full mt-0 space-y-2">
+            <div class="w-full mt-2 space-y-2">
               <div
                 class="flex items-center min-w-0 gap-3 text-gray-600 flex-nowrap"
               >

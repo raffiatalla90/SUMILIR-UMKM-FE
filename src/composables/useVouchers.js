@@ -351,40 +351,6 @@ export function useVouchers() {
     }
   };
 
-  const activateVoucher = async (id) => {
-    try {
-      loading.value = true;
-      const response = await api.post(`/api/admin/vouchers/${id}/activate`);
-      toast.success(response.data.message || "Voucher berhasil diaktifkan");
-      return response.data;
-    } catch (error) {
-      console.error("Failed to activate voucher:", error);
-      toast.error(
-        error.response?.data?.message || "Gagal mengaktifkan voucher",
-      );
-      throw error;
-    } finally {
-      loading.value = false;
-    }
-  };
-
-  const deactivateVoucher = async (id) => {
-    try {
-      loading.value = true;
-      const response = await api.post(`/api/admin/vouchers/${id}/deactivate`);
-      toast.success(response.data.message || "Voucher berhasil dinonaktifkan");
-      return response.data;
-    } catch (error) {
-      console.error("Failed to deactivate voucher:", error);
-      toast.error(
-        error.response?.data?.message || "Gagal menonaktifkan voucher",
-      );
-      throw error;
-    } finally {
-      loading.value = false;
-    }
-  };
-
   return {
     vouchers,
     loading,
@@ -402,7 +368,5 @@ export function useVouchers() {
     bulkDeleteMerchantVoucher,
     editBulkStatus,
     fetchVouchersByMerchant,
-    activateVoucher,
-    deactivateVoucher,
   };
 }

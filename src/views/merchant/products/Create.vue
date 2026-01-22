@@ -13,6 +13,7 @@ import Button from "@/components/common/Button.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import api from "@/libs/axios";
+import { useProducts } from "@/composables/useProducts";
 import { useCategories } from "@/composables/useCategories";
 import { useProductImages } from "@/composables/product/forms/useProductImages";
 import { useProductVariants } from "@/composables/product/forms/useProductVariants";

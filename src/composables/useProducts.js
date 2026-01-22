@@ -22,7 +22,9 @@ export function useProducts() {
   let lastRequestParams = null;
   let pendingRequest = null;
 
-  // Admin UMKM
+  /* =====================================================
+   * ADMIN MERCHANT
+   * ===================================================== */
   const fetchProducts = async ({
     merchantSlug,
     searchQuery = "",
@@ -198,6 +200,10 @@ export function useProducts() {
     }
   };
 
+  const createProduct = async (merchantSlug, payload) => {};
+
+  const editProduct = async (merchantSlug, productSlug, payload) => {};
+
   const deleteProduct = async (merchantSlug, productSlug) => {
     loading.value = true;
     try {
@@ -270,6 +276,9 @@ export function useProducts() {
     }
   };
 
+  /* =====================================================
+   * PUBLIC
+   * ===================================================== */
   const fetchPublicProductDetail = async (slug) => {
     loading.value = true;
     try {

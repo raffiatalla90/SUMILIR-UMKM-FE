@@ -134,7 +134,7 @@ export function useProductVariants({ maxVariants, maxOptions, toast }) {
   const removeOptionImage = (variantIndex, optionIndex, imageIndex) => {
     variants.value[variantIndex].options[optionIndex].images.splice(
       imageIndex,
-      1
+      1,
     );
   };
 

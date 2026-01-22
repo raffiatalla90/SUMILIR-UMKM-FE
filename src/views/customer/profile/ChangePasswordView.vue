@@ -1,7 +1,8 @@
 <script setup>
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { useProfileStore } from "@/stores/profile";
+import { useUserStore } from "@/stores/user";
+import { useToast } from "vue-toastification";
 import MobileHeader from "@/components/customer/MobileHeader.vue";
 import AppButton from "@/components/common/Button.vue";
 import { useForm } from "vee-validate";
@@ -9,7 +10,8 @@ import * as yup from "yup";
 import PasswordField from "@/components/forms/PasswordField.vue";
 
 const router = useRouter();
-const profileStore = useProfileStore();
+const userStore = useUserStore();
+const toast = useToast();
 
 const schema = yup.object({
   current_password: yup.string().required("Kata sandi sekarang wajib diisi"),
@@ -44,7 +46,7 @@ const hasUppercase = computed(() => /[A-Z]/.test(newPassword.value));
 const hasLowercase = computed(() => /[a-z]/.test(newPassword.value));
 const hasNumber = computed(() => /[0-9]/.test(newPassword.value));
 const hasSymbol = computed(() =>
-  /[!@#$%^&*(),.?":{}|<>]/.test(newPassword.value)
+  /[!@#$%^&*(),.?":{}|<>]/.test(newPassword.value),
 );
 
 const loading = ref(false);
@@ -53,7 +55,7 @@ const onSubmit = handleSubmit(async (formValues) => {
   loading.value = true;
 
   try {
-    await profileStore.changePassword({
+    await userStore.changePassword({
       current_password: formValues.current_password,
       new_password: formValues.new_password,
       new_password_confirmation: formValues.new_password_confirmation,

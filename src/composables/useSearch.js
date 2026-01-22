@@ -3,6 +3,7 @@ import { searchProducts, searchMerchants } from "@/services/api/search";
 import { useToast } from "vue-toastification";
 
 export function useSearch() {
+  const isDev = import.meta.env.DEV;
   const toast = useToast();
 
   // Produk
@@ -39,6 +40,9 @@ export function useSearch() {
       }
       jasasMeta.value = data.jasas_meta ?? {};
     } catch (err) {
+      if (isDev) {
+        console.error("Error fetching products:", err);
+      }
       toast.error("Gagal memuat produk.");
       if (!append) {
         products.value = [];
@@ -62,6 +66,9 @@ export function useSearch() {
       }
       merchantsMeta.value = data.meta ?? {};
     } catch (err) {
+      if (isDev) {
+        console.error("Error fetching merchants:", err);
+      }
       toast.error("Gagal memuat UMKM.");
       if (!append) merchants.value = [];
     } finally {

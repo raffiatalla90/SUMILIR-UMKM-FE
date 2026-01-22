@@ -1,20 +1,5 @@
 import api from "@/libs/axios";
 
-function withMethodOverride(payload, method) {
-  if (payload instanceof FormData) {
-    if (!payload.has("_method")) payload.append("_method", method);
-    return payload;
-  }
-
-  const formData = new FormData();
-  Object.entries(payload || {}).forEach(([key, value]) => {
-    if (value === undefined || value === null) return;
-    formData.append(key, value);
-  });
-  formData.append("_method", method);
-  return formData;
-}
-
 /* =====================================================
  * PUBLIC PRODUCTS
  * ===================================================== */
@@ -26,18 +11,13 @@ export async function getPublicProductDetail(slug) {
 export async function getPublicMerchantProducts(merchantSlug, params = {}) {
   const { data } = await api.get(
     `/api/public/merchants/${merchantSlug}/products`,
-    { params }
+    { params },
   );
   return data;
 }
 
-// export async function getMerchantProducts(merchantSlug, params = {}) {
-//   const { data } = await api.get(`/api/public/merchants/${merchantSlug}/products`, { params });
-//   return data;
-// }
-
 /* =====================================================
- * ADMIN / MERCHANT PRODUCTS
+ * ADMIN MERCHANT PRODUCTS
  * ===================================================== */
 export async function getProducts(merchantSlug, params = {}) {
   const { data } = await api.get(`/api/merchant/${merchantSlug}/products/`, {
@@ -48,7 +28,7 @@ export async function getProducts(merchantSlug, params = {}) {
 
 export async function getProductDetail(merchantSlug, slug) {
   const { data } = await api.get(
-    `/api/merchant/${merchantSlug}/products/${slug}`
+    `/api/merchant/${merchantSlug}/products/${slug}`,
   );
   return data;
 }
@@ -61,7 +41,7 @@ export async function createProduct(merchantSlug, payload) {
       headers: {
         "Content-Type": "multipart/form-data",
       },
-    }
+    },
   );
   return data;
 }
@@ -69,12 +49,12 @@ export async function createProduct(merchantSlug, payload) {
 export async function editProduct(merchantSlug, slug, payload) {
   const { data } = await api.post(
     `/api/merchant/${merchantSlug}/products/${slug}`,
-    withMethodOverride(payload, "PUT"),
+    payload,
     {
       headers: {
         "Content-Type": "multipart/form-data",
       },
-    }
+    },
   );
   return data;
 }
@@ -82,13 +62,13 @@ export async function editProduct(merchantSlug, slug, payload) {
 export async function editStatus(merchantSlug, slug, status) {
   const { data } = await api.patch(
     `/api/merchant/${merchantSlug}/products/${slug}/status`,
-    { status }
+    { status },
   );
   return data;
 }
 export async function deleteProduct(merchantSlug, slug) {
   const { data } = await api.delete(
-    `/api/merchant/${merchantSlug}/products/${slug}`
+    `/api/merchant/${merchantSlug}/products/${slug}`,
   );
   return data;
 }
@@ -98,7 +78,7 @@ export async function deleteBulk(merchantSlug, productSlugs = []) {
     `/api/merchant/${merchantSlug}/products/bulk-delete`,
     {
       product_slugs: productSlugs,
-    }
+    },
   );
   return data;
 }
@@ -109,7 +89,7 @@ export async function editBulkStatus(merchantSlug, productSlugs = [], status) {
     {
       product_slugs: productSlugs,
       status,
-    }
+    },
   );
   return data;
 }

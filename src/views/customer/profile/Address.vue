@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
-import { useProfileStore } from "@/stores/profile";
+import { useUserStore } from "@/stores/user";
 import { Form, useForm } from "vee-validate";
 import * as yup from "yup";
 import MobileHeader from "@/components/customer/MobileHeader.vue";
@@ -21,7 +21,7 @@ import { getMyAddress, upsertMyAddress } from "@/services/api/address";
 
 const router = useRouter();
 const toast = useToast();
-const profileStore = useProfileStore();
+const userStore = useUserStore();
 
 const loading = ref(true);
 const saving = ref(false);
@@ -77,7 +77,7 @@ async function loadProvinces() {
   loadingProvinces.value = true;
   try {
     const data = await getProvinces();
-    provinces.value = Array.isArray(data) ? data : data?.data ?? [];
+    provinces.value = Array.isArray(data) ? data : (data?.data ?? []);
   } finally {
     loadingProvinces.value = false;
   }
@@ -91,7 +91,7 @@ async function loadCities(provinceId) {
   loadingCities.value = true;
   try {
     const data = await getCities(provinceId);
-    cities.value = Array.isArray(data) ? data : data?.data ?? [];
+    cities.value = Array.isArray(data) ? data : (data?.data ?? []);
   } finally {
     loadingCities.value = false;
   }
@@ -105,7 +105,7 @@ async function loadDistricts(cityId) {
   loadingDistricts.value = true;
   try {
     const data = await getDistricts(cityId);
-    districts.value = Array.isArray(data) ? data : data?.data ?? [];
+    districts.value = Array.isArray(data) ? data : (data?.data ?? []);
   } finally {
     loadingDistricts.value = false;
   }
@@ -119,7 +119,7 @@ async function loadVillages(districtId) {
   loadingVillages.value = true;
   try {
     const data = await getVillages(districtId);
-    villages.value = Array.isArray(data) ? data : data?.data ?? [];
+    villages.value = Array.isArray(data) ? data : (data?.data ?? []);
   } finally {
     loadingVillages.value = false;
   }
@@ -136,7 +136,7 @@ watch(
     districts.value = [];
     villages.value = [];
     await loadCities(provinceId);
-  }
+  },
 );
 
 watch(
@@ -148,7 +148,7 @@ watch(
     setFieldValue("village_id", "");
     villages.value = [];
     await loadDistricts(cityId);
-  }
+  },
 );
 
 watch(
@@ -158,7 +158,7 @@ watch(
     if (districtId === prev) return;
     setFieldValue("village_id", "");
     await loadVillages(districtId);
-  }
+  },
 );
 
 async function prefillFromApi() {
@@ -202,7 +202,7 @@ async function handleSave(formValues) {
       latitude: lat.value === "" ? null : lat.value,
       longitude: lng.value === "" ? null : lng.value,
     });
-    await profileStore.fetchProfile();
+    await userStore.fetchProfile();
     toast.success("Alamat berhasil disimpan");
     router.push("/profile");
   } catch (error) {
@@ -229,16 +229,16 @@ onMounted(async () => {
 });
 
 const provinceOptions = computed(() =>
-  (provinces.value ?? []).map((p) => ({ value: String(p.id), label: p.name }))
+  (provinces.value ?? []).map((p) => ({ value: String(p.id), label: p.name })),
 );
 const cityOptions = computed(() =>
-  (cities.value ?? []).map((c) => ({ value: String(c.id), label: c.name }))
+  (cities.value ?? []).map((c) => ({ value: String(c.id), label: c.name })),
 );
 const districtOptions = computed(() =>
-  (districts.value ?? []).map((d) => ({ value: String(d.id), label: d.name }))
+  (districts.value ?? []).map((d) => ({ value: String(d.id), label: d.name })),
 );
 const villageOptions = computed(() =>
-  (villages.value ?? []).map((v) => ({ value: String(v.id), label: v.name }))
+  (villages.value ?? []).map((v) => ({ value: String(v.id), label: v.name })),
 );
 </script>
 

@@ -1,15 +1,22 @@
 <script setup>
+// =========================
+// IMPORTS
+// =========================
 import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
-import { useProfileStore } from "@/stores/profile";
+import { useUserStore } from "@/stores/user";
 import { useAuthStore } from "@/stores/auth";
 import { useToast } from "vue-toastification";
 import TextField from "@/components/forms/TextField.vue";
 import MobileHeader from "@/components/customer/MobileHeader.vue";
 import AppButton from "@/components/common/Button.vue";
 
+// =========================
+// STATE & REFS
+// =========================
+
 const router = useRouter();
-const profileStore = useProfileStore();
+const userStore = useUserStore();
 const authStore = useAuthStore();
 const toast = useToast();
 
@@ -25,25 +32,23 @@ const formData = ref({
 const profilePictureFile = ref(null);
 const fileInput = ref(null);
 
-const isInitialProfileLoading = computed(
-  () => profileStore.loading && !profileStore.user
-);
-
 const imgLoaded = ref(false);
 const imgError = ref(false);
+
+const MAX_PROFILE_IMAGE_MB = 5;
+const MAX_PROFILE_IMAGE_BYTES = MAX_PROFILE_IMAGE_MB * 1024 * 1024;
+
+// =========================
+// COMPUTED
+// =========================
+const isInitialProfileLoading = computed(
+  () => userStore.loading && !userStore.user,
+);
 
 const hasProfilePicture = computed(() => {
   const val = formData.value?.profile_picture;
   return typeof val === "string" && val.trim().length > 0;
 });
-
-watch(
-  () => formData.value?.profile_picture,
-  () => {
-    imgLoaded.value = false;
-    imgError.value = false;
-  }
-);
 
 const onImgLoad = () => {
   imgLoaded.value = true;
@@ -54,9 +59,20 @@ const onImgError = () => {
   imgLoaded.value = true;
 };
 
+// =========================
+// WATCHERS
+// =========================
+watch(
+  () => formData.value?.profile_picture,
+  () => {
+    imgLoaded.value = false;
+    imgError.value = false;
+  },
+);
+
 // Watch for changes in store user data
 watch(
-  () => profileStore.user,
+  () => userStore.user,
   (newUser) => {
     if (newUser) {
       formData.value = {
@@ -68,8 +84,23 @@ watch(
       };
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
+
+// =========================
+// METHODS
+// =========================
+const handleCancel = () => {
+  router.push("/profile");
+};
+
+const goBack = () => {
+  router.back();
+};
+
+const handlePhotoUpload = () => {
+  fileInput.value.click();
+};
 
 const handleSave = async () => {
   try {
@@ -83,13 +114,13 @@ const handleSave = async () => {
       payload.append("profile_picture", profilePictureFile.value);
     }
 
-    await profileStore.updateProfile(payload);
-    // Pastikan data terbaru (termasuk URL profile_picture) sudah tersinkron.
-    await profileStore.fetchProfile();
-
-    // CustomerLayout membaca avatar dari authStore.user, jadi perlu disinkron juga.
+    await userStore.updateProfile(payload);
     authStore.updateLocalUser({
-      profile_picture: profileStore.user?.profile_picture || null,
+      name: userStore.user?.name ?? formData.value.name,
+      email: userStore.user?.email ?? formData.value.email,
+      phone: userStore.user?.phone ?? formData.value.phone,
+      nik: userStore.user?.nik ?? formData.value.nik,
+      profile_picture: userStore.user?.profile_picture || null,
     });
 
     toast.success("Profil berhasil diperbarui");
@@ -102,21 +133,6 @@ const handleSave = async () => {
     toast.error(message);
   }
 };
-
-const handleCancel = () => {
-  router.push("/profile");
-};
-
-const goBack = () => {
-  router.back();
-};
-
-const handlePhotoUpload = () => {
-  fileInput.value.click();
-};
-
-const MAX_PROFILE_IMAGE_MB = 5;
-const MAX_PROFILE_IMAGE_BYTES = MAX_PROFILE_IMAGE_MB * 1024 * 1024;
 
 const onFileChange = (e) => {
   const file = e.target.files[0];
@@ -143,9 +159,12 @@ const onFileChange = (e) => {
   formData.value.profile_picture = URL.createObjectURL(file);
 };
 
+// =========================
+// LIFECYCLE
+// =========================
 onMounted(() => {
-  if (!profileStore.user) {
-    profileStore.fetchProfile();
+  if (!userStore.user) {
+    userStore.fetchProfile();
   }
 });
 </script>
@@ -326,13 +345,11 @@ onMounted(() => {
                 <AppButton
                   type="submit"
                   variant="primary"
-                  :loading="profileStore.loading"
-                  :disabled="profileStore.loading"
+                  :loading="userStore.loading"
+                  :disabled="userStore.loading"
                   class="w-full"
                 >
-                  {{
-                    profileStore.loading ? "Menyimpan..." : "Simpan Perubahan"
-                  }}
+                  {{ userStore.loading ? "Menyimpan..." : "Simpan Perubahan" }}
                 </AppButton>
               </div>
             </form>
@@ -469,11 +486,11 @@ onMounted(() => {
             variant="primary"
             size="md"
             block
-            :loading="profileStore.loading"
-            :disabled="profileStore.loading"
+            :loading="userStore.loading"
+            :disabled="userStore.loading"
             customClass="w-full"
           >
-            {{ profileStore.loading ? "Menyimpan..." : "Simpan" }}
+            {{ userStore.loading ? "Menyimpan..." : "Simpan" }}
           </AppButton>
         </form>
       </div>

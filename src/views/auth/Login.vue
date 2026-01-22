@@ -154,7 +154,9 @@ const handleLogin = async (values) => {
       password: values.password,
     });
 
-    console.log("✅ Login successful, user data:", userData);
+    if (isDev) {
+      console.log("Login successful, user data:", userData);
+    }
 
     // 2. ✅ Tunggu sebentar agar state terupdate
     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -165,20 +167,23 @@ const handleLogin = async (values) => {
       .filter(Boolean)
       .map((r) => r.toLowerCase());
 
-    console.log("✅ User roles:", userRoles);
+    console.log("User roles:", userRoles);
 
-    if (userRoles.includes("umkm-owner")) {
-      console.log("🚀 Redirecting to /merchant-center");
-      await router.replace("/merchant-center");
-    } else if (userRoles.includes("customer")) {
-      console.log("🚀 Redirecting to /");
-      await router.push("/");
+    if (userRoles.includes("umkm-owner") || userRoles.includes("customer")) {
+      if (isDev) {
+        console.log("Redirecting to /");
+      }
+      await router.replace("/");
     } else {
-      console.log("🚀 Redirecting to /dashboard (default)");
+      if (isDev) {
+        console.log("Redirecting to /dashboard (default)");
+      }
       await router.replace("/admin/dashboard");
     }
   } catch (error) {
-    console.error("❌ Login error:", error);
+    if (isDev) {
+      console.error("Login error:", error);
+    }
     errorMessage.value =
       error.response?.data?.message || "Login gagal. Silakan coba lagi.";
   } finally {

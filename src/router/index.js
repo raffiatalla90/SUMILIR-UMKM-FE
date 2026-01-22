@@ -153,7 +153,6 @@ const routes = [
 
       {
         path: "/profile",
-        component: () => import("@/views/ProfileLayout.vue"),
         meta: { requiresAuth: true },
         children: [
           {
@@ -839,7 +838,7 @@ router.beforeEach(async (to, from, next) => {
       .map((r) => r.toLowerCase());
 
     const isDenied = denyRoles.some((role) =>
-      userRoles.includes(String(role).toLowerCase())
+      userRoles.includes(String(role).toLowerCase()),
     );
 
     if (isDenied) {
@@ -879,7 +878,7 @@ router.beforeEach(async (to, from, next) => {
       .map((r) => r.toLowerCase());
 
     const hasRequiredRole = requiredRoles.some((requiredRole) =>
-      userRoles.includes(requiredRole.toLowerCase())
+      userRoles.includes(requiredRole.toLowerCase()),
     );
 
     if (!hasRequiredRole) {
