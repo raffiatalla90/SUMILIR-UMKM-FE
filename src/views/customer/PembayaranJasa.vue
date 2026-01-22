@@ -132,8 +132,10 @@
               </p>
             </div>
           </div>
-          <div class="flex items-start justify-between gap-2 mt-1 text-sm text-gray-800">
-            <div class="flex items-start gap-2 flex-1">
+          <div
+            class="flex items-start justify-between gap-2 mt-1 text-sm text-gray-800"
+          >
+            <div class="flex items-start flex-1 gap-2">
               <span class="mt-0.5">
                 <i class="text-gray-500 pi pi-map-marker"></i>
               </span>
@@ -204,8 +206,8 @@
                 selectedPromo
                   ? selectedPromo.title
                   : promos.length
-                  ? "Pilih voucher diskon"
-                  : "Tidak ada voucher tersedia"
+                    ? "Pilih voucher diskon"
+                    : "Tidak ada voucher tersedia"
               }}
             </div>
             <button
@@ -659,7 +661,7 @@
 import { computed, ref, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import { useProfileStore } from "@/stores/profile";
+import { useUserStore } from "@/stores/user";
 import api from "@/libs/axios.js";
 import CalendarModal from "@/components/CalendarModal.vue";
 
@@ -721,7 +723,7 @@ const amounts = ref({
 });
 
 const total = computed(() =>
-  Math.max(0, amounts.value.jasa + amounts.value.ongkir - amounts.value.diskon)
+  Math.max(0, amounts.value.jasa + amounts.value.ongkir - amounts.value.diskon),
 );
 
 // Label tipe harga untuk menandai harga tetap vs harga mulai
@@ -843,7 +845,7 @@ watch(
     form.value.tanggalISO = val.toISOString();
     form.value.tanggalLabel = fmtTanggal(form.value.tanggalISO);
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 // ===== Promo State =====
@@ -860,14 +862,14 @@ async function loadVouchersForJasa(merchantId) {
       `/api/public/merchants/${merchantId}/vouchers`,
       {
         params: { amount: order.price || 0 },
-      }
+      },
     );
 
     const list = Array.isArray(data?.data)
       ? data.data
       : Array.isArray(data)
-      ? data
-      : [];
+        ? data
+        : [];
 
     promos.value = list.map((v) => ({
       code: v.voucher_code,
@@ -930,7 +932,7 @@ const summaryText = ref("");
 const showDetails = ref(false);
 
 const authStore = useAuthStore();
-const profileStore = useProfileStore();
+const userStore = useUserStore();
 
 // Modal pilihan alamat
 const openAlamatOptions = ref(false);
@@ -938,7 +940,7 @@ const openAlamatOptions = ref(false);
 // Coba gunakan alamat dari profil user (jika ada)
 function useProfileAddress() {
   const user = authStore.user;
-  const profileUser = profileStore.user;
+  const profileUser = userStore.user;
   // Prioritas: alamat lengkap dari profil user (full_address), lalu address/alamat biasa
   const candidate =
     profileUser?.full_address ||
@@ -964,7 +966,7 @@ function useProfileAddress() {
 async function reverseGeocode(lat, lng) {
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(
-      lat
+      lat,
     )}&lon=${encodeURIComponent(lng)}&zoom=18&addressdetails=1`;
 
     const res = await fetch(url, {
@@ -1139,8 +1141,8 @@ function buildWhatsappMessage() {
   if (selectedPromo.value) {
     lines.push(
       `Diskon (${selectedPromo.value.code}) : Rp ${formatIDR(
-        amounts.value.diskon
-      )}`
+        amounts.value.diskon,
+      )}`,
     );
   } else {
     lines.push(`Diskon            : Rp ${formatIDR(amounts.value.diskon)}`);
