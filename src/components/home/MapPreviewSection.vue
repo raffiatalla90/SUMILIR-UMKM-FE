@@ -5,7 +5,6 @@ import 'vue3-carousel/dist/carousel.css';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import api from '@/libs/axios';
-import { getImageUrl } from '@/libs/getImageUrl';
 import { getMerchantBannerUrl } from '@/libs/getImageUrl'; 
 
 const merchants = ref([]);
@@ -52,7 +51,6 @@ const initMap = () => {
 // segmentation name normalizer
 const getSegmentationKey = (merchant) => {
   const raw = (merchant?.segmentation?.name || '').toLowerCase().trim();
-  console.log('[MapPreview] Merchant segmentation raw:', raw);
 
   // kamu bisa tambahin mapping sesuai data asli backend kamu
   if (raw.includes('toko')) return 'toko';
@@ -82,8 +80,11 @@ const renderMarkerIcon = (merchant, isActive = false) => {
   const logo = merchant?.logo_url ? String(merchant.logo_url) : '';
 
   const innerHtml = logo
-    ? `<img class="umkm-marker__logo" src="${logo}" loading="lazy" referrerpolicy="no-referrer" />`
+    ? `<span class="umkm-marker__logo-wrap">
+        <img class="umkm-marker__logo" src="${logo}" loading="lazy" referrerpolicy="no-referrer" />
+      </span>`
     : `...svg...`;
+
 
   return L.divIcon({
     className: 'umkm-marker-icon',
@@ -122,7 +123,6 @@ const initMarkers = () => {
 const setActiveMarker = (index, initial = false) => {
   if (!map.value || markers.value.length === 0) return;
 
-  // update icon semua marker (aktif / nonaktif)
   markers.value.forEach((marker, i) => {
     const merchant = merchants.value[i];
     if (!merchant) return;
@@ -138,7 +138,6 @@ const setActiveMarker = (index, initial = false) => {
     const lng = parseFloat(activeMerchant.longitude);
 
     if (!isNaN(lat) && !isNaN(lng)) {
-      // beda dari MapPicker: popup otomatis muncul saat giliran (carousel)
       map.value.flyTo([lat, lng], 18, { animate: true, duration: initial ? 0.8 : 1 });
     }
   }
@@ -154,12 +153,10 @@ const loadMerchants = async () => {
   loading.value = true;
   
   try {
-    const params = {}; // Tampilkan semua UMKM
+    const params = {}; 
 
     const response = await api.get('/api/public/home/map-carousel-merchants', { params });
     merchants.value = (response.data.data || []).filter(m => m.latitude && m.longitude);
-    
-    console.log('[MapPreview] Loaded merchants:', merchants.value.length);
     
     // Initialize map and markers after merchants loaded
     if (merchants.value.length > 0) {
@@ -169,7 +166,6 @@ const loadMerchants = async () => {
       }, 100);
     }
   } catch (error) {
-    console.error('[MapPreview] Failed to load merchants:', error);
     merchants.value = [];
   } finally {
     loading.value = false;
@@ -177,7 +173,6 @@ const loadMerchants = async () => {
 };
 
 watch(currentSlide, (newIndex) => {
-  console.log('[MapPreview] Slide changed to:', newIndex);
   updateMapMarkers();
 });
 
@@ -210,15 +205,15 @@ onMounted(async () => {
 
       <!-- Map + Carousel Layout -->
       <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-        <!-- Map Preview - FIXED HEIGHT -->
+        <!-- Map Preview -->
         <div class="relative lg:col-span-2 bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden">
           <div 
             id="home-map-preview" 
-            class="w-full h-[240px] sm:h-[360px] lg:h-[400px]"
+            class="w-full h-60 sm:h-[360px] lg:h-[400px]"
           ></div>
 
-          <!-- View Full Map Button - ALWAYS VISIBLE -->
-          <div class="absolute top-4 right-4 z-[1000]">
+          <!-- View Full Map Button - -->
+          <div class="absolute top-4 right-4 z-1000">
             <router-link 
               to="/map"
               class="inline-flex items-center gap-2 bg-white hover:bg-gray-50 text-merchant-primary font-semibold text-sm px-5 py-2.5 rounded-xl shadow-lg border-2 border-merchant-primary transition-all duration-300 hover:scale-105"
@@ -236,7 +231,7 @@ onMounted(async () => {
             <!-- DESKTOP -->
             <div class="hidden lg:flex lg:flex-col lg:space-y-4">
               <!-- Main Carousel Desktop  -->
-              <div class="flex-shrink-0">
+              <div class="shrink-0">
                 <Carousel
                   v-if="merchants.length > 0"
                   id="merchant-carousel-desktop"
@@ -276,7 +271,7 @@ onMounted(async () => {
                           <div class="shrink-0">
                             <div
                               v-if="merchant.logo_url"
-                              class="w-12 h-12 -mt-6 bg-white border-2 border-white rounded-lg shadow-md overflow-hidden"
+                              class="relative w-12 h-12 z-20 -mt-6 bg-white border-2 border-white rounded-lg shadow-md overflow-hidden"
                             >
                               <img
                                 :src="merchant.logo_url"
@@ -286,7 +281,7 @@ onMounted(async () => {
                             </div>
                             <div
                               v-else
-                              class="w-12 h-12 -mt-6 bg-muted-background border-2 border-white rounded-lg shadow-md flex items-center justify-center"
+                              class="relative w-12 h-12 z-20 -mt-6 bg-muted-background border-2 border-white rounded-lg shadow-md flex items-center justify-center"
                             >
                               <i class="pi pi-shop text-xl text-merchant-primary"></i>
                             </div>
@@ -311,7 +306,7 @@ onMounted(async () => {
                           </div>
 
                           <div class="flex items-start gap-1 text-[10px] text-gray-500">
-                            <i class="pi pi-home text-xs flex-shrink-0 mt-0.5"></i>
+                            <i class="pi pi-home text-xs shrink-0 mt-0.5"></i>
                             <span class="line-clamp-1">
                               {{ merchant.primary_address.detail }},
                               {{ merchant.primary_address.village?.name }}
@@ -379,9 +374,9 @@ onMounted(async () => {
             </div>
 
             <!-- MOBILE/TABLET -->
-            <div class="flex gap-3 lg:hidden h-[240px] sm:h-[360px]">
+            <div class="flex gap-3 lg:hidden h-60 sm:h-[360px]">
               <!-- Main Carousel Mobile/Tablet -->
-              <div class="flex-[2] sm:flex-[3] min-w-0">
+              <div class="flex-2 sm:flex-3 min-w-0">
                 <Carousel
                   v-if="merchants.length > 0"
                   id="merchant-carousel-mobile"
@@ -409,7 +404,7 @@ onMounted(async () => {
                         <!-- Segmentation Badge -->
                         <div
                           v-if="merchant.segmentation"
-                          class="absolute top-2 left-2 bg-merchant-primary/90 backdrop-blur-sm text-white font-semibold text-[10px] px-2 py-1 rounded-full"
+                          class="absolute top-2 left-2 bg-merchant-primary/90 ba  ckdrop-blur-sm text-white font-semibold text-[10px] px-2 py-1 rounded-full"
                         >
                           {{ merchant.segmentation.name }}
                         </div>
@@ -421,7 +416,7 @@ onMounted(async () => {
                           <div class="shrink-0">
                             <div
                               v-if="merchant.logo_url"
-                              class="w-10 h-10 sm:w-12 sm:h-12 -mt-5 sm:-mt-6 bg-white border-2 border-white rounded-lg shadow-md overflow-hidden"
+                              class="relative w-10 h-10 z-20 sm:w-12 sm:h-12 -mt-5 sm:-mt-6 bg-white border-2 border-white rounded-lg shadow-md overflow-hidden"
                             >
                               <img
                                 :src="merchant.logo_url"
@@ -431,7 +426,7 @@ onMounted(async () => {
                             </div>
                             <div
                               v-else
-                              class="w-10 h-10 sm:w-12 sm:h-12 -mt-5 sm:-mt-6 bg-muted-background border-2 border-white rounded-lg shadow-md flex items-center justify-center"
+                              class="relative w-10 h-10 z-20 sm:w-12 sm:h-12 -mt-5 sm:-mt-6 bg-muted-background border-2 border-white rounded-lg shadow-md flex items-center justify-center"
                             >
                               <i class="pi pi-shop text-lg sm:text-xl text-merchant-primary"></i>
                             </div>
@@ -456,7 +451,7 @@ onMounted(async () => {
                           </div>
 
                           <div class="flex items-start gap-1 text-[10px] text-gray-500">
-                            <i class="pi pi-home text-xs flex-shrink-0 mt-0.5"></i>
+                            <i class="pi pi-home text-xs shrink-0 mt-0.5"></i>
                             <span class="line-clamp-2">
                               {{ merchant.primary_address.detail }},
                               {{ merchant.primary_address.village?.name }}
@@ -493,7 +488,7 @@ onMounted(async () => {
                           class="relative h-full bg-white border-2 rounded-lg overflow-hidden transition-all duration-300"
                           :class="isActive ? 'border-merchant-primary shadow-md' : 'border-gray-200 opacity-80 hover:opacity-100 hover:border-merchant-primary/50'"
                         >
-                          <div class="relative aspect-[5/4] bg-linear-to-br from-primary/5 to-merchant-primary/5 overflow-hidden">
+                          <div class="relative aspect-5/4 bg-linear-to-br from-primary/5 to-merchant-primary/5 overflow-hidden">
                             <img
                               v-if="merchant.cover_path"
                               :src="getMerchantBannerUrl(merchant)"
@@ -572,13 +567,13 @@ onMounted(async () => {
   border: 0 !important;
 }
 
-.umkm-marker {
+:deep(.umkm-marker) {
   position: relative;
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   border-radius: 9999px;
-  background: var(--umkm-marker-color, #10b981);
-  border: 3px solid rgba(255, 255, 255, 0.98);
+  background: var(--umkm-marker-color);
+  border:  var(--umkm-marker-color);
   box-shadow:
     0 10px 18px rgba(0, 0, 0, 0.22),
     0 2px 6px rgba(0, 0, 0, 0.15);
@@ -587,18 +582,36 @@ onMounted(async () => {
   justify-content: center;
 }
 
-.umkm-marker::after {
+:deep(.umkm-marker::after) {
   content: "";
   position: absolute;
   left: 50%;
-  bottom: -10px;
+  bottom: -12px;
   transform: translateX(-50%);
   width: 0;
   height: 0;
-  border-left: 9px solid transparent;
-  border-right: 9px solid transparent;
-  border-top: 12px solid var(--umkm-marker-color, #10b981);
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-top: 16px solid var(--umkm-marker-color);
   filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.25));
+}
+
+:deep(.umkm-marker__logo-wrap) {
+  width: 42px;
+  height: 42px;
+  border-radius: 9999px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:  var(--umkm-marker-color); 
+}
+
+:deep(.umkm-marker__logo) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .umkm-marker svg {
