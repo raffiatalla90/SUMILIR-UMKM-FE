@@ -45,133 +45,115 @@ const initMap = () => {
   }).addTo(map.value);
 };
 
-// Create merchant marker - SAMA SEPERTI PetaUmkm.vue
-const createMarker = (merchant, isActive = false) => {
-  const lat = parseFloat(merchant.latitude);
-  const lng = parseFloat(merchant.longitude);
-  
-  if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
-    console.warn('[MapPreview] Invalid coordinates for merchant:', merchant.name);
-    return null;
+// =====================
+// MAP MARKER + POPUP UI
+// =====================
+
+// segmentation name normalizer
+const getSegmentationKey = (merchant) => {
+  const raw = (merchant?.segmentation?.name || '').toLowerCase().trim();
+  console.log('[MapPreview] Merchant segmentation raw:', raw);
+
+  // kamu bisa tambahin mapping sesuai data asli backend kamu
+  if (raw.includes('toko')) return 'toko';
+  if (raw.includes('kuliner')) return 'kuliner';
+  if (raw.includes('jasa')) return 'jasa';
+
+  // default fallback
+  return 'jasa';
+};
+
+const getMarkerColorBySegmentation = (merchant) => {
+  const key = getSegmentationKey(merchant);
+
+  switch (key) {
+    case 'toko':
+      return '#ffa30e'; // primary 
+    case 'kuliner':
+      return '#0894eb'; // secondary 
+    case 'jasa':
+    default:
+      return '#058895'; // merchant-primary 
   }
+};
 
-  const color = isActive ? '#ffa30e' : '#058895';
+const renderMarkerIcon = (merchant, isActive = false) => {
+  const color = getMarkerColorBySegmentation(merchant);
+  const logo = merchant?.logo_url ? String(merchant.logo_url) : '';
 
-  const icon = L.divIcon({
+  const innerHtml = logo
+    ? `<img class="umkm-marker__logo" src="${logo}" loading="lazy" referrerpolicy="no-referrer" />`
+    : `...svg...`;
+
+  return L.divIcon({
     className: 'umkm-marker-icon',
-    html: `
-      <div class="umkm-marker ${isActive ? 'active' : ''}" style="--umkm-marker-color: ${color}">
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path
-            d="M4 10.5V20a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9.5"
-            fill="none"
-            stroke="white"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <path
-            d="M3 10.5l2-7h14l2 7"
-            fill="none"
-            stroke="white"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <path
-            d="M9 21v-7h6v7"
-            fill="none"
-            stroke="white"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-      </div>
-    `,
+    html: `<div class="umkm-marker ${isActive ? 'active' : ''}" style="--umkm-marker-color:${color}">${innerHtml}</div>`,
     iconSize: [36, 46],
     iconAnchor: [18, 46],
     popupAnchor: [0, -46],
   });
-
-  return L.marker([lat, lng], { icon });
 };
 
-// ✅ Update map markers dengan POPUP INFO - SAMA SEPERTI PetaUmkm.vue
-const updateMapMarkers = () => {
+
+const initMarkers = () => {
   if (!map.value || merchants.value.length === 0) return;
 
+  // bersihin marker lama kalau ada (hanya untuk case re-init)
   markers.value.forEach(m => m.remove());
   markers.value = [];
 
   merchants.value.forEach((merchant, index) => {
-    const isActive = index === currentSlide.value;
-    const marker = createMarker(merchant, isActive);
-    
-    if (marker) {
-      const logoTag = merchant.logo_url
-        ? `<div class="popup-gmaps__img"><img src="${merchant.logo_url}" alt="${merchant.name}" /></div>`
-        : `<div class="popup-gmaps__img" style="background: #f3f4f6; display: flex; align-items: center; justify-content: center;">
-            <svg class="w-12 h-12 p-2 text-gray-300" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M20 4H4v2h16V4zm1 10v-2l-1-5H4l-1 5v2h1v6h10v-6h4v6h2v-6h1zm-9 6H6v-6h6v6z" />
-            </svg>
-          </div>`;
+    const lat = parseFloat(merchant.latitude);
+    const lng = parseFloat(merchant.longitude);
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) return;
 
-      const segmentation = merchant.segmentation?.name || 'UMKM';
-      const distance = merchant.distance_km ? `${merchant.distance_km} km` : '';
-      const distanceInfo = distance
-        ? `<div class="popup-gmaps__distance">
-            <i class="pi pi-map-marker" style="color: #f87171; margin-right: 2px;"></i>
-            ${distance}
-          </div>`
-        : '';
+    const marker = L.marker([lat, lng], {
+      icon: renderMarkerIcon(merchant, index === currentSlide.value),
+    }).addTo(map.value);
+    // klik marker → sync carousel
+    marker.on('click', () => {
+      slideTo(index); 
+    });
 
-      const popup = `
-        <div class="popup-card">
-          <div class="popup-card__body">
-            ${logoTag}
-            <div class="popup-gmaps__title">${merchant.name}</div>
-            <div class="popup-gmaps__meta">
-              <span class="popup-gmaps__badge">${segmentation}</span>
-              ${distanceInfo}
-            </div>
-          </div>
-        </div>`;
+    markers.value.push(marker);
+  });
+};
 
-      marker.bindPopup(popup, {
-        maxWidth: 240,
-        className: 'modern-leaflet-popup'
-      });
-      marker.addTo(map.value);
-      
-      if (isActive) {
-        marker.openPopup();
-      }
-      
-      markers.value.push(marker);
-    }
+const setActiveMarker = (index, initial = false) => {
+  if (!map.value || markers.value.length === 0) return;
+
+  // update icon semua marker (aktif / nonaktif)
+  markers.value.forEach((marker, i) => {
+    const merchant = merchants.value[i];
+    if (!merchant) return;
+    marker.setIcon(renderMarkerIcon(merchant, i === index));
   });
 
-  const activeMerchant = merchants.value[currentSlide.value];
-  if (activeMerchant?.latitude && activeMerchant?.longitude) {
+  const activeMarker = markers.value[index];
+  const activeMerchant = merchants.value[index];
+
+  // flyTo & open popup aktif
+  if (activeMarker && activeMerchant) {
     const lat = parseFloat(activeMerchant.latitude);
     const lng = parseFloat(activeMerchant.longitude);
-    
+
     if (!isNaN(lat) && !isNaN(lng)) {
-      map.value.flyTo([lat, lng], 18, {
-        animate: true,
-        duration: 1,
-      });
+      // beda dari MapPicker: popup otomatis muncul saat giliran (carousel)
+      map.value.flyTo([lat, lng], 18, { animate: true, duration: initial ? 0.8 : 1 });
     }
   }
 };
+
+const updateMapMarkers = () => {
+  // tidak rebuild, cuma update active state + popup
+  setActiveMarker(currentSlide.value);
+};
+
 
 const loadMerchants = async () => {
   loading.value = true;
   
   try {
-    // ❌ SEBELUM: const params = { limit: 6 };
-    // ✅ SESUDAH: Hapus limit atau set ke nilai lebih besar
     const params = {}; // Tampilkan semua UMKM
 
     const response = await api.get('/api/public/home/map-carousel-merchants', { params });
@@ -183,7 +165,7 @@ const loadMerchants = async () => {
     if (merchants.value.length > 0) {
       setTimeout(() => {
         initMap();
-        updateMapMarkers();
+        initMarkers();
       }, 100);
     }
   } catch (error) {
@@ -413,7 +395,7 @@ onMounted(async () => {
                       class="block w-full h-full bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-[1.02]"
                     >
                       <!-- Banner/Cover -->
-                      <div class="relative h-32 sm:h-68 bg-gradient-to-br from-primary/10 to-merchant-primary/10 overflow-hidden">
+                      <div class="relative h-32 sm:h-68 bg-linear-to-br from-primary/10 to-merchant-primary/10 overflow-hidden">
                         <img
                           v-if="merchant.cover_path"
                           :src="getMerchantBannerUrl(merchant)"
@@ -487,45 +469,65 @@ onMounted(async () => {
                 </Carousel>
               </div>
 
-              <!-- Thumbnails Mobile/Tablet -->
-              <div v-if="merchants.length > 1" class="flex-1 sm:flex-[1] max-w-[100px] sm:max-w-[120px] overflow-x-hidden">
-                <div class="flex flex-col gap-2 h-full overflow-y-auto [&::-webkit-scrollbar]:w-0 [-ms-overflow-style:none] [scrollbar-width:none]">
-                  <div
-                    v-for="(merchant, index) in merchants"
-                    :key="`thumb-mobile-${merchant.id}`"
-                    @click="slideTo(index)"
-                    class="relative flex-shrink-0 bg-white border-2 rounded-lg overflow-hidden transition-all duration-300 cursor-pointer group"
-                    :class=" [
-                      currentSlide === index 
-                        ? 'border-merchant-primary shadow-md' 
-                        : 'border-gray-200 opacity-70 hover:opacity-100 hover:border-merchant-primary/50',
-                      index < 3 ? 'h-[calc((100%-16px)/3)]' : 'h-0 overflow-hidden'
-                    ]"
-                  >
-                    <div class="relative w-full h-full bg-gradient-to-br from-primary/5 to-merchant-primary/5 overflow-hidden">
-                      <img
-                        v-if="merchant.cover_path"
-                        :src="getMerchantBannerUrl(merchant)"
-                        :alt="merchant.name"
-                        class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                      />
-                      <div v-else class="w-full h-full flex items-center justify-center">
-                        <i class="pi pi-shop text-base sm:text-lg text-merchant-primary/30"></i>
-                      </div>
+              <!-- Thumbnails Mobile/Tablet (VERTICAL CAROUSEL) -->
+              <div v-if="merchants.length > 1" class="flex-1 sm:flex-1 max-w-[100px] sm:max-w-[120px] h-full">
+                <Carousel
+                  id="merchant-thumbnails-mobile"
+                  v-model="currentSlide"
+                  :dir="'ttb'"                    
+                  :items-to-show="3"
+                  :wrap-around="true"
+                  snap-align="center"
+                  :height="'100%'"              
+                  :touch-drag="true"
+                  :transition="300"
+                  class="h-full [&_.carousel__prev]:w-6 [&_.carousel__prev]:h-6 [&_.carousel__prev]:rounded-full [&_.carousel__next]:w-6 [&_.carousel__next]:h-6 [&_.carousel__next]:rounded-full"
+                >
+                  <Slide v-for="(merchant, index) in merchants" :key="`thumb-mobile-${merchant.id}`">
+                    <template #default="{ isActive }">
+                      <div
+                        class="h-full w-full px-1 transition-all cursor-pointer"
+                        @click="slideTo(index)"
+                      >
+                        <div
+                          class="relative h-full bg-white border-2 rounded-lg overflow-hidden transition-all duration-300"
+                          :class="isActive ? 'border-merchant-primary shadow-md' : 'border-gray-200 opacity-80 hover:opacity-100 hover:border-merchant-primary/50'"
+                        >
+                          <div class="relative aspect-[5/4] bg-linear-to-br from-primary/5 to-merchant-primary/5 overflow-hidden">
+                            <img
+                              v-if="merchant.cover_path"
+                              :src="getMerchantBannerUrl(merchant)"
+                              :alt="merchant.name"
+                              class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                            />
+                            <div v-else class="w-full h-full flex items-center justify-center">
+                              <i class="pi pi-shop text-lg text-merchant-primary/30"></i>
+                            </div>
+                          </div>
 
-                      <div v-if="currentSlide === index" class="absolute inset-0 border-2 border-merchant-primary"></div>
-                      
-                      <!-- Mini Name Overlay -->
-                      <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-1">
-                        <p class="text-[8px] sm:text-[9px] font-semibold text-white text-center truncate">
-                          {{ merchant.name }}
-                        </p>
+                          <div class="p-1 bg-white">
+                            <p
+                              class="text-[9px] font-semibold text-center truncate"
+                              :class="isActive ? 'text-merchant-primary' : 'text-gray-700'"
+                            >
+                              {{ merchant.name }}
+                            </p>
+                          </div>
+
+                          <!-- Active border decoration -->
+                          <div v-if="isActive" class="absolute inset-0 pointer-events-none rounded-lg border-2 border-merchant-primary"></div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </div>
+                    </template>
+                  </Slide>
+
+                  <template #addons>
+                    <Navigation />
+                  </template>
+                </Carousel>
               </div>
             </div>
+
 
             <!-- Empty State -->
             <div v-if="merchants.length === 0" class="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
@@ -541,102 +543,27 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-/* Leaflet popup styles */
+/* Leaflet container */
 :deep(.leaflet-container) {
   font-family: inherit;
-  z-index: 1;
 }
 
-/* ✅ POPUP STYLES - SAMA SEPERTI PetaUmkm.vue */
-:deep(.modern-leaflet-popup .leaflet-popup-content-wrapper) {
-  padding: 0 !important;
-  border-radius: 16px !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+/*
+  OPTIONAL BUT RECOMMENDED:
+  Leaflet default z-index itu tinggi (controls bisa 1000+),
+  kadang nutup tombol / modal / overlay.
+  Ini bikin konsisten seperti MapPicker kamu.
+*/
+#home-map-preview {
+  position: relative;
+  z-index: 0;
 }
 
-:deep(.modern-leaflet-popup .leaflet-popup-tip) {
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
-}
-
-:deep(.modern-leaflet-popup .leaflet-popup-close-button) {
-  position: absolute !important;
-  top: 8px !important;
-  right: 8px !important;
-  font-size: 20px !important;
-  color: rgba(0, 0, 0, 0.6) !important;
-  opacity: 1 !important;
-  z-index: 10 !important;
-  transition: background 0.15s, color 0.15s, transform 0.15s;
-}
-
-:deep(.modern-leaflet-popup .leaflet-popup-close-button:hover) {
-  color: var(--color-primary) !important;
-  transform: scale(1.04);
-}
-
-:deep(.leaflet-popup-content) {
-  margin: 0 !important;
-}
-
-/* Popup Card Styles - SAMA SEPERTI PetaUmkm.vue */
-.popup-card {
-  width: 220px;
-  max-width: 240px;
-  overflow: hidden;
-  border-radius: 16px;
-  background: #fff;
-  cursor: pointer;
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
-}
-
-.popup-card__body {
-  padding: 14px 14px 12px 14px;
-  text-align: center;
-}
-
-.popup-gmaps__img {
-  width: 72px;
-  height: 72px;
-  margin: 2px auto 10px auto;
-  border-radius: 16px;
-  overflow: hidden;
-  border: 3px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
-}
-
-.popup-gmaps__img img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.popup-gmaps__title {
-  font-size: 14px;
-  font-weight: 700;
-  color: rgba(0, 0, 0, 1);
-  line-height: 1.25;
-  word-break: break-word;
-  margin-bottom: 6px;
-}
-
-.popup-gmaps__meta {
-  display: flex;
-  gap: 6px;
-  justify-content: center;
-  flex-wrap: wrap;
-  margin-bottom: 8px;
-}
-
-.popup-gmaps__badge {
-  color: var(--color-merchant-primary);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.popup-gmaps__distance {
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.7);
+#home-map-preview :deep(.leaflet-pane),
+#home-map-preview :deep(.leaflet-control),
+#home-map-preview :deep(.leaflet-top),
+#home-map-preview :deep(.leaflet-bottom) {
+  z-index: 0 !important;
 }
 
 /* UMKM Marker */
@@ -652,7 +579,9 @@ onMounted(async () => {
   border-radius: 9999px;
   background: var(--umkm-marker-color, #10b981);
   border: 3px solid rgba(255, 255, 255, 0.98);
-  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.15);
+  box-shadow:
+    0 10px 18px rgba(0, 0, 0, 0.22),
+    0 2px 6px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -684,10 +613,17 @@ onMounted(async () => {
 
 @keyframes pulse-marker {
   0%, 100% {
-    box-shadow: 0 10px 18px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.15), 0 0 0 0 var(--umkm-marker-color);
+    box-shadow:
+      0 10px 18px rgba(0, 0, 0, 0.22),
+      0 2px 6px rgba(0, 0, 0, 0.15),
+      0 0 0 0 var(--umkm-marker-color);
   }
   50% {
-    box-shadow: 0 10px 18px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.15), 0 0 0 10px transparent;
+    box-shadow:
+      0 10px 18px rgba(0, 0, 0, 0.22),
+      0 2px 6px rgba(0, 0, 0, 0.15),
+      0 0 0 10px transparent;
   }
 }
 </style>
+
