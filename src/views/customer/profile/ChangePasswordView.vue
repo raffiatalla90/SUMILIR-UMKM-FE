@@ -1,4 +1,7 @@
 <script setup>
+// =========================
+// IMPORTS
+// =========================
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUserStore } from "@/stores/user";
@@ -9,9 +12,14 @@ import { useForm } from "vee-validate";
 import * as yup from "yup";
 import PasswordField from "@/components/forms/PasswordField.vue";
 
+// =========================
+// STATE
+// =========================
+const isDev = import.meta.env.DEV;
 const router = useRouter();
 const userStore = useUserStore();
 const toast = useToast();
+const loading = ref(false);
 
 const schema = yup.object({
   current_password: yup.string().required("Kata sandi sekarang wajib diisi"),
@@ -38,6 +46,10 @@ const { values, setFieldError, handleSubmit } = useForm({
   },
 });
 
+// =========================
+// COMPUTED
+// =========================
+
 const newPassword = computed(() => String(values.new_password ?? ""));
 
 // Password indicators (mirip Register.vue)
@@ -49,8 +61,9 @@ const hasSymbol = computed(() =>
   /[!@#$%^&*(),.?":{}|<>]/.test(newPassword.value),
 );
 
-const loading = ref(false);
-
+// =========================
+// METHODS
+// =========================
 const onSubmit = handleSubmit(async (formValues) => {
   loading.value = true;
 
@@ -64,7 +77,9 @@ const onSubmit = handleSubmit(async (formValues) => {
     toast.success("Kata sandi berhasil diubah!");
     router.push("/profile");
   } catch (error) {
-    console.error("Error changing password:", error);
+    if (isDev) {
+      console.error("Error changing password:", error);
+    }
     const msg = error?.response?.data?.message;
     if (msg) setFieldError("current_password", msg);
     else toast.error("Gagal mengubah kata sandi. Silakan coba lagi.");

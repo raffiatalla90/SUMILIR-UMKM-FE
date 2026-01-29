@@ -19,6 +19,7 @@ const {
   loadingDetail,
 } = useVouchers();
 
+const isDev = import.meta.env.DEV;
 const toast = useToast();
 const router = useRouter();
 const route = useRoute();
@@ -179,7 +180,9 @@ onMounted(async () => {
 
     setFieldValue("max_discount_amount", max_discount_amount.value);
 
-    console.log(values.max_discount_amount);
+    if (isDev) {
+      console.log(values.max_discount_amount);
+    }
   } catch (e) {
     toast.error("Gagal memuat detail voucher");
     router.push(`/merchant-center/${currentMerchantSlug.value}/vouchers`);
@@ -219,8 +222,9 @@ watch(usage_limit_per_user, (v) => setFieldValue("usage_limit_per_user", v));
 // SUBMIT HANDLER
 // ============================================================
 const onSubmit = veeHandleSubmit(async () => {
-  console.log("SUBMIT EDIT TERPANGGIL");
-
+  if (isDev) {
+    console.log("SUBMIT EDIT TERPANGGIL");
+  }
   if (!isValidMerchant.value) {
     toast.error("Merchant tidak valid");
     return;

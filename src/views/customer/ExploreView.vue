@@ -3,7 +3,7 @@
     <!-- HERO (banner + search bar) - disamakan dengan Home.vue -->
     <section id="hero" class="relative">
       <div
-        class="relative w-full overflow-hidden bg-gray-100 aspect-video sm:aspect-21/9 lg:aspect-24/9 xl:aspect-4/1"
+        class="relative w-full overflow-hidden bg-gray-100 aspect-3/1 sm:aspect-21/9 lg:aspect-24/9 xl:aspect-4/1"
       >
         <!-- Loading skeleton -->
         <div
@@ -53,7 +53,7 @@
 
       <!-- Search Bar Container -->
       <div
-        class="relative z-10 flex justify-center px-4 mx-auto -mt-10 max-w-7xl"
+        class="relative z-10 flex justify-center px-4 mx-auto mt-2 sm:-mt-10 max-w-7xl"
       >
         <div class="w-full sm:w-[906px]">
           <div
@@ -293,6 +293,9 @@
 </template>
 
 <script setup>
+// =========================
+// IMPORTS
+// =========================
 import {
   ref,
   computed,
@@ -325,6 +328,9 @@ import kulinerIcon from "@/assets/icons/Kuliner.svg";
 import tokoIcon from "@/assets/icons/Toko.svg";
 import merchantIcon from "@/assets/icons/merchant.svg";
 
+// =========================
+// STATE
+// =========================
 const toast = useToast();
 
 const route = useRoute();
@@ -341,12 +347,113 @@ const profileAddressUnauthorized = ref(false);
 const profileCoordsLoaded = ref(false);
 let profileCoordsPromise = null;
 
+const searchInputRef = ref(null);
+const searchQuery = ref("");
+const jasaList = ref([]);
+const productList = ref([]);
+const merchantList = ref([]);
+const categories = ref([]);
+const loadingCategories = ref(true);
+const selectedCategoryId = ref(null);
+const loadingJasa = ref(false);
+const loadingProducts = ref(false);
+const loadingMerchants = ref(false);
+const showAllCategories = ref(false);
+
+// Infinite scroll state (mirip SearchPage.vue)
+const loadMoreRef = ref(null);
+const observer = ref(null);
+const currentPage = ref(1);
+const perPage = 20;
+const hasMore = ref(false);
+const isLoadingMore = ref(false);
+const isLoadMoreQueued = ref(false);
+
+// Back to top
+const showBackToTop = ref(false);
+// Mode halaman: umkm | jasa | toko | kuliner
+const activeMode = ref("umkm");
+
+// ================= SORT (tanpa filter) =================
+// Product/Jasa: nearest, cheapest, expensive, latest, oldest
+// UMKM: nearest, open, latest, oldest
+const activeInstantSorts = ref([]);
+
+const enableCategoryFilter = false; // sesuai request: filternya tidak perlu
+
+const instantSortOptions = [
+  { key: "latest", label: "Terbaru", conflict: ["oldest"] },
+  { key: "oldest", label: "Terlama", conflict: ["latest"] },
+  { key: "nearest", label: "Terdekat", conflict: [] },
+  {
+    key: "cheapest",
+    label: "Termurah",
+    conflict: ["expensive"],
+    itemOnly: true,
+  },
+  {
+    key: "expensive",
+    label: "Termahal",
+    conflict: ["cheapest"],
+    itemOnly: true,
+  },
+  { key: "open", label: "Buka", conflict: [], umkmOnly: true },
+];
+
+// banner carousel (samakan dengan Home.vue)
+const isLoadingBanner = ref(true);
+const { events: eventBanners, fetchPublicEvents } = usePublicEvents();
+
+const carouselConfig = {
+  itemsToShow: 1,
+  wrapAround: true,
+  autoplay: 5000,
+  transition: 800,
+  pauseAutoplayOnHover: true,
+  snapAlign: "center",
+  mouseDrag: true,
+  touchDrag: true,
+};
+
+// =========================
+// COMPUTED
+// =========================
 const hasMyCoordinates = computed(() => {
   return (
     Number.isFinite(myLatitude.value) && Number.isFinite(myLongitude.value)
   );
 });
 
+const isUmkmMode = computed(() => activeMode.value === "umkm");
+
+// untuk skeleton grid kategori (isi penuh 1 baris)
+const categorySkeletonCount = computed(() => gridColumns.value);
+
+// Sisakan 1 kotak buat tombol "Semua/Tutup"
+const maxCategoryTiles = computed(() => Math.max(0, gridColumns.value - 1));
+
+const gridColumns = computed(() => {
+  const w = viewportWidth.value;
+  // Tailwind default breakpoints: sm=640, md=768, lg=1024, xl=1280, 2xl=1536
+  if (w >= 1536) return 12;
+  if (w >= 1280) return 10;
+  if (w >= 1024) return 8;
+  if (w >= 640) return 6;
+  return 4;
+});
+
+const filteredInstantSorts = computed(() => {
+  const isUmkm = activeMode.value === "umkm";
+  return instantSortOptions.filter((o) => {
+    if (o.umkmOnly) return isUmkm;
+    if (o.itemOnly) return !isUmkm;
+    return true;
+  });
+});
+
+// =========================
+// HELPERS
+// =========================
 function setMyCoordinates(lat, lng) {
   const latNum = parseFloat(lat);
   const lngNum = parseFloat(lng);
@@ -354,8 +461,11 @@ function setMyCoordinates(lat, lng) {
   myLongitude.value = Number.isFinite(lngNum) ? lngNum : null;
 }
 
+// =========================
+// METHODS
+// =========================
 async function loadMyCoordinatesInternal(
-  { allowDevice } = { allowDevice: false }
+  { allowDevice } = { allowDevice: false },
 ) {
   // 1) Prefer saved address (if logged in)
   if (!profileAddressUnauthorized.value) {
@@ -390,7 +500,7 @@ async function loadMyCoordinatesInternal(
         }
       },
       () => resolve(null),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
     );
   });
 
@@ -419,31 +529,6 @@ async function ensureMyCoordinates({ allowDevice } = { allowDevice: true }) {
   return await loadMyCoordinatesInternal({ allowDevice });
 }
 
-const searchInputRef = ref(null);
-const searchQuery = ref("");
-const jasaList = ref([]);
-const productList = ref([]);
-const merchantList = ref([]);
-const categories = ref([]);
-const loadingCategories = ref(true);
-const selectedCategoryId = ref(null);
-const loadingJasa = ref(false);
-const loadingProducts = ref(false);
-const loadingMerchants = ref(false);
-const showAllCategories = ref(false);
-
-// Infinite scroll state (mirip SearchPage.vue)
-const loadMoreRef = ref(null);
-const observer = ref(null);
-const currentPage = ref(1);
-const perPage = 20;
-const hasMore = ref(false);
-const isLoadingMore = ref(false);
-const isLoadMoreQueued = ref(false);
-
-// Back to top
-const showBackToTop = ref(false);
-
 function handleScroll() {
   showBackToTop.value = window.scrollY > 300;
 
@@ -461,52 +546,6 @@ function scrollToTop() {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-// Mode halaman: umkm | jasa | toko | kuliner
-const activeMode = ref("umkm");
-
-const isUmkmMode = computed(() => activeMode.value === "umkm");
-
-// Responsif: samakan slice kategori dengan jumlah kolom grid
-// grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12
-const viewportWidth = ref(
-  typeof window !== "undefined" ? window.innerWidth : 1024
-);
-
-const updateViewportWidth = () => {
-  viewportWidth.value = window.innerWidth;
-};
-
-const gridColumns = computed(() => {
-  const w = viewportWidth.value;
-  // Tailwind default breakpoints: sm=640, md=768, lg=1024, xl=1280, 2xl=1536
-  if (w >= 1536) return 12;
-  if (w >= 1280) return 10;
-  if (w >= 1024) return 8;
-  if (w >= 640) return 6;
-  return 4;
-});
-
-// untuk skeleton grid kategori (isi penuh 1 baris)
-const categorySkeletonCount = computed(() => gridColumns.value);
-
-// Sisakan 1 kotak buat tombol "Semua/Tutup"
-const maxCategoryTiles = computed(() => Math.max(0, gridColumns.value - 1));
-
-// banner carousel (samakan dengan Home.vue)
-const isLoadingBanner = ref(true);
-const { events: eventBanners, fetchPublicEvents } = usePublicEvents();
-
-const carouselConfig = {
-  itemsToShow: 1,
-  wrapAround: true,
-  autoplay: 5000,
-  transition: 800,
-  pauseAutoplayOnHover: true,
-  snapAlign: "center",
-  mouseDrag: true,
-  touchDrag: true,
-};
-
 // Submit search (samakan dengan Home.vue: redirect ke SearchPage)
 const onSearch = () => {
   const q = (searchQuery.value || "").trim();
@@ -514,40 +553,19 @@ const onSearch = () => {
   router.push({ path: "/search", query: { q } });
 };
 
-// ================= SORT (tanpa filter) =================
-// Product/Jasa: nearest, cheapest, expensive, latest, oldest
-// UMKM: nearest, open, latest, oldest
-const activeInstantSorts = ref([]);
+// =========================
+// LIFECYCLE
+// =========================
 
-const enableCategoryFilter = false; // sesuai request: filternya tidak perlu
+// Responsif: samakan slice kategori dengan jumlah kolom grid
+// grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12
+const viewportWidth = ref(
+  typeof window !== "undefined" ? window.innerWidth : 1024,
+);
 
-const instantSortOptions = [
-  { key: "latest", label: "Terbaru", conflict: ["oldest"] },
-  { key: "oldest", label: "Terlama", conflict: ["latest"] },
-  { key: "nearest", label: "Terdekat", conflict: [] },
-  {
-    key: "cheapest",
-    label: "Termurah",
-    conflict: ["expensive"],
-    itemOnly: true,
-  },
-  {
-    key: "expensive",
-    label: "Termahal",
-    conflict: ["cheapest"],
-    itemOnly: true,
-  },
-  { key: "open", label: "Buka", conflict: [], umkmOnly: true },
-];
-
-const filteredInstantSorts = computed(() => {
-  const isUmkm = activeMode.value === "umkm";
-  return instantSortOptions.filter((o) => {
-    if (o.umkmOnly) return isUmkm;
-    if (o.itemOnly) return !isUmkm;
-    return true;
-  });
-});
+const updateViewportWidth = () => {
+  viewportWidth.value = window.innerWidth;
+};
 
 function pickSecondarySort(excludeKey, allowed) {
   const allowList = Array.isArray(allowed)
@@ -570,8 +588,8 @@ function pickNearestTieBreakersForProducts() {
   const priceSort = hasCheapest
     ? "cheapest"
     : hasExpensive
-    ? "expensive"
-    : undefined;
+      ? "expensive"
+      : undefined;
   const dateSort = hasLatest ? "latest" : hasOldest ? "oldest" : undefined;
 
   return {
@@ -609,7 +627,7 @@ function buildSortParamsForProducts() {
 
 function buildSortParamsForMerchants() {
   const sort = activeInstantSorts.value.find((s) =>
-    ["latest", "oldest", "nearest"].includes(s)
+    ["latest", "oldest", "nearest"].includes(s),
   );
 
   const sortKey = activeInstantSorts.value.includes("nearest")
@@ -637,7 +655,7 @@ async function toggleInstantSort(key) {
     const ok = await ensureMyCoordinates({ allowDevice: true });
     if (!ok) {
       toast.error(
-        "Tidak bisa mengambil lokasi. Aktifkan izin lokasi atau lengkapi alamat (koordinat)."
+        "Tidak bisa mengambil lokasi. Aktifkan izin lokasi atau lengkapi alamat (koordinat).",
       );
       return;
     }
@@ -645,13 +663,13 @@ async function toggleInstantSort(key) {
 
   if (option.conflict?.length) {
     activeInstantSorts.value = activeInstantSorts.value.filter(
-      (k) => !option.conflict.includes(k)
+      (k) => !option.conflict.includes(k),
     );
   }
 
   if (activeInstantSorts.value.includes(key)) {
     activeInstantSorts.value = activeInstantSorts.value.filter(
-      (k) => k !== key
+      (k) => k !== key,
     );
   } else {
     activeInstantSorts.value.push(key);
@@ -671,7 +689,7 @@ watch(
 
     activeMode.value = normalized;
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 // Fokus search bar jika dipicu dari CustomerLayout (mirip Home.vue)
@@ -688,7 +706,7 @@ watch(
     const { focusSearch, ...rest } = route.query;
     router.replace({ query: rest });
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 // Tampilkan 4 kategori awal atau semua
@@ -772,7 +790,7 @@ const filteredJasaList = computed(() => {
   // Filter by category
   if (selectedCategoryId.value) {
     result = result.filter(
-      (j) => j.jasa_category_id === selectedCategoryId.value
+      (j) => j.jasa_category_id === selectedCategoryId.value,
     );
   }
 
@@ -788,7 +806,7 @@ const filteredProductList = computed(() => {
     result = result.filter((p) =>
       Array.isArray(p?.categories)
         ? p.categories.some((c) => Number(c?.id) === cid)
-        : false
+        : false,
     );
   }
 
@@ -954,7 +972,7 @@ function parseLaravelPaginator(payload) {
   return {
     items: Array.isArray(paginator?.data) ? paginator.data : [],
     current: Number(
-      paginator?.current_page ?? paginator?.meta?.current_page ?? 1
+      paginator?.current_page ?? paginator?.meta?.current_page ?? 1,
     ),
     last: Number(paginator?.last_page ?? paginator?.meta?.last_page ?? 1),
   };
@@ -987,7 +1005,7 @@ function setupObserver() {
       root: null,
       rootMargin: "200px",
       threshold: 0,
-    }
+    },
   );
 
   if (loadMoreRef.value) {
@@ -1043,7 +1061,7 @@ const fetchJasas = async ({ append } = { append: false }) => {
       const ok = await ensureMyCoordinates({ allowDevice: true });
       if (!ok) {
         toast.error(
-          "Tidak bisa mengambil lokasi. Aktifkan izin lokasi atau lengkapi alamat (koordinat)."
+          "Tidak bisa mengambil lokasi. Aktifkan izin lokasi atau lengkapi alamat (koordinat).",
         );
         return;
       }
@@ -1116,7 +1134,7 @@ const fetchProductsByMode = async ({ append } = { append: false }) => {
       const ok = await ensureMyCoordinates({ allowDevice: true });
       if (!ok) {
         toast.error(
-          "Tidak bisa mengambil lokasi. Aktifkan izin lokasi atau lengkapi alamat (koordinat)."
+          "Tidak bisa mengambil lokasi. Aktifkan izin lokasi atau lengkapi alamat (koordinat).",
         );
         return;
       }
@@ -1171,7 +1189,7 @@ const fetchMerchants = async ({ append } = { append: false }) => {
       const ok = await ensureMyCoordinates({ allowDevice: true });
       if (!ok) {
         toast.error(
-          "Tidak bisa mengambil lokasi. Aktifkan izin lokasi atau lengkapi alamat (koordinat)."
+          "Tidak bisa mengambil lokasi. Aktifkan izin lokasi atau lengkapi alamat (koordinat).",
         );
         return;
       }
@@ -1236,7 +1254,7 @@ watch(
 
     await nextTick();
     setupObserver();
-  }
+  },
 );
 
 watch(
@@ -1256,7 +1274,7 @@ watch(
 
     await nextTick();
     setupObserver();
-  }
+  },
 );
 
 watch(
@@ -1279,7 +1297,7 @@ watch(
       await nextTick();
       setupObserver();
     }
-  }
+  },
 );
 
 // fetch data
@@ -1306,7 +1324,7 @@ onMounted(async () => {
         name: c.label ?? c.name,
         value: c.value ?? c.id,
         label: c.label ?? c.name,
-      })
+      }),
     );
   } catch (e) {
     console.error("Gagal memuat data:", e);

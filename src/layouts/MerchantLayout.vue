@@ -6,13 +6,12 @@ import { useAuthStore } from "@/stores/auth.js";
 import Button from "@/components/common/Button.vue";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import LogoWithText from "@/assets/icons/Merchant-with-Text.png";
-import LogoNoText from "@/assets/icons/Merchant-no-Text.png";
+
 const authStore = useAuthStore();
 const router = useRouter();
 const route = useRoute();
 
 const isOpen = ref(false);
-const notificationCount = ref(12);
 const showLogoutModal = ref(false);
 
 // ✅ Get merchantSlug dari route params (URL menggunakan slug)
@@ -26,18 +25,12 @@ const currentMerchantSlug = computed(() => {
     : authStore.merchantSlug;
 });
 
-// ✅ Derive merchantId dari slug (untuk API yang masih pakai id)
-const currentMerchantId = computed(() => {
-  const merchant = authStore.getMerchantBySlug(currentMerchantSlug.value);
-  return merchant?.id ?? authStore.merchantId;
-});
-
 // ✅ Get merchant data berdasarkan merchantId di route
 const currentMerchant = computed(() => {
-  const merchantId = currentMerchantId.value;
-  if (!merchantId) return null;
+  const merchantSlug = currentMerchantSlug.value;
+  if (!merchantSlug) return null;
 
-  return authStore.getMerchantById(merchantId);
+  return authStore.getMerchantBySlug(merchantSlug);
 });
 
 // ✅ Display merchant name & type dari current merchant (bukan active merchant)
@@ -64,10 +57,9 @@ watch(
   (params) => {
     if (!params?.merchantSlug) return;
     const merchant = authStore.getMerchantBySlug(String(params.merchantSlug));
-    if (!merchant?.id) return;
-    authStore.setActiveMerchant(Number(merchant.id));
+    if (!merchant?.slug) return;
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 // ✅ Menu items dengan dynamic merchantId
@@ -423,37 +415,6 @@ defineExpose({
         </transition>
       </router-view>
     </div>
-
-    <ResponsiveModal
-      v-model:show="showLogoutModal"
-      title="Konfirmasi Logout"
-      size="sm"
-    >
-      <div class="py-4 text-center">
-        <i
-          class="mb-4 text-5xl pi pi-exclamation-triangle text-warning-foreground"
-        ></i>
-        <p class="mb-2 text-base text-gray-700">
-          Apakah Anda yakin ingin keluar?
-        </p>
-        <p class="text-sm text-muted-foreground">
-          Anda akan diarahkan ke halaman login
-        </p>
-      </div>
-
-      <template #footer>
-        <div class="flex gap-3">
-          <Button
-            @click="showLogoutModal = false"
-            variant="muted-outline"
-            block
-          >
-            Batal
-          </Button>
-          <Button @click="logout" variant="danger" block> Ya, Logout </Button>
-        </div>
-      </template>
-    </ResponsiveModal>
   </div>
 </template>
 

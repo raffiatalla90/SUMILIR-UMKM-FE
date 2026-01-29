@@ -29,13 +29,10 @@ const routes = [
     component: () => import("@/views/ApiTest.vue"),
     meta: { title: "API Test" },
   },
-  {
-    path: "/test-api",
-    name: "ApiTest",
-    component: () => import("@/views/ApiTest.vue"),
-    meta: { title: "API Test" },
-  },
-  // ✅ Halaman Beranda (Public/Customer)
+
+  // ===========================
+  // Halaman Beranda (Public/Customer)
+  // ===========================
   {
     path: "/",
     component: () => import("@/layouts/CustomerLayout.vue"),
@@ -45,7 +42,7 @@ const routes = [
         name: "Beranda",
         component: () => import("@/views/customer/Home.vue"),
         meta: {
-          title: "Marketplace UMKM Lokal Banyuanyar",
+          title: "Marketplace UMKM Lokal Banyuanyar | SUMILIR",
           description:
             "Sumilir adalah marketplace UMKM lokal Banyuanyar. Temukan produk kuliner, toko, dan jasa UMKM atau mulai berinteraksi dengan komunitas UMKM lokal.",
         },
@@ -53,92 +50,79 @@ const routes = [
       {
         path: "explore",
         name: "UMKM & Produk-Layanan Jasa",
-        component: () => import("@/views/customer/Explore.vue"),
-        meta: { title: "Semua Produk & Layanan | SUMILIR" },
+        component: () => import("@/views/customer/ExploreView.vue"),
+        meta: {
+          title: "Semua Produk & Layanan | SUMILIR",
+          description:
+            "Jelajahi semua produk dan layanan UMKM lokal Banyuanyar di Sumilir. Temukan kuliner, toko, dan jasa berkualitas dari pelaku UMKM setempat.",
+        },
       },
       {
         path: "products/:slug",
         name: "Product Detail",
-        component: () => import("@/views/customer/ProductDetail.vue"),
+        component: () => import("@/views/customer/ProductDetailView.vue"),
         meta: { title: "Product Detail | SUMILIR" },
       },
       {
         path: "merchant/:slug",
         name: "Merchant Detail",
-        component: () => import("@/views/customer/MerchantStore.vue"),
+        component: () => import("@/views/customer/MerchantDetailView.vue"),
         meta: { title: "Detail Toko | SUMILIR" },
       },
       {
         path: "/map",
         name: "Peta UMKM",
-        component: () => import("@/views/customer/PetaUmkm.vue"),
-        meta: { title: "Peta UMKM Banyuanyar" },
+        component: () => import("@/views/customer/PetaUmkmView.vue"),
+        meta: {
+          title: "Peta UMKM Banyuanyar | SUMILIR",
+          description:
+            "Temukan lokasi UMKM lokal Banyuanyar melalui peta interaktif Sumilir. Jelajahi berbagai toko, kuliner, dan jasa UMKM di sekitar Anda.",
+        },
       },
       {
         path: "jasa/:id",
         name: "JasaDetail",
         component: () => import("@/views/customer/JasaDetail.vue"),
-        meta: { title: "Detail Jasa" },
+        meta: { title: "Detail Jasa | SUMILIR" },
       },
       {
-        path: "pembayaran-jasa",
-        name: "Pembayaran Jasa",
-        component: () => import("@/views/customer/PembayaranJasa.vue"),
-        meta: { title: "Pembayaran", denyRoles: ["admin"] },
-      },
-
-      {
-        path: "products/:slug",
-        name: "Product Detail",
-        component: () => import("@/views/customer/ProductDetail.vue"),
-        meta: { title: "Product Detail" },
-      },
-      {
-        path: "cart",
-        name: "Keranjang",
-        component: () => import("@/views/customer/Cart.vue"),
-        meta: {
-          requiresAuth: true,
-          roles: ["customer"],
-          denyRoles: ["admin"],
-          title: "Keranjang",
-        },
-      },
-      {
-        path: "product-payment",
-        path: "product-payment",
-        name: "Pembayaran Produk",
-        component: () => import("@/views/customer/PembayaranProduct.vue"),
-        meta: {
-          // requiresAuth: true,
-          // roles: ["customer"],
-          denyRoles: ["admin"],
-          title: "Pembayaran",
-        },
-      },
-      {
-        path: "search",
+        path: "search:keyword?",
         name: "Search Page",
-        component: () => import("@/views/customer/SearchPage.vue"),
-        meta: { title: "Search | SUMILIR" },
-        meta: {
-          title: "Pembayaran",
-        },
-      },
-      {
-        path: "search/:keyword?",
-        name: "Search Page",
-        component: () => import("@/views/customer/SearchPage.vue"),
-        meta: { title: "Cari" },
-      },
+        component: () => import("@/views/customer/SearchPageView.vue"),
+        beforeEnter: (to, from, next) => {
+          const paramKeyword =
+            typeof to.params?.keyword === "string"
+              ? to.params.keyword.trim()
+              : "";
 
-      // Halaman Community
+          const queryKeywordRaw =
+            (typeof to.query?.keyword === "string" &&
+              to.query.keyword.trim()) ||
+            (typeof to.query?.q === "string" && to.query.q.trim()) ||
+            "";
+
+          const keyword = paramKeyword || queryKeywordRaw;
+
+          // Block direct access when no keyword at all.
+          if (!keyword) {
+            return next({ name: "Beranda" });
+          }
+
+          // Canonicalize to query-based URL to avoid paths like `/searchayam`.
+          if (paramKeyword) {
+            return next({ path: "/search", query: { q: paramKeyword } });
+          }
+
+          next();
+        },
+        meta: { title: "Pencarian | SUMILIR" },
+      },
       {
         path: "community",
         name: "community",
         component: CommunityView,
         meta: {
-          title: "Komunitas UMKM Lokal Banyuanyar",
+          title: "Komunitas UMKM Lokal Banyuanyar | SUMILIR",
           description:
             "Komunitas UMKM lokal Banyuanyar di Sumilir. Tempat berbagi informasi, diskusi, dan promosi antar pelaku UMKM dan warga.",
         },
@@ -148,9 +132,44 @@ const routes = [
         name: "community-detail",
         component: CommunityDetailView,
         props: true,
-        meta: { title: "Community Detail" },
+        meta: { title: "Detail Komunitas | SUMILIR" },
       },
 
+      // ===========================
+      // Halaman Customer (butuh auth)
+      // ===========================
+      {
+        path: "pembayaran-jasa",
+        name: "Pembayaran Jasa",
+        component: () => import("@/views/customer/PembayaranJasa.vue"),
+        meta: { title: "Pembayaran | SUMILIR", denyRoles: ["admin"] },
+      },
+      {
+        path: "cart",
+        name: "Keranjang",
+        component: () => import("@/views/customer/CartView.vue"),
+        meta: {
+          requiresAuth: true,
+          roles: ["customer"],
+          denyRoles: ["admin"],
+          title: "Keranjang Saya | SUMILIR",
+        },
+      },
+      {
+        path: "product-payment",
+        name: "Pembayaran Produk",
+        component: () => import("@/views/customer/PembayaranProductView.vue"),
+        meta: {
+          requiresAuth: true,
+          roles: ["customer"],
+          denyRoles: ["admin"],
+          title: "Pembayaran | SUMILIR",
+        },
+      },
+
+      // ===========================
+      // Profil User
+      // ===========================
       {
         path: "/profile",
         meta: { requiresAuth: true },
@@ -159,34 +178,37 @@ const routes = [
             path: "",
             name: "Profile",
             component: () => import("@/views/customer/profile/ProfileView.vue"),
-            meta: { title: "Profile " }, // ← dari kodemu
+            meta: { title: "Profil Saya | SUMILIR" }, // ← dari kodemu
           },
           {
             path: "edit",
             name: "EditProfile",
             component: () =>
               import("@/views/customer/profile/EditProfileView.vue"),
-            meta: { title: "Edit Profile " }, // ← dari kodemu
+            meta: { title: "Edit Profil Saya | SUMILIR" }, // ← dari kodemu
           },
           {
             path: "address",
             name: "MyAddress",
-            component: () => import("@/views/customer/profile/Address.vue"),
-            meta: { title: "Address Profile " }, // ← dari kodemu
+            component: () =>
+              import("@/views/customer/profile/EditAddressView.vue"),
+            meta: { title: "Edit Alamat Saya | SUMILIR" }, // ← dari kodemu
           },
           {
             path: "change-password",
             name: "ChangePassword",
             component: () =>
               import("@/views/customer/profile/ChangePasswordView.vue"),
-            meta: { title: "Ubah Kata Sandi" }, // ← dari kodemu
+            meta: { title: "Ubah Kata Sandi | SUMILIR" }, // ← dari kodemu
           },
         ],
       },
     ],
   },
 
+  // ===========================
   // Grup halaman Auth pakai AuthLayout
+  // ===========================
   {
     path: "/",
     component: () => import("@/layouts/AuthLayout.vue"),
@@ -196,36 +218,38 @@ const routes = [
         path: "login",
         name: "Login",
         component: () => import("@/views/auth/Login.vue"),
-        meta: { title: "Login" },
+        meta: { title: "Login | SUMILIR" },
       },
       {
         path: "register",
         name: "Register",
         component: () => import("@/views/auth/Register.vue"),
-        meta: { title: "Register" },
+        meta: { title: "Register | SUMILIR" },
       },
       {
         path: "forgot-password",
         name: "Forgot Password",
         component: () => import("@/views/auth/ForgotPassword.vue"),
-        meta: { title: "Forgot Password" },
+        meta: { title: "Lupa Kata Sandi | SUMILIR" },
       },
       {
         path: "reset-password/:token?",
         name: "Reset Password",
         component: () => import("@/views/auth/ResetPassword.vue"),
-        meta: { title: "Reset Password" },
+        meta: { title: "Reset Kata Sandi | SUMILIR" },
       },
       {
         path: "verify-email",
         name: "Email Verification",
         component: () => import("@/views/auth/EmailVerification.vue"),
-        meta: { title: "Email Verification" },
+        meta: { title: "Verifikasi Email | SUMILIR" },
       },
     ],
   },
 
+  // ===========================
   // Halaman merchant register
+  // ===========================
   {
     path: "/merchant-register",
     name: "Merchant Register",
@@ -234,11 +258,13 @@ const routes = [
       requiresAuth: true,
       roles: ["customer"],
       denyRoles: ["admin"],
-      title: "Merchant Register",
+      title: "Pendaftaran UMKM | SUMILIR",
     },
   },
 
-  // Halaman admin
+  // ===========================
+  // Halaman Admin
+  // ===========================
   {
     path: "/admin",
     component: () => import("@/layouts/AdminLayout.vue"),
@@ -382,7 +408,9 @@ const routes = [
     ],
   },
 
-  // Halaman merchant center
+  // ===========================
+  // Halaman Merchant Center (UMKM Owner)
+  // ===========================
   {
     path: "/merchant-center/:merchantSlug",
     component: () => import("@/layouts/MerchantLayout.vue"),
@@ -404,125 +432,47 @@ const routes = [
         name: "Merchant - Dashboard",
         component: () => import("@/views/merchant/dashboard/Index.vue"),
         meta: {
-          title: "Dashboard UMKM",
+          title: "Dashboard UMKM | SUMILIR",
         },
       },
 
       // ===========================
       // PRODUK UMKM TOKO/KULINER
       // ===========================
-
       {
         path: "products",
-        name: "Merchant - Product UMKM",
-        component: () => import("@/views/merchant/products/Index.vue"),
-        meta: { title: "Product UMKM" },
-      },
-      {
-        path: "products/create",
-        name: "Merchant - Buat Product",
-        component: () => import("@/views/merchant/products/Create.vue"),
-        meta: {
-          title: "Buat Product UMKM",
-        },
-      },
-      // ✅ UPDATED: Use slug instead of id
-      {
-        path: "products/:slug",
-        name: "Merchant - Product Detail",
-        component: () => import("@/views/merchant/products/Detail.vue"),
-        meta: {
-          title: "Product Detail UMKM",
-        },
-      },
-      // ✅ UPDATED: Use slug instead of id
-      {
-        path: "products/:slug/edit",
-        name: "Merchant - Product Edit",
-        component: () => import("@/views/merchant/products/Edit.vue"),
-        meta: {
-          title: "Edit Product UMKM",
-        },
-      },
-
-      // ===========================
-      // ✅ JASA (UMKM JASA)
-      // ===========================
-      {
-        path: "jasas",
-        name: "Merchant - Jasa Index",
-        component: () => import("@/views/merchant/productsjasa/Indexjasa.vue"),
-        meta: { title: "Jasa UMKM | SUMILIR" },
-      },
-      // Handle /jasas/index agar tidak dianggap sebagai :id = "index"
-      {
-        path: "jasas/index",
-        redirect: (to) => ({
-          name: "Merchant - Jasa Index",
-          params: { merchantSlug: to.params.merchantSlug },
-        }),
-      },
-      {
-        path: "jasas/create",
-        name: "Merchant - Jasa Create",
-        component: () => import("@/views/merchant/productsjasa/Createjasa.vue"),
-        meta: { title: "Buat Jasa UMKM | SUMILIR" },
-      },
-      {
-        path: "jasas/createjasa",
-        component: () => import("@/views/merchant/productsjasa/Createjasa.vue"),
-        meta: { title: "Buat Jasa UMKM | SUMILIR" },
-      },
-      {
-        path: "jasas/:id",
-        name: "Merchant - Jasa Detail",
-        component: () => import("@/views/merchant/productsjasa/Detailjasa.vue"),
-        meta: { title: "Detail Jasa UMKM | SUMILIR" },
-      },
-      {
-        path: "jasas/:id/edit",
-        name: "Merchant - Jasa Edit",
-        component: () => import("@/views/merchant/productsjasa/Editjasa.vue"),
-        meta: { title: "Edit Jasa UMKM | SUMILIR" },
-      },
-
-      // ===========================
-      // BACKWARD COMPATIBILITY: productsjasa routes
-      // ===========================
-      {
-        path: "productsjasa",
-        redirect: (to) => ({
-          name: "Merchant - Jasa Index",
-          params: { merchantSlug: to.params.merchantSlug },
-        }),
-      },
-      {
-        path: "productsjasa/create",
-        redirect: (to) => ({
-          name: "Merchant - Jasa Create",
-          params: { merchantSlug: to.params.merchantSlug },
-        }),
-      },
-      {
-        path: "productsjasa/createjasa",
-        redirect: (to) => ({
-          name: "Merchant - Jasa Create",
-          params: { merchantSlug: to.params.merchantSlug },
-        }),
-      },
-      {
-        path: "productsjasa/:id",
-        redirect: (to) => ({
-          name: "Merchant - Jasa Detail",
-          params: { merchantSlug: to.params.merchantSlug, id: to.params.id },
-        }),
-      },
-      {
-        path: "productsjasa/:id/edit",
-        redirect: (to) => ({
-          name: "Merchant - Jasa Edit",
-          params: { merchantSlug: to.params.merchantSlug, id: to.params.id },
-        }),
+        children: [
+          {
+            path: "",
+            name: "Merchant - Product UMKM",
+            component: () => import("@/views/merchant/products/Index.vue"),
+            meta: { title: "Produk UMKM | SUMILIR" },
+          },
+          {
+            path: "create",
+            name: "Merchant - Buat Product",
+            component: () => import("@/views/merchant/products/Create.vue"),
+            meta: {
+              title: "Buat Produk UMKM | SUMILIR",
+            },
+          },
+          {
+            path: ":slug",
+            name: "Merchant - Product Detail",
+            component: () => import("@/views/merchant/products/Detail.vue"),
+            meta: {
+              title: "Detail Produk UMKM | SUMILIR",
+            },
+          },
+          {
+            path: ":slug/edit",
+            name: "Merchant - Product Edit",
+            component: () => import("@/views/merchant/products/Edit.vue"),
+            meta: {
+              title: "Edit Produk UMKM | SUMILIR",
+            },
+          },
+        ],
       },
 
       // ===========================
@@ -605,38 +555,39 @@ const routes = [
         }),
       },
 
-      {
-        path: "community",
-        name: "Merchant - Community",
-        component: () => import("@/views/merchant/community/Index.vue"),
-        meta: {
-          title: "Community",
-        },
-      },
+      // ===========================
+      // VOUCHERS
+      // ===========================
       {
         path: "vouchers",
-        name: "Merchant - Voucher",
-        component: () => import("@/views/merchant/vouchers/Index.vue"),
-        meta: {
-          title: "Voucher",
-        },
+        children: [
+          {
+            path: "",
+            name: "Merchant - Voucher",
+            component: () => import("@/views/merchant/vouchers/Index.vue"),
+            meta: {
+              title: "Voucher",
+            },
+          },
+          {
+            path: "create",
+            name: "Merchant - Buat Voucher",
+            component: () => import("@/views/merchant/vouchers/Create.vue"),
+            meta: {
+              title: "Buat Voucher UMKM",
+            },
+          },
+          {
+            path: ":id/edit",
+            name: "Merchant - Voucher Edit",
+            component: () => import("@/views/merchant/vouchers/Edit.vue"),
+            meta: {
+              title: "Edit Voucher UMKM",
+            },
+          },
+        ],
       },
-      {
-        path: "vouchers/create",
-        name: "Merchant - Buat Voucher",
-        component: () => import("@/views/merchant/vouchers/Create.vue"),
-        meta: {
-          title: "Buat Voucher UMKM",
-        },
-      },
-      {
-        path: "vouchers/:id/edit",
-        name: "Merchant - Voucher Edit",
-        component: () => import("@/views/merchant/vouchers/Edit.vue"),
-        meta: {
-          title: "Edit Voucher UMKM",
-        },
-      },
+
       // {
       //   path: "events",
       //   name: "Merchant - Events",
@@ -654,62 +605,32 @@ const routes = [
       //     title: "Orders",
       //   },
       // },
+
+      // ===========================
+      // Profil UMKM
+      // ===========================
       {
         path: "profile",
-        name: "Merchant - Profile",
-        component: () => import("@/views/merchant/profile/MerchantInfo.vue"),
-        meta: {
-          title: "Merchant Profile | SUMILIR",
-        },
-      },
-      {
-        path: "profile/edit",
-        name: "Merchant - Profile Edit",
-        component: () => import("@/views/merchant/profile/MerchantEdit.vue"),
-        meta: {
-          title: "Edit Merchant Profile | SUMILIR",
-        },
-      },
-      {
-        path: "productsjasa",
-        name: "Merchant - Products Jasa",
-        component: () => import("@/views/merchant/productsjasa/Indexjasa.vue"),
-        meta: { title: "Products Jasa | SUMILIR" },
-      },
-    ],
-  },
-
-  // // Halaman Unauthorized
-  // {
-  //   path: "/unauthorized",
-  //   name: "Unauthorized",
-  //   component: () => import("@/views/errors/Unauthorized.vue"),
-  //   meta: { title: "Unauthorized" },
-  // },
-
-  // 🆕 MERCHANT PROFILE ROUTES (NO AUTH FOR TESTING)
-  {
-    path: "/merchant-profile",
-    children: [
-      {
-        path: "",
-        name: "Merchant Profile - Index",
-        component: () => import("@/views/merchant/profile/MerchantInfo.vue"),
-        meta: {
-          title: "Profil Toko | SUMILIR",
-          // requiresAuth: true,  // ← Commented out for testing
-          // roles: ["umkm-owner"]
-        },
-      },
-      {
-        path: "edit",
-        name: "Merchant Profile - Edit",
-        component: () => import("@/views/merchant/profile/MerchantEdit.vue"),
-        meta: {
-          title: "Edit Toko | SUMILIR",
-          // requiresAuth: true,  // ← Commented out for testing
-          // roles: ["umkm-owner"]
-        },
+        children: [
+          {
+            path: "",
+            name: "Merchant - Profile",
+            component: () =>
+              import("@/views/merchant/profile/MerchantInfo.vue"),
+            meta: {
+              title: "Profil UMKM | SUMILIR",
+            },
+          },
+          {
+            path: "edit",
+            name: "Merchant - Profile Edit",
+            component: () =>
+              import("@/views/merchant/profile/MerchantEdit.vue"),
+            meta: {
+              title: "Edit Profil UMKM | SUMILIR",
+            },
+          },
+        ],
       },
     ],
   },
@@ -749,8 +670,6 @@ const routes = [
       },
     ],
   },
-
-  // Profile management (dari kodemu)
 
   // Fallback
   { path: "/:pathMatch(.*)*", redirect: "/" },

@@ -1,12 +1,12 @@
 <template>
   <div
-    class="sm:bg-gray-50 bg-primary flex items-center flex-col sm:justify-center justify-end sm:pb-8"
+    class="flex flex-col items-center justify-end sm:bg-gray-50 bg-primary sm:justify-center sm:pb-8"
   >
     <div
-      class="sm:hidden flex flex-col flex-1/3 justify-end sm:px-0 px-4 py-2 sm:pt-0 pt-8"
+      class="flex flex-col justify-end px-4 py-2 pt-8 sm:hidden flex-1/3 sm:px-0 sm:pt-0"
     >
       <h2
-        class="sm:hidden inline text-2xl sm:text-3xl font-bold text-center sm:text-left mb-2 text-white"
+        class="inline mb-2 text-2xl font-bold text-center text-white sm:hidden sm:text-3xl sm:text-left"
       >
         Daftar
       </h2>
@@ -18,17 +18,17 @@
       </p>
     </div>
     <div
-      class="flex flex-col justify-center sm:flex-0 flex-2/3 p-8 sm:p-12 sm:max-w-xl w-full bg-white sm:rounded-4xl rounded-t-4xl sm:shadow-lg shadow-none"
+      class="flex flex-col justify-center w-full p-8 bg-white shadow-none sm:flex-0 flex-2/3 sm:p-12 sm:max-w-xl sm:rounded-4xl rounded-t-4xl sm:shadow-lg"
     >
       <!-- Right Side - Form -->
-      <div class="sm:flex flex-col">
-        <div class="flex gap-3 items-center mb-2">
+      <div class="flex-col sm:flex">
+        <div class="flex items-center gap-3 mb-2">
           <span
-            class="hidden sm:inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary"
+            class="items-center justify-center hidden w-10 h-10 rounded-full sm:inline-flex bg-primary/10 text-primary"
           >
             <!-- <svg
               xmlns="http://www.w3.org/2000/svg"
-              class="h-5 w-5"
+              class="w-5 h-5"
               viewBox="0 0 24 24"
               fill="currentColor"
             >
@@ -39,14 +39,14 @@
             <i class="pi pi-user-plus"></i>
           </span>
           <h2
-            class="hidden sm:inline text-2xl sm:text-xl font-bold text-center sm:text-left text-black"
+            class="hidden text-2xl font-bold text-center text-black sm:inline sm:text-xl sm:text-left"
           >
             Daftar
           </h2>
         </div>
 
         <p
-          class="hidden sm:inline text-xs sm:text-sm text-center sm:text-left mb-6 text-gray-600"
+          class="hidden mb-6 text-xs text-center text-gray-600 sm:inline sm:text-sm sm:text-left"
         >
           Lengkapi data dirimu untuk membuat akun dan mulai jelajahi layanan
           terbaik
@@ -56,10 +56,10 @@
           :validation-schema="schema"
           v-slot="{ errors }"
         >
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <!-- Name Field -->
             <div class="">
-              <label for="name" class="block text-sm font-bold text-black mb-2">
+              <label for="name" class="block mb-2 text-sm font-bold text-black">
                 Nama Lengkap
               </label>
               <Field
@@ -70,14 +70,14 @@
                 class="w-full px-4 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-black placeholder:text-gray-400 transition-all"
                 :class="errors.name ? 'border-red-500' : 'border-primary'"
               />
-              <ErrorMessage name="name" class="text-red-500 text-xs mt-1" />
+              <ErrorMessage name="name" class="mt-1 text-xs text-red-500" />
             </div>
 
             <!-- Email Field -->
             <div class="">
               <label
                 for="email"
-                class="block text-sm font-bold text-black mb-2"
+                class="block mb-2 text-sm font-bold text-black"
               >
                 Email
               </label>
@@ -89,12 +89,12 @@
                 class="w-full px-4 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-black placeholder:text-gray-400 transition-all"
                 :class="errors.email ? 'border-red-500' : 'border-primary'"
               />
-              <ErrorMessage name="email" class="text-red-500 text-xs mt-1" />
+              <ErrorMessage name="email" class="mt-1 text-xs text-red-500" />
             </div>
 
             <!-- NIK Field -->
             <div class="">
-              <label for="nik" class="block text-sm font-bold text-black mb-2">
+              <label for="nik" class="block mb-2 text-sm font-bold text-black">
                 NIK
               </label>
               <Field
@@ -105,14 +105,14 @@
                 class="w-full px-4 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-black placeholder:text-gray-400 transition-all"
                 :class="errors.nik ? 'border-red-500' : 'border-primary'"
               />
-              <ErrorMessage name="nik" class="text-red-500 text-xs mt-1" />
+              <ErrorMessage name="nik" class="mt-1 text-xs text-red-500" />
             </div>
 
             <!-- Telepon Field -->
             <div class="">
               <label
                 for="telepon"
-                class="block text-sm font-bold text-black mb-2"
+                class="block mb-2 text-sm font-bold text-black"
               >
                 No. Telepon
               </label>
@@ -124,14 +124,14 @@
                 class="w-full px-4 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-black placeholder:text-gray-400 transition-all"
                 :class="errors.telepon ? 'border-red-500' : 'border-primary'"
               />
-              <ErrorMessage name="telepon" class="text-red-500 text-xs mt-1" />
+              <ErrorMessage name="telepon" class="mt-1 text-xs text-red-500" />
             </div>
 
             <!-- Password Field -->
             <div class="">
               <label
                 for="password"
-                class="block text-sm font-bold text-black mb-2"
+                class="block mb-2 text-sm font-bold text-black"
               >
                 Kata Sandi
               </label>
@@ -148,7 +148,7 @@
                 <button
                   type="button"
                   @click="showPassword = !showPassword"
-                  class="absolute inset-y-0 right-3 flex items-center text-muted-foreground hover:text-gray-700"
+                  class="absolute inset-y-0 flex items-center right-3 text-muted-foreground hover:text-gray-700"
                   :aria-label="
                     showPassword ? 'Sembunyikan password' : 'Tampilkan password'
                   "
@@ -156,7 +156,7 @@
                   <svg
                     v-if="showPassword"
                     xmlns="http://www.w3.org/2000/svg"
-                    class="h-5 w-5"
+                    class="w-5 h-5"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -177,7 +177,7 @@
                   <svg
                     v-else
                     xmlns="http://www.w3.org/2000/svg"
-                    class="h-5 w-5"
+                    class="w-5 h-5"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -191,14 +191,14 @@
                   </svg>
                 </button>
               </div>
-              <ErrorMessage name="password" class="text-red-500 text-xs mt-1" />
+              <ErrorMessage name="password" class="mt-1 text-xs text-red-500" />
             </div>
 
             <!-- Password Confirmation Field -->
             <div class="">
               <label
                 for="password_confirmation"
-                class="block text-sm font-bold text-black mb-2"
+                class="block mb-2 text-sm font-bold text-black"
               >
                 Konfirmasi Kata Sandi
               </label>
@@ -222,13 +222,13 @@
               </div>
               <ErrorMessage
                 name="password_confirmation"
-                class="text-red-500 text-xs mt-1"
+                class="mt-1 text-xs text-red-500"
               />
             </div>
 
             <!-- Indicators -->
             <div
-              class="text-xs p-4 rounded-xl bg-muted-background sm:col-span-2 col-span-1 flex flex-col gap-1"
+              class="flex flex-col col-span-1 gap-1 p-4 text-xs rounded-xl bg-muted-background sm:col-span-2"
               aria-live="polite"
             >
               <div
@@ -240,7 +240,7 @@
                 <svg
                   v-if="hasMinLength"
                   xmlns="http://www.w3.org/2000/svg"
-                  class="h-4 w-4 mr-1"
+                  class="w-4 h-4 mr-1"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -255,7 +255,7 @@
                 <svg
                   v-else
                   xmlns="http://www.w3.org/2000/svg"
-                  class="h-4 w-4 mr-1"
+                  class="w-4 h-4 mr-1"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -273,7 +273,7 @@
                 <svg
                   v-if="hasUppercase"
                   xmlns="http://www.w3.org/2000/svg"
-                  class="h-4 w-4 mr-1"
+                  class="w-4 h-4 mr-1"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -288,7 +288,7 @@
                 <svg
                   v-else
                   xmlns="http://www.w3.org/2000/svg"
-                  class="h-4 w-4 mr-1"
+                  class="w-4 h-4 mr-1"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -304,7 +304,7 @@
                 <svg
                   v-if="hasNumber"
                   xmlns="http://www.w3.org/2000/svg"
-                  class="h-4 w-4 mr-1"
+                  class="w-4 h-4 mr-1"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -319,7 +319,7 @@
                 <svg
                   v-else
                   xmlns="http://www.w3.org/2000/svg"
-                  class="h-4 w-4 mr-1"
+                  class="w-4 h-4 mr-1"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -335,7 +335,7 @@
                 <svg
                   v-if="hasSymbol"
                   xmlns="http://www.w3.org/2000/svg"
-                  class="h-4 w-4 mr-1"
+                  class="w-4 h-4 mr-1"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -350,7 +350,7 @@
                 <svg
                   v-else
                   xmlns="http://www.w3.org/2000/svg"
-                  class="h-4 w-4 mr-1"
+                  class="w-4 h-4 mr-1"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -364,7 +364,7 @@
             <!-- Error Message -->
             <div
               v-if="errorMessage"
-              class="mb-2 p-3 bg-red-100 border border-red-400 text-red-700 rounded-xl text-sm sm:col-span-2"
+              class="p-3 mb-2 text-sm text-red-700 bg-red-100 border border-red-400 rounded-xl sm:col-span-2"
             >
               {{ errorMessage }}
             </div>
@@ -385,11 +385,11 @@
 
             <!-- Login Link -->
             <div class="sm:col-span-2">
-              <p class="text-black text-center text-xs sm:text-sm">
+              <p class="text-xs text-center text-black sm:text-sm">
                 Sudah punya akun?
                 <router-link
                   to="login"
-                  class="text-primary underline cursor-pointer hover:text-secondary-hover transition-colors font-semibold"
+                  class="font-semibold underline transition-colors cursor-pointer text-primary hover:text-secondary-hover"
                 >
                   Masuk
                 </router-link>
@@ -400,9 +400,9 @@
         <!-- Debug Info (Development Only) -->
         <div
           v-if="isDev"
-          class="mt-6 p-4 bg-gray-50 rounded-xl text-xs border border-gray-200"
+          class="p-4 mt-6 text-xs border border-gray-200 bg-gray-50 rounded-xl"
         >
-          <p class="font-semibold mb-2 text-gray-700">Debug Info:</p>
+          <p class="mb-2 font-semibold text-gray-700">Debug Info:</p>
           <p class="text-gray-600"><strong>API URL:</strong> {{ apiUrl }}</p>
         </div>
       </div>
@@ -440,7 +440,7 @@ const schema = yup.object({
     .required("No. Telepon wajib diisi")
     .matches(
       /^08[0-9]{8,11}$/,
-      "Format telepon tidak valid (contoh: 08123456789)"
+      "Format telepon tidak valid (contoh: 08123456789)",
     )
     .min(10, "No. Telepon minimal 10 digit")
     .max(13, "No. Telepon maksimal 13 digit"),
@@ -454,7 +454,7 @@ const schema = yup.object({
     .min(8, "Persyaratan kata sandi belum terpenuhi")
     .matches(
       /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*\-_]).+$/,
-      "Persyaratan kata sandi belum terpenuhi"
+      "Persyaratan kata sandi belum terpenuhi",
     ),
   password_confirmation: yup
     .string()
@@ -474,7 +474,7 @@ const handleRegister = async (values) => {
   errorMessage.value = "";
 
   try {
-	const { data } = await api.post("/api/auth/register", {
+    const { data } = await api.post("/api/auth/register", {
       name: values.name,
       email: values.email,
       nik: values.nik,
@@ -491,7 +491,7 @@ const handleRegister = async (values) => {
     // Arahkan ke halaman login
     router.push({ name: "Login" }).catch(() => {});
   } catch (error) {
-    console.error("Register error:", error);
+    if (isDev) console.error("Register error:", error);
     if (error.response?.data?.errors) {
       const errors = error.response.data.errors;
       errorMessage.value = Object.values(errors).flat().join(", ");

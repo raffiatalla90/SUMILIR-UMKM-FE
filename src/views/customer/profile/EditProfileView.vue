@@ -15,6 +15,7 @@ import AppButton from "@/components/common/Button.vue";
 // STATE & REFS
 // =========================
 
+const isDev = import.meta.env.DEV;
 const router = useRouter();
 const userStore = useUserStore();
 const authStore = useAuthStore();
@@ -126,7 +127,9 @@ const handleSave = async () => {
     toast.success("Profil berhasil diperbarui");
     router.push("/profile");
   } catch (error) {
-    console.error("Error saving profile:", error);
+    if (isDev) {
+      console.error("Error saving profile:", error);
+    }
     const message =
       error.response?.data?.message ||
       "Gagal memperbarui profil. Silakan coba lagi.";

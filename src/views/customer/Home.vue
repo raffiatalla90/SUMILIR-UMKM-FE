@@ -19,6 +19,7 @@ import WhiteWithText from "@/assets/icons/White-with-Text.png";
 
 import api from "@/libs/axios.js";
 import { useRoute, useRouter } from "vue-router";
+import { Form } from "vee-validate";
 import { usePublicEvents } from "@/composables/usePublicEvents";
 import { useHomeStatistics } from "@/composables/useHomeStatistics";
 import { getEventBannerUrl } from "@/libs/getImageUrl";
@@ -50,7 +51,7 @@ watch(
     const { focusSearch, ...rest } = route.query;
     router.replace({ query: rest });
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 // Banner carousel
@@ -155,12 +156,9 @@ onMounted(async () => {
 <template>
   <div class="relative app-container">
     <!-- Hero -->
-    <section
-      id="hero"
-      class="relative pb-12 bg-linear-to-b from-gray-50 to-white"
-    >
+    <section id="hero" class="relative">
       <div
-        class="relative w-full overflow-hidden bg-gray-100 sm:aspect-21/9 lg:aspect-24/9 xl:aspect-4/1"
+        class="relative w-full overflow-hidden bg-gray-100 aspect-3/1 sm:aspect-21/9 lg:aspect-24/9 xl:aspect-4/1"
       >
         <div
           v-if="isLoadingBanner"
@@ -206,7 +204,7 @@ onMounted(async () => {
 
       <!-- Search Bar Container -->
       <div
-        class="relative z-10 flex justify-center px-4 mx-auto -mt-10 max-w-7xl"
+        class="relative z-10 flex justify-center px-4 mx-auto mt-2 sm:-mt-10 max-w-7xl"
       >
         <div class="w-full sm:w-[906px]">
           <div

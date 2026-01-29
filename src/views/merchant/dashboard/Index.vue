@@ -6,6 +6,7 @@ import api from "@/libs/axios";
 import Chart from "chart.js/auto";
 import { useAuthStore } from "@/stores/auth";
 
+const isDev = import.meta.env.DEV;
 const route = useRoute();
 const emit = defineEmits(["toggle-sidebar"]);
 const loading = ref(true);
@@ -263,7 +264,9 @@ const fetchDashboard = async () => {
       );
     }
   } catch (err) {
-    console.error("Dashboard fetch error:", err);
+    if (isDev) {
+      console.error("Dashboard fetch error:", err);
+    }
     loading.value = false;
   }
 };

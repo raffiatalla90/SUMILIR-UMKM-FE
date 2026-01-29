@@ -34,7 +34,7 @@
           </div>
 
           <!-- Desktop Save Button -->
-          <div class="flex items-center gap-3">
+          <div v-if="!isLoading" class="flex items-center gap-3">
             <AppButton
               @click="handleSave"
               :loading="isSaving"
@@ -732,7 +732,7 @@ import { ref, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
 import { onMounted, watch } from "vue";
-import merchantProfile from "@/services/api/merchantProfile";
+import { useMerchants } from "@/composables/useMerchants";
 import { useAuthStore } from "@/stores/auth";
 import {
   getProvinces,
@@ -742,17 +742,19 @@ import {
 } from "@/services/api/location";
 import TextField from "@/components/forms/TextField.vue";
 import SelectField from "@/components/forms/SelectField.vue";
-import ErrorAlert from "@/components/forms/ErrorAlert.vue";
 import MapPicker from "@/components/forms/MapPicker.vue";
 import { useToast } from "vue-toastification";
 import AppButton from "@/components/common/Button.vue";
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
+const isDev = import.meta.env.DEV;
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 const authStore = useAuthStore();
+
+const { fetchMerchantProfile, updateMerchantProfile } = useMerchants();
 
 const merchantSlug = computed(() => {
   const slug =
@@ -762,14 +764,6 @@ const merchantSlug = computed(() => {
     null;
   return slug ? String(slug) : null;
 });
-
-function unwrapApiData(payload) {
-  // Handles shapes like:
-  // - merchant
-  // - { data: merchant }
-  // - { data: { data: merchant } }
-  return payload?.data?.data ?? payload?.data ?? payload;
-}
 
 const breadcrumbItems = computed(() => [
   {
@@ -784,11 +778,10 @@ const breadcrumbItems = computed(() => [
 ]);
 
 const form = ref({
-  name: "Sembako Sari Alam",
-  contact: "08xxxxxxxx",
-  description:
-    "Toko Sembako Rojolele menyediakan beragam kebutuhan pokok harian — beras, gula, minyak, dan produk lokal lainnya.",
-  address: "Jl. Pasar Rojolele No. 123",
+  name: "",
+  contact: "",
+  description: "",
+  address: "",
   logo: "",
   coverImage: "",
   city_id: null,
@@ -796,16 +789,17 @@ const form = ref({
   province_id: null,
   village_id: null,
   operationalHours: [
-    { name: "Monday", hours: "[06:00 - 18:00]", isOpen: true },
+    { name: "Monday", hours: "[06:00 - 18:00]", isOpen: false },
     { name: "Tuesday", hours: "[06:00 - 18:00]", isOpen: false },
-    { name: "Wednesday", hours: "[06:00 - 18:00]", isOpen: true },
-    { name: "Thursday", hours: "[06:00 - 18:00]", isOpen: true },
-    { name: "Friday", hours: "[06:00 - 18:00]", isOpen: true },
-    { name: "Saturday", hours: "[06:00 - 18:00]", isOpen: true },
-    { name: "Sunday", hours: "[06:00 - 18:00]", isOpen: true },
+    { name: "Wednesday", hours: "[06:00 - 18:00]", isOpen: false },
+    { name: "Thursday", hours: "[06:00 - 18:00]", isOpen: false },
+    { name: "Friday", hours: "[06:00 - 18:00]", isOpen: false },
+    { name: "Saturday", hours: "[06:00 - 18:00]", isOpen: false },
+    { name: "Sunday", hours: "[06:00 - 18:00]", isOpen: false },
   ],
 });
 
+const isSaving = ref(false);
 const isLoading = ref(true);
 const latitude = ref(null);
 const longitude = ref(null);
@@ -898,7 +892,10 @@ async function loadProvinces() {
   try {
     provinces.value = await getProvinces();
   } catch (e) {
-    console.error("Gagal memuat provinsi:", e);
+    if (isDev) {
+      console.error("Gagal memuat provinsi:", e);
+    }
+    toast.error("Gagal memuat data provinsi");
     provinces.value = [];
   } finally {
     provincesLoading.value = false;
@@ -915,7 +912,10 @@ async function loadCities(pid) {
   try {
     cities.value = await getCities(pid);
   } catch (e) {
-    console.error("Gagal memuat kota/kabupaten:", e);
+    if (isDev) {
+      console.error("Gagal memuat kota/kabupaten:", e);
+    }
+    toast.error("Gagal memuat data kota/kabupaten");
     cities.value = [];
   } finally {
     citiesLoading.value = false;
@@ -932,7 +932,10 @@ async function loadDistricts(cid) {
   try {
     districts.value = await getDistricts(cid);
   } catch (e) {
-    console.error("Gagal memuat kecamatan:", e);
+    if (isDev) {
+      console.error("Gagal memuat kecamatan:", e);
+    }
+    toast.error("Gagal memuat data kecamatan");
     districts.value = [];
   } finally {
     districtsLoading.value = false;
@@ -949,7 +952,10 @@ async function loadVillages(did) {
   try {
     villages.value = await getVillages(did);
   } catch (e) {
-    console.error("Gagal memuat kelurahan/desa:", e);
+    if (isDev) {
+      console.error("Gagal memuat kelurahan/desa:", e);
+    }
+    toast.error("Gagal memuat data kelurahan/desa");
     villages.value = [];
   } finally {
     villagesLoading.value = false;
@@ -979,8 +985,7 @@ onMounted(async () => {
       return;
     }
 
-    const res = await merchantProfile.getMerchantProfile(merchantSlug.value);
-    const data = unwrapApiData(res);
+    const data = await fetchMerchantProfile(merchantSlug.value);
 
     latitude.value = data?.primary_address?.latitude ?? null;
     longitude.value = data?.primary_address?.longitude ?? null;
@@ -1060,7 +1065,9 @@ const onCoverSelected = (e) => {
   form.value.coverFile = file;
   form.value.coverImage = URL.createObjectURL(file);
 
-  console.log("Cover file:", file);
+  if (isDev) {
+    console.log("Cover file:", file);
+  }
 };
 
 const onLogoSelected = (e) => {
@@ -1076,7 +1083,9 @@ const onLogoSelected = (e) => {
   form.value.logoFile = file;
   form.value.logo = URL.createObjectURL(file);
 
-  console.log("Logo file:", file);
+  if (isDev) {
+    console.log("Logo file:", file);
+  }
 };
 
 const handleUploadCover = () => {
@@ -1095,7 +1104,10 @@ const handleEditHours = (index) => {
   tempClose.value = day.close || "18:00";
 
   showHoursModal.value = true;
-  console.log("Edit hours for day:", index);
+
+  if (isDev) {
+    console.log("Edit hours for day:", index);
+  }
 };
 
 const saveHours = () => {
@@ -1128,7 +1140,9 @@ const buildOperationalHoursPayload = () => {
 };
 
 const handleSave = async () => {
-  console.log("Saving changes...", form.value);
+  if (isDev) {
+    console.log("Saving changes...", form.value);
+  }
 
   try {
     if (!merchantSlug.value) {
@@ -1136,8 +1150,7 @@ const handleSave = async () => {
       return;
     }
 
-    isLoading.value = true;
-
+    isSaving.value = true;
     const fd = new FormData();
 
     // Basic info
@@ -1183,13 +1196,13 @@ const handleSave = async () => {
       fd.append("cover", form.value.coverFile);
     }
 
-    await merchantProfile.updateMerchantProfile(merchantSlug.value, fd);
-
-    toast.success("Profil UMKM berhasil diperbarui");
-    // redirect handled below
+    await updateMerchantProfile(merchantSlug.value, fd);
   } catch (error) {
-    console.error("Error response:", error.response?.data);
-    console.error("Validation errors:", error.response?.data?.errors);
+    if (isDev) {
+      console.error("Error updating merchant profile:", error);
+      console.error("Error response:", error.response?.data);
+      console.error("Validation errors:", error.response?.data?.errors);
+    }
 
     // Show specific validation errors if available
     const validationErrors = error.response?.data?.errors;
@@ -1200,7 +1213,7 @@ const handleSave = async () => {
       toast.error(error.response?.data?.message || "Gagal menyimpan perubahan");
     }
   } finally {
-    isLoading.value = false;
+    isSaving.value = false;
   }
 
   const targetSlug = merchantSlug.value ?? authStore.merchantSlug;

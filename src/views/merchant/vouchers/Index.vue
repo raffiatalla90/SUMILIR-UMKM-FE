@@ -73,7 +73,7 @@ const isAnyModalOpen = computed(() => {
 });
 
 useBodyScrollLock(isAnyModalOpen);
-
+const emit = defineEmits(["toggle-sidebar"]);
 // Selected
 const selectedVoucherForStatus = ref(null);
 const selectedVoucherForStatusChange = ref(null);
@@ -215,7 +215,9 @@ const tableActions = [
 const openBulkActionModal = () => {
   showBulkActionModal.value = true;
 };
-
+const closeBulkActionModal = () => {
+  showBulkActionModal.value = false;
+};
 const bulkUpdateStatusAction = (status) => {
   newBulkStatus.value = status;
   showBulkActionModal.value = false;
@@ -387,6 +389,11 @@ const confirmSingleStatusChange = async () => {
   } catch (e) {}
 };
 
+const closeStatusModal = () => {
+  showStatusModal.value = false;
+  selectedVoucherForStatus.value = null;
+};
+
 const closeStatusChangeModal = () => {
   showStatusChangeModal.value = false;
   selectedVoucherForStatusChange.value = null;
@@ -485,7 +492,7 @@ onBeforeRouteLeave(() => {
     >
       <div class="flex items-center gap-3">
         <button
-          @click="$emit('toggleSidebar')"
+          @click="$emit('toggle-sidebar')"
           class="flex items-center justify-center w-10 h-10 transition bg-white rounded-full hover:bg-muted-background sm:hidden"
         >
           <i class="pi pi-bars text-muted-foreground"></i>
@@ -780,13 +787,7 @@ onBeforeRouteLeave(() => {
         :columns="tableColumns"
         :loading="loading"
         :selected-items="selectedVouchers"
-        :select-all="selectAll"
-        :actions="tableActions"
         @update:selected-items="selectedVouchers = $event"
-        @update:select-all="
-          selectAll = $event;
-          toggleSelectAll();
-        "
         :current-page="currentPage"
         :total-pages="totalPages"
         :pagination-info="paginationInfo"
@@ -1166,67 +1167,195 @@ onBeforeRouteLeave(() => {
         </div>
       </template>
     </ResponsiveModal>
-  </div>
 
-  <!-- ✅ FIXED: Single Status Change Confirmation Modal -->
-  <ResponsiveModal
-    v-model:show="showStatusChangeModal"
-    title="Konfirmasi Ubah Status"
-    :subtitle="selectedVoucherForStatusChange?.voucher_name"
-    show-footer
-    @close="closeStatusChangeModal"
-  >
-    <!-- Content -->
-    <div class="space-y-4">
-      <!-- Warning Banner -->
-      <div
-        class="flex items-start gap-3 p-4 border bg-warning-background/10 border-warning-foreground/20 rounded-xl"
-      >
-        <i
-          class="pi pi-info-circle text-warning-foreground text-xl shrink-0 mt-0.5"
-        ></i>
-        <div>
-          <h4 class="mb-1 text-sm font-semibold text-warning-foreground">
-            Perhatian!
-          </h4>
-          <p class="text-xs text-warning-foreground/80">
-            Status voucher akan diubah. Pastikan Anda telah memeriksa detail
-            voucher.
-          </p>
+    <!-- ✅ FIXED: Single Status Change Confirmation Modal -->
+    <ResponsiveModal
+      v-model:show="showStatusChangeModal"
+      title="Konfirmasi Ubah Status"
+      :subtitle="selectedVoucherForStatusChange?.voucher_name"
+      show-footer
+      @close="closeStatusChangeModal"
+    >
+      <!-- Content -->
+      <div class="space-y-4">
+        <!-- Warning Banner -->
+        <div
+          class="flex items-start gap-3 p-4 border bg-warning-background/10 border-warning-foreground/20 rounded-xl"
+        >
+          <i
+            class="pi pi-info-circle text-warning-foreground text-xl shrink-0 mt-0.5"
+          ></i>
+          <div>
+            <h4 class="mb-1 text-sm font-semibold text-warning-foreground">
+              Perhatian!
+            </h4>
+            <p class="text-xs text-warning-foreground/80">
+              Status voucher akan diubah. Pastikan Anda telah memeriksa detail
+              voucher.
+            </p>
+          </div>
+        </div>
+
+        <!-- ✅ FIXED: Product Preview dengan image URL yang benar -->
+        <div
+          v-if="selectedVoucherForStatusChange"
+          class="flex items-center gap-3 p-4 bg-muted-background rounded-xl"
+        >
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-black truncate">
+              {{ selectedVoucherForStatusChange.voucher_name }}
+            </p>
+            <p class="text-xs text-muted-foreground">
+              Kode Voucher:
+              {{ selectedVoucherForStatusChange.voucher_code || "-" }}
+            </p>
+          </div>
+        </div>
+
+        <!-- Status Change Info -->
+        <div
+          class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 p-4 bg-white rounded-xl border border-gray-200"
+        >
+          <div class="text-center">
+            <p class="mb-2 text-xs text-muted-foreground">Status Saat Ini</p>
+            <StatusLabel
+              v-if="selectedVoucherForStatusChange"
+              :status="
+                selectedVoucherForStatusChange.voucher_status === 'active'
+                  ? 'success'
+                  : 'danger'
+              "
+              :label="
+                selectedVoucherForStatusChange.voucher_status === 'active'
+                  ? 'Aktif'
+                  : 'Tidak aktif'
+              "
+              variant="general"
+              size="md"
+            />
+          </div>
+
+          <div class="flex items-center justify-center">
+            <i class="text-xl pi pi-arrow-right text-merchant-primary"></i>
+          </div>
+
+          <div class="text-center">
+            <p class="mb-2 text-xs text-muted-foreground">Status Baru</p>
+            <StatusLabel
+              v-if="newStatusForChange"
+              :status="newStatusForChange === 'active' ? 'success' : 'danger'"
+              :label="newStatusForChange === 'active' ? 'Aktif' : 'Tidak aktif'"
+              variant="general"
+              size="md"
+            />
+          </div>
         </div>
       </div>
 
-      <!-- ✅ FIXED: Product Preview dengan image URL yang benar -->
-      <div
-        v-if="selectedVoucherForStatusChange"
-        class="flex items-center gap-3 p-4 bg-muted-background rounded-xl"
-      >
-        <div class="flex-1 min-w-0">
-          <p class="text-sm font-semibold text-black truncate">
-            {{ selectedVoucherForStatusChange.voucher_name }}
-          </p>
-          <p class="text-xs text-muted-foreground">
-            Kode Voucher:
-            {{ selectedVoucherForStatusChange.voucher_code || "-" }}
-          </p>
+      <!-- Footer Actions -->
+      <template #footer>
+        <div class="flex gap-3">
+          <Button @click="closeStatusChangeModal" variant="muted-outline" block>
+            <i class="mr-2 pi pi-times"></i>
+            Batal
+          </Button>
+
+          <Button
+            @click="confirmSingleStatusChange"
+            variant="merchant"
+            block
+            :loading="loading"
+          >
+            <i class="mr-2 pi pi-check"></i>
+            Ubah Status
+          </Button>
         </div>
+      </template>
+    </ResponsiveModal>
+
+    <!-- UPDATED: Bulk Action Modal - Single Footer -->
+    <ResponsiveModal
+      v-model:show="showBulkActionModal"
+      title="Ubah Status Voucher Massal"
+      :subtitle="`${selectedVouchersCount} voucher akan diubah statusnya`"
+      show-footer
+      footer-class="sm:hidden"
+      @close="closeBulkActionModal"
+    >
+      <!-- Body -->
+      <div class="space-y-3">
+        <!-- Publish Action -->
+        <button
+          @click="bulkUpdateStatusAction('active')"
+          class="flex items-center w-full gap-4 p-4 text-left transition border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary group"
+        >
+          <div
+            class="flex items-center justify-center w-12 h-12 transition-transform rounded-lg shrink-0 bg-success-background group-hover:scale-110"
+          >
+            <i class="text-2xl pi pi-check-circle text-success-foreground"></i>
+          </div>
+          <div>
+            <h4 class="text-sm font-semibold text-black sm:text-base">Aktif</h4>
+            <p class="text-xs sm:text-sm text-muted-foreground">
+              Voucher akan muncul di checkout dan dapat digunakan
+            </p>
+          </div>
+        </button>
+
+        <!-- Archive Action -->
+        <button
+          @click="bulkUpdateStatusAction('inactive')"
+          class="flex items-center w-full gap-4 p-4 text-left transition border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary group"
+        >
+          <div
+            class="flex items-center justify-center w-12 h-12 transition-transform rounded-lg shrink-0 bg-danger-background group-hover:scale-110"
+          >
+            <i class="text-2xl pi pi-box text-danger-foreground"></i>
+          </div>
+          <div>
+            <h4 class="text-sm font-semibold text-black sm:text-base">
+              Tidak Aktif
+            </h4>
+            <p class="text-xs sm:text-sm text-muted-foreground">
+              Voucher tidak aktif dan tidak dapat digunakan
+            </p>
+          </div>
+        </button>
       </div>
 
-      <!-- Status Change Info -->
-      <div
-        class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 p-4 bg-white rounded-xl border border-gray-200"
-      >
-        <div class="text-center">
+      <!-- Footer Actions -->
+      <template #footer>
+        <Button @click="closeBulkActionModal" block variant="merchant">
+          Tutup
+        </Button>
+      </template>
+    </ResponsiveModal>
+
+    <!-- UPDATED: Visibility Modal - Single Footer -->
+    <ResponsiveModal
+      v-model:show="showStatusModal"
+      title="Ubah Status Voucher"
+      :subtitle="selectedVoucherForStatus?.voucher_name"
+      show-footer
+      footer-class="sm:hidden"
+      @close="closeStatusModal"
+    >
+      <!-- Content -->
+      <div class="space-y-3">
+        <!-- Current Status Info -->
+        <div
+          v-if="selectedVoucherForStatus"
+          class="p-4 bg-muted-background rounded-xl"
+        >
           <p class="mb-2 text-xs text-muted-foreground">Status Saat Ini</p>
           <StatusLabel
-            v-if="selectedVoucherForStatusChange"
             :status="
-              selectedVoucherForStatusChange.voucher_status === 'active'
+              selectedVoucherForStatus.voucher_status === 'active'
                 ? 'success'
                 : 'danger'
             "
             :label="
-              selectedVoucherForStatusChange.voucher_status === 'active'
+              selectedVoucherForStatus.voucher_status === 'active'
                 ? 'Aktif'
                 : 'Tidak aktif'
             "
@@ -1235,757 +1364,635 @@ onBeforeRouteLeave(() => {
           />
         </div>
 
-        <div class="flex items-center justify-center">
-          <i class="text-xl pi pi-arrow-right text-merchant-primary"></i>
-        </div>
-
-        <div class="text-center">
-          <p class="mb-2 text-xs text-muted-foreground">Status Baru</p>
-          <StatusLabel
-            v-if="newStatusForChange"
-            :status="newStatusForChange === 'active' ? 'success' : 'danger'"
-            :label="newStatusForChange === 'active' ? 'Aktif' : 'Tidak aktif'"
-            variant="general"
-            size="md"
-          />
-        </div>
-      </div>
-    </div>
-
-    <!-- Footer Actions -->
-    <template #footer>
-      <div class="flex gap-3">
-        <Button @click="closeStatusChangeModal" variant="muted-outline" block>
-          <i class="mr-2 pi pi-times"></i>
-          Batal
-        </Button>
-
-        <Button
-          @click="confirmSingleStatusChange"
-          variant="merchant"
-          block
-          :loading="loading"
-        >
-          <i class="mr-2 pi pi-check"></i>
-          Ubah Status
-        </Button>
-      </div>
-    </template>
-  </ResponsiveModal>
-
-  <!-- UPDATED: Bulk Action Modal - Single Footer -->
-  <ResponsiveModal
-    v-model:show="showBulkActionModal"
-    title="Ubah Status Voucher Massal"
-    :subtitle="`${selectedVouchersCount} voucher akan diubah statusnya`"
-    show-footer
-    footer-class="sm:hidden"
-    @close="closeBulkActionModal"
-  >
-    <!-- Body -->
-    <div class="space-y-3">
-      <!-- Publish Action -->
-      <button
-        @click="bulkUpdateStatusAction('active')"
-        class="flex items-center w-full gap-4 p-4 text-left transition border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary group"
-      >
-        <div
-          class="flex items-center justify-center w-12 h-12 transition-transform rounded-lg shrink-0 bg-success-background group-hover:scale-110"
-        >
-          <i class="text-2xl pi pi-check-circle text-success-foreground"></i>
-        </div>
-        <div>
-          <h4 class="text-sm font-semibold text-black sm:text-base">Aktif</h4>
-          <p class="text-xs sm:text-sm text-muted-foreground">
-            Voucher akan muncul di checkout dan dapat digunakan
-          </p>
-        </div>
-      </button>
-
-      <!-- Archive Action -->
-      <button
-        @click="bulkUpdateStatusAction('inactive')"
-        class="flex items-center w-full gap-4 p-4 text-left transition border border-muted-background rounded-xl hover:bg-muted-background hover:border-merchant-primary group"
-      >
-        <div
-          class="flex items-center justify-center w-12 h-12 transition-transform rounded-lg shrink-0 bg-danger-background group-hover:scale-110"
-        >
-          <i class="text-2xl pi pi-box text-danger-foreground"></i>
-        </div>
-        <div>
-          <h4 class="text-sm font-semibold text-black sm:text-base">
-            Tidak Aktif
-          </h4>
-          <p class="text-xs sm:text-sm text-muted-foreground">
-            Voucher tidak aktif dan tidak dapat digunakan
-          </p>
-        </div>
-      </button>
-    </div>
-
-    <!-- Footer Actions -->
-    <template #footer>
-      <Button @click="closeBulkActionModal" block variant="merchant">
-        Tutup
-      </Button>
-    </template>
-  </ResponsiveModal>
-
-  <!-- UPDATED: Visibility Modal - Single Footer -->
-  <ResponsiveModal
-    v-model:show="showStatusModal"
-    title="Ubah Status Voucher"
-    :subtitle="selectedVoucherForStatus?.voucher_name"
-    show-footer
-    footer-class="sm:hidden"
-    @close="closeStatusModal"
-  >
-    <!-- Content -->
-    <div class="space-y-3">
-      <!-- Current Status Info -->
-      <div
-        v-if="selectedVoucherForStatus"
-        class="p-4 bg-muted-background rounded-xl"
-      >
-        <p class="mb-2 text-xs text-muted-foreground">Status Saat Ini</p>
-        <StatusLabel
-          :status="
-            selectedVoucherForStatus.voucher_status === 'active'
-              ? 'success'
-              : 'danger'
-          "
-          :label="
-            selectedVoucherForStatus.voucher_status === 'active'
-              ? 'Aktif'
-              : 'Tidak aktif'
-          "
-          variant="general"
-          size="md"
-        />
-      </div>
-
-      <!-- Publish Action -->
-      <button
-        @click="confirmStatusChange('active')"
-        :disabled="selectedVoucherForStatus?.voucher_status === 'active'"
-        class="flex items-center w-full gap-4 p-4 text-left transition border border-muted-background rounded-xl group"
-        :class="
-          selectedVoucherForStatus?.voucher_status === 'active'
-            ? 'opacity-50 cursor-not-allowed'
-            : 'hover:bg-muted-background hover:border-merchant-primary'
-        "
-      >
-        <div
-          class="flex items-center justify-center w-12 h-12 transition-transform rounded-lg shrink-0 bg-success-background"
+        <!-- Publish Action -->
+        <button
+          @click="confirmStatusChange('active')"
+          :disabled="selectedVoucherForStatus?.voucher_status === 'active'"
+          class="flex items-center w-full gap-4 p-4 text-left transition border border-muted-background rounded-xl group"
           :class="
-            selectedVoucherForStatus?.voucher_status !== 'active' &&
-            'group-hover:scale-110'
+            selectedVoucherForStatus?.voucher_status === 'active'
+              ? 'opacity-50 cursor-not-allowed'
+              : 'hover:bg-muted-background hover:border-merchant-primary'
           "
         >
-          <i class="text-2xl pi pi-check-circle text-success-foreground"></i>
-        </div>
-        <div>
-          <h4 class="text-sm font-semibold text-black sm:text-base">Aktif</h4>
-          <p class="text-xs sm:text-sm text-muted-foreground">
-            Voucher akan muncul di checkout dan dapat digunakan
-          </p>
-        </div>
-      </button>
-
-      <!-- Archive Action -->
-      <button
-        @click="confirmStatusChange('inactive')"
-        :disabled="selectedVoucherForStatus?.voucher_status === 'inactive'"
-        class="flex items-center w-full gap-4 p-4 text-left transition border border-muted-background rounded-xl group"
-        :class="
-          selectedVoucherForStatus?.voucher_status === 'inactive'
-            ? 'opacity-50 cursor-not-allowed'
-            : 'hover:bg-muted-background hover:border-merchant-primary'
-        "
-      >
-        <div
-          class="flex items-center justify-center w-12 h-12 transition-transform rounded-lg shrink-0 bg-danger-background"
-          :class="
-            selectedVoucherForStatus?.voucher_status !== 'inactive' &&
-            'group-hover:scale-110'
-          "
-        >
-          <i class="text-2xl pi pi-box text-danger-foreground"></i>
-        </div>
-        <div>
-          <h4 class="text-sm font-semibold text-black sm:text-base">
-            Tidak Aktif
-          </h4>
-          <p class="text-xs sm:text-sm text-muted-foreground">
-            Voucher tidak aktif dan tidak dapat digunakan
-          </p>
-        </div>
-      </button>
-    </div>
-
-    <!-- Footer Actions -->
-    <template #footer>
-      <Button @click="closeStatusModal" block variant="merchant">
-        Tutup
-      </Button>
-    </template>
-  </ResponsiveModal>
-
-  <!-- ✅ FIXED: Bulk Status Change Confirmation Modal -->
-  <ResponsiveModal
-    v-model:show="showBulkStatusChangeModal"
-    title="Konfirmasi Ubah Status Massal"
-    :subtitle="`${selectedVouchersCount} voucher dipilih`"
-    show-footer
-    @close="closeBulkStatusChangeModal"
-  >
-    <!-- Content -->
-    <div class="space-y-4">
-      <!-- Warning Banner -->
-      <div
-        class="flex items-start gap-3 p-4 border bg-warning-background/10 border-warning-foreground/20 rounded-xl"
-      >
-        <i
-          class="pi pi-info-circle text-warning-foreground text-xl shrink-0 mt-0.5"
-        ></i>
-        <div>
-          <h4 class="mb-1 text-sm font-semibold text-warning-foreground">
-            Perhatian!
-          </h4>
-          <p class="text-xs text-warning-foreground/80">
-            Status semua voucher yang dipilih akan diubah sekaligus.
-          </p>
-        </div>
-      </div>
-
-      <!-- Selected Vouchers Count -->
-      <div class="p-4 text-center bg-muted-background rounded-xl">
-        <div class="flex items-center justify-center gap-2 mb-2">
-          <i class="text-3xl pi pi-tag text-merchant-primary"></i>
-          <span class="text-4xl font-bold text-merchant-primary">
-            {{ selectedVouchersCount }}
-          </span>
-        </div>
-        <p class="text-sm text-muted-foreground">Voucher akan diubah</p>
-      </div>
-
-      <!-- New Status Preview -->
-      <div class="p-4 bg-white border border-gray-200 rounded-xl">
-        <p class="mb-3 text-xs text-center text-muted-foreground">
-          Status Baru:
-        </p>
-        <div class="flex justify-center">
-          <StatusLabel
-            v-if="newBulkStatus"
-            :status="newBulkStatus === 'active' ? 'success' : 'danger'"
-            :label="newBulkStatus === 'active' ? 'Aktif' : 'Tidak aktif'"
-            variant="general"
-            size="lg"
-          />
-        </div>
-      </div>
-
-      <!-- ✅ FIXED: Voucher List Preview dengan image URL yang benar -->
-      <div
-        v-if="selectedVouchersData.length > 0"
-        class="space-y-2 overflow-y-auto max-h-60"
-      >
-        <div
-          v-for="voucher in selectedVouchersData.slice(0, 5)"
-          :key="voucher.id"
-          class="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg"
-        >
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-black truncate">
-              {{ voucher.voucher_name }}
+          <div
+            class="flex items-center justify-center w-12 h-12 transition-transform rounded-lg shrink-0 bg-success-background"
+            :class="
+              selectedVoucherForStatus?.voucher_status !== 'active' &&
+              'group-hover:scale-110'
+            "
+          >
+            <i class="text-2xl pi pi-check-circle text-success-foreground"></i>
+          </div>
+          <div>
+            <h4 class="text-sm font-semibold text-black sm:text-base">Aktif</h4>
+            <p class="text-xs sm:text-sm text-muted-foreground">
+              Voucher akan muncul di checkout dan dapat digunakan
             </p>
-            <div class="flex items-center gap-2 mt-1">
-              <StatusLabel
-                :status="
-                  voucher.voucher_status === 'active' ? 'success' : 'danger'
-                "
-                :label="
-                  voucher.voucher_status === 'active' ? 'Aktif' : 'Tidak aktif'
-                "
-                variant="general"
-                size="xs"
+          </div>
+        </button>
+
+        <!-- Archive Action -->
+        <button
+          @click="confirmStatusChange('inactive')"
+          :disabled="selectedVoucherForStatus?.voucher_status === 'inactive'"
+          class="flex items-center w-full gap-4 p-4 text-left transition border border-muted-background rounded-xl group"
+          :class="
+            selectedVoucherForStatus?.voucher_status === 'inactive'
+              ? 'opacity-50 cursor-not-allowed'
+              : 'hover:bg-muted-background hover:border-merchant-primary'
+          "
+        >
+          <div
+            class="flex items-center justify-center w-12 h-12 transition-transform rounded-lg shrink-0 bg-danger-background"
+            :class="
+              selectedVoucherForStatus?.voucher_status !== 'inactive' &&
+              'group-hover:scale-110'
+            "
+          >
+            <i class="text-2xl pi pi-box text-danger-foreground"></i>
+          </div>
+          <div>
+            <h4 class="text-sm font-semibold text-black sm:text-base">
+              Tidak Aktif
+            </h4>
+            <p class="text-xs sm:text-sm text-muted-foreground">
+              Voucher tidak aktif dan tidak dapat digunakan
+            </p>
+          </div>
+        </button>
+      </div>
+
+      <!-- Footer Actions -->
+      <template #footer>
+        <Button @click="closeStatusModal" block variant="merchant">
+          Tutup
+        </Button>
+      </template>
+    </ResponsiveModal>
+
+    <!-- ✅ FIXED: Bulk Status Change Confirmation Modal -->
+    <ResponsiveModal
+      v-model:show="showBulkStatusChangeModal"
+      title="Konfirmasi Ubah Status Massal"
+      :subtitle="`${selectedVouchersCount} voucher dipilih`"
+      show-footer
+      @close="closeBulkStatusChangeModal"
+    >
+      <!-- Content -->
+      <div class="space-y-4">
+        <!-- Warning Banner -->
+        <div
+          class="flex items-start gap-3 p-4 border bg-warning-background/10 border-warning-foreground/20 rounded-xl"
+        >
+          <i
+            class="pi pi-info-circle text-warning-foreground text-xl shrink-0 mt-0.5"
+          ></i>
+          <div>
+            <h4 class="mb-1 text-sm font-semibold text-warning-foreground">
+              Perhatian!
+            </h4>
+            <p class="text-xs text-warning-foreground/80">
+              Status semua voucher yang dipilih akan diubah sekaligus.
+            </p>
+          </div>
+        </div>
+
+        <!-- Selected Vouchers Count -->
+        <div class="p-4 text-center bg-muted-background rounded-xl">
+          <div class="flex items-center justify-center gap-2 mb-2">
+            <i class="text-3xl pi pi-tag text-merchant-primary"></i>
+            <span class="text-4xl font-bold text-merchant-primary">
+              {{ selectedVouchersCount }}
+            </span>
+          </div>
+          <p class="text-sm text-muted-foreground">Voucher akan diubah</p>
+        </div>
+
+        <!-- New Status Preview -->
+        <div class="p-4 bg-white border border-gray-200 rounded-xl">
+          <p class="mb-3 text-xs text-center text-muted-foreground">
+            Status Baru:
+          </p>
+          <div class="flex justify-center">
+            <StatusLabel
+              v-if="newBulkStatus"
+              :status="newBulkStatus === 'active' ? 'success' : 'danger'"
+              :label="newBulkStatus === 'active' ? 'Aktif' : 'Tidak aktif'"
+              variant="general"
+              size="lg"
+            />
+          </div>
+        </div>
+
+        <!-- ✅ FIXED: Voucher List Preview dengan image URL yang benar -->
+        <div
+          v-if="selectedVouchersData.length > 0"
+          class="space-y-2 overflow-y-auto max-h-60"
+        >
+          <div
+            v-for="voucher in selectedVouchersData.slice(0, 5)"
+            :key="voucher.id"
+            class="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg"
+          >
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-black truncate">
+                {{ voucher.voucher_name }}
+              </p>
+              <div class="flex items-center gap-2 mt-1">
+                <StatusLabel
+                  :status="
+                    voucher.voucher_status === 'active' ? 'success' : 'danger'
+                  "
+                  :label="
+                    voucher.voucher_status === 'active'
+                      ? 'Aktif'
+                      : 'Tidak aktif'
+                  "
+                  variant="general"
+                  size="xs"
+                />
+                <i class="text-xs pi pi-arrow-right text-muted-foreground"></i>
+                <StatusLabel
+                  :status="newBulkStatus === 'active' ? 'success' : 'danger'"
+                  :label="newBulkStatus === 'active' ? 'Aktif' : 'Tidak aktif'"
+                  variant="general"
+                  size="xs"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Show more indicator -->
+          <div v-if="selectedVouchersData.length > 5" class="py-2 text-center">
+            <p class="text-xs text-muted-foreground">
+              +{{ selectedVouchersData.length - 5 }} voucher lainnya
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <template #footer>
+        <div class="flex gap-3">
+          <Button
+            @click="closeBulkStatusChangeModal"
+            variant="muted-outline"
+            block
+          >
+            <i class="mr-2 pi pi-times"></i>
+            Batal
+          </Button>
+          <Button
+            @click="confirmBulkStatusChange"
+            variant="merchant"
+            block
+            :loading="loading"
+          >
+            <i class="mr-2 pi pi-check"></i>
+            Ubah {{ selectedVouchersCount }} Voucher
+          </Button>
+        </div>
+      </template>
+    </ResponsiveModal>
+
+    <ResponsiveModal
+      v-model:show="showDetailModal"
+      title="Detail Voucher"
+      :show-footer="true"
+    >
+      <!-- Loading -->
+      <div
+        v-if="loadingDetail"
+        class="py-10 text-sm text-center text-muted-foreground"
+      >
+        Memuat detail voucher...
+      </div>
+
+      <!-- Content -->
+      <div v-else-if="selectedVoucherDetail" class="space-y-4 text-sm">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <p class="text-xs text-muted-foreground">Nama Voucher</p>
+            <p class="font-semibold">
+              {{ selectedVoucherDetail.voucher_name }}
+            </p>
+          </div>
+          <div>
+            <p class="text-xs text-muted-foreground">Voucher Event</p>
+            <p class="font-semibold">
+              {{ selectedVoucherDetail.event?.event_name || "-" }}
+            </p>
+          </div>
+
+          <div>
+            <p class="text-xs text-muted-foreground">Kode Voucher</p>
+            <p class="font-mono font-semibold text-merchant-primary">
+              {{ selectedVoucherDetail.voucher_code }}
+            </p>
+          </div>
+
+          <div>
+            <p class="text-xs text-muted-foreground">Status</p>
+            <StatusLabel
+              v-if="!selectedVoucherDetail.is_expired"
+              :status="
+                selectedVoucherDetail.voucher_status === 'active'
+                  ? 'success'
+                  : 'danger'
+              "
+              :label="
+                selectedVoucherDetail.voucher_status === 'active'
+                  ? 'Aktif'
+                  : 'Tidak Aktif'
+              "
+              variant="general"
+            />
+            <StatusLabel
+              v-else
+              status="warning"
+              label="Kadaluarsa"
+              variant="general"
+            />
+          </div>
+
+          <div>
+            <p class="text-xs text-muted-foreground">Tipe Voucher</p>
+            <p class="font-semibold">
+              {{
+                selectedVoucherDetail.voucher_type === "percent"
+                  ? "Persentase"
+                  : "Nominal"
+              }}
+            </p>
+          </div>
+
+          <div>
+            <p class="text-xs text-muted-foreground">Nilai Voucher</p>
+            <p class="font-semibold text-merchant-primary">
+              {{
+                selectedVoucherDetail.voucher_type === "percent"
+                  ? formatPercent(selectedVoucherDetail.value)
+                  : formatPrice(selectedVoucherDetail.value)
+              }}
+            </p>
+          </div>
+
+          <div>
+            <p class="text-xs text-muted-foreground">Pemakaian/Orang</p>
+            <p class="font-semibold">
+              {{ selectedVoucherDetail.usage_limit_per_user }}
+            </p>
+          </div>
+          <div>
+            <p class="text-xs text-muted-foreground">Total Pemakaian</p>
+            <p class="font-semibold">
+              {{ selectedVoucherDetail.usage }}
+            </p>
+          </div>
+
+          <div>
+            <p class="text-xs text-muted-foreground">Minimal Pembelian</p>
+            <p class="font-semibold">
+              {{ formatPrice(selectedVoucherDetail.min_purchase_amount) }}
+            </p>
+          </div>
+
+          <div>
+            <p class="text-xs text-muted-foreground">Maksimal Diskon</p>
+            <p
+              v-if="selectedVoucherDetail.max_discount_amount"
+              class="font-semibold"
+            >
+              {{ formatPrice(selectedVoucherDetail.max_discount_amount) }}
+            </p>
+            <p v-else>-</p>
+          </div>
+
+          <div>
+            <p class="text-xs text-muted-foreground">Berlaku Dari</p>
+            <p class="font-semibold">
+              {{ formatDateID(selectedVoucherDetail.voucher_start_date) }}
+            </p>
+          </div>
+
+          <div>
+            <p class="text-xs text-muted-foreground">Berlaku Sampai</p>
+            <p class="font-semibold">
+              {{ formatDateID(selectedVoucherDetail.voucher_end_date) }}
+            </p>
+          </div>
+        </div>
+
+        <div>
+          <p class="text-xs text-muted-foreground">Deskripsi</p>
+          <p class="mt-1 whitespace-pre-line">
+            {{ selectedVoucherDetail.voucher_description || "-" }}
+          </p>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex gap-3">
+          <Button
+            variant="muted-outline"
+            block
+            @click="showDetailModal = false"
+          >
+            Tutup
+          </Button>
+          <Button
+            variant="primary"
+            block
+            @click="goToEdit(selectedVoucherDetail)"
+          >
+            Edit
+          </Button>
+        </div>
+      </template>
+    </ResponsiveModal>
+
+    <ResponsiveModal
+      v-model:show="showFilterModal"
+      title="Filter & Urutkan Voucher"
+      :show-footer="true"
+    >
+      <div class="mb-6 space-y-4">
+        <h3
+          class="flex items-center gap-2 text-sm font-bold tracking-wide text-black uppercase"
+        >
+          <i class="pi pi-filter text-merchant-primary"></i>
+          Filter Data
+        </h3>
+        <!-- Status -->
+        <SelectField
+          name="status"
+          label="Status Voucher"
+          variant="merchant"
+          v-model="filters.status"
+          :options="[
+            { label: 'Aktif', value: 'active' },
+            { label: 'Tidak Aktif', value: 'inactive' },
+          ]"
+          placeholder="Semua status"
+        />
+
+        <!-- Type -->
+        <SelectField
+          name="type"
+          label="Tipe Voucher"
+          variant="merchant"
+          v-model="filters.type"
+          :options="[
+            { label: 'Persentase', value: 'percent' },
+            { label: 'Nominal', value: 'fixed' },
+          ]"
+          placeholder="Semua tipe"
+        />
+
+        <!-- Expired -->
+        <SelectField
+          name="is_expired"
+          label="Status Kadaluarsa"
+          variant="merchant"
+          v-model="filters.is_expired"
+          :options="[
+            { label: 'Aktif', value: 0 },
+            { label: 'Kadaluarsa', value: 1 },
+          ]"
+          placeholder="Semua"
+        />
+
+        <div class="w-full">
+          <label class="block mb-2 text-sm font-bold text-black">
+            Rentang Tanggal Voucher
+          </label>
+          <div
+            class="grid items-center grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-2"
+          >
+            <div class="min-w-0">
+              <InputDateField
+                label="Mulai dari"
+                variant="merchant"
+                v-model="filters.start_date"
+                :hideLabel="true"
               />
-              <i class="text-xs pi pi-arrow-right text-muted-foreground"></i>
-              <StatusLabel
-                :status="newBulkStatus === 'active' ? 'success' : 'danger'"
-                :label="newBulkStatus === 'active' ? 'Aktif' : 'Tidak aktif'"
-                variant="general"
-                size="xs"
+            </div>
+            <span class="px-1 font-bold text-muted-foreground">-</span>
+
+            <div class="min-w-0">
+              <InputDateField
+                label="Sampai"
+                variant="merchant"
+                v-model="filters.end_date"
+                :hideLabel="true"
               />
             </div>
           </div>
         </div>
-
-        <!-- Show more indicator -->
-        <div v-if="selectedVouchersData.length > 5" class="py-2 text-center">
-          <p class="text-xs text-muted-foreground">
-            +{{ selectedVouchersData.length - 5 }} voucher lainnya
-          </p>
-        </div>
       </div>
-    </div>
-
-    <!-- Footer Actions -->
-    <template #footer>
-      <div class="flex gap-3">
-        <Button
-          @click="closeBulkStatusChangeModal"
-          variant="muted-outline"
-          block
+      <!-- ===== SORT SECTION ===== -->
+      <div class="pt-6 space-y-4 border-t border-muted-foreground/30">
+        <h3
+          class="flex items-center gap-2 text-sm font-bold tracking-wide text-black uppercase"
         >
-          <i class="mr-2 pi pi-times"></i>
-          Batal
-        </Button>
-        <Button
-          @click="confirmBulkStatusChange"
-          variant="merchant"
-          block
-          :loading="loading"
-        >
-          <i class="mr-2 pi pi-check"></i>
-          Ubah {{ selectedVouchersCount }} Voucher
-        </Button>
-      </div>
-    </template>
-  </ResponsiveModal>
+          <i class="pi pi-sort-alt text-merchant-primary"></i>
+          Urutkan Berdasarkan
+        </h3>
 
-  <ResponsiveModal
-    v-model:show="showDetailModal"
-    title="Detail Voucher"
-    :show-footer="true"
-  >
-    <!-- Loading -->
-    <div
-      v-if="loadingDetail"
-      class="py-10 text-sm text-center text-muted-foreground"
-    >
-      Memuat detail voucher...
-    </div>
-
-    <!-- Content -->
-    <div v-else-if="selectedVoucherDetail" class="space-y-4 text-sm">
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <!-- Sort by Date -->
         <div>
-          <p class="text-xs text-muted-foreground">Nama Voucher</p>
-          <p class="font-semibold">
-            {{ selectedVoucherDetail.voucher_name }}
-          </p>
-        </div>
-        <div>
-          <p class="text-xs text-muted-foreground">Voucher Event</p>
-          <p class="font-semibold">
-            {{ selectedVoucherDetail.event?.event_name || "-" }}
-          </p>
-        </div>
-
-        <div>
-          <p class="text-xs text-muted-foreground">Kode Voucher</p>
-          <p class="font-mono font-semibold text-merchant-primary">
-            {{ selectedVoucherDetail.voucher_code }}
-          </p>
-        </div>
-
-        <div>
-          <p class="text-xs text-muted-foreground">Status</p>
-          <StatusLabel
-            v-if="!selectedVoucherDetail.is_expired"
-            :status="
-              selectedVoucherDetail.voucher_status === 'active'
-                ? 'success'
-                : 'danger'
-            "
-            :label="
-              selectedVoucherDetail.voucher_status === 'active'
-                ? 'Aktif'
-                : 'Tidak Aktif'
-            "
-            variant="general"
-          />
-          <StatusLabel
-            v-else
-            status="warning"
-            label="Kadaluarsa"
-            variant="general"
-          />
-        </div>
-
-        <div>
-          <p class="text-xs text-muted-foreground">Tipe Voucher</p>
-          <p class="font-semibold">
-            {{
-              selectedVoucherDetail.voucher_type === "percent"
-                ? "Persentase"
-                : "Nominal"
-            }}
-          </p>
-        </div>
-
-        <div>
-          <p class="text-xs text-muted-foreground">Nilai Voucher</p>
-          <p class="font-semibold text-merchant-primary">
-            {{
-              selectedVoucherDetail.voucher_type === "percent"
-                ? formatPercent(selectedVoucherDetail.value)
-                : formatPrice(selectedVoucherDetail.value)
-            }}
-          </p>
-        </div>
-
-        <div>
-          <p class="text-xs text-muted-foreground">Pemakaian/Orang</p>
-          <p class="font-semibold">
-            {{ selectedVoucherDetail.usage_limit_per_user }}
-          </p>
-        </div>
-        <div>
-          <p class="text-xs text-muted-foreground">Total Pemakaian</p>
-          <p class="font-semibold">
-            {{ selectedVoucherDetail.usage }}
-          </p>
-        </div>
-
-        <div>
-          <p class="text-xs text-muted-foreground">Minimal Pembelian</p>
-          <p class="font-semibold">
-            {{ formatPrice(selectedVoucherDetail.min_purchase_amount) }}
-          </p>
-        </div>
-
-        <div>
-          <p class="text-xs text-muted-foreground">Maksimal Diskon</p>
-          <p
-            v-if="selectedVoucherDetail.max_discount_amount"
-            class="font-semibold"
-          >
-            {{ formatPrice(selectedVoucherDetail.max_discount_amount) }}
-          </p>
-          <p v-else>-</p>
-        </div>
-
-        <div>
-          <p class="text-xs text-muted-foreground">Berlaku Dari</p>
-          <p class="font-semibold">
-            {{ formatDateID(selectedVoucherDetail.voucher_start_date) }}
-          </p>
-        </div>
-
-        <div>
-          <p class="text-xs text-muted-foreground">Berlaku Sampai</p>
-          <p class="font-semibold">
-            {{ formatDateID(selectedVoucherDetail.voucher_end_date) }}
-          </p>
-        </div>
-      </div>
-
-      <div>
-        <p class="text-xs text-muted-foreground">Deskripsi</p>
-        <p class="mt-1 whitespace-pre-line">
-          {{ selectedVoucherDetail.voucher_description || "-" }}
-        </p>
-      </div>
-    </div>
-
-    <template #footer>
-      <div class="flex gap-3">
-        <Button variant="muted-outline" block @click="showDetailModal = false">
-          Tutup
-        </Button>
-        <Button
-          variant="primary"
-          block
-          @click="goToEdit(selectedVoucherDetail)"
-        >
-          Edit
-        </Button>
-      </div>
-    </template>
-  </ResponsiveModal>
-
-  <ResponsiveModal
-    v-model:show="showFilterModal"
-    title="Filter & Urutkan Voucher"
-    :show-footer="true"
-  >
-    <div class="mb-6 space-y-4">
-      <h3
-        class="flex items-center gap-2 text-sm font-bold tracking-wide text-black uppercase"
-      >
-        <i class="pi pi-filter text-merchant-primary"></i>
-        Filter Data
-      </h3>
-      <!-- Status -->
-      <SelectField
-        name="status"
-        label="Status Voucher"
-        variant="merchant"
-        v-model="filters.status"
-        :options="[
-          { label: 'Aktif', value: 'active' },
-          { label: 'Tidak Aktif', value: 'inactive' },
-        ]"
-        placeholder="Semua status"
-      />
-
-      <!-- Type -->
-      <SelectField
-        name="type"
-        label="Tipe Voucher"
-        variant="merchant"
-        v-model="filters.type"
-        :options="[
-          { label: 'Persentase', value: 'percent' },
-          { label: 'Nominal', value: 'fixed' },
-        ]"
-        placeholder="Semua tipe"
-      />
-
-      <!-- Expired -->
-      <SelectField
-        name="is_expired"
-        label="Status Kadaluarsa"
-        variant="merchant"
-        v-model="filters.is_expired"
-        :options="[
-          { label: 'Aktif', value: 0 },
-          { label: 'Kadaluarsa', value: 1 },
-        ]"
-        placeholder="Semua"
-      />
-
-      <div class="w-full">
-        <label class="block mb-2 text-sm font-bold text-black">
-          Rentang Tanggal Voucher
-        </label>
-        <div
-          class="grid items-center grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-2"
-        >
-          <div class="min-w-0">
-            <InputDateField
-              label="Mulai dari"
-              variant="merchant"
-              v-model="filters.start_date"
-              :hideLabel="true"
-            />
+          <label class="block mb-2 text-sm font-semibold text-gray-700">
+            <i class="mr-1 text-xs pi pi-calendar"></i>
+            Waktu Pembuatan
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              @click="filters.sortByDate = 'newest'"
+              type="button"
+              class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
+              :class="
+                filters.sortByDate === 'newest'
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300'
+              "
+            >
+              <i class="mr-1 text-xs pi pi-sort-amount-down-alt"></i>
+              Terbaru
+            </button>
+            <button
+              @click="filters.sortByDate = 'oldest'"
+              type="button"
+              class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
+              :class="
+                filters.sortByDate === 'oldest'
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300'
+              "
+            >
+              <i class="mr-1 text-xs pi pi-sort-amount-up"></i>
+              Terlama
+            </button>
           </div>
-          <span class="px-1 font-bold text-muted-foreground">-</span>
+          <button
+            v-if="filters.sortByDate"
+            @click="filters.sortByDate = ''"
+            type="button"
+            class="mt-2 text-xs text-danger-foreground hover:underline"
+          >
+            <i class="mr-1 text-xs pi pi-times"></i>
+            Hapus urutan waktu
+          </button>
+        </div>
 
-          <div class="min-w-0">
-            <InputDateField
-              label="Sampai"
-              variant="merchant"
-              v-model="filters.end_date"
-              :hideLabel="true"
-            />
+        <!-- Sort by Name -->
+        <div>
+          <label class="block mb-2 text-sm font-semibold text-gray-700">
+            <i class="mr-1 text-xs pi pi-sort-alpha-down"></i>
+            Nama Voucher
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              @click="filters.sortByName = 'name_asc'"
+              type="button"
+              class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
+              :class="
+                filters.sortByName === 'name_asc'
+                  ? 'border-purple-500 bg-purple-50 text-purple-700'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-purple-300'
+              "
+            >
+              A → Z
+            </button>
+            <button
+              @click="filters.sortByName = 'name_desc'"
+              type="button"
+              class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
+              :class="
+                filters.sortByName === 'name_desc'
+                  ? 'border-purple-500 bg-purple-50 text-purple-700'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-purple-300'
+              "
+            >
+              Z → A
+            </button>
           </div>
-        </div>
-      </div>
-    </div>
-    <!-- ===== SORT SECTION ===== -->
-    <div class="pt-6 space-y-4 border-t border-muted-foreground/30">
-      <h3
-        class="flex items-center gap-2 text-sm font-bold tracking-wide text-black uppercase"
-      >
-        <i class="pi pi-sort-alt text-merchant-primary"></i>
-        Urutkan Berdasarkan
-      </h3>
-
-      <!-- Sort by Date -->
-      <div>
-        <label class="block mb-2 text-sm font-semibold text-gray-700">
-          <i class="mr-1 text-xs pi pi-calendar"></i>
-          Waktu Pembuatan
-        </label>
-        <div class="grid grid-cols-2 gap-2">
           <button
-            @click="filters.sortByDate = 'newest'"
+            v-if="filters.sortByName"
+            @click="filters.sortByName = ''"
             type="button"
-            class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
-            :class="
-              filters.sortByDate === 'newest'
-                ? 'border-blue-500 bg-blue-50 text-blue-700'
-                : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300'
-            "
+            class="mt-2 text-xs text-danger-foreground hover:underline"
           >
-            <i class="mr-1 text-xs pi pi-sort-amount-down-alt"></i>
-            Terbaru
-          </button>
-          <button
-            @click="filters.sortByDate = 'oldest'"
-            type="button"
-            class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
-            :class="
-              filters.sortByDate === 'oldest'
-                ? 'border-blue-500 bg-blue-50 text-blue-700'
-                : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300'
-            "
-          >
-            <i class="mr-1 text-xs pi pi-sort-amount-up"></i>
-            Terlama
+            <i class="mr-1 text-xs pi pi-times"></i>
+            Hapus urutan nama
           </button>
         </div>
-        <button
-          v-if="filters.sortByDate"
-          @click="filters.sortByDate = ''"
-          type="button"
-          class="mt-2 text-xs text-danger-foreground hover:underline"
-        >
-          <i class="mr-1 text-xs pi pi-times"></i>
-          Hapus urutan waktu
-        </button>
-      </div>
 
-      <!-- Sort by Name -->
-      <div>
-        <label class="block mb-2 text-sm font-semibold text-gray-700">
-          <i class="mr-1 text-xs pi pi-sort-alpha-down"></i>
-          Nama Voucher
-        </label>
-        <div class="grid grid-cols-2 gap-2">
+        <!-- Sort by Value -->
+        <div>
+          <label class="block mb-2 text-sm font-semibold text-gray-700">
+            <i class="mr-1 text-xs pi pi-dollar"></i>
+            Nilai Voucher
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              @click="filters.sortByValue = 'value_asc'"
+              type="button"
+              class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
+              :class="
+                filters.sortByValue === 'value_asc'
+                  ? 'border-green-500 bg-green-50 text-green-700'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-green-300'
+              "
+            >
+              <i class="mr-1 text-xs pi pi-arrow-down"></i>
+              Terendah
+            </button>
+            <button
+              @click="filters.sortByValue = 'value_desc'"
+              type="button"
+              class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
+              :class="
+                filters.sortByValue === 'value_desc'
+                  ? 'border-green-500 bg-green-50 text-green-700'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-green-300'
+              "
+            >
+              <i class="mr-1 text-xs pi pi-arrow-up"></i>
+              Tertinggi
+            </button>
+          </div>
           <button
-            @click="filters.sortByName = 'name_asc'"
+            v-if="filters.sortByValue"
+            @click="filters.sortByValue = ''"
             type="button"
-            class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
-            :class="
-              filters.sortByName === 'name_asc'
-                ? 'border-purple-500 bg-purple-50 text-purple-700'
-                : 'border-gray-200 bg-white text-gray-700 hover:border-purple-300'
-            "
+            class="mt-2 text-xs text-danger-foreground hover:underline"
           >
-            A → Z
-          </button>
-          <button
-            @click="filters.sortByName = 'name_desc'"
-            type="button"
-            class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
-            :class="
-              filters.sortByName === 'name_desc'
-                ? 'border-purple-500 bg-purple-50 text-purple-700'
-                : 'border-gray-200 bg-white text-gray-700 hover:border-purple-300'
-            "
-          >
-            Z → A
+            <i class="mr-1 text-xs pi pi-times"></i>
+            Hapus urutan nilai
           </button>
         </div>
-        <button
-          v-if="filters.sortByName"
-          @click="filters.sortByName = ''"
-          type="button"
-          class="mt-2 text-xs text-danger-foreground hover:underline"
-        >
-          <i class="mr-1 text-xs pi pi-times"></i>
-          Hapus urutan nama
-        </button>
-      </div>
 
-      <!-- Sort by Value -->
-      <div>
-        <label class="block mb-2 text-sm font-semibold text-gray-700">
-          <i class="mr-1 text-xs pi pi-dollar"></i>
-          Nilai Voucher
-        </label>
-        <div class="grid grid-cols-2 gap-2">
+        <!-- Sort by Usage -->
+        <div>
+          <label class="block mb-2 text-sm font-semibold text-gray-700">
+            <i class="mr-1 text-xs pi pi-box"></i>
+            Penggunaan Voucher
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              @click="filters.sortByUsage = 'usage_asc'"
+              type="button"
+              class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
+              :class="
+                filters.sortByUsage === 'usage_asc'
+                  ? 'border-orange-500 bg-orange-50 text-orange-700'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-orange-300'
+              "
+            >
+              <i class="mr-1 text-xs pi pi-arrow-down"></i>
+              Terendah
+            </button>
+            <button
+              @click="filters.sortByUsage = 'usage_desc'"
+              type="button"
+              class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
+              :class="
+                filters.sortByUsage === 'usage_desc'
+                  ? 'border-orange-500 bg-orange-50 text-orange-700'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-orange-300'
+              "
+            >
+              <i class="mr-1 text-xs pi pi-arrow-up"></i>
+              Tertinggi
+            </button>
+          </div>
           <button
-            @click="filters.sortByValue = 'value_asc'"
+            v-if="filters.sortByUsage"
+            @click="filters.sortByUsage = ''"
             type="button"
-            class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
-            :class="
-              filters.sortByValue === 'value_asc'
-                ? 'border-green-500 bg-green-50 text-green-700'
-                : 'border-gray-200 bg-white text-gray-700 hover:border-green-300'
-            "
+            class="mt-2 text-xs text-danger-foreground hover:underline"
           >
-            <i class="mr-1 text-xs pi pi-arrow-down"></i>
-            Terendah
-          </button>
-          <button
-            @click="filters.sortByValue = 'value_desc'"
-            type="button"
-            class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
-            :class="
-              filters.sortByValue === 'value_desc'
-                ? 'border-green-500 bg-green-50 text-green-700'
-                : 'border-gray-200 bg-white text-gray-700 hover:border-green-300'
-            "
-          >
-            <i class="mr-1 text-xs pi pi-arrow-up"></i>
-            Tertinggi
+            <i class="mr-1 text-xs pi pi-times"></i>
+            Hapus urutan penggunaan
           </button>
         </div>
-        <button
-          v-if="filters.sortByValue"
-          @click="filters.sortByValue = ''"
-          type="button"
-          class="mt-2 text-xs text-danger-foreground hover:underline"
-        >
-          <i class="mr-1 text-xs pi pi-times"></i>
-          Hapus urutan nilai
-        </button>
       </div>
 
-      <!-- Sort by Usage -->
-      <div>
-        <label class="block mb-2 text-sm font-semibold text-gray-700">
-          <i class="mr-1 text-xs pi pi-box"></i>
-          Penggunaan Voucher
-        </label>
-        <div class="grid grid-cols-2 gap-2">
-          <button
-            @click="filters.sortByUsage = 'usage_asc'"
-            type="button"
-            class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
-            :class="
-              filters.sortByUsage === 'usage_asc'
-                ? 'border-orange-500 bg-orange-50 text-orange-700'
-                : 'border-gray-200 bg-white text-gray-700 hover:border-orange-300'
-            "
-          >
-            <i class="mr-1 text-xs pi pi-arrow-down"></i>
-            Terendah
-          </button>
-          <button
-            @click="filters.sortByUsage = 'usage_desc'"
-            type="button"
-            class="px-4 py-3 text-sm font-medium transition border-2 rounded-lg"
-            :class="
-              filters.sortByUsage === 'usage_desc'
-                ? 'border-orange-500 bg-orange-50 text-orange-700'
-                : 'border-gray-200 bg-white text-gray-700 hover:border-orange-300'
-            "
-          >
-            <i class="mr-1 text-xs pi pi-arrow-up"></i>
-            Tertinggi
-          </button>
+      <template #footer>
+        <div class="flex gap-3">
+          <Button @click="resetFilters" variant="muted-outline" block>
+            <i class="mr-2 pi pi-refresh"></i>
+            Reset
+          </Button>
+          <Button @click="applyFilters" block variant="merchant">
+            <i class="mr-2 pi pi-check"></i>
+            Terapkan
+          </Button>
         </div>
-        <button
-          v-if="filters.sortByUsage"
-          @click="filters.sortByUsage = ''"
-          type="button"
-          class="mt-2 text-xs text-danger-foreground hover:underline"
-        >
-          <i class="mr-1 text-xs pi pi-times"></i>
-          Hapus urutan penggunaan
-        </button>
-      </div>
-    </div>
-
-    <template #footer>
-      <div class="flex gap-3">
-        <Button @click="resetFilters" variant="muted-outline" block>
-          <i class="mr-2 pi pi-refresh"></i>
-          Reset
-        </Button>
-        <Button @click="applyFilters" block variant="merchant">
-          <i class="mr-2 pi pi-check"></i>
-          Terapkan
-        </Button>
-      </div>
-    </template>
-  </ResponsiveModal>
+      </template>
+    </ResponsiveModal>
+  </div>
 </template>
 
 <style scoped>

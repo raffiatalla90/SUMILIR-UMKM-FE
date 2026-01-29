@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, nextTick, watch } from "vue";
+import { ref, computed, nextTick, watch, onBeforeUnmount } from "vue";
 import { useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import Button from "@/components/common/Button.vue";
@@ -12,6 +12,7 @@ const authStore = useAuthStore();
 
 const searchBarRef = ref(null);
 const searchInputRef = ref(null);
+const searchToggleRef = ref(null);
 
 const isAuthenticated = computed(() => authStore.isAuthenticated);
 const user = computed(() => authStore.user);
@@ -113,6 +114,38 @@ function goToLogin() {
 const showSearch = ref(false);
 const searchQuery = ref("");
 
+const onDocumentPointerDown = (event) => {
+  if (!showSearch.value) return;
+
+  const target = event?.target;
+  const panelEl = searchBarRef.value;
+  const toggleEl = searchToggleRef.value;
+
+  // Click inside search panel
+  if (panelEl && target && panelEl.contains(target)) return;
+
+  // Click on the search toggle button
+  if (toggleEl && target && toggleEl.contains(target)) return;
+
+  showSearch.value = false;
+};
+
+watch(
+  () => showSearch.value,
+  (open) => {
+    if (open) {
+      // Use pointerdown so it closes immediately on outside click
+      document.addEventListener("pointerdown", onDocumentPointerDown, true);
+    } else {
+      document.removeEventListener("pointerdown", onDocumentPointerDown, true);
+    }
+  },
+);
+
+onBeforeUnmount(() => {
+  document.removeEventListener("pointerdown", onDocumentPointerDown, true);
+});
+
 function toggleSearch() {
   if (route.path === "/" || route.path === "/explore") {
     // HOME / PRODUCT-LAYANAN / EXPLORE → fokus ke search utama di halaman
@@ -125,8 +158,9 @@ function toggleSearch() {
     showSearch.value = !showSearch.value;
 
     nextTick(() => {
-      // optional: auto focus input fixed search
-      // kamu bisa pakai ref khusus jika mau
+      if (showSearch.value && searchInputRef.value) {
+        searchInputRef.value.focus();
+      }
     });
   }
 }
@@ -148,7 +182,7 @@ watch(
       showSearch.value = false;
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 </script>
 
@@ -211,6 +245,7 @@ watch(
             <div class="px-4 border-r border-muted-foreground">
               <button
                 @click="toggleSearch"
+                ref="searchToggleRef"
                 class="p-2 px-3 transition rounded-full hover:bg-gray-100"
                 aria-label="Cari"
               >
@@ -272,11 +307,13 @@ watch(
     >
       <div
         v-if="showSearch"
+        ref="searchBarRef"
         class="hidden sm:block bg-white border-b border-gray-200 shadow-sm fixed top-[68px] left-0 right-0 z-1002"
       >
         <div class="max-w-[1440px] mx-auto px-4 py-4">
           <form @submit.prevent="submitSearch" class="relative">
             <input
+              ref="searchInputRef"
               v-model="searchQuery"
               type="text"
               placeholder="Cari produk, jasa, atau UMKM…"

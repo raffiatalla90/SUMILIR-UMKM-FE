@@ -167,7 +167,9 @@ const handleLogin = async (values) => {
       .filter(Boolean)
       .map((r) => r.toLowerCase());
 
-    console.log("User roles:", userRoles);
+    if (isDev) {
+      console.log("User roles:", userRoles);
+    }
 
     if (userRoles.includes("umkm-owner") || userRoles.includes("customer")) {
       if (isDev) {

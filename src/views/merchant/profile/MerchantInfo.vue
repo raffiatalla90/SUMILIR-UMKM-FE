@@ -6,7 +6,7 @@ import { useToast } from "vue-toastification";
 import { Form } from "vee-validate";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
 import LeafletMap from "@/components/LeafletMap.vue";
-import merchantProfile from "@/services/api/merchantProfile";
+import { useMerchants } from "@/composables/useMerchants";
 import AppButton from "@/components/common/Button.vue";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import TextField from "@/components/forms/TextField.vue";
@@ -15,6 +15,8 @@ const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
 const toast = useToast();
+
+const { fetchMerchantProfile, deleteMerchant } = useMerchants();
 
 // Emit untuk toggle sidebar dari parent layout
 const emit = defineEmits(["toggle-sidebar"]);
@@ -45,13 +47,6 @@ function toNumberOrNull(val) {
   return Number.isFinite(num) ? num : null;
 }
 
-function unwrapApiData(payload) {
-  // Handles shapes like:
-  // - merchant
-  // - { data: merchant }
-  // - { data: { data: merchant } }
-  return payload?.data?.data ?? payload?.data ?? payload;
-}
 const allDaysClosed = computed(() => {
   return (
     operationalHours.value.length > 0 &&
@@ -81,11 +76,10 @@ const latitude = ref(null);
 const longitude = ref(null);
 // Mock data
 const merchantInfo = ref({
-  name: "Sembako Sari Alam",
-  contact: "08xxxxxxxx",
-  description:
-    "Toko Sembako Rojolele menyediakan beragam kebutuhan pokok harian — beras, gula, minyak, dan produk lokal lainnya.",
-  address: "Jl. Pasar Rojolele No. 123",
+  name: "",
+  contact: "",
+  description: "",
+  address: "",
   logo: "",
   coverImage: "",
 });
@@ -122,7 +116,7 @@ const handleDeleteMerchant = async () => {
 
   deletingMerchant.value = true;
   try {
-    await merchantProfile.deleteMerchant(merchantSlug.value);
+    await deleteMerchant(merchantSlug.value);
     toast.success("UMKM berhasil dihapus");
     showDeleteMerchantModal.value = false;
 
@@ -189,8 +183,7 @@ onMounted(async () => {
       throw new Error("Missing merchantSlug");
     }
 
-    const res = await merchantProfile.getMerchantProfile(merchantSlug.value);
-    const data = unwrapApiData(res);
+    const data = await fetchMerchantProfile(merchantSlug.value);
 
     merchantName.value = data.name;
 
@@ -237,7 +230,9 @@ onMounted(async () => {
       };
     });
   } catch (error) {
-    console.error("Failed load merchant profile", error);
+    if (import.meta.env.DEV) {
+      console.error("Failed load merchant profile", error);
+    }
   } finally {
     isLoading.value = false;
   }
@@ -265,41 +260,11 @@ const goToEdit = () => {
       <div class="flex items-center gap-3">
         <!-- Hamburger Button (Mobile) -->
         <button
-          @click="emit('toggle-sidebar')"
+          @click="$emit('toggle-sidebar')"
           class="flex items-center justify-center w-10 h-10 transition bg-white rounded-full hover:bg-muted-background sm:hidden"
         >
           <i class="pi pi-bars text-muted-foreground"></i>
         </button>
-
-        <!-- Loading Overlay -->
-        <!-- <div
-          v-if="isLoading"
-          class="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-sm"
-        >
-          <div class="flex flex-col items-center gap-4">
-            <svg
-              class="w-10 h-10 animate-spin text-merchant-primary"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              />
-              <path
-                class="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8v8H4z"
-              />
-            </svg>
-            <p class="text-sm font-medium text-gray-600">Memuat data UMKM...</p>
-          </div>
-        </div> -->
 
         <div>
           <!-- Desktop: Show breadcrumb -->
@@ -523,7 +488,7 @@ const goToEdit = () => {
                     :lng="longitude"
                     :zoom="15"
                     variant="merchant"
-                    readonly="true"
+                    :readonly="true"
                   />
                 </div>
 

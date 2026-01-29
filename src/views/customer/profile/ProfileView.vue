@@ -8,7 +8,6 @@ import { useToast } from "vue-toastification";
 import { Form } from "vee-validate";
 import { useUserStore } from "@/stores/user";
 import { useAuthStore } from "@/stores/auth";
-import { getMyMerchants } from "@/services/api/merchant";
 import Button from "@/components/common/Button.vue";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import TextField from "@/components/forms/TextField.vue";
@@ -21,8 +20,8 @@ const toast = useToast();
 const userStore = useUserStore();
 const authStore = useAuthStore();
 
-const myMerchants = ref([]);
 const merchantsLoading = ref(false);
+const isLoggingOut = ref(false);
 
 const imgLoaded = ref(!!userStore.user?.profile_picture);
 const imgError = ref(false);
@@ -41,6 +40,10 @@ const isInitialProfileLoading = computed(
 );
 
 const user = computed(() => userStore.user || {});
+
+const myMerchants = computed(() => {
+  return authStore.allMerchants || [];
+});
 
 const hasProfilePictureUrl = computed(() => {
   const url = user.value?.profile_picture;
@@ -100,7 +103,7 @@ watch(
 // METHODS
 // =========================
 const handleLogout = async () => {
-  const isLoggingOut = ref(true);
+  isLoggingOut.value = true;
   try {
     await authStore.logout();
     router.push("/auth/login");
@@ -157,32 +160,6 @@ onMounted(async () => {
 
   // Admin tidak perlu memuat data merchant di halaman profil.
   if (authStore.isAdmin) return;
-
-  try {
-    merchantsLoading.value = true;
-    const payload = await getMyMerchants();
-    // getMyMerchants() returns the response payload directly.
-    // Support both shapes: { message, data: [] } and { message, data: { data: [] } }.
-    const list =
-      (Array.isArray(payload?.data) && payload.data) ||
-      (Array.isArray(payload?.data?.data) && payload.data.data) ||
-      [];
-
-    myMerchants.value = list;
-
-    // Refresh auth store so route guards recognize the merchant
-    if (myMerchants.value.length) {
-      try {
-        await authStore.initAuth();
-      } catch {
-        // ignore
-      }
-    }
-  } catch {
-    myMerchants.value = [];
-  } finally {
-    merchantsLoading.value = false;
-  }
 });
 </script>
 
@@ -493,8 +470,8 @@ onMounted(async () => {
                         </svg>
                         <span class="flex-1 font-medium text-gray-700">
                           {{ m.name }}
-                          <span v-if="m.segmentation_id == 1">(Toko)</span>
-                          <span v-else-if="m.segmentation_id == 2"
+                          <span v-if="m.segmentation?.id == 1">(Toko)</span>
+                          <span v-else-if="m.segmentation?.id == 2"
                             >(Kuliner)</span
                           >
                           <span v-else>(Jasa)</span></span
@@ -683,7 +660,12 @@ onMounted(async () => {
             </div>
           </div>
 
-          <Button @click="handleLogout" variant="danger" class="w-full mt-4">
+          <Button
+            @click="handleLogout"
+            variant="danger"
+            class="w-full mt-4"
+            :loading="isLoggingOut"
+          >
             Logout
           </Button>
 
@@ -822,8 +804,8 @@ onMounted(async () => {
                       </svg>
                       <span class="flex-1 font-medium text-gray-700 truncate"
                         >{{ m.name }}
-                        <span v-if="m.segmentation_id == 1">(Toko)</span>
-                        <span v-else-if="m.segmentation_id == 2"
+                        <span v-if="m.segmentation?.id == 1">(Toko)</span>
+                        <span v-else-if="m.segmentation?.id == 2"
                           >(Kuliner)</span
                         >
                         <span v-else>(Jasa)</span>

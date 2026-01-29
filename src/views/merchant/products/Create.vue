@@ -12,13 +12,14 @@ import SelectField from "@/components/forms/SelectField.vue";
 import Button from "@/components/common/Button.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
-import api from "@/libs/axios";
 import { useProducts } from "@/composables/useProducts";
 import { useCategories } from "@/composables/useCategories";
 import { useProductImages } from "@/composables/product/forms/useProductImages";
 import { useProductVariants } from "@/composables/product/forms/useProductVariants";
 import { useProductCombinations } from "@/composables/product/forms/useProductCombinations";
 import { useProductAddons } from "@/composables/product/forms/useProductAddons";
+
+const isDev = import.meta.env.DEV;
 const toast = useToast();
 const router = useRouter();
 const route = useRoute();
@@ -47,6 +48,8 @@ const formPrice = ref(0);
 const formStock = ref(0);
 const formMinPurchase = ref(1);
 const formSKU = ref("");
+
+const { createProduct } = useProducts();
 
 const {
   productImages,
@@ -635,21 +638,12 @@ const onSubmit = veeHandleSubmit(
         }
       });
 
-      console.log("useVariants:", useVariants.value);
-      console.log("variants:", variants.value);
-
-      // API Call
-      const response = await api.post(
-        `/api/merchant/${currentMerchantSlug.value}/products/`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        },
-      );
-
-      toast.success("Produk berhasil ditambahkan");
+      if (isDev) {
+        console.log("useVariants:", useVariants.value);
+        console.log("variants:", variants.value);
+      }
+      // API Call (via composable)
+      await createProduct(currentMerchantSlug.value, formData);
 
       // ✅ FIXED: Redirect dengan merchantId yang benar
       router.push(`/merchant-center/${currentMerchantSlug.value}/products`);

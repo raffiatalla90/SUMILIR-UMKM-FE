@@ -408,7 +408,7 @@
               :zoom="12"
               :showMyLocation="true"
               variant="merchant"
-              readonly="true"
+              :readonly="true"
               class="absolute inset-0"
             />
             <div
@@ -616,7 +616,7 @@ function setMyCoordinates(lat, lng) {
 }
 
 async function loadMyCoordinatesFromProfile(
-  { fallbackToDevice } = { fallbackToDevice: false }
+  { fallbackToDevice } = { fallbackToDevice: false },
 ) {
   // 1) Try profile address first (if available)
   if (!profileAddressUnauthorized.value) {
@@ -655,7 +655,7 @@ async function requestMyLocation() {
         }
       },
       () => resolve(null),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
     );
   });
 
@@ -672,7 +672,7 @@ function openRouteToMerchant() {
         openGoogleMapsRoute();
       } else {
         toast.info(
-          "Lokasi Anda belum tersedia. Silakan aktifkan akses lokasi."
+          "Lokasi Anda belum tersedia. Silakan aktifkan akses lokasi.",
         );
       }
     });
@@ -774,7 +774,7 @@ function formatFullAddress(addr) {
   const city = addr?.city?.name || "";
   const province = addr?.province?.name || "";
   const parts = [detail, village, district, city, province].filter(
-    (p) => typeof p === "string" && p.trim() !== ""
+    (p) => typeof p === "string" && p.trim() !== "",
   );
   return parts.length ? parts.join(", ") : "-";
 }
@@ -955,7 +955,7 @@ function parseLaravelPaginator(payload) {
   return {
     items: Array.isArray(paginator?.data) ? paginator.data : [],
     current: Number(
-      paginator?.current_page ?? paginator?.meta?.current_page ?? 1
+      paginator?.current_page ?? paginator?.meta?.current_page ?? 1,
     ),
     last: Number(paginator?.last_page ?? paginator?.meta?.last_page ?? 1),
   };
@@ -983,7 +983,7 @@ function setupObserver() {
       root: null,
       rootMargin: "200px",
       threshold: 0,
-    }
+    },
   );
 
   if (loadMoreRef.value) {
@@ -1020,7 +1020,7 @@ async function queueLoadMore() {
 async function fetchMerchantMenu(
   merchantData,
   merchantSlug,
-  { append } = { append: false }
+  { append } = { append: false },
 ) {
   const segId = getSegmentationId(merchantData);
 
@@ -1045,7 +1045,7 @@ async function fetchMerchantMenu(
         `/api/public/merchants/${merchantSlug}/products`,
         {
           params: { per_page: perPage, page: currentPage.value },
-        }
+        },
       );
 
       const paginator = data?.products ?? data?.data ?? data;
@@ -1078,7 +1078,7 @@ async function fetchMerchantMenu(
         `/api/public/merchants/${merchantSlug}/jasas`,
         {
           params: { per_page: perPage, page: currentPage.value },
-        }
+        },
       );
 
       const parsed = parseLaravelPaginator(data);
@@ -1114,7 +1114,7 @@ async function fetchMerchantMenu(
       `/api/public/merchants/${merchantSlug}/products`,
       {
         params: { per_page: perPage, page: currentPage.value },
-      }
+      },
     );
     const paginator = data?.products ?? data?.data ?? data;
     const parsed = parseLaravelPaginator(paginator);
@@ -1140,7 +1140,7 @@ const fetchMerchantData = async () => {
 
     // Fetch merchant detail (Standardized URL)
     const { data: merchantData } = await api.get(
-      `/api/public/merchants/${merchantSlug}`
+      `/api/public/merchants/${merchantSlug}`,
     );
     const data = merchantData.data || merchantData;
     merchant.value = data;
@@ -1210,7 +1210,7 @@ watch(
 
     await nextTick();
     setupObserver();
-  }
+  },
 );
 
 watch(() => route.params.slug, fetchMerchantData, { immediate: true });

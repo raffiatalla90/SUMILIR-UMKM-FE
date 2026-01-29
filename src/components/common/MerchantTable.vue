@@ -1,5 +1,4 @@
 <script setup>
-// filepath: /var/www/html/KMI-SIMSLIFE-FE/src/components/common/MerchantTable.vue
 import { computed, useSlots } from "vue";
 import Button from "@/components/common/Button.vue";
 const slots = useSlots();
@@ -79,7 +78,7 @@ const isAllSelected = computed(() => {
   if (!props.items.length) return false;
 
   return props.items.every((item) =>
-    props.selectedItems.includes(getItemKey(item))
+    props.selectedItems.includes(getItemKey(item)),
   );
 });
 
