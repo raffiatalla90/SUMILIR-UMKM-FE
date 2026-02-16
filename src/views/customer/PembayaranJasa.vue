@@ -150,12 +150,6 @@
               Gunakan alamat profil
             </button>
           </div>
-          <input
-            v-model="form.catatanAlamat"
-            type="text"
-            placeholder="Catatan alamat"
-            class="w-full px-3 py-2 mt-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary/70 focus:border-merchant-primary"
-          />
         </section>
 
         <!-- Jadwal (auto filled) -->
@@ -695,7 +689,6 @@ const form = ref({
   tel: "",
   alamat: route.query.alamat || "",
   catatan: route.query.catatan || "",
-  catatanAlamat: route.query.catatanAlamat || "",
   tanggalISO: order.tglISO,
   tanggalLabel: fmtTanggal(order.tglISO),
   waktu: order.waktu || "—",
@@ -1050,13 +1043,35 @@ onMounted(async () => {
       "";
     jasaWhatsappLink.value = rawWhatsapp;
 
-    // Otomatis isi alamat dari jasa atau merchant
-    if (payload?.location_address) {
-      form.value.alamat = payload.location_address;
-    } else if (payload?.merchant?.address) {
-      form.value.alamat = payload.merchant.address;
-    } else if (payload?.merchant?.alamat) {
-      form.value.alamat = payload.merchant.alamat;
+    // Otomatis isi alamat berdasarkan service_type
+    // - at_location: gunakan alamat UMKM dari primary_address
+    // - on_site: gunakan location_address atau alamat merchant
+    // - online: tidak perlu alamat
+    if (payload?.service_type === 'at_location') {
+      // Untuk layanan di tempat merchant, gunakan alamat merchant dari primary_address
+      const primaryAddress = payload?.merchant?.primary_address;
+      if (primaryAddress) {
+        const parts = [
+          primaryAddress.detail,
+          primaryAddress.village,
+          primaryAddress.district,
+          primaryAddress.city,
+          primaryAddress.province,
+        ].filter(Boolean);
+        form.value.alamat = parts.join(', ') || '';
+      } else {
+        // Fallback ke field address lama
+        form.value.alamat = payload?.merchant?.address || payload?.merchant?.alamat || '';
+      }
+    } else if (payload?.service_type === 'on_site') {
+      // Untuk layanan ke lokasi customer
+      if (payload?.location_address) {
+        form.value.alamat = payload.location_address;
+      } else if (payload?.merchant?.address) {
+        form.value.alamat = payload.merchant.address;
+      } else if (payload?.merchant?.alamat) {
+        form.value.alamat = payload.merchant.alamat;
+      }
     }
 
     if (payload?.merchant_id) {
@@ -1128,9 +1143,6 @@ function buildWhatsappMessage() {
   }
   if (form.value.catatan) {
     lines.push(`Catatan   : ${form.value.catatan}`);
-  }
-  if (form.value.catatanAlamat && !isOnlineService.value) {
-    lines.push(`Catatan Alamat : ${form.value.catatanAlamat}`);
   }
   lines.push("");
 

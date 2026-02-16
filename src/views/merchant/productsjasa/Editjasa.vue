@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "@/stores/auth";
@@ -62,6 +62,11 @@ const loadingData = ref(true);
 const jasaCategories = ref([]);
 const jasaSubcategories = ref([]);
 const formKey = ref(0);
+
+// LocalStorage key for form draft (unique per jasa ID)
+const FORM_DRAFT_KEY = computed(
+  () => `jasa-edit-draft-${currentJasaId.value}`
+);
 
 // Image management
 const existingImages = ref([]);
@@ -331,6 +336,62 @@ const handleCategoryChange = async (value) => {
   await loadSubcategories(value);
 };
 
+// Auto-save form data to localStorage (debounced)
+let saveTimeout = null;
+watch(
+  formData,
+  (newData) => {
+    if (!currentJasaId.value) return;
+    
+    // Debounce to avoid excessive writes
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+      try {
+        localStorage.setItem(FORM_DRAFT_KEY.value, JSON.stringify(newData));
+      } catch (error) {
+        console.error("Failed to save form draft:", error);
+      }
+    }, 500);
+  },
+  { deep: true }
+);
+
+// Restore form data from localStorage
+const restoreFormDraft = () => {
+  if (!currentJasaId.value) return;
+  
+  try {
+    const saved = localStorage.getItem(FORM_DRAFT_KEY.value);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      
+      // Only restore if draft is newer than last load
+      // This prevents overwriting with old data
+      Object.assign(formData.value, parsed);
+      
+      // Load subcategories if category is selected
+      if (parsed.jasa_category_id) {
+        loadSubcategories(parsed.jasa_category_id);
+      }
+      
+      toast.info("Perubahan yang belum disimpan berhasil dipulihkan");
+    }
+  } catch (error) {
+    console.error("Failed to restore form draft:", error);
+  }
+};
+
+// Clear form draft from localStorage
+const clearFormDraft = () => {
+  if (!currentJasaId.value) return;
+  
+  try {
+    localStorage.removeItem(FORM_DRAFT_KEY.value);
+  } catch (error) {
+    console.error("Failed to clear form draft:", error);
+  }
+};
+
 // Handle new image file selection (bisa tambah berkali-kali dan hapus sebelum simpan)
 const handleNewImageChange = (e) => {
   const files = e.target.files;
@@ -527,6 +588,22 @@ const submitForm = async (values) => {
 
     toast.success("Jasa berhasil diperbarui!");
 
+    // Warn if status is still draft
+    if (formData.value.status === 'draft') {
+      setTimeout(() => {
+        toast.info(
+          "\ud83d\udca1 Jasa Anda masih dalam status DRAFT. Silakan publikasikan agar dapat dilihat pelanggan.",
+          {
+            timeout: 8000,
+            closeButton: true,
+          }
+        );
+      }, 1500);
+    }
+
+    // Clear form draft after successful submission
+    clearFormDraft();
+
     // Force reload the list page
     router.push(
       `/merchant-center/${currentMerchantSlug.value}/jasas?t=${Date.now()}`
@@ -543,6 +620,12 @@ const submitForm = async (values) => {
 onMounted(() => {
   loadCategories();
   loadJasa();
+  
+  // Restore form draft after data is loaded
+  // Use nextTick to ensure loadJasa has populated the form first
+  setTimeout(() => {
+    restoreFormDraft();
+  }, 1000);
 });
 </script>
 
@@ -588,7 +671,7 @@ onMounted(() => {
           :validationSchema="validationSchema"
           :initialValues="formData"
           @submit="submitForm"
-          v-slot="{ handleSubmit }"
+          v-slot="{ handleSubmit, values, setFieldValue }"
         >
           <form
             @submit.prevent="handleSubmit(submitForm)"
@@ -707,7 +790,14 @@ onMounted(() => {
                       <input
                         :value="formatCurrency(field.value || 0)"
                         @input="
-                          (e) => field.onChange(parseCurrency(e.target.value))
+                          (e) => {
+                            const newValue = parseCurrency(e.target.value);
+                            field.onChange(newValue);
+                            // Auto-clear base_price jika fixed_price diisi
+                            if (newValue > 0 && values?.base_price > 0) {
+                              setFieldValue('base_price', 0);
+                            }
+                          }
                         "
                         @blur="field.onBlur"
                         type="text"
@@ -718,6 +808,17 @@ onMounted(() => {
                     </div>
                     <p v-if="errors[0]" class="mt-1 text-sm text-red-500">
                       {{ errors[0] }}
+                    </p>
+                    <p
+                      v-else
+                      class="mt-1 text-sm"
+                      :class="
+                        Number(values?.base_price || 0) > 0
+                          ? 'text-gray-400'
+                          : 'text-gray-600'
+                      "
+                    >
+                      Pilih salah satu: jangan isi keduanya sekaligus
                     </p>
                   </div>
                 </Field>
@@ -736,7 +837,14 @@ onMounted(() => {
                       <input
                         :value="formatCurrency(field.value || 0)"
                         @input="
-                          (e) => field.onChange(parseCurrency(e.target.value))
+                          (e) => {
+                            const newValue = parseCurrency(e.target.value);
+                            field.onChange(newValue);
+                            // Auto-clear fixed_price jika base_price diisi
+                            if (newValue > 0 && values?.fixed_price > 0) {
+                              setFieldValue('fixed_price', 0);
+                            }
+                          }
                         "
                         @blur="field.onBlur"
                         type="text"
@@ -747,6 +855,17 @@ onMounted(() => {
                     </div>
                     <p v-if="errors[0]" class="mt-1 text-sm text-red-500">
                       {{ errors[0] }}
+                    </p>
+                    <p
+                      v-else
+                      class="mt-1 text-sm"
+                      :class="
+                        Number(values?.fixed_price || 0) > 0
+                          ? 'text-gray-400'
+                          : 'text-gray-600'
+                      "
+                    >
+                      Pilih salah satu: jangan isi keduanya sekaligus
                     </p>
                   </div>
                 </Field>
@@ -968,9 +1087,7 @@ onMounted(() => {
             <div
               class="p-5 border bg-linear-to-r from-cyan-50 to-transparent rounded-xl border-cyan-100"
             >
-              class="flex items-center gap-2 mb-1 text-sm font-medium
-              text-gray-700"
-              <div class="flex items-center gap-3 mb-5">
+              <div class="flex items-center gap-3 mb-3">
                 <div
                   class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white rounded-full bg-cyan-500"
                 >
@@ -978,25 +1095,57 @@ onMounted(() => {
                 </div>
                 <h2 class="text-lg font-bold text-gray-800">
                   Jam Layanan
-                  <span class="text-xs font-normal text-gray-500"
+                  <span class="text-sm font-normal text-gray-500"
                     >(Opsional)</span
                   >
                 </h2>
               </div>
+              
+              <!-- Info Box -->
+              <div class="p-4 mb-4 border-l-4 rounded-r-lg bg-cyan-50/50 border-cyan-400">
+                <div class="flex gap-2">
+                  <svg class="flex-shrink-0 w-5 h-5 mt-0.5 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  <div class="flex-1">
+                    <p class="text-sm font-medium text-cyan-900">Cara Penggunaan:</p>
+                    <ul class="mt-1.5 space-y-1 text-sm text-cyan-800">
+                      <li class="flex items-start gap-1">
+                        <span class="mt-1">•</span>
+                        <span><strong>Klik tombol waktu</strong> untuk memilih jam layanan yang tersedia</span>
+                      </li>
+                      <li class="flex items-start gap-1">
+                        <span class="mt-1">•</span>
+                        <span>Gunakan <strong>"Pilih Semua"</strong> untuk memilih seluruh waktu dalam periode</span>
+                      </li>
+                      <li class="flex items-start gap-1">
+                        <span class="mt-1">•</span>
+                        <span><strong>Kosongkan</strong> jika layanan tersedia sepanjang hari tanpa batasan jam</span>
+                      </li>
+                    </ul>
+                    <p class="mt-2 text-xs text-cyan-700 italic">Contoh: Jika layanan cuci motor hanya tersedia pagi dan siang, pilih jam-jam pada periode tersebut</p>
+                  </div>
+                </div>
+              </div>
 
               <!-- Pagi -->
-              <div class="mb-5">
-                <div class="flex items-center justify-between mb-3">
-                  <span class="text-sm font-semibold text-gray-700"
-                    >🌅 Pagi (06.00 - 11.30)</span
-                  >
+              <div class="mb-4">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">🌅</span>
+                    <span class="text-sm font-semibold text-gray-700"
+                      >Pagi (06.00 - 11.30)</span
+                    >
+                  </div>
                   <button
                     type="button"
                     @click="selectAllPeriod('morning')"
-                    class="text-xs font-medium text-cyan-600 hover:text-cyan-700 hover:underline"
+                    class="px-3 py-1 text-xs font-medium transition-colors rounded-md text-merchant-primary bg-merchant-primary/10 hover:bg-merchant-primary/20"
                   >
                     {{
-                      isAllPeriodSelected("morning") ? "Hapus" : "Pilih Semua"
+                      isAllPeriodSelected("morning")
+                        ? "❌ Hapus Semua"
+                        : "✓ Pilih Semua"
                     }}
                   </button>
                 </div>
@@ -1006,11 +1155,11 @@ onMounted(() => {
                     :key="time.value"
                     type="button"
                     @click="toggleTime(time.value)"
-                    class="px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all duration-200"
+                    class="px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-200 shadow-sm"
                     :class="[
                       selectedTimes.includes(time.value)
-                        ? 'bg-cyan-500 text-white border-cyan-500'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-cyan-500',
+                        ? 'bg-merchant-primary text-white border-merchant-primary shadow-md transform scale-105'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary hover:shadow',
                     ]"
                   >
                     {{ time.label }}
@@ -1019,18 +1168,23 @@ onMounted(() => {
               </div>
 
               <!-- Siang -->
-              <div class="mb-5">
-                <div class="flex items-center justify-between mb-3">
-                  <span class="text-sm font-semibold text-gray-700"
-                    >☀️ Siang (12.00 - 17.00)</span
-                  >
+              <div class="mb-4">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">☀️</span>
+                    <span class="text-sm font-semibold text-gray-700"
+                      >Siang (12.00 - 17.00)</span
+                    >
+                  </div>
                   <button
                     type="button"
                     @click="selectAllPeriod('afternoon')"
-                    class="text-xs font-medium text-cyan-600 hover:text-cyan-700 hover:underline"
+                    class="px-3 py-1 text-xs font-medium transition-colors rounded-md text-merchant-primary bg-merchant-primary/10 hover:bg-merchant-primary/20"
                   >
                     {{
-                      isAllPeriodSelected("afternoon") ? "Hapus" : "Pilih Semua"
+                      isAllPeriodSelected("afternoon")
+                        ? "❌ Hapus Semua"
+                        : "✓ Pilih Semua"
                     }}
                   </button>
                 </div>
@@ -1040,11 +1194,11 @@ onMounted(() => {
                     :key="time.value"
                     type="button"
                     @click="toggleTime(time.value)"
-                    class="px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all duration-200"
+                    class="px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-200 shadow-sm"
                     :class="[
                       selectedTimes.includes(time.value)
-                        ? 'bg-cyan-500 text-white border-cyan-500'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-cyan-500',
+                        ? 'bg-merchant-primary text-white border-merchant-primary shadow-md transform scale-105'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary hover:shadow',
                     ]"
                   >
                     {{ time.label }}
@@ -1053,18 +1207,23 @@ onMounted(() => {
               </div>
 
               <!-- Malam -->
-              <div>
-                <div class="flex items-center justify-between mb-3">
-                  <span class="text-sm font-semibold text-gray-700"
-                    >🌙 Malam (17.30 - 21.00)</span
-                  >
+              <div class="mb-3">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">🌙</span>
+                    <span class="text-sm font-semibold text-gray-700"
+                      >Malam (17.30 - 21.00)</span
+                    >
+                  </div>
                   <button
                     type="button"
                     @click="selectAllPeriod('evening')"
-                    class="text-xs font-medium text-cyan-600 hover:text-cyan-700 hover:underline"
+                    class="px-3 py-1 text-xs font-medium transition-colors rounded-md text-merchant-primary bg-merchant-primary/10 hover:bg-merchant-primary/20"
                   >
                     {{
-                      isAllPeriodSelected("evening") ? "Hapus" : "Pilih Semua"
+                      isAllPeriodSelected("evening")
+                        ? "❌ Hapus Semua"
+                        : "✓ Pilih Semua"
                     }}
                   </button>
                 </div>
@@ -1074,16 +1233,33 @@ onMounted(() => {
                     :key="time.value"
                     type="button"
                     @click="toggleTime(time.value)"
-                    class="px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all duration-200"
+                    class="px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-200 shadow-sm"
                     :class="[
                       selectedTimes.includes(time.value)
-                        ? 'bg-cyan-500 text-white border-cyan-500'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-cyan-500',
+                        ? 'bg-merchant-primary text-white border-merchant-primary shadow-md transform scale-105'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary hover:shadow',
                     ]"
                   >
                     {{ time.label }}
                   </button>
                 </div>
+              </div>
+
+              <!-- Status Info -->
+              <div class="flex items-center gap-2 p-3 mt-4 rounded-lg" :class="selectedTimes.length > 0 ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-200'">
+                <svg v-if="selectedTimes.length > 0" class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <svg v-else class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <p class="text-sm font-medium" :class="selectedTimes.length > 0 ? 'text-green-700' : 'text-gray-600'">
+                  {{
+                    selectedTimes.length > 0
+                      ? `✓ ${selectedTimes.length} waktu dipilih - Layanan tersedia pada waktu yang dipilih`
+                      : "⏰ Tidak ada waktu dipilih - Layanan tersedia sepanjang hari"
+                  }}
+                </p>
               </div>
             </div>
 

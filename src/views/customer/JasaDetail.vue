@@ -200,7 +200,7 @@
 
     <!-- Lokasi & Tipe Layanan -->
     <section
-      v-if="jasa?.service_type || jasa?.location_address || jasa?.merchant?.address || jasa?.merchant?.alamat"
+      v-if="jasa?.service_type || jasa?.location_address || merchantAddress"
       class="px-4 py-4 mt-3 bg-white/95"
     >
       <div class="max-w-3xl mx-auto lg:max-w-5xl">
@@ -222,15 +222,32 @@
             </span>
           </div>
 
+          <!-- Lokasi UMKM (untuk service_type at_location) -->
           <div
-            v-if="jasa?.service_type !== 'online'"
+            v-if="jasa?.service_type === 'at_location' && merchantAddress"
+            class="flex items-start gap-2"
+          >
+            <span class="mt-0.5">
+              <i class="text-gray-500 pi pi-map-marker"></i>
+            </span>
+            <div class="flex-1">
+              <p class="text-xs text-gray-500 mb-0.5">Lokasi UMKM</p>
+              <p class="text-sm leading-snug text-gray-700">
+                {{ merchantAddress }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Alamat untuk service_type on_site atau fallback -->
+          <div
+            v-if="jasa?.service_type === 'on_site' || (jasa?.service_type !== 'at_location' && jasa?.service_type !== 'online' && jasa?.location_address)"
             class="flex items-start gap-2"
           >
             <span class="mt-0.5">
               <i class="text-gray-500 pi pi-map-marker"></i>
             </span>
             <p class="text-sm leading-snug text-gray-700">
-              {{ jasa.location_address || jasa.merchant?.address || jasa.merchant?.alamat || '-' }}
+              {{ jasa.location_address || '-' }}
             </p>
           </div>
         </div>
@@ -374,8 +391,6 @@
       class="fixed left-0 right-0 bottom-16 sm:bottom-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200/80 shadow-[0_-4px_12px_rgba(0,0,0,0.04)] px-4 py-3"
     >
       <div class="flex items-center max-w-3xl gap-4 mx-auto lg:max-w-5xl">
-        <!-- Chat sementara dinonaktifkan -->
-        <!--
         <button
           type="button"
           class="flex items-center justify-center w-11 h-11 rounded-xl bg-white border border-gray-200 text-[#FFA30E] hover:bg-[#FFF2D9] hover:border-[#FFA30E] transition shadow-sm"
@@ -384,7 +399,6 @@
         >
           <i class="text-lg pi pi-comments"></i>
         </button>
-        -->
 
         <router-link
           :to="{
@@ -422,7 +436,53 @@
       @close="calendarOpen = false"
     />
 
-    <!-- Chat Pembeli sementara dinonaktifkan -->
+    <!-- Chat Pembeli -->
+    <transition>
+      <div
+        v-if="showChat && jasa"
+        class="fixed inset-0 z-50 flex items-end justify-center sm:items-center bg-black/40"
+        @click.self="showChat = false"
+      >
+        <div
+          class="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl h-[70vh] sm:h-[520px] flex flex-col"
+        >
+          <div
+            class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-2xl"
+          >
+            <div class="flex items-center gap-3">
+              <div
+                class="flex items-center justify-center w-10 h-10 overflow-hidden bg-gray-100 rounded-full shrink-0"
+              >
+                <img
+                  v-if="getMerchantLogo(jasa?.merchant?.logo_path)"
+                  :src="getMerchantLogo(jasa.merchant.logo_path)"
+                  alt="Logo Toko"
+                  class="object-cover w-full h-full"
+                />
+                <i v-else class="text-gray-400 pi pi-shop"></i>
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-gray-900">
+                  {{ jasa?.merchant?.name || "Penjual" }}
+                </p>
+                <p class="text-xs text-gray-500">Konsultasi Layanan</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="flex items-center justify-center w-8 h-8 text-gray-500 rounded-full hover:bg-gray-100"
+              @click="showChat = false"
+            >
+              <i class="text-sm pi pi-times"></i>
+            </button>
+          </div>
+
+          <div class="flex-1 p-3">
+            <ChatWindow :jasa-id="route.params.id" mode="buyer" />
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -432,11 +492,13 @@ import { useRoute, useRouter } from "vue-router";
 import api from "@/libs/axios.js";
 import { getImageUrl, getImageUrlJasa } from "@/libs/getImageUrl.js";
 import CalendarModal from "@/components/CalendarModal.vue";
+import ChatWindow from "@/components/common/ChatWindow.vue";
 
 const route = useRoute();
 const router = useRouter();
 const jasa = ref(null);
 const selectedImagePath = ref(null);
+const showChat = ref(false);
 
 const goBack = () => {
   router.back();
@@ -583,6 +645,29 @@ const serviceTypeLabel = computed(() => {
   if (t === "on_site") return "Ke Rumah/Lokasi Pelanggan";
   if (t === "online") return "Online";
   return t;
+});
+
+// ----- alamat merchant untuk service_type at_location -----
+const merchantAddress = computed(() => {
+  const merchant = jasa.value?.merchant;
+  if (!merchant) return '';
+
+  const primaryAddress = merchant.primary_address;
+  if (!primaryAddress) {
+    // Fallback ke field address atau alamat lama
+    return merchant.address || merchant.alamat || '';
+  }
+
+  // Format alamat lengkap dari primary_address
+  const parts = [
+    primaryAddress.detail,
+    primaryAddress.village,
+    primaryAddress.district,
+    primaryAddress.city,
+    primaryAddress.province,
+  ].filter(Boolean);
+
+  return parts.join(', ') || '';
 });
 
 // ----- harga display -----

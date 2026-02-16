@@ -88,6 +88,13 @@ const activeFilterCount = computed(() => {
   return count;
 });
 
+// Count draft jasas
+const draftJasasCount = computed(() => {
+  return jasas.value.filter((j) => j.status === 'draft').length;
+});
+
+const hasDraftJasas = computed(() => draftJasasCount.value > 0);
+
 // ✅ Use categories composable (declare before using categoryOptions)
 const { categoriesLevel1, loadingLevel1, fetchLevel1Categories } =
   useCategories();
@@ -800,14 +807,28 @@ const closeBulkStatusChangeModal = () => {
 // Helper: pilih cover image dari relasi baru atau fallback ke field legacy `image`
 const getPrimaryImageSrc = (jasaItem) => {
   if (!jasaItem) return "";
+  
   const images = jasaItem.images || [];
-  if (images.length) {
-    const image = images.find((img) => img.is_cover) || images[0];
-    return getImageUrlJasa(image?.path || image?.id || jasaItem.image);
+  
+  if (images.length > 0) {
+    // Cari gambar cover atau ambil yang pertama
+    const coverImage = images.find((img) => img.is_cover) || images[0];
+    
+    // Gunakan url/src_url dari backend jika tersedia
+    if (coverImage.url) return coverImage.url;
+    if (coverImage.src_url) return coverImage.src_url;
+    
+    // Fallback ke path atau id
+    if (coverImage.path) return getImageUrlJasa(coverImage.path);
+    if (coverImage.image_path) return getImageUrlJasa(coverImage.image_path);
+    if (coverImage.id) return getImageUrlJasa(coverImage.id);
   }
+  
+  // Fallback ke field legacy `image` jika ada
   if (jasaItem.image) {
     return getImageUrlJasa(jasaItem.image);
   }
+  
   return "";
 };
 
@@ -886,6 +907,38 @@ const selectConversation = (conversation) => {
 
     <!-- Data Table -->
     <div v-else>
+      <!-- Draft Warning Banner -->
+      <div
+        v-if="hasDraftJasas"
+        class="flex items-start gap-4 p-4 mb-6 border-l-4 rounded-lg bg-amber-50 border-amber-400"
+      >
+        <div class="flex-shrink-0 mt-0.5">
+          <svg
+            class="w-6 h-6 text-amber-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
+          </svg>
+        </div>
+        <div class="flex-1">
+          <h3 class="mb-1 text-base font-semibold text-amber-800">
+            ⚠️ Anda memiliki {{ draftJasasCount }} jasa yang belum dipublikasikan
+          </h3>
+          <p class="text-sm text-amber-700">
+            Jasa dengan status <span class="font-semibold">DRAFT</span> tidak akan
+            terlihat oleh pelanggan. Silakan klik tombol "Publish" pada jasa
+            yang ingin Anda tampilkan kepada pelanggan.
+          </p>
+        </div>
+      </div>
+
       <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <button
           @click="goToCreate"
