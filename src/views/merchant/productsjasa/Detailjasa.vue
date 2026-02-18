@@ -48,7 +48,7 @@ const breadcrumbItems = computed(() => [
 
 const loading = ref(false);
 const jasa = ref(null);
-const currentImageIndex = ref(0);
+const currentImageIndex = ref(-1);
 const showAddOnsModal = ref(false);
 
 // Lock body scroll when modal is open
@@ -64,6 +64,7 @@ const coverImage = computed(() => {
 
 const currentImage = computed(() => {
   if (!jasa.value?.images) return null;
+  if (currentImageIndex.value < 0) return null;
   return jasa.value.images[currentImageIndex.value];
 });
 
@@ -136,14 +137,36 @@ const addOnPriceRange = computed(() => {
   return `+${formatPrice(min)} - ${formatPrice(max)}`;
 });
 
+const resolveJasaImageSrc = (image, fallbackImage = "") => {
+  if (image?.url) return image.url;
+  if (image?.src_url) return image.src_url;
+  if (image?.path) return getImageUrlJasa(image.path);
+  if (image?.image_path) return getImageUrlJasa(image.image_path);
+  if (image?.id) return getImageUrlJasa(image.id);
+  if (fallbackImage) return getImageUrlJasa(fallbackImage);
+  return "";
+};
+
 // Main image src: pakai relasi images dulu, fallback ke field legacy `image`
 const mainImageSrc = computed(() => {
   if (!jasa.value) return "";
 
   const images = jasa.value.images || [];
-  if (images.length) {
+
+  // Default utama: samakan dengan index/create (legacy cover path)
+  // Navigasi galeri baru dipakai setelah user memilih thumbnail/arrow.
+  if (currentImageIndex.value < 0 && jasa.value.image) {
+    return getImageUrlJasa(jasa.value.image);
+  }
+
+  if (images.length && currentImageIndex.value >= 0) {
     const img = images[currentImageIndex.value] || images[0];
-    return getImageUrlJasa(img?.path || img?.id || jasa.value.image);
+    return resolveJasaImageSrc(img, jasa.value.image);
+  }
+
+  if (images.length) {
+    const coverImage = images.find((img) => img?.is_cover) || images[0];
+    return resolveJasaImageSrc(coverImage, jasa.value.image);
   }
 
   if (jasa.value.image) {
@@ -177,16 +200,20 @@ const formatPrice = (price) => {
 
 const nextImage = () => {
   if (!jasa.value?.images) return;
+  if (!jasa.value.images.length) return;
+  const baseIndex = currentImageIndex.value < 0 ? 0 : currentImageIndex.value;
   currentImageIndex.value =
-    (currentImageIndex.value + 1) % jasa.value.images.length;
+    (baseIndex + 1) % jasa.value.images.length;
 };
 
 const prevImage = () => {
   if (!jasa.value?.images) return;
+  if (!jasa.value.images.length) return;
+  const baseIndex = currentImageIndex.value < 0 ? 0 : currentImageIndex.value;
   currentImageIndex.value =
-    currentImageIndex.value === 0
+    baseIndex === 0
       ? jasa.value.images.length - 1
-      : currentImageIndex.value - 1;
+      : baseIndex - 1;
 };
 
 const selectImage = (index) => {
@@ -225,9 +252,8 @@ const loadDetail = async () => {
     );
     jasa.value = data;
 
-    if (jasa.value?.images && jasa.value.images.length > 0) {
-      currentImageIndex.value = 0;
-    }
+    // Default tampilan gunakan `jasa.image` agar konsisten dengan index/create.
+    currentImageIndex.value = -1;
 
     console.log("[Detail] Jasa loaded", jasa.value);
   } catch (err) {
@@ -411,8 +437,8 @@ const getSelectionTypeLabel = (group) => {
                 class="relative flex items-center justify-center overflow-hidden transition border rounded-lg aspect-square bg-gray-50"
               >
                 <img
-                  v-if="image.id || image.path"
-                  :src="getImageUrlJasa(image.path || image.id)"
+                  v-if="resolveJasaImageSrc(image, jasa.image)"
+                  :src="resolveJasaImageSrc(image, jasa.image)"
                   :alt="`${jasa.title} ${index + 1}`"
                   class="object-contain max-w-full max-h-full"
                   @error="(e) => (e.target.style.display = 'none')"

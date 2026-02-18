@@ -597,14 +597,14 @@ const routes = [
       //   },
       // },
 
-      // {
-      //   path: "orders",
-      //   name: "Merchant - Orders",
-      //   component: () => import("@/views/merchant/orders/Index.vue"),
-      //   meta: {
-      //     title: "Orders",
-      //   },
-      // },
+      {
+        path: "orders",
+        name: "Merchant - Orders",
+        component: () => import("@/views/merchant/orders/Index.vue"),
+        meta: {
+          title: "Pesanan",
+        },
+      },
 
       // ===========================
       // Profil UMKM

@@ -31,14 +31,14 @@
             type="button"
             class="relative flex-shrink-0 w-14 h-14 rounded-md overflow-hidden border text-[10px] bg-gray-50 focus:outline-none focus:ring-1 focus:ring-[#FFA30E] focus:ring-offset-1"
             :class="[
-              (getImageUrlJasa(img.path || img.url || img.image) === selectedImagePath) || (!selectedImagePath && img.is_cover)
+              (resolveJasaAssetSrc(img) === selectedImagePath) || (!selectedImagePath && img.is_cover)
                 ? 'border-[#FFA30E]'
                 : 'border-gray-200'
             ]"
             @click="onSelectGalleryImage(img)"
           >
             <img
-              :src="getImageUrlJasa(img.path || img.url || img.image)"
+              :src="resolveJasaAssetSrc(img)"
               class="object-cover w-full h-full"
               @error="onImgError($event, 'gallery')"
             />
@@ -76,14 +76,14 @@
               type="button"
               class="relative flex-shrink-0 w-14 h-14 rounded-md overflow-hidden border text-[10px] bg-gray-50 focus:outline-none focus:ring-1 focus:ring-[#FFA30E] focus:ring-offset-1"
               :class="[
-                (getImageUrlJasa(img.path || img.url || img.image) === selectedImagePath) || (!selectedImagePath && img.is_cover)
+                (resolveJasaAssetSrc(img) === selectedImagePath) || (!selectedImagePath && img.is_cover)
                   ? 'border-[#FFA30E]'
                   : 'border-gray-200'
               ]"
               @click="onSelectGalleryImage(img)"
             >
               <img
-                :src="getImageUrlJasa(img.path || img.url || img.image)"
+                :src="resolveJasaAssetSrc(img)"
                 class="object-cover w-full h-full"
                 @error="onImgError($event, 'gallery')"
               />
@@ -605,28 +605,39 @@ const initActiveTime = () => {
 };
 
 // ----- gambar jasa -----
+const resolveJasaAssetSrc = (img) => {
+  if (!img) return "";
+  if (img.src_url) return img.src_url;
+  if (img.url) return img.url;
+  if (img.path) return getImageUrlJasa(img.path);
+  if (img.image) return getImageUrlJasa(img.image);
+  if (img.id) return getImageUrlJasa(img.id);
+  return "";
+};
+
 const jasaImage = computed(() => {
   if (selectedImagePath.value) return selectedImagePath.value;
 
   if (!jasa.value) return "";
 
-  // Cek dari array images (prioritas cover image)
-  if (jasa.value.images && jasa.value.images.length > 0) {
-    const coverImg =
-      jasa.value.images.find((img) => img.is_cover) || jasa.value.images[0];
-    return getImageUrlJasa(coverImg?.path || coverImg?.url || coverImg?.image);
-  }
-
-  // Fallback ke field image lama (string path atau nama file)
+  // Prioritas utama samakan dengan halaman merchant index/create
   if (jasa.value.image) {
     return getImageUrlJasa(jasa.value.image);
   }
+
+  // Fallback ke array images (cover image)
+  if (jasa.value.images && jasa.value.images.length > 0) {
+    const coverImg =
+      jasa.value.images.find((img) => img.is_cover) || jasa.value.images[0];
+    return resolveJasaAssetSrc(coverImg);
+  }
+
   return "";
 });
 
 const onSelectGalleryImage = (img) => {
   if (!img) return;
-  const src = getImageUrlJasa(img.path || img.url || img.image);
+  const src = resolveJasaAssetSrc(img);
   if (src) {
     selectedImagePath.value = src;
   }

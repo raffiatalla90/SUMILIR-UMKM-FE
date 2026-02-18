@@ -653,28 +653,6 @@ const formatPrice = (min, max) => {
   return `${formatCompact(min)} - ${formatCompact(max)}`;
 };
 
-// Format operating days
-const dayLabels = {
-  1: "Sen",
-  2: "Sel",
-  3: "Rab",
-  4: "Kam",
-  5: "Jum",
-  6: "Sab",
-  7: "Min",
-};
-
-const formatOperatingDays = (operatingDays) => {
-  if (!operatingDays) return "-";
-  const days = operatingDays
-    .split(",")
-    .map((d) => parseInt(d.trim()))
-    .filter((d) => !isNaN(d));
-  if (days.length === 0) return "-";
-  if (days.length === 7) return "Setiap Hari";
-  return days.map((d) => dayLabels[d] || d).join(", ");
-};
-
 // Format tanggal & jam jasa (created_at / updated_at)
 const formatJasaDateTime = (value) => {
   if (!value) return "-";
@@ -807,6 +785,11 @@ const closeBulkStatusChangeModal = () => {
 // Helper: pilih cover image dari relasi baru atau fallback ke field legacy `image`
 const getPrimaryImageSrc = (jasaItem) => {
   if (!jasaItem) return "";
+
+  // Prioritas 1: cover utama yang disinkronkan backend saat create/edit
+  if (jasaItem.image) {
+    return getImageUrlJasa(jasaItem.image);
+  }
   
   const images = jasaItem.images || [];
   
@@ -822,11 +805,6 @@ const getPrimaryImageSrc = (jasaItem) => {
     if (coverImage.path) return getImageUrlJasa(coverImage.path);
     if (coverImage.image_path) return getImageUrlJasa(coverImage.image_path);
     if (coverImage.id) return getImageUrlJasa(coverImage.id);
-  }
-  
-  // Fallback ke field legacy `image` jika ada
-  if (jasaItem.image) {
-    return getImageUrlJasa(jasaItem.image);
   }
   
   return "";
@@ -873,8 +851,30 @@ const selectConversation = (conversation) => {
 </script>
 
 <template>
-  <div class="p-6">
-    <div class="mb-6">
+  <div class="min-h-screen p-4 bg-gray-50 sm:p-6">
+    <!-- Mobile Header -->
+    <div
+      class="fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-4 bg-white border-b border-gray-100 sm:hidden"
+    >
+      <button
+        @click="emit('toggle-sidebar')"
+        class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100"
+      >
+        <i class="pi pi-bars"></i>
+      </button>
+      <div class="text-center">
+        <h1 class="text-base font-semibold text-gray-900">Daftar Jasa</h1>
+        <p class="text-xs text-gray-500 truncate max-w-[180px]">
+          {{ currentMerchantName }}
+        </p>
+      </div>
+      <div class="w-10 h-10"></div>
+    </div>
+
+    <!-- Spacer for fixed mobile header -->
+    <div class="h-20 sm:hidden"></div>
+
+    <div class="hidden mb-6 sm:block">
       <h1 class="text-3xl font-bold text-gray-900">Daftar Jasa</h1>
       <p class="mt-1 text-sm text-gray-600">
         <i class="mr-1 pi pi-shop text-merchant-primary"></i>
@@ -1086,16 +1086,6 @@ const selectConversation = (conversation) => {
                     Harga Mulai
                   </span>
                 </div>
-              </div>
-
-              <!-- Hari Layanan -->
-              <div class="flex items-start gap-2">
-                <i
-                  class="mt-1 text-xs pi pi-calendar text-merchant-primary"
-                ></i>
-                <span class="text-gray-700">{{
-                  formatOperatingDays(jasa.operating_days)
-                }}</span>
               </div>
 
               <!-- Tanggal Upload & Edit -->

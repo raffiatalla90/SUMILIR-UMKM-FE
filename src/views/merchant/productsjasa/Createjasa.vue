@@ -13,6 +13,31 @@ import api from "@/libs/axios";
 
 // File uploads
 const imageFiles = ref([]);
+const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024;
+const ALLOWED_IMAGE_EXTENSIONS = /\.(jpe?g|png|webp)$/i;
+
+const isAllowedImageFile = (file) => {
+  const mime = String(file?.type || "").toLowerCase();
+  if (["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(mime)) {
+    return true;
+  }
+  return ALLOWED_IMAGE_EXTENSIONS.test(String(file?.name || ""));
+};
+
+const validateSelectedImages = (files) => {
+  for (const file of files || []) {
+    if (!isAllowedImageFile(file)) {
+      return `${file.name}: format harus JPG/PNG/WEBP`;
+    }
+    if (!file.size || file.size <= 0) {
+      return `${file.name}: file tidak valid`;
+    }
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+      return `${file.name}: ukuran maksimal 2MB`;
+    }
+  }
+  return "";
+};
 
 const getNewImagePreviewUrl = (file) => {
   return URL.createObjectURL(file);
@@ -63,9 +88,12 @@ const breadcrumbItems = computed(() => [
 const loading = ref(false);
 const jasaCategories = ref([]);
 const jasaSubcategories = ref([]);
+const formKey = ref(0);
 
 // LocalStorage key for form draft
-const FORM_DRAFT_KEY = `jasa-create-draft-${currentMerchantSlug.value}`;
+const FORM_DRAFT_KEY = computed(
+  () => `jasa-create-draft-${currentMerchantSlug.value || "default"}`
+);
 
 // Form data
 const formData = ref({
@@ -80,141 +108,7 @@ const formData = ref({
   special_notes: "",
   payment_methods: "cod",
   status: "draft",
-  operating_days: "1,2,3,4,5,6,7", // Default semua hari
-  operating_times: "", // Optional: format "08.00,08.30,09.00"
 });
-
-// Waktu layanan options
-const timeOptions = [
-  // Pagi
-  { value: "06.00", label: "06.00", period: "morning" },
-  { value: "06.30", label: "06.30", period: "morning" },
-  { value: "07.00", label: "07.00", period: "morning" },
-  { value: "07.30", label: "07.30", period: "morning" },
-  { value: "08.00", label: "08.00", period: "morning" },
-  { value: "08.30", label: "08.30", period: "morning" },
-  { value: "09.00", label: "09.00", period: "morning" },
-  { value: "09.30", label: "09.30", period: "morning" },
-  { value: "10.00", label: "10.00", period: "morning" },
-  { value: "10.30", label: "10.30", period: "morning" },
-  { value: "11.00", label: "11.00", period: "morning" },
-  { value: "11.30", label: "11.30", period: "morning" },
-  // Siang
-  { value: "12.00", label: "12.00", period: "afternoon" },
-  { value: "12.30", label: "12.30", period: "afternoon" },
-  { value: "13.00", label: "13.00", period: "afternoon" },
-  { value: "13.30", label: "13.30", period: "afternoon" },
-  { value: "14.00", label: "14.00", period: "afternoon" },
-  { value: "14.30", label: "14.30", period: "afternoon" },
-  { value: "15.00", label: "15.00", period: "afternoon" },
-  { value: "15.30", label: "15.30", period: "afternoon" },
-  { value: "16.00", label: "16.00", period: "afternoon" },
-  { value: "16.30", label: "16.30", period: "afternoon" },
-  { value: "17.00", label: "17.00", period: "afternoon" },
-  // Malam
-  { value: "17.30", label: "17.30", period: "evening" },
-  { value: "18.00", label: "18.00", period: "evening" },
-  { value: "18.30", label: "18.30", period: "evening" },
-  { value: "19.00", label: "19.00", period: "evening" },
-  { value: "19.30", label: "19.30", period: "evening" },
-  { value: "20.00", label: "20.00", period: "evening" },
-  { value: "20.30", label: "20.30", period: "evening" },
-  { value: "21.00", label: "21.00", period: "evening" },
-];
-
-const morningTimes = timeOptions.filter((t) => t.period === "morning");
-const afternoonTimes = timeOptions.filter((t) => t.period === "afternoon");
-const eveningTimes = timeOptions.filter((t) => t.period === "evening");
-
-// Computed untuk selected times
-const selectedTimes = computed(() => {
-  if (!formData.value.operating_times) return [];
-  return formData.value.operating_times
-    .split(",")
-    .map((t) => t.trim())
-    .filter((t) => t);
-});
-
-// Toggle time selection
-const toggleTime = (timeValue) => {
-  const current = [...selectedTimes.value];
-  const index = current.indexOf(timeValue);
-  if (index > -1) {
-    current.splice(index, 1);
-  } else {
-    current.push(timeValue);
-  }
-  // Sort by time
-  current.sort((a, b) => a.localeCompare(b));
-  formData.value.operating_times = current.join(",");
-};
-
-// Select all times in a period
-const selectAllPeriod = (period) => {
-  const periodTimes = timeOptions
-    .filter((t) => t.period === period)
-    .map((t) => t.value);
-  const current = [...selectedTimes.value];
-  const allSelected = periodTimes.every((t) => current.includes(t));
-
-  if (allSelected) {
-    // Deselect all in this period
-    formData.value.operating_times = current
-      .filter((t) => !periodTimes.includes(t))
-      .join(",");
-  } else {
-    // Select all in this period
-    const newTimes = [...new Set([...current, ...periodTimes])];
-    newTimes.sort((a, b) => a.localeCompare(b));
-    formData.value.operating_times = newTimes.join(",");
-  }
-};
-
-// Check if all times in period are selected
-const isAllPeriodSelected = (period) => {
-  const periodTimes = timeOptions
-    .filter((t) => t.period === period)
-    .map((t) => t.value);
-  return periodTimes.every((t) => selectedTimes.value.includes(t));
-};
-
-// Hari layanan options
-const dayOptions = [
-  { value: 1, label: "Senin" },
-  { value: 2, label: "Selasa" },
-  { value: 3, label: "Rabu" },
-  { value: 4, label: "Kamis" },
-  { value: 5, label: "Jumat" },
-  { value: 6, label: "Sabtu" },
-  { value: 7, label: "Minggu" },
-];
-
-// Computed untuk selected days
-const selectedDays = computed(() => {
-  if (!formData.value.operating_days) return [];
-  return formData.value.operating_days
-    .split(",")
-    .map((d) => parseInt(d.trim()))
-    .filter((d) => !isNaN(d));
-});
-
-// Toggle day selection
-const toggleDay = (dayValue) => {
-  const current = selectedDays.value;
-  const index = current.indexOf(dayValue);
-  if (index > -1) {
-    // Remove if already selected (but keep at least 1 day)
-    if (current.length > 1) {
-      current.splice(index, 1);
-    }
-  } else {
-    // Add if not selected
-    current.push(dayValue);
-  }
-  // Sort and update
-  current.sort((a, b) => a - b);
-  formData.value.operating_days = current.join(",");
-};
 
 // Validation schema
 const validationSchema = yup.object({
@@ -327,7 +221,7 @@ watch(
   formData,
   (newData) => {
     try {
-      localStorage.setItem(FORM_DRAFT_KEY, JSON.stringify(newData));
+      localStorage.setItem(FORM_DRAFT_KEY.value, JSON.stringify(newData));
     } catch (error) {
       console.error("Failed to save form draft:", error);
     }
@@ -338,7 +232,7 @@ watch(
 // Restore form data from localStorage
 const restoreFormDraft = () => {
   try {
-    const saved = localStorage.getItem(FORM_DRAFT_KEY);
+    const saved = localStorage.getItem(FORM_DRAFT_KEY.value);
     if (saved) {
       const parsed = JSON.parse(saved);
       formData.value = { ...formData.value, ...parsed };
@@ -347,6 +241,8 @@ const restoreFormDraft = () => {
       if (parsed.jasa_category_id) {
         loadSubcategories(parsed.jasa_category_id);
       }
+
+      formKey.value += 1;
       
       toast.info("Data form sebelumnya berhasil dipulihkan");
     }
@@ -358,7 +254,7 @@ const restoreFormDraft = () => {
 // Clear form draft from localStorage
 const clearFormDraft = () => {
   try {
-    localStorage.removeItem(FORM_DRAFT_KEY);
+    localStorage.removeItem(FORM_DRAFT_KEY.value);
   } catch (error) {
     console.error("Failed to clear form draft:", error);
   }
@@ -370,8 +266,19 @@ const handleImageChange = (e) => {
   if (files && files.length) {
     const picked = Array.from(files);
     const merged = [...imageFiles.value];
+    const rejected = [];
 
     picked.forEach((file) => {
+      if (!isAllowedImageFile(file)) {
+        rejected.push(`${file.name}: format harus JPG/PNG/WEBP`);
+        return;
+      }
+
+      if (file.size > MAX_IMAGE_SIZE_BYTES) {
+        rejected.push(`${file.name}: ukuran maksimal 2MB`);
+        return;
+      }
+
       const exists = merged.some(
         (f) =>
           f.name === file.name &&
@@ -382,6 +289,10 @@ const handleImageChange = (e) => {
         merged.push(file);
       }
     });
+
+    if (rejected.length > 0) {
+      toast.error(rejected[0]);
+    }
 
     imageFiles.value = merged;
     console.log(
@@ -441,18 +352,20 @@ const submitForm = async (values) => {
     });
     // Paksa status selalu disimpan sebagai draft saat create
     fd.set("status", "draft");
-    // Tambahkan operating_days dan operating_times dari formData
-    fd.append("operating_days", formData.value.operating_days);
-    fd.append("operating_times", formData.value.operating_times || "");
 
     // Append images[] if any
     if (imageFiles.value && imageFiles.value.length) {
+      const fileError = validateSelectedImages(imageFiles.value);
+      if (fileError) {
+        toast.error(fileError);
+        return;
+      }
+
       imageFiles.value.forEach((file) => fd.append("images[]", file));
     }
 
     console.log("Submitting jasa with FormData:", {
       ...values,
-      operating_days: formData.value.operating_days,
       images_count: imageFiles.value.length,
     });
 
@@ -519,6 +432,7 @@ onMounted(() => {
         </div>
 
         <Form
+          :key="formKey"
           :validationSchema="validationSchema"
           @submit="submitForm"
           :initialValues="formData"
@@ -548,7 +462,7 @@ onMounted(() => {
                     <TextField
                       :name="field.name"
                       :modelValue="field.value"
-                      @update:modelValue="field.onChange"
+                      @update:modelValue="(val) => { field.onChange(val); formData.title = val; }"
                       @blur="field.onBlur"
                       label="Nama Layanan"
                       placeholder="Contoh: Jasa Kebersihan Rumah"
@@ -600,7 +514,10 @@ onMounted(() => {
                       >Deskripsi Layanan</label
                     >
                     <textarea
-                      v-bind="field"
+                      :name="field.name"
+                      :value="field.value"
+                      @input="(e) => { field.onChange(e.target.value); formData.description = e.target.value; }"
+                      @blur="field.onBlur"
                       placeholder="Jelaskan detail tentang layanan Anda secara lengkap..."
                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows="4"
@@ -642,9 +559,11 @@ onMounted(() => {
                           (e) => {
                             const newValue = parseCurrency(e.target.value);
                             field.onChange(newValue);
+                            formData.fixed_price = newValue;
                             // Auto-clear base_price jika fixed_price diisi
                             if (newValue > 0 && values?.base_price > 0) {
                               setFieldValue('base_price', 0);
+                              formData.base_price = 0;
                             }
                           }
                         "
@@ -689,9 +608,11 @@ onMounted(() => {
                           (e) => {
                             const newValue = parseCurrency(e.target.value);
                             field.onChange(newValue);
+                            formData.base_price = newValue;
                             // Auto-clear fixed_price jika base_price diisi
                             if (newValue > 0 && values?.fixed_price > 0) {
                               setFieldValue('fixed_price', 0);
+                              formData.fixed_price = 0;
                             }
                           }
                         "
@@ -825,225 +746,6 @@ onMounted(() => {
                   v-model="formData.service_type"
                   required
                 />
-              </div>
-            </div>
-
-            <!-- 5. HARI LAYANAN -->
-            <div
-              class="p-5 border border-pink-100 bg-linear-to-r from-pink-50 to-transparent rounded-xl"
-            >
-              <div class="flex items-center gap-3 mb-5">
-                <div
-                  class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white bg-pink-500 rounded-full"
-                >
-                  5
-                </div>
-                <h2 class="text-lg font-bold text-gray-800">Hari Layanan</h2>
-              </div>
-              <div>
-                <label class="block mb-3 text-sm font-medium text-gray-700"
-                  >Pilih Hari Buka Layanan</label
-                >
-                <div class="flex flex-wrap gap-2">
-                  <button
-                    v-for="day in dayOptions"
-                    :key="day.value"
-                    type="button"
-                    @click="toggleDay(day.value)"
-                    class="px-4 py-2 text-sm font-medium transition-all duration-200 border rounded-lg"
-                    :class="[
-                      selectedDays.includes(day.value)
-                        ? 'bg-merchant-primary text-white border-merchant-primary'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary',
-                    ]"
-                  >
-                    {{ day.label }}
-                  </button>
-                </div>
-                <p class="mt-2 text-xs text-gray-500">
-                  <i class="mr-1 pi pi-info-circle"></i>
-                  Klik untuk memilih/membatalkan hari. Minimal pilih 1 hari.
-                </p>
-              </div>
-            </div>
-
-            <!-- 6. JAM LAYANAN (OPTIONAL) -->
-            <div
-              class="p-5 border bg-linear-to-r from-cyan-50 to-transparent rounded-xl border-cyan-100"
-            >
-              <div class="flex items-center gap-3 mb-3">
-                <div
-                  class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white rounded-full bg-cyan-500"
-                >
-                  6
-                </div>
-                <h2 class="text-lg font-bold text-gray-800">
-                  Jam Layanan
-                  <span class="text-sm font-normal text-gray-500"
-                    >(Opsional)</span
-                  >
-                </h2>
-              </div>
-              
-              <!-- Info Box -->
-              <div class="p-4 mb-4 border-l-4 rounded-r-lg bg-cyan-50/50 border-cyan-400">
-                <div class="flex gap-2">
-                  <svg class="flex-shrink-0 w-5 h-5 mt-0.5 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                  <div class="flex-1">
-                    <p class="text-sm font-medium text-cyan-900">Cara Penggunaan:</p>
-                    <ul class="mt-1.5 space-y-1 text-sm text-cyan-800">
-                      <li class="flex items-start gap-1">
-                        <span class="mt-1">•</span>
-                        <span><strong>Klik tombol waktu</strong> untuk memilih jam layanan yang tersedia</span>
-                      </li>
-                      <li class="flex items-start gap-1">
-                        <span class="mt-1">•</span>
-                        <span>Gunakan <strong>"Pilih Semua"</strong> untuk memilih seluruh waktu dalam periode</span>
-                      </li>
-                      <li class="flex items-start gap-1">
-                        <span class="mt-1">•</span>
-                        <span><strong>Kosongkan</strong> jika layanan tersedia sepanjang hari tanpa batasan jam</span>
-                      </li>
-                    </ul>
-                    <p class="mt-2 text-xs text-cyan-700 italic">Contoh: Jika layanan cuci motor hanya tersedia pagi dan siang, pilih jam-jam pada periode tersebut</p>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Pagi -->
-              <div class="mb-4">
-                <div class="flex items-center justify-between mb-2">
-                  <div class="flex items-center gap-2">
-                    <span class="text-lg">🌅</span>
-                    <span class="text-sm font-semibold text-gray-700"
-                      >Pagi (06.00 - 11.30)</span
-                    >
-                  </div>
-                  <button
-                    type="button"
-                    @click="selectAllPeriod('morning')"
-                    class="px-3 py-1 text-xs font-medium transition-colors rounded-md text-merchant-primary bg-merchant-primary/10 hover:bg-merchant-primary/20"
-                  >
-                    {{
-                      isAllPeriodSelected("morning")
-                        ? "❌ Hapus Semua"
-                        : "✓ Pilih Semua"
-                    }}
-                  </button>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                  <button
-                    v-for="time in morningTimes"
-                    :key="time.value"
-                    type="button"
-                    @click="toggleTime(time.value)"
-                    class="px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-200 shadow-sm"
-                    :class="[
-                      selectedTimes.includes(time.value)
-                        ? 'bg-merchant-primary text-white border-merchant-primary shadow-md transform scale-105'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary hover:shadow',
-                    ]"
-                  >
-                    {{ time.label }}
-                  </button>
-                </div>
-              </div>
-
-              <!-- Siang -->
-              <div class="mb-4">
-                <div class="flex items-center justify-between mb-2">
-                  <div class="flex items-center gap-2">
-                    <span class="text-lg">☀️</span>
-                    <span class="text-sm font-semibold text-gray-700"
-                      >Siang (12.00 - 17.00)</span
-                    >
-                  </div>
-                  <button
-                    type="button"
-                    @click="selectAllPeriod('afternoon')"
-                    class="px-3 py-1 text-xs font-medium transition-colors rounded-md text-merchant-primary bg-merchant-primary/10 hover:bg-merchant-primary/20"
-                  >
-                    {{
-                      isAllPeriodSelected("afternoon")
-                        ? "❌ Hapus Semua"
-                        : "✓ Pilih Semua"
-                    }}
-                  </button>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                  <button
-                    v-for="time in afternoonTimes"
-                    :key="time.value"
-                    type="button"
-                    @click="toggleTime(time.value)"
-                    class="px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-200 shadow-sm"
-                    :class="[
-                      selectedTimes.includes(time.value)
-                        ? 'bg-merchant-primary text-white border-merchant-primary shadow-md transform scale-105'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary hover:shadow',
-                    ]"
-                  >
-                    {{ time.label }}
-                  </button>
-                </div>
-              </div>
-
-              <!-- Malam -->
-              <div class="mb-3">
-                <div class="flex items-center justify-between mb-2">
-                  <div class="flex items-center gap-2">
-                    <span class="text-lg">🌙</span>
-                    <span class="text-sm font-semibold text-gray-700"
-                      >Malam (17.30 - 21.00)</span
-                    >
-                  </div>
-                  <button
-                    type="button"
-                    @click="selectAllPeriod('evening')"
-                    class="px-3 py-1 text-xs font-medium transition-colors rounded-md text-merchant-primary bg-merchant-primary/10 hover:bg-merchant-primary/20"
-                  >
-                    {{
-                      isAllPeriodSelected("evening")
-                        ? "❌ Hapus Semua"
-                        : "✓ Pilih Semua"
-                    }}
-                  </button>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                  <button
-                    v-for="time in eveningTimes"
-                    :key="time.value"
-                    type="button"
-                    @click="toggleTime(time.value)"
-                    class="px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-200 shadow-sm"
-                    :class="[
-                      selectedTimes.includes(time.value)
-                        ? 'bg-merchant-primary text-white border-merchant-primary shadow-md transform scale-105'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary hover:shadow',
-                    ]"
-                  >
-                    {{ time.label }}
-                  </button>
-                </div>
-              </div>
-
-              <!-- Status Info -->
-              <div class="flex items-center gap-2 p-3 mt-4 rounded-lg" :class="selectedTimes.length > 0 ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-200'">
-                <svg v-if="selectedTimes.length > 0" class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <svg v-else class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <p class="text-sm font-medium" :class="selectedTimes.length > 0 ? 'text-green-700' : 'text-gray-600'">
-                  {{
-                    selectedTimes.length > 0
-                      ? `✓ ${selectedTimes.length} waktu dipilih - Layanan tersedia pada waktu yang dipilih`
-                      : "⏰ Tidak ada waktu dipilih - Layanan tersedia sepanjang hari"
-                  }}
-                </p>
               </div>
             </div>
 

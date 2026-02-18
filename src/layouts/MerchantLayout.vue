@@ -85,11 +85,11 @@ const menuItems = computed(() => {
       icon: "pi-chart-bar",
       route: `/merchant-center/${currentMerchantSlug.value}/dashboard`,
     },
-    // {
-    //   label: "Pesanan",
-    //   icon: "pi-shopping-bag",
-    //   route: `/merchant-center/${currentMerchantSlug.value}/orders`,
-    // },
+    {
+       label: "Pesanan",
+       icon: "pi-shopping-bag",
+       route: `/merchant-center/${currentMerchantSlug.value}/orders`,
+    },
 
     productOrServiceItem,
     // {
