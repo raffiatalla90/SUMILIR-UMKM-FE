@@ -61,8 +61,8 @@ useBodyScrollLock(isAnyModalOpen);
 // Table config
 const tableColumns = [
   { key: "logo", label: "Logo", sortable: false },
-  { key: "name", label: "Merchant", sortable: true },
-  { key: "owner", label: "Owner", sortable: false },
+  { key: "name", label: "UMKM", sortable: true },
+  { key: "owner", label: "Pemilik", sortable: false },
   { key: "segmentation", label: "Segmentasi", sortable: false },
   { key: "products_count", label: "Produk", sortable: true },
   { key: "status", label: "Status", sortable: true },

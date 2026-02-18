@@ -58,18 +58,6 @@ const userInitial = computed(() => {
 
 const showMerchantSelector = computed(() => merchantsCount.value > 1);
 
-// ✅ Watch route changes untuk update active merchant
-watch(
-  () => (route && route.params ? route.params : {}),
-  (params) => {
-    if (!params?.merchantSlug) return;
-    const merchant = authStore.getMerchantBySlug(String(params.merchantSlug));
-    if (!merchant?.id) return;
-    authStore.setActiveMerchant(Number(merchant.id));
-  },
-  { immediate: true }
-);
-
 // ✅ Menu items dengan dynamic merchantId
 const menuItems = computed(() => {
   const segmentationId = Number(currentMerchant.value?.segmentation?.id);

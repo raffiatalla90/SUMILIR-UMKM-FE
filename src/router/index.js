@@ -301,6 +301,24 @@ const routes = [
             component: () => import("@/views/admin/users/merchants/Detail.vue"),
             meta: { title: "Merchant Detail | Admin SUMILIR" },
           },
+          {
+            path: "admin-system",
+            name: "Admin - Admin System List",
+            component: () => import("@/views/admin/users/admin-system/Index.vue"),
+            meta: { requiresSystemAdmin: true },
+          },
+          {
+            path: "admin-system/create",
+            name: "Admin - Admin System Create",
+            component: () => import("@/views/admin/users/admin-system/Create.vue"),
+            meta: { requiresSystemAdmin: true },
+          },
+          {
+            path: "admin-system/:id",
+            name: "Admin - Admin System Detail",
+            component: () => import("@/views/admin/users/admin-system/Detail.vue"),
+            meta: { requiresSystemAdmin: true },
+          },
         ],
       },
 
