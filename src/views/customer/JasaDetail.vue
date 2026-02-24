@@ -500,6 +500,10 @@ const jasa = ref(null);
 const selectedImagePath = ref(null);
 const showChat = ref(false);
 
+// Fallback images for error handling
+const fallbackHeader = 'data:image/svg+xml,%3Csvg width="400" height="300" xmlns="http://www.w3.org/2000/svg"%3E%3Crect fill="%23E5E7EB" width="400" height="300"/%3E%3C/svg%3E';
+const fallbackLogo = 'data:image/svg+xml,%3Csvg width="100" height="100" xmlns="http://www.w3.org/2000/svg"%3E%3Crect fill="%23E5E7EB" width="100" height="100"/%3E%3C/svg%3E';
+
 const goBack = () => {
   router.back();
 };
@@ -740,8 +744,8 @@ const formatPaymentMethods = (methods) => {
 
 onMounted(async () => {
   try {
-    console.log("[JasaDetail] Fetching jasa ID:", route.params.id);
-    const { data } = await api.get(`/api/public/jasas/${route.params.id}`);
+    console.log("[JasaDetail] Fetching jasa slug:", route.params.slug);
+    const { data } = await api.get(`/api/public/jasas/${route.params.slug}`);
     console.log("[JasaDetail] Jasa data:", data);
     jasa.value = data;
     

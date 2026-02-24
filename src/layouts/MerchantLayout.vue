@@ -102,6 +102,16 @@ const menuItems = computed(() => {
       icon: "pi-tag",
       route: `/merchant-center/${currentMerchantSlug.value}/vouchers`,
     },
+    {
+      label: "Review & Ulasan",
+      icon: "pi-star",
+      route: `/merchant-center/${currentMerchantSlug.value}/reviews`,
+    },
+    {
+      label: "Chat dengan Pembeli",
+      icon: "pi-comments",
+      route: `/merchant-center/${currentMerchantSlug.value}/chats`,
+    },
     // {
     //   label: "Events",
     //   icon: "pi-calendar",

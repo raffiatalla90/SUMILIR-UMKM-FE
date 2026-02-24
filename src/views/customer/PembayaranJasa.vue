@@ -152,42 +152,6 @@
           </div>
         </section>
 
-        <!-- Jadwal (auto filled) -->
-        <section
-          class="p-4 border border-gray-100 shadow-sm bg-white/95 rounded-2xl sm:p-5"
-        >
-          <h2
-            class="flex items-center gap-2 mb-3 text-sm font-semibold text-gray-900 sm:text-base"
-          >
-            <i class="pi pi-calendar text-merchant-primary"></i>
-            Jadwal Layanan
-          </h2>
-          <div class="space-y-3">
-            <div class="relative">
-              <input
-                v-model="form.tanggalLabel"
-                readonly
-                @click="calendarOpen = true"
-                class="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-merchant-primary/70 focus:border-merchant-primary"
-              />
-              <span class="absolute -translate-y-1/2 right-3 top-1/2">
-                <i class="text-gray-400 pi pi-calendar"></i>
-              </span>
-            </div>
-            <div class="relative">
-              <input
-                v-model="form.waktu"
-                readonly
-                @click="openTimeOptions = true"
-                class="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-merchant-primary/70 focus:border-merchant-primary"
-              />
-              <span class="absolute -translate-y-1/2 right-3 top-1/2">
-                <i class="text-gray-400 pi pi-clock"></i>
-              </span>
-            </div>
-          </div>
-        </section>
-
         <!-- Promo -->
         <section
           class="overflow-hidden border border-gray-100 shadow-sm bg-white/95 rounded-2xl"
@@ -641,13 +605,6 @@
       </div>
     </transition>
 
-    <!-- Kalender Pilih Tanggal (mengikuti hari operasional jasa) -->
-    <CalendarModal
-      v-model="selectedDate"
-      :open="calendarOpen"
-      :operating-days="jasaOperatingDays || ''"
-      @close="calendarOpen = false"
-    />
   </div>
 </template>
 
@@ -657,7 +614,6 @@ import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useUserStore } from "@/stores/user";
 import api from "@/libs/axios.js";
-import CalendarModal from "@/components/CalendarModal.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -694,13 +650,7 @@ const form = ref({
   waktu: order.waktu || "—",
 });
 
-// ===== Jadwal (tanggal & jam) =====
-const calendarOpen = ref(false);
-const selectedDate = ref(order.tglISO ? new Date(order.tglISO) : new Date());
-
-// Simpan data jadwal & kontak dari jasa
-const jasaOperatingDays = ref("");
-const jasaOperatingTimes = ref("");
+// Simpan data kontak dari jasa
 const jasaWhatsappLink = ref("");
 
 // Helper tanggal
@@ -790,56 +740,6 @@ function fmtTanggal(iso) {
     year: "numeric",
   });
 }
-
-// Default times jika tidak ada operating_times dari jasa
-const defaultTimes = {
-  morning: ["06.00", "08.30", "10.00"],
-  afternoon: ["13.00", "15.00", "17.00"],
-  evening: ["18.00", "19.00", "20.00"],
-};
-
-// Kelompokkan jam layanan dari operating_times jasa
-const times = computed(() => {
-  if (!jasaOperatingTimes.value) return defaultTimes;
-
-  const operatingTimes = jasaOperatingTimes.value
-    .split(",")
-    .map((t) => t.trim())
-    .filter((t) => t);
-
-  if (operatingTimes.length === 0) return defaultTimes;
-
-  const morning = operatingTimes.filter((t) => {
-    const hour = parseInt(t.split(".")[0]);
-    return hour >= 6 && hour < 12;
-  });
-
-  const afternoon = operatingTimes.filter((t) => {
-    const hour = parseInt(t.split(".")[0]);
-    return hour >= 12 && hour < 18;
-  });
-
-  const evening = operatingTimes.filter((t) => {
-    const hour = parseInt(t.split(".")[0]);
-    return hour >= 18;
-  });
-
-  return { morning, afternoon, evening };
-});
-
-// Bottom sheet pilih jam
-const openTimeOptions = ref(false);
-
-// Sinkron selectedDate -> form tanggal
-watch(
-  selectedDate,
-  (val) => {
-    if (!val) return;
-    form.value.tanggalISO = val.toISOString();
-    form.value.tanggalLabel = fmtTanggal(form.value.tanggalISO);
-  },
-  { immediate: true },
-);
 
 // ===== Promo State =====
 const openPromo = ref(false);
@@ -1029,8 +929,6 @@ onMounted(async () => {
   try {
     const { data } = await api.get(`/api/public/jasas/${order.id}`);
     const payload = data?.data ?? data;
-    jasaOperatingDays.value = payload?.operating_days || "";
-    jasaOperatingTimes.value = payload?.operating_times || "";
 
     // Prioritas sumber nomor WhatsApp penjual:
     // 1) Link khusus di jasa (whatsapp_link)
@@ -1081,27 +979,8 @@ onMounted(async () => {
     if (!serviceType.value && payload?.service_type) {
       serviceType.value = payload.service_type;
     }
-
-    // Jika tanggal dari query kosong, set default ke hari pertama yang tersedia dalam 7 hari ke depan
-    if (!order.tglISO && jasaOperatingDays.value) {
-      const operatingDays = jasaOperatingDays.value
-        .split(",")
-        .map((d) => parseInt(d.trim()))
-        .filter((d) => !Number.isNaN(d));
-
-      const today = atMidnight(new Date());
-      for (let i = 0; i < 7; i++) {
-        const checkDate = addDays(today, i);
-        const jsDay = checkDate.getDay(); // 0 Minggu..6 Sabtu
-        const dbDay = jsDay === 0 ? 7 : jsDay; // 1 Senin..7 Minggu
-        if (operatingDays.includes(dbDay)) {
-          selectedDate.value = checkDate;
-          break;
-        }
-      }
-    }
   } catch (e) {
-    console.error("[PembayaranJasa] Gagal mengambil data jasa untuk jadwal", e);
+    console.error("[PembayaranJasa] Gagal mengambil data jasa", e);
   }
 });
 

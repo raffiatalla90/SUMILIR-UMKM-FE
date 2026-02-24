@@ -266,7 +266,7 @@
           <router-link
             v-for="jasa in jasaList"
             :key="jasa.id"
-            :to="{ name: 'JasaDetail', params: { id: jasa.id } }"
+            :to="{ name: 'JasaDetail', params: { slug: jasa.slug || String(jasa.id) } }"
             class="block overflow-hidden transition bg-white border border-gray-200 shadow-sm rounded-2xl hover:shadow-md"
           >
             <!-- Gambar -->
@@ -459,7 +459,7 @@
       leave-to-class="translate-y-full opacity-0"
     >
       <div
-        v-if="showChat && selectedJasaId"
+        v-if="showChat && selectedJasaId && isJasaMerchant"
         class="fixed inset-0 z-50 flex items-end justify-center sm:items-center bg-black/40"
         @click.self="showChat = false"
       >
@@ -726,6 +726,20 @@ const hasMyCoordinates = computed(() => {
   );
 });
 
+// Helper function to get segmentation ID
+function getSegmentationId(data) {
+  const raw = data?.segmentation_id ?? data?.segmentation?.id ?? null;
+  const num = Number(raw);
+  return Number.isFinite(num) ? num : null;
+}
+
+// Check if merchant is a Jasa (Service) merchant
+// Only Jasa merchants (segmentation id = 3) should have chat feature
+const isJasaMerchant = computed(() => {
+  const segId = getSegmentationId(merchant.value);
+  return segId === 3;
+});
+
 function toRad(deg) {
   return (deg * Math.PI) / 180;
 }
@@ -928,8 +942,12 @@ const resolveJasaImage = (jasa) => {
   return null;
 };
 
-// Buka chat dengan jasa pertama dari merchant
+// Buka chat dengan jasa pertama dari merchant (hanya untuk jasa merchants)
 const openChat = () => {
+  if (!isJasaMerchant.value) {
+    console.warn("Chat hanya tersedia untuk UMKM Jasa");
+    return;
+  }
   if (jasaList.value.length > 0) {
     selectedJasaId.value = jasaList.value[0].id;
     showChat.value = true;
@@ -940,12 +958,6 @@ const goToProductDetail = (product) => {
   if (!product?.slug) return;
   router.push({ name: "Product Detail", params: { slug: product.slug } });
 };
-
-function getSegmentationId(data) {
-  const raw = data?.segmentation_id ?? data?.segmentation?.id ?? null;
-  const num = Number(raw);
-  return Number.isFinite(num) ? num : null;
-}
 
 function parseLaravelPaginator(payload) {
   // Support: array (legacy) OR Laravel paginator object

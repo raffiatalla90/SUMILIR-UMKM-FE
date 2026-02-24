@@ -851,54 +851,49 @@ const selectConversation = (conversation) => {
 </script>
 
 <template>
-  <div class="min-h-screen p-4 bg-gray-50 sm:p-6">
+  <div class="min-h-screen bg-gray-50">
     <!-- Mobile Header -->
     <div
-      class="fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-4 bg-white border-b border-gray-100 sm:hidden"
+      class="fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-6 bg-white border-b border-gray-100 sm:static sm:px-6 sm:mb-6"
     >
-      <button
-        @click="emit('toggle-sidebar')"
-        class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100"
-      >
-        <i class="pi pi-bars"></i>
-      </button>
-      <div class="text-center">
-        <h1 class="text-base font-semibold text-gray-900">Daftar Jasa</h1>
-        <p class="text-xs text-gray-500 truncate max-w-[180px]">
-          {{ currentMerchantName }}
-        </p>
+      <div class="flex items-center gap-3">
+        <button
+          @click="emit('toggle-sidebar')"
+          class="flex items-center justify-center w-10 h-10 rounded-full sm:hidden hover:bg-gray-100"
+        >
+          <i class="pi pi-bars"></i>
+        </button>
+        <div>
+          <h1 class="text-base font-semibold text-gray-900 sm:text-3xl sm:font-bold">Daftar Jasa</h1>
+          <p class="mt-1 text-xs sm:text-sm text-gray-600">
+            <i class="mr-1 pi pi-shop"></i>
+            {{ currentMerchantName }}
+          </p>
+        </div>
       </div>
-      <div class="w-10 h-10"></div>
     </div>
 
     <!-- Spacer for fixed mobile header -->
-    <div class="h-20 sm:hidden"></div>
+    <div class="h-24 sm:h-0"></div>
 
-    <div class="hidden mb-6 sm:block">
-      <h1 class="text-3xl font-bold text-gray-900">Daftar Jasa</h1>
-      <p class="mt-1 text-sm text-gray-600">
-        <i class="mr-1 pi pi-shop text-merchant-primary"></i>
-        {{ currentMerchantName }}
-      </p>
-    </div>
-
-    <!-- Loading State -->
+    <div class="px-4 sm:px-6">
+      <!-- Loading State -->
     <div v-if="loading" class="flex items-center justify-center py-20">
       <div
-        class="w-12 h-12 border-b-2 rounded-full animate-spin border-merchant-primary"
+        class="w-10 h-10 border-4 rounded-full border-gray-200 border-t-blue-500 animate-spin"
       ></div>
     </div>
 
     <!-- Empty State -->
     <div
       v-else-if="jasas.length === 0"
-      class="py-20 text-center bg-white rounded-lg shadow"
+      class="py-20 text-center bg-white rounded-2xl shadow-sm border border-gray-100"
     >
       <i class="block mb-4 text-6xl text-gray-300 pi pi-inbox"></i>
       <p class="mb-6 text-lg text-gray-500">Belum ada jasa yang ditambahkan</p>
       <button
         @click="goToCreate"
-        class="inline-flex items-center gap-2 px-6 py-3 font-medium text-white transition rounded-lg shadow-md bg-merchant-primary hover:bg-merchant-primary/90"
+        class="inline-flex items-center gap-2 px-6 py-3 font-medium text-white transition rounded-lg bg-blue-500 hover:bg-blue-600"
       >
         <i class="text-sm pi pi-plus"></i>
         <span>Tambah Jasa Baru</span>
@@ -910,7 +905,7 @@ const selectConversation = (conversation) => {
       <!-- Draft Warning Banner -->
       <div
         v-if="hasDraftJasas"
-        class="flex items-start gap-4 p-4 mb-6 border-l-4 rounded-lg bg-amber-50 border-amber-400"
+        class="flex items-start gap-4 p-4 mb-6 border-l-4 rounded-2xl bg-yellow-50 border-l-yellow-400 border border-yellow-200 shadow-sm"
       >
         <div class="flex-shrink-0 mt-0.5">
           <svg
@@ -1288,6 +1283,7 @@ const selectConversation = (conversation) => {
           </div>
         </div>
       </transition>
+    </div>
 
       <!-- Pagination -->
       <div v-if="totalPages > 1" class="flex justify-center gap-2 mt-4">

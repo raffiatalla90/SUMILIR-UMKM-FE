@@ -48,6 +48,7 @@ const offerPrice = ref("");
 const offerNote = ref("");
 const sending = ref(false);
 const sendingOffer = ref(false);
+const error = ref("");
 
 const headerTitle = computed(() => {
   if (props.title) return props.title;
@@ -97,13 +98,26 @@ function formatCurrency(value) {
 }
 
 async function initConversation() {
-  if (props.conversationId) {
-    await loadConversation(props.conversationId);
-  } else if (props.jasaId) {
-    const convo = await startConversation(props.jasaId);
-    if (convo?.id) {
-      await loadConversation(convo.id);
+  try {
+    if (props.conversationId) {
+      console.log('Loading existing conversation:', props.conversationId);
+      await loadConversation(props.conversationId);
+    } else if (props.jasaId) {
+      console.log('Starting new conversation with jasa:', props.jasaId);
+      const convo = await startConversation(props.jasaId);
+      console.log('Conversation started:', convo);
+      if (convo?.id) {
+        console.log('Loading conversation details:', convo.id);
+        await loadConversation(convo.id);
+        console.log('Conversation loaded, activeConversation:', activeConversation.value);
+      } else {
+        console.error('Failed to start conversation - no ID returned');
+        error.value = 'Gagal membuat percakapan. Silakan coba lagi.';
+      }
     }
+  } catch (err) {
+    console.error('Error initializing conversation:', err);
+    error.value = err.response?.data?.message || err.message || 'Gagal memuat percakapan. Silakan coba lagi.';
   }
 }
 
@@ -123,9 +137,14 @@ watch(
 async function handleSend() {
   if (!messageText.value.trim() || !activeConversation.value) return;
   sending.value = true;
+  error.value = '';
   try {
-    await sendMessage(activeConversation.value.id, messageText.value.trim());
+    const role = isBuyer.value ? 'buyer' : 'merchant';
+    await sendMessage(activeConversation.value.id, messageText.value.trim(), role);
     messageText.value = "";
+  } catch (err) {
+    console.error('Error sending message:', err);
+    error.value = err.response?.data?.message || err.message || 'Gagal mengirim pesan. Silakan coba lagi.';
   } finally {
     sending.value = false;
   }
@@ -306,6 +325,11 @@ async function handleRespondOffer(messageId, accept) {
 
     <!-- Footer: form pesan + offer -->
     <div class="border-t border-gray-200 bg-gray-50 px-3 py-2 space-y-2">
+      <!-- Error message -->
+      <div v-if="error" class="p-2 bg-red-50 border border-red-200 rounded text-xs text-red-600">
+        {{ error }}
+      </div>
+      
       <!-- Input pesan -->
       <div class="flex items-end gap-2">
         <textarea
@@ -318,11 +342,12 @@ async function handleRespondOffer(messageId, accept) {
         <Button
           variant="merchant"
           size="sm"
-          :loading="sending"
-          :disabled="!messageText.trim() || !activeConversation"
+          :loading="sending || loading"
+          :disabled="!messageText.trim() || !activeConversation || loading"
           @click="handleSend"
+          title="Klik untuk mengirim pesan"
         >
-          Kirim
+          {{ loading ? 'Memuat...' : 'Kirim' }}
         </Button>
       </div>
 

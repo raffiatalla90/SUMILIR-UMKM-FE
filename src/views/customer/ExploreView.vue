@@ -847,7 +847,7 @@ const jasaToProductCard = (jasa) => {
 const cardItems = computed(() => {
   return (filteredJasaList.value || []).map((jasa) => ({
     key: `jasa-${getJasaId(jasa)}`,
-    to: { name: "JasaDetail", params: { id: getJasaId(jasa) } },
+    to: { name: "JasaDetail", params: { slug: jasa.slug || String(getJasaId(jasa)) } },
     product: jasaToProductCard(jasa),
   }));
 });

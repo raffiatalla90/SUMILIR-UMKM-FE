@@ -257,17 +257,7 @@ const tabCounts = computed(() => ({
         <!-- Order Header -->
         <div class="flex items-start justify-between mb-3 pb-3 border-b border-gray-100">
           <div class="flex-1">
-            <div class="flex gap-2 items-center mb-1">
-              <p class="text-sm font-semibold text-gray-900">{{ order.id }}</p>
-              <span
-                :class="[
-                  'px-2 py-1 text-xs font-medium rounded-full',
-                  getStatusBadge(order.status)?.color,
-                ]"
-              >
-                {{ getStatusBadge(order.status)?.label }}
-              </span>
-            </div>
+            <p class="text-sm font-semibold text-gray-900 mb-1">{{ order.id }}</p>
             <p class="text-sm text-gray-600">{{ order.customer }}</p>
           </div>
           <div class="text-right">
@@ -281,36 +271,7 @@ const tabCounts = computed(() => ({
           <p class="text-sm text-gray-700">{{ order.items }}</p>
         </div>
 
-        <!-- Payment Status & Fulfillment Status -->
-        <div class="flex items-center justify-between mb-3 pb-3 border-b border-gray-100 gap-4">
-          <div class="text-xs">
-            <span class="text-gray-600">Pembayaran: </span>
-            <span
-              :class="[
-                'font-medium',
-                order.paymentStatus === 'Lunas'
-                  ? 'text-emerald-600'
-                  : order.paymentStatus === 'Menunggu'
-                    ? 'text-amber-600'
-                    : 'text-red-600',
-              ]"
-            >
-              {{ order.paymentStatus }}
-            </span>
-          </div>
-          <div class="text-xs">
-            <span class="text-gray-600">Status: </span>
-            <span
-              :class="[
-                'font-medium px-2 py-0.5 rounded inline-flex items-center gap-1',
-                getFulfillmentBadge(order.fulfillmentStatus, order.type)?.color,
-              ]"
-            >
-              <i :class="['pi text-xs', getFulfillmentBadge(order.fulfillmentStatus, order.type)?.icon]"></i>
-              {{ getFulfillmentBadge(order.fulfillmentStatus, order.type)?.label }}
-            </span>
-          </div>
-        </div>
+
 
         <!-- Actions -->
         <div class="flex items-center justify-between gap-2">

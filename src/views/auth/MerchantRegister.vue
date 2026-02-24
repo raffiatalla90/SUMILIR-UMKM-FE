@@ -59,6 +59,7 @@
               name="name"
               label="Nama Usaha"
               placeholder="Masukkan nama usaha"
+              autocomplete="organization"
               class="sm:col-span-2"
             />
 
@@ -67,6 +68,7 @@
               name="phone"
               label="Nomor Telepon"
               placeholder="Contoh: 081234567890"
+              autocomplete="tel"
               class="sm:col-span-2"
             />
 
@@ -92,6 +94,7 @@
               v-model="provinceId"
               :loading="provincesLoading"
               :options="provinces.map((p) => ({ value: p.id, label: p.name }))"
+              autocomplete="address-level1"
             />
 
             <SelectField
@@ -102,6 +105,7 @@
               :loading="citiesLoading"
               :disabled="!provinceId"
               :options="cities.map((r) => ({ value: r.id, label: r.name }))"
+              autocomplete="address-level2"
             />
 
             <SelectField
@@ -112,6 +116,7 @@
               :loading="districtsLoading"
               :disabled="!cityId"
               :options="districts.map((d) => ({ value: d.id, label: d.name }))"
+              autocomplete="address-level3"
             />
 
             <SelectField
@@ -122,6 +127,7 @@
               :loading="villagesLoading"
               :disabled="!districtId"
               :options="villages.map((v) => ({ value: v.id, label: v.name }))"
+              autocomplete="address-level4"
             />
 
             <!-- Pemetaan Lokasi -->
@@ -154,6 +160,7 @@
               name="address.detail"
               label="Alamat Lengkap"
               placeholder="Nama jalan, RT/RW, patokan, dsb (opsional)"
+              autocomplete="address-line1"
               class="sm:col-span-2"
             />
 
@@ -254,18 +261,6 @@ const schema = yup.object({
       .typeError("Desa wajib dipilih")
       .required("Desa wajib dipilih"),
     detail: yup.string().nullable(),
-    latitude: yup
-      .number()
-      .typeError("Latitude tidak valid")
-      .min(-90)
-      .max(90)
-      .required("Latitude wajib diisi"),
-    longitude: yup
-      .number()
-      .typeError("Longitude tidak valid")
-      .min(-180)
-      .max(180)
-      .required("Longitude wajib diisi"),
   }),
 });
 
@@ -395,10 +390,26 @@ const handleRegister = async (values) => {
   isLoading.value = true;
   errorMessage.value = "";
 
+  // Validate coordinates from MapPicker
+  const lat = Number(latitude.value);
+  const lng = Number(longitude.value);
+  
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+    errorMessage.value = "Latitude tidak valid. Gunakan peta untuk memilih lokasi.";
+    isLoading.value = false;
+    return;
+  }
+  
+  if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
+    errorMessage.value = "Longitude tidak valid. Gunakan peta untuk memilih lokasi.";
+    isLoading.value = false;
+    return;
+  }
+
   try {
     const payload = {
       name: values.name,
-      phone: values.phone, // NEW
+      phone: values.phone,
       description: values.description,
       segmentation_id: Number(values.segmentation_id),
       address: {
@@ -407,16 +418,18 @@ const handleRegister = async (values) => {
         district_id: Number(values.address.district_id),
         village_id: Number(values.address.village_id),
         detail: values.address.detail || null,
-        latitude: Number(values.address.latitude),
-        longitude: Number(values.address.longitude),
+        latitude: lat,
+        longitude: lng,
       },
     };
+    
+    console.log("Submitting merchant registration:", payload);
     await registerMerchant(payload);
 
     toast.success("Pendaftaran UMKM dikirim. Menunggu persetujuan admin.", {
       timeout: 3000,
-    }); // NEW
-    router.push("/dashboard");
+    });
+    router.push("/");
   } catch (error) {
     console.error("Register merchant error:", error);
     if (error.response?.data?.errors) {
