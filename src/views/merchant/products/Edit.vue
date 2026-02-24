@@ -7,7 +7,6 @@ import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import Breadcrumb from "@/components/merchant/Breadcrumb.vue";
 import { useAuthStore } from "@/stores/auth";
-import api from "@/libs/axios";
 import { Form, useForm } from "vee-validate";
 import * as yup from "yup";
 import TextField from "@/components/forms/TextField.vue";
@@ -27,6 +26,7 @@ import { useProductAddons } from "@/composables/product/forms/useProductAddons";
 // ======================================================
 // BASIC SETUP
 // ======================================================
+const isDev = import.meta.env.DEV;
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
@@ -87,7 +87,7 @@ const {
 // ======================================================
 // PRODUCT FETCH
 // ======================================================
-const { fetchProductDetail } = useProducts();
+const { fetchProductDetail, editProduct } = useProducts();
 
 // ======================================================
 // COMPOSABLES (CREATE-STYLE)
@@ -379,7 +379,9 @@ const fetchProductData = async () => {
     );
     await populateFormFromProduct(product);
   } catch (error) {
-    console.error("Fetch product error:", error);
+    if (isDev) {
+      console.error("Fetch product error:", error);
+    }
     toast.error("Gagal memuat produk");
     router.push(`/merchant-center/${currentMerchantSlug.value}/products`);
   } finally {
@@ -685,18 +687,9 @@ const onSubmit = handleSubmit(
         formData.append("_method", "PUT");
       }
 
-      // ✅ API Call
-      await api.post(
-        `/api/merchant/${currentMerchantSlug.value}/products/${productSlug.value}`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        },
-      );
+      // ✅ API Call (via composable)
+      await editProduct(currentMerchantSlug.value, productSlug.value, formData);
 
-      toast.success("Produk berhasil diperbarui");
       // Redirect setelah update
       router.push(`/merchant-center/${currentMerchantSlug.value}/products`);
     } catch (error) {

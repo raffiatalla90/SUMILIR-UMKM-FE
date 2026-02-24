@@ -61,15 +61,6 @@ export function useCart() {
     return result;
   };
 
-  const resolveImageUrl = (snapshotImage, coverImageUrl) => {
-    if (typeof snapshotImage === "string") return snapshotImage;
-    if (snapshotImage && typeof snapshotImage === "object") {
-      return snapshotImage.src_url ?? snapshotImage.url ?? "";
-    }
-    if (typeof coverImageUrl === "string") return coverImageUrl;
-    return "";
-  };
-
   // =====================
   // STATE
   // =====================
@@ -109,13 +100,14 @@ export function useCart() {
           quantity: item.quantity,
           stock: item.live.max_stock,
 
-          slug: item.product_details.slug,
+          slug: item.product_details?.slug,
           name: item.snapshot.name,
 
-          image: resolveImageUrl(
-            item.snapshot.image,
-            item.product_details.cover_image?.src_url,
-          ),
+          image:
+            item.product_details?.cover_image?.src_url ||
+            item.snapshot.image?.src_url ||
+            item.snapshot.image ||
+            "",
 
           unitPrice: item.changes?.price_changed
             ? Number(item.live.unit_price)
@@ -154,7 +146,7 @@ export function useCart() {
 
           isOverStock: item.changes?.is_over_stock ?? false,
           isUnavailable:
-            item.product_details.status !== "published" ||
+            item.product_details?.status !== "published" ||
             item.live.max_stock === 0,
 
           productDetails: item.product_details,

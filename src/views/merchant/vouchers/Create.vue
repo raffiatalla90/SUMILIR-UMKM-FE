@@ -15,6 +15,7 @@ import { useVouchers } from "@/composables/useVouchers";
 
 const { createMerchantVoucher, loading } = useVouchers();
 
+const isDev = import.meta.env.DEV; // ✅ ADD: Development mode check
 const toast = useToast();
 const router = useRouter();
 const route = useRoute();
@@ -138,7 +139,9 @@ watch(usage_limit_per_user, (v) => setFieldValue("usage_limit_per_user", v));
 // SUBMIT HANDLER
 // ============================================================
 const onSubmit = veeHandleSubmit(async () => {
-  console.log("SUBMIT TERPANGGIL");
+  if (isDev) {
+    console.log("SUBMIT TERPANGGIL");
+  }
 
   if (!isValidMerchant.value) {
     toast.error("Merchant tidak valid");

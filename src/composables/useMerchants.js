@@ -1,11 +1,12 @@
 import { ref } from "vue";
 import api from "@/libs/axios";
-import * as merchantApi from "@/services/api/merchant";
+import merchantService from "@/services/api/merchant";
 import { useToast } from "vue-toastification";
 
 export function useMerchants() {
   const isDev = import.meta.env.DEV;
   const merchants = ref([]);
+  const merchant = ref(null);
   const loading = ref(false);
   const pagination = ref({
     current_page: 1,
@@ -89,11 +90,86 @@ export function useMerchants() {
     }
   };
 
+  // =========================
+  // UMKM Owner API
+  // =========================
+  const fetchMerchantProfile = async (merchantSlug) => {
+    loading.value = true;
+    try {
+      if (!merchantSlug) {
+        throw new Error("Missing merchantSlug");
+      }
+
+      const data = await merchantService.getMerchantProfile(
+        String(merchantSlug),
+      );
+      merchant.value = data.data;
+      return merchant.value;
+    } catch (error) {
+      if (isDev) {
+        console.error("[useMerchants] Owner fetch failed:", error);
+      }
+      toast.error("Gagal memuat data merchant");
+      merchant.value = null;
+      throw error;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const updateMerchantProfile = async (merchantSlug, payload) => {
+    loading.value = true;
+    try {
+      if (!merchantSlug) {
+        throw new Error("Missing merchantSlug");
+      }
+
+      const data = await merchantService.updateMerchantProfile(
+        String(merchantSlug),
+        payload,
+      );
+      toast.success("Profil merchant berhasil diperbarui!");
+      merchant.value = data.data ?? merchant.value;
+      return merchant.value;
+    } catch (error) {
+      if (isDev) {
+        console.error("[useMerchants] Owner update failed:", error);
+      }
+      toast.error("Gagal memperbarui profil merchant");
+      throw error;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const deleteMerchant = async (merchantSlug) => {
+    loading.value = true;
+    try {
+      if (!merchantSlug) {
+        throw new Error("Missing merchantSlug");
+      }
+
+      await merchantService.deleteMerchant(String(merchantSlug));
+      toast.success("Merchant berhasil dihapus!");
+      merchant.value = null;
+    } catch (error) {
+      if (isDev) {
+        console.error("[useMerchants] Owner delete failed:", error);
+      }
+      toast.error("Gagal menghapus merchant");
+      throw error;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  // =========================
   // Public API
+  // =========================
   const fetchPublicMerchants = async (params = {}) => {
     loading.value = true;
     try {
-      const data = await merchantApi.getPublicMerchants(params);
+      const data = await merchantService.getPublicMerchants(params);
       merchants.value = data.data || [];
       return merchants.value;
     } catch (error) {
@@ -106,14 +182,25 @@ export function useMerchants() {
       loading.value = false;
     }
   };
+
   return {
     merchants,
+    merchant,
     loading,
     pagination,
+
+    // Admin methods
     fetchMerchants,
     fetchMerchantDetail,
     approveMerchant,
     rejectMerchant,
+
+    // Public methods
     fetchPublicMerchants,
+
+    // UMKM Owner methods
+    fetchMerchantProfile,
+    updateMerchantProfile,
+    deleteMerchant,
   };
 }

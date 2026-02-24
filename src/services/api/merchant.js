@@ -27,9 +27,31 @@ export async function registerMerchant(payload, config = {}) {
   return data;
 }
 
-// Profile Customer
+const getMerchantProfile = async (merchantSlug) => {
+  const response = await api.get(`/api/merchant/${merchantSlug}/profile`);
+  return response.data;
+};
 
-export async function getMyMerchants(config = {}) {
-  const { data } = await api.get("/api/my-merchants", config);
-  return data;
-}
+const updateMerchantProfile = async (merchantSlug, payload) => {
+  const response = await api.post(
+    `/api/merchant/${merchantSlug}/update`,
+    payload,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    },
+  );
+  return response.data;
+};
+
+const deleteMerchant = async (merchantSlug) => {
+  const response = await api.delete(`/api/merchant/${merchantSlug}`);
+  return response.data;
+};
+
+export default {
+  getMerchantProfile,
+  updateMerchantProfile,
+  deleteMerchant,
+};

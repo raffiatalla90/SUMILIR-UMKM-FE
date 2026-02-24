@@ -1,4 +1,7 @@
 <script setup>
+// =========================
+// IMPORTS
+// =========================
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
@@ -7,7 +10,6 @@ import { Form, useForm } from "vee-validate";
 import * as yup from "yup";
 import MobileHeader from "@/components/customer/MobileHeader.vue";
 import AppButton from "@/components/common/Button.vue";
-
 import MapPicker from "@/components/forms/MapPicker.vue";
 import SelectField from "@/components/forms/SelectField.vue";
 import TextField from "@/components/forms/TextField.vue";
@@ -19,6 +21,10 @@ import {
 } from "@/services/api/location";
 import { getMyAddress, upsertMyAddress } from "@/services/api/address";
 
+// =========================
+// STATE
+// =========================
+const isDev = import.meta.env.DEV; // ✅ ADD: Development mode check
 const router = useRouter();
 const toast = useToast();
 const userStore = useUserStore();
@@ -59,16 +65,25 @@ const { values, setFieldValue } = useForm({
 const lat = ref(null);
 const lng = ref(null);
 
-const fullAddressPreview = computed(() => {
-  const parts = [values.detail].filter(Boolean);
-  return parts.join(", ");
-});
+// =========================
+// COMPUTED
+// =========================
+const provinceOptions = computed(() =>
+  (provinces.value ?? []).map((p) => ({ value: String(p.id), label: p.name })),
+);
+const cityOptions = computed(() =>
+  (cities.value ?? []).map((c) => ({ value: String(c.id), label: c.name })),
+);
+const districtOptions = computed(() =>
+  (districts.value ?? []).map((d) => ({ value: String(d.id), label: d.name })),
+);
+const villageOptions = computed(() =>
+  (villages.value ?? []).map((v) => ({ value: String(v.id), label: v.name })),
+);
 
-function normalizeId(value) {
-  if (value === null || value === undefined) return "";
-  return String(value);
-}
-
+// =========================
+// METHODS
+// =========================
 const goBack = () => {
   router.back();
 };
@@ -125,6 +140,66 @@ async function loadVillages(districtId) {
   }
 }
 
+async function prefillFromApi() {
+  const res = await getMyAddress();
+  const address = res?.data ?? null;
+  if (!address) return;
+
+  prefilling.value = true;
+  try {
+    const provinceId = address.province_id;
+    setFieldValue("province_id", provinceId);
+    await loadCities(provinceId);
+
+    const cityId = address.city_id;
+    setFieldValue("city_id", cityId);
+    await loadDistricts(cityId);
+
+    const districtId = address.district_id;
+    setFieldValue("district_id", districtId);
+    await loadVillages(districtId);
+
+    setFieldValue("village_id", address.village_id);
+    setFieldValue("detail", address.detail ?? "");
+
+    lat.value = address.latitude ?? null;
+    lng.value = address.longitude ?? null;
+  } finally {
+    prefilling.value = false;
+  }
+}
+
+async function handleSave(formValues) {
+  saving.value = true;
+  try {
+    await upsertMyAddress({
+      province_id: Number(formValues.province_id),
+      city_id: Number(formValues.city_id),
+      district_id: Number(formValues.district_id),
+      village_id: Number(formValues.village_id),
+      detail: formValues.detail || null,
+      latitude: lat.value === "" ? null : lat.value,
+      longitude: lng.value === "" ? null : lng.value,
+    });
+    await userStore.fetchProfile();
+    toast.success("Alamat berhasil disimpan");
+    router.push("/profile");
+  } catch (error) {
+    if (isDev) {
+      console.error("Error saving address:", error);
+    }
+    const message =
+      error?.response?.data?.message ||
+      "Gagal menyimpan alamat. Silakan coba lagi.";
+    toast.error(message);
+  } finally {
+    saving.value = false;
+  }
+}
+
+// =========================
+// WATCHERS
+// =========================
 watch(
   () => values.province_id,
   async (provinceId, prev) => {
@@ -161,85 +236,22 @@ watch(
   },
 );
 
-async function prefillFromApi() {
-  const res = await getMyAddress();
-  const address = res?.data ?? null;
-  if (!address) return;
-
-  prefilling.value = true;
-  try {
-    const provinceId = normalizeId(address.province_id);
-    setFieldValue("province_id", provinceId);
-    await loadCities(provinceId);
-
-    const cityId = normalizeId(address.city_id);
-    setFieldValue("city_id", cityId);
-    await loadDistricts(cityId);
-
-    const districtId = normalizeId(address.district_id);
-    setFieldValue("district_id", districtId);
-    await loadVillages(districtId);
-
-    setFieldValue("village_id", normalizeId(address.village_id));
-    setFieldValue("detail", address.detail ?? "");
-
-    lat.value = address.latitude ?? null;
-    lng.value = address.longitude ?? null;
-  } finally {
-    prefilling.value = false;
-  }
-}
-
-async function handleSave(formValues) {
-  saving.value = true;
-  try {
-    await upsertMyAddress({
-      province_id: Number(formValues.province_id),
-      city_id: Number(formValues.city_id),
-      district_id: Number(formValues.district_id),
-      village_id: Number(formValues.village_id),
-      detail: formValues.detail || null,
-      latitude: lat.value === "" ? null : lat.value,
-      longitude: lng.value === "" ? null : lng.value,
-    });
-    await userStore.fetchProfile();
-    toast.success("Alamat berhasil disimpan");
-    router.push("/profile");
-  } catch (error) {
-    console.error("Error saving address:", error);
-    const message =
-      error?.response?.data?.message ||
-      "Gagal menyimpan alamat. Silakan coba lagi.";
-    toast.error(message);
-  } finally {
-    saving.value = false;
-  }
-}
-
+// =========================
+// LIFECYCLE
+// =========================
 onMounted(async () => {
   loading.value = true;
   try {
     await loadProvinces();
     await prefillFromApi();
   } catch (error) {
-    console.error("Error loading address page:", error);
+    if (isDev) {
+      console.error("Error loading address page:", error);
+    }
   } finally {
     loading.value = false;
   }
 });
-
-const provinceOptions = computed(() =>
-  (provinces.value ?? []).map((p) => ({ value: String(p.id), label: p.name })),
-);
-const cityOptions = computed(() =>
-  (cities.value ?? []).map((c) => ({ value: String(c.id), label: c.name })),
-);
-const districtOptions = computed(() =>
-  (districts.value ?? []).map((d) => ({ value: String(d.id), label: d.name })),
-);
-const villageOptions = computed(() =>
-  (villages.value ?? []).map((v) => ({ value: String(v.id), label: v.name })),
-);
 </script>
 
 <template>

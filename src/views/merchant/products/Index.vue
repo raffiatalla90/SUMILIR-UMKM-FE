@@ -1121,16 +1121,11 @@ const tableActions = [
           :loading="loadingFetchProducts"
           :columns="tableColumns"
           :selected-items="selectedProducts"
-          :select-all="selectAll"
           :current-page="currentPage"
           :total-pages="totalPages"
           :pagination-info="paginationInfo"
           empty-message="Tidak ada produk untuk ditampilkan."
           @update:selected-items="selectedProducts = $event"
-          @update:select-all="
-            selectAll = $event;
-            toggleSelectAll();
-          "
           @row-click="goToDetail"
           @page-change="goToPage"
           @next-page="nextPage"
@@ -1288,7 +1283,7 @@ const tableActions = [
       />
     </div>
     <div
-      v-else
+      v-else-if="!loadingFetchProducts && products.length === 0"
       class="py-10 text-sm text-center sm:hidden text-muted-foreground"
     >
       Tidak ada produk untuk ditampilkan.

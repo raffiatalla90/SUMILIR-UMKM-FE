@@ -23,7 +23,7 @@ export function useProducts() {
   let pendingRequest = null;
 
   /* =====================================================
-   * ADMIN MERCHANT
+   * UMKM OWNER METHODS
    * ===================================================== */
   const fetchProducts = async ({
     merchantSlug,
@@ -200,9 +200,75 @@ export function useProducts() {
     }
   };
 
-  const createProduct = async (merchantSlug, payload) => {};
+  const createProduct = async (merchantSlug, payload) => {
+    loading.value = true;
+    try {
+      if (!merchantSlug) throw new Error("merchantSlug diperlukan");
+      if (!payload) throw new Error("payload diperlukan");
 
-  const editProduct = async (merchantSlug, productSlug, payload) => {};
+      const res = await ProductService.createProduct(merchantSlug, payload);
+
+      // Normalize possible shapes
+      const created = res?.data?.data ?? res?.data ?? res;
+
+      // Optimistic update local list if it looks like a product object
+      if (created && typeof created === "object" && !Array.isArray(created)) {
+        const slug = created.slug;
+        if (slug && !products.value.some((p) => p?.slug === slug)) {
+          products.value = [created, ...products.value];
+          pagination.value.total = Number(pagination.value.total || 0) + 1;
+        }
+      }
+
+      toast.success("Produk berhasil ditambahkan");
+      return created;
+    } catch (error) {
+      if (isDev) {
+        console.error("[useProducts] createProduct failed:", error);
+      }
+      toast.error(error.response?.data?.message || "Gagal menambahkan produk");
+      throw error;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const editProduct = async (merchantSlug, productSlug, payload) => {
+    loading.value = true;
+    try {
+      if (!merchantSlug) throw new Error("merchantSlug diperlukan");
+      if (!productSlug) throw new Error("productSlug diperlukan");
+      if (!payload) throw new Error("payload diperlukan");
+
+      const res = await ProductService.editProduct(
+        merchantSlug,
+        productSlug,
+        payload,
+      );
+
+      const updated = res?.data?.data ?? res?.data ?? res;
+
+      // Try to keep local list in sync if possible
+      if (updated && typeof updated === "object" && !Array.isArray(updated)) {
+        const updatedSlug = updated.slug ?? productSlug;
+        const idx = products.value.findIndex((p) => p?.slug === updatedSlug);
+        if (idx !== -1) {
+          products.value[idx] = { ...products.value[idx], ...updated };
+        }
+      }
+
+      toast.success("Produk berhasil diperbarui");
+      return updated;
+    } catch (error) {
+      if (isDev) {
+        console.error("[useProducts] editProduct failed:", error);
+      }
+      toast.error(error.response?.data?.message || "Gagal memperbarui produk");
+      throw error;
+    } finally {
+      loading.value = false;
+    }
+  };
 
   const deleteProduct = async (merchantSlug, productSlug) => {
     loading.value = true;
@@ -594,15 +660,21 @@ export function useProducts() {
     loadingFetchProducts,
     loading,
     pagination,
+
+    // UMKM OWNER METHODS
     fetchProducts,
     fetchProductDetail,
-    fetchPublicProductDetail,
-    fetchPublicMerchantProducts,
+    createProduct,
+    editProduct,
     updateProductStatus,
     deleteProduct,
     bulkDeleteProducts,
     bulkUpdateStatus,
     exportPDF,
     exportExcel,
+
+    // PUBLIC METHODS
+    fetchPublicProductDetail,
+    fetchPublicMerchantProducts,
   };
 }

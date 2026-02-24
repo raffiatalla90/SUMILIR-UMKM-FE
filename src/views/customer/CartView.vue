@@ -155,7 +155,7 @@
             <!-- Product Image -->
             <div
               class="w-20 h-20 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0 group-hover:-translate-y-0.5 duration-200 transition-transform relative"
-              @click="goToProductPage(item.slug)"
+              @click="goToProductPage(item)"
             >
               <img
                 :src="item.image"
@@ -184,7 +184,7 @@
             <div class="flex-1 min-w-0">
               <h3
                 class="mb-1 text-sm font-semibold text-gray-900 transition-colors duration-200 group-hover:text-primary"
-                @click="goToProductPage(item.slug)"
+                @click="goToProductPage(item)"
               >
                 {{ item.name }}
               </h3>
@@ -203,7 +203,7 @@
               <!-- Variants -->
               <div
                 class="text-xs text-gray-600 space-y-0.5 mb-2"
-                @click="goToProductPage(item.slug)"
+                @click="goToProductPage(item)"
               >
                 <div class="font-medium">
                   Rp {{ formatIDR(item.unitPrice) }}
@@ -322,36 +322,6 @@
                 class="mt-1 text-xs text-amber-600"
               >
                 Stok tersisa {{ item.stock }}
-              </div>
-              <!-- ⚠️ CONFIGURATION ISSUE -->
-              <div
-                v-if="hasConfigurationIssue(item)"
-                class="flex items-start gap-2 p-2 mt-1 text-xs text-red-700 border border-red-200 rounded-lg bg-red-50"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  class="w-4 h-4 mt-0.5 text-red-500"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M8.485 2.495a1.5 1.5 0 012.53 0l6.514 10.857A1.5 1.5 0 0116.514 16H3.486a1.5 1.5 0 01-1.515-2.648L8.485 2.495zM10 12a.75.75 0 00-.75.75v.5a.75.75 0 001.5 0v-.5A.75.75 0 0010 12zm0-6a.75.75 0 00-.75.75v3a.75.75 0 001.5 0v-3A.75.75 0 0010 6z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-
-                <div class="flex-1">
-                  <p class="">Mohon tambahkan ulang ke keranjang</p>
-
-                  <p v-if="hasDeletedVariant(item)" class="font-semibold">
-                    Varian yang Anda pilih sudah tidak tersedia.
-                  </p>
-
-                  <p v-if="hasDeletedAddon(item)" class="font-semibold">
-                    Add-on yang Anda pilih sudah tidak tersedia.
-                  </p>
-                </div>
               </div>
             </div>
 
@@ -613,6 +583,9 @@
 </template>
 
 <script setup>
+// =========================
+// IMPORTS
+// =========================
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
@@ -625,7 +598,31 @@ import debounce from "lodash/debounce";
 import { useCart } from "@/composables/useCart";
 import { useCartStore } from "@/stores/cart";
 
+// =========================
+// STATE & COMPOSABLES
+// =========================
 const cartStore = useCartStore();
+const toast = useToast();
+const router = useRouter();
+const checkoutStore = useCheckoutStore();
+// Confirmation Modal
+const showConfirmModal = ref(false);
+const itemToRemove = ref(null);
+
+// Edit Variant Modal
+const showEditModal = ref(false);
+const editingItem = ref(null);
+const editingStoreId = ref(null);
+
+const tempAddons = ref([]);
+const editOptions = ref([]);
+const availableAddons = ref([]);
+const tempSelections = ref({});
+// Stock combinations for editing item
+const editStockCombinations = ref([]);
+
+// Selected Items
+const selectedItems = ref([]);
 
 const {
   cartStores,
@@ -640,6 +637,50 @@ const addonGroups = ref([]);
 
 const quantityDrafts = ref({}); // simpan nilai ketikan sementara
 const quantitySnapshots = ref({}); // rollback data
+
+// =========================
+// HELPER FUNCTIONS
+// =========================
+const isItemSelected = (itemId) => {
+  return selectedItems.value.includes(itemId);
+};
+
+// Toggle item selection (with store validation)
+const toggleItemSelection = (itemId, storeId) => {
+  const store = cartStores.value.find((s) => s.id === storeId);
+  if (!store) return;
+
+  const item = store.items.find((i) => i.id === itemId);
+  if (!item) return;
+
+  // ❌ BLOCK jika over stock
+  if (item.isOverStock) {
+    toast.warning(
+      "Jumlah melebihi stok. Silakan sesuaikan jumlah terlebih dahulu.",
+    );
+    return;
+  }
+
+  const index = selectedItems.value.indexOf(itemId);
+
+  if (index > -1) {
+    selectedItems.value.splice(index, 1);
+  } else {
+    const selectedStoreId = getSelectedStoreId();
+
+    if (selectedStoreId && selectedStoreId !== storeId) {
+      toast.warning(
+        `Tidak dapat memilih item dari toko berbeda.\nSilakan checkout toko "${getStoreName(
+          selectedStoreId,
+        )}" terlebih dahulu atau batalkan pilihan.`,
+      );
+      return;
+    }
+
+    selectedItems.value.push(itemId);
+  }
+};
+
 const getVariantStockByOption = (optionName, optionValue) => {
   return editStockCombinations.value
     .filter((c) => c.options[optionName] === optionValue)
@@ -746,6 +787,7 @@ const debounceUpdateQuantity = debounce(async (itemId) => {
     toast.error("Gagal mengubah jumlah");
   }
 }, 1000);
+
 const onQuantityBlur = (itemId) => {
   for (const store of cartStores.value) {
     const item = store.items.find((i) => i.id === itemId);
@@ -769,19 +811,9 @@ const onQuantityBlur = (itemId) => {
   }
 };
 
-const toast = useToast();
-const router = useRouter();
-const checkoutStore = useCheckoutStore();
-// Confirmation Modal
-const showConfirmModal = ref(false);
-const itemToRemove = ref(null);
-
-// Edit Variant Modal
-const showEditModal = ref(false);
-const editingItem = ref(null);
-const editingStoreId = ref(null);
-
-const tempAddons = ref([]);
+// =========================
+// LIFECYCLE
+// =========================
 
 onMounted(async () => {
   await fetchCart();
@@ -792,58 +824,6 @@ const isAnyModalOpen = computed(
   () => showConfirmModal.value || showEditModal.value,
 );
 useBodyScrollLock(isAnyModalOpen);
-
-// Available options with stock info (simulasi - nanti dari API)
-
-const editOptions = ref([]);
-const availableAddons = ref([]);
-const tempSelections = ref({});
-// Stock combinations for editing item
-const editStockCombinations = ref([]);
-
-// Selected Items
-const selectedItems = ref([]);
-
-// Check if item is selected
-const isItemSelected = (itemId) => {
-  return selectedItems.value.includes(itemId);
-};
-
-// Toggle item selection (with store validation)
-const toggleItemSelection = (itemId, storeId) => {
-  const store = cartStores.value.find((s) => s.id === storeId);
-  if (!store) return;
-
-  const item = store.items.find((i) => i.id === itemId);
-  if (!item) return;
-
-  // ❌ BLOCK jika over stock
-  if (item.isOverStock) {
-    toast.warning(
-      "Jumlah melebihi stok. Silakan sesuaikan jumlah terlebih dahulu.",
-    );
-    return;
-  }
-
-  const index = selectedItems.value.indexOf(itemId);
-
-  if (index > -1) {
-    selectedItems.value.splice(index, 1);
-  } else {
-    const selectedStoreId = getSelectedStoreId();
-
-    if (selectedStoreId && selectedStoreId !== storeId) {
-      toast.warning(
-        `Tidak dapat memilih item dari toko berbeda.\nSilakan checkout toko "${getStoreName(
-          selectedStoreId,
-        )}" terlebih dahulu atau batalkan pilihan.`,
-      );
-      return;
-    }
-
-    selectedItems.value.push(itemId);
-  }
-};
 
 // Get store ID from selected items
 const getSelectedStoreId = () => {
@@ -1383,12 +1363,26 @@ const goToStorePage = (slug) => {
   router.push({ name: "Merchant Detail", params: { slug: s } });
 };
 
-const goToProductPage = (slug) => {
-  const s = typeof slug === "string" ? slug.trim() : String(slug ?? "").trim();
-  if (!s || s === "[object Object]") {
-    toast.error("Produk tidak ditemukan");
+const goToProductPage = (cartItemOrSlug) => {
+  const isObject =
+    cartItemOrSlug !== null &&
+    typeof cartItemOrSlug === "object" &&
+    !Array.isArray(cartItemOrSlug);
+
+  const rawSlug = isObject ? cartItemOrSlug?.slug : cartItemOrSlug;
+  const s =
+    typeof rawSlug === "string" ? rawSlug.trim() : String(rawSlug ?? "").trim();
+
+  const status = isObject
+    ? (cartItemOrSlug?.productDetails?.status ??
+      cartItemOrSlug?.product_details?.status)
+    : null;
+
+  if (!s || s === "[object Object]" || status === "archived") {
+    toast.info("Produk sudah dihapus atau sedang diarsipkan");
     return;
   }
+
   router.push({ name: "Product Detail", params: { slug: s } });
 };
 </script>
