@@ -145,11 +145,18 @@
               v-if="serviceType === 'on_site'"
               type="button"
               class="ml-3 text-[11px] px-3 py-1 rounded-full border border-emerald-300 text-emerald-700 bg-emerald-50 whitespace-nowrap"
-              @click="openAlamatOptions = true"
+              :disabled="locatingDevice"
+              @click="requestDeviceLocation"
             >
-              Gunakan alamat profil
+              {{ locatingDevice ? 'Mengambil lokasi...' : 'Pakai lokasi device' }}
             </button>
           </div>
+          <p
+            v-if="serviceType === 'on_site' && deviceCoordinates"
+            class="mt-2 text-[11px] text-gray-500"
+          >
+            Koordinat terdeteksi: {{ deviceCoordinates.latitude.toFixed(6) }}, {{ deviceCoordinates.longitude.toFixed(6) }}
+          </p>
         </section>
 
         <!-- Promo -->
@@ -747,12 +754,12 @@ const selectedPromo = ref(null);
 const promos = ref([]);
 const promosLoading = ref(false);
 
-async function loadVouchersForJasa(merchantId) {
-  if (!merchantId) return;
+async function loadVouchersForJasa(merchantSlug) {
+  if (!merchantSlug) return;
   promosLoading.value = true;
   try {
     const { data } = await api.get(
-      `/api/public/merchants/${merchantId}/vouchers`,
+      `/api/checkout/${merchantSlug}/vouchers`,
       {
         params: { amount: order.price || 0 },
       },
@@ -826,8 +833,10 @@ const showDetails = ref(false);
 
 const authStore = useAuthStore();
 const userStore = useUserStore();
+const locatingDevice = ref(false);
+const deviceCoordinates = ref(null);
 
-// Modal pilihan alamat
+// Modal pilihan alamat (legacy, dipertahankan agar kompatibel)
 const openAlamatOptions = ref(false);
 
 // Coba gunakan alamat dari profil user (jika ada)
@@ -891,7 +900,51 @@ async function reverseGeocode(lat, lng) {
   }
 }
 
-// Fungsi pengambilan lokasi device dihapus, alamat hanya dari jasa/UMKM
+async function requestDeviceLocation() {
+  if (!navigator.geolocation) {
+    errorMessage.value =
+      "Perangkat/browser tidak mendukung GPS. Silakan isi alamat manual.";
+    return;
+  }
+
+  locatingDevice.value = true;
+  clearNotification();
+
+  try {
+    const position = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      });
+    });
+
+    const latitude = position?.coords?.latitude;
+    const longitude = position?.coords?.longitude;
+
+    if (typeof latitude !== "number" || typeof longitude !== "number") {
+      throw new Error("Koordinat tidak valid");
+    }
+
+    deviceCoordinates.value = { latitude, longitude };
+
+    const address = await reverseGeocode(latitude, longitude);
+    if (address) {
+      form.value.alamat = address;
+      successMessage.value = "Lokasi device berhasil digunakan.";
+    } else {
+      form.value.alamat = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+      successMessage.value =
+        "Koordinat ditemukan, tetapi alamat detail tidak tersedia.";
+    }
+  } catch (error) {
+    console.error("[PembayaranJasa] Gagal mengambil lokasi device", error);
+    errorMessage.value =
+      "Izin lokasi ditolak atau gagal mengambil GPS. Aktifkan lokasi lalu coba lagi.";
+  } finally {
+    locatingDevice.value = false;
+  }
+}
 
 // Isi nama & nomor telepon dari profil user (opsional, tetap bisa diedit manual)
 function useProfileContact() {
@@ -962,18 +1015,12 @@ onMounted(async () => {
         form.value.alamat = payload?.merchant?.address || payload?.merchant?.alamat || '';
       }
     } else if (payload?.service_type === 'on_site') {
-      // Untuk layanan ke lokasi customer
-      if (payload?.location_address) {
-        form.value.alamat = payload.location_address;
-      } else if (payload?.merchant?.address) {
-        form.value.alamat = payload.merchant.address;
-      } else if (payload?.merchant?.alamat) {
-        form.value.alamat = payload.merchant.alamat;
-      }
+      // Untuk layanan ke lokasi customer, alamat berasal dari device customer
+      form.value.alamat = '';
     }
 
-    if (payload?.merchant_id) {
-      await loadVouchersForJasa(payload.merchant_id);
+    if (payload?.merchant?.slug) {
+      await loadVouchersForJasa(payload.merchant.slug);
     }
 
     if (!serviceType.value && payload?.service_type) {
@@ -1020,6 +1067,11 @@ function buildWhatsappMessage() {
   if (!isOnlineService.value) {
     lines.push(`Alamat    : ${form.value.alamat || "-"}`);
   }
+  if (deviceCoordinates.value) {
+    lines.push(
+      `Koordinat : ${deviceCoordinates.value.latitude.toFixed(6)}, ${deviceCoordinates.value.longitude.toFixed(6)}`
+    );
+  }
   if (form.value.catatan) {
     lines.push(`Catatan   : ${form.value.catatan}`);
   }
@@ -1057,6 +1109,12 @@ const sendToChat = async () => {
   if (!form.value.tel || !isValidPhone(form.value.tel)) {
     errorMessage.value =
       "Nomor telepon wajib diisi dan hanya boleh berisi angka (min. 8 digit).";
+    return;
+  }
+
+  if (serviceType.value === "on_site" && !form.value.alamat) {
+    errorMessage.value =
+      "Untuk layanan ke alamat pelanggan, izinkan lokasi device atau isi alamat terlebih dahulu.";
     return;
   }
 

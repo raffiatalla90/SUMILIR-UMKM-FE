@@ -69,7 +69,7 @@ const menuItems = computed(() => {
   const productOrServiceItem =
     segmentationId === 3
       ? {
-          label: "Jasa",
+          label: "Daftar Layanan Jasa",
           icon: "pi-briefcase",
           route: `/merchant-center/${currentMerchantSlug.value}/jasas`,
         }

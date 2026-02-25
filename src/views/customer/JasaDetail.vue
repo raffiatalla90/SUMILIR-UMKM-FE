@@ -184,15 +184,15 @@
           Jam & Hari Operasional
         </h2>
         <div class="space-y-2 text-sm">
-          <div v-if="displayOperatingHours" class="flex items-center justify-between">
+          <div class="flex items-center justify-between">
             <span class="text-gray-600 flex items-center gap-1.5"><i class="text-gray-500 pi pi-clock"></i> Jam Operasional</span>
             <span class="font-medium text-gray-900">
-              {{ displayOperatingHours }}
+              {{ displayOperatingHours || 'Belum diatur' }}
             </span>
           </div>
-          <div v-if="jasa?.operating_days" class="flex items-center justify-between">
+          <div class="flex items-center justify-between">
             <span class="text-gray-600 flex items-center gap-1.5"><i class="text-gray-500 pi pi-calendar"></i> Hari Kerja</span>
-            <span class="font-medium text-gray-900">{{ formatOperatingDays(jasa.operating_days) }}</span>
+            <span class="font-medium text-gray-900">{{ formatOperatingDays(jasa?.operating_days) }}</span>
           </div>
         </div>
       </div>
@@ -262,16 +262,22 @@
           Pembayaran & Kontak
         </h2>
         <div class="space-y-3 text-sm">
-          <div v-if="jasa?.payment_methods">
+          <div>
             <span class="text-gray-600 flex items-center gap-1.5"><i class="text-gray-500 pi pi-wallet"></i> Metode Pembayaran</span>
-            <p class="mt-1 font-medium text-gray-900">{{ formatPaymentMethods(jasa.payment_methods) }}</p>
+            <p class="mt-1 font-medium text-gray-900">{{ formatPaymentMethods(jasa?.payment_methods) }}</p>
           </div>
-          <div v-if="jasa?.whatsapp_link">
+          <div>
             <span class="text-gray-600 flex items-center gap-1.5"><i class="text-gray-500 pi pi-whatsapp"></i> WhatsApp</span>
-            <a :href="jasa.whatsapp_link" target="_blank" class="inline-flex items-center gap-1.5 text-[#25D366] font-medium hover:underline mt-1">
+            <a
+              v-if="whatsappLink"
+              :href="whatsappLink"
+              target="_blank"
+              class="inline-flex items-center gap-1.5 text-[#25D366] font-medium hover:underline mt-1"
+            >
               <span>Hubungi via WhatsApp</span>
               <i class="text-xs pi pi-external-link"></i>
             </a>
+            <p v-else class="mt-1 font-medium text-gray-900">Belum tersedia</p>
           </div>
         </div>
       </div>
@@ -404,7 +410,7 @@
           :to="{
             name: 'Pembayaran Jasa',
             query: {
-              id: route.params.id,
+              id: jasa?.id || route.params.slug,
                title: jasa?.title || '-',
               image: jasaImage,
               price: jasa?.fixed_price || jasa?.base_price || 100000,
@@ -412,7 +418,13 @@
               waktu: activeTime,
               payment_methods: jasa?.payment_methods || '',
               service_type: jasa?.service_type || '',
-              alamat: jasa?.location_address || jasa?.merchant?.address || jasa?.merchant?.alamat || '',
+              alamat:
+                jasa?.service_type === 'on_site'
+                  ? ''
+                  : jasa?.location_address ||
+                    jasa?.merchant?.address ||
+                    jasa?.merchant?.alamat ||
+                    '',
               price_type:
                 jasa?.fixed_price && jasa.fixed_price > 0
                   ? 'fixed'
@@ -444,7 +456,7 @@
         @click.self="showChat = false"
       >
         <div
-          class="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl h-[70vh] sm:h-[520px] flex flex-col"
+          class="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl h-[78dvh] sm:h-[520px] flex flex-col overflow-hidden"
         >
           <div
             class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-2xl"
@@ -477,8 +489,8 @@
             </button>
           </div>
 
-          <div class="flex-1 p-3">
-            <ChatWindow :jasa-id="route.params.id" mode="buyer" />
+          <div class="flex-1 min-h-0 p-3">
+            <ChatWindow :jasa-id="jasa?.id || route.params.slug" mode="buyer" />
           </div>
         </div>
       </div>
@@ -563,16 +575,31 @@ const selectQuick = (d, available) => {
 };
 
 // ----- waktu -----
-// Parse operating_times dari jasa. Jika tidak ada data, tidak tampilkan jam default
-const times = computed(() => {
-  if (!jasa.value?.operating_times) {
-    return { morning: [], afternoon: [], evening: [] };
-  }
+const fallbackOperatingTimes = [
+  "08.00",
+  "09.00",
+  "10.00",
+  "11.00",
+  "13.00",
+  "14.00",
+  "15.00",
+  "16.00",
+  "19.00",
+  "20.00",
+];
 
-  const operatingTimes = jasa.value.operating_times
-    .split(',')
-    .map(t => t.trim())
-    .filter(t => t);
+// Parse operating_times dari jasa. Jika tidak ada data, tampilkan jam fallback agar customer tetap bisa memilih.
+const times = computed(() => {
+  const operatingTimesRaw = jasa.value?.operating_times
+    ? jasa.value.operating_times
+        .split(',')
+        .map(t => t.trim())
+        .filter(t => t)
+    : [];
+
+  const operatingTimes = operatingTimesRaw.length
+    ? operatingTimesRaw
+    : fallbackOperatingTimes;
 
   if (operatingTimes.length === 0) {
     return { morning: [], afternoon: [], evening: [] };
@@ -613,6 +640,7 @@ const resolveJasaAssetSrc = (img) => {
   if (!img) return "";
   if (img.src_url) return img.src_url;
   if (img.url) return img.url;
+  if (img.image_path) return getImageUrlJasa(img.image_path);
   if (img.path) return getImageUrlJasa(img.path);
   if (img.image) return getImageUrlJasa(img.image);
   if (img.id) return getImageUrlJasa(img.id);
@@ -626,6 +654,9 @@ const jasaImage = computed(() => {
 
   // Prioritas utama samakan dengan halaman merchant index/create
   if (jasa.value.image) {
+    if (String(jasa.value.image).startsWith("http")) {
+      return jasa.value.image;
+    }
     return getImageUrlJasa(jasa.value.image);
   }
 
@@ -726,14 +757,14 @@ const displayOperatingHours = computed(() => {
 });
 
 const formatOperatingDays = (days) => {
-  if (!days) return "-";
+  if (!days) return "Belum diatur";
   const daysMap = { 1: "Sen", 2: "Sel", 3: "Rab", 4: "Kam", 5: "Jum", 6: "Sab", 7: "Min" };
   const dayList = days.split(",").map(d => daysMap[d.trim()]).filter(Boolean);
   return dayList.join(", ");
 };
 
 const formatPaymentMethods = (methods) => {
-  if (!methods) return "-";
+  if (!methods) return "COD (Bayar di Tempat)";
   const methodsMap = { cod: "COD (Bayar di Tempat)", qris: "QRIS (Scan & Transfer)" };
   return methods
     .split(",")
@@ -742,16 +773,49 @@ const formatPaymentMethods = (methods) => {
     .join(", ");
 };
 
+const whatsappLink = computed(() => {
+  const raw =
+    jasa.value?.whatsapp_link ||
+    jasa.value?.merchant?.whatsapp ||
+    jasa.value?.merchant?.phone ||
+    "";
+
+  const cleaned = String(raw).trim();
+  if (!cleaned) return "";
+  if (cleaned.startsWith("http")) return cleaned;
+  const digits = cleaned.replace(/[^0-9]/g, "");
+  if (!digits) return "";
+  return `https://wa.me/${digits}`;
+});
+
 onMounted(async () => {
+  const slugParam = String(route.params.slug || "").trim();
+  if (!slugParam) {
+    console.error("[JasaDetail] Missing slug param");
+    jasa.value = null;
+    return;
+  }
+
   try {
-    console.log("[JasaDetail] Fetching jasa slug:", route.params.slug);
-    const { data } = await api.get(`/api/public/jasas/${route.params.slug}`);
-    console.log("[JasaDetail] Jasa data:", data);
-    jasa.value = data;
+    console.log("[JasaDetail] Fetching jasa slug:", slugParam);
+    const encoded = encodeURIComponent(slugParam);
+    let response;
+
+    try {
+      response = await api.get(`/api/public/jasas/${encoded}`);
+    } catch (firstError) {
+      // fallback retry once with raw value (beberapa backend lama tidak cocok dengan encoded tertentu)
+      response = await api.get(`/api/public/jasas/${slugParam}`);
+    }
+
+    const { data } = response;
+    const payload = data?.data ?? data;
+    console.log("[JasaDetail] Jasa data:", payload);
+    jasa.value = payload;
     
     // Set selectedDate ke hari pertama yang tersedia
-    if (data.operating_days) {
-      const operatingDays = data.operating_days.split(',').map(d => parseInt(d.trim()));
+    if (payload?.operating_days) {
+      const operatingDays = payload.operating_days.split(',').map(d => parseInt(d.trim()));
       // Cari hari tersedia dalam 7 hari ke depan
       for (let i = 0; i < 7; i++) {
         const checkDate = addDays(today.value, i);

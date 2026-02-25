@@ -85,13 +85,17 @@ const routes = [
         component: () => import("@/views/customer/JasaDetail.vue"),
         meta: { title: "Detail Jasa | SUMILIR" },
         beforeEnter: async (to, from, next) => {
-          const slug = to.params.slug;
+          const slug = String(to.params.slug || "").trim();
+          if (!slug) {
+            return next({ name: "Beranda" });
+          }
+
+          const api = (await import("@/libs/axios.js")).default;
 
           // Check if slug is numeric (old ID-based URL)
           if (/^\d+$/.test(slug)) {
             try {
               // Fetch jasa by ID to get the proper slug
-              const api = (await import("@/libs/axios.js")).default;
               const { data } = await api.get(`/api/public/jasas/${slug}`);
               
               if (data?.slug) {
@@ -109,7 +113,23 @@ const routes = [
               next();
             }
           } else {
-            next();
+            try {
+              // Validate slug really belongs to a jasa to avoid hard 404 in view
+              await api.get(`/api/public/jasas/${encodeURIComponent(slug)}`);
+              return next();
+            } catch (e) {
+              try {
+                // If this slug belongs to a merchant, redirect to merchant detail page
+                await api.get(`/api/public/merchants/${encodeURIComponent(slug)}`);
+                return next({
+                  name: "Merchant Detail",
+                  params: { slug },
+                  replace: true,
+                });
+              } catch (_) {
+                return next();
+              }
+            }
           }
         },
       },

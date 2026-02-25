@@ -464,7 +464,7 @@
         @click.self="showChat = false"
       >
         <div
-          class="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl h-[70vh] sm:h-[520px] flex flex-col"
+          class="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl h-[78dvh] sm:h-[520px] flex flex-col overflow-hidden"
         >
           <div
             class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-2xl"
@@ -497,7 +497,7 @@
             </button>
           </div>
 
-          <div class="flex-1 p-3">
+          <div class="flex-1 min-h-0 p-3">
             <ChatWindow :jasa-id="selectedJasaId" mode="buyer" />
           </div>
         </div>

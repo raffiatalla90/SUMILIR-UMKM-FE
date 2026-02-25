@@ -12,7 +12,7 @@
           <i class="pi pi-bars"></i>
         </button>
         <div>
-          <h1 class="text-base font-semibold text-gray-900 sm:text-3xl sm:font-bold">Chat dengan Pembeli</h1>
+          <h1 class="text-base font-semibold text-merchant-primary sm:text-3xl sm:font-bold">Chat dengan Pembeli</h1>
           <p class="mt-1 text-xs sm:text-sm text-gray-600">Kelola percakapan dan penawaran dari pembeli</p>
         </div>
       </div>

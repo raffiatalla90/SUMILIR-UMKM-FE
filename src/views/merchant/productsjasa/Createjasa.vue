@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "@/stores/auth";
@@ -13,6 +13,7 @@ import api from "@/libs/axios";
 
 // File uploads
 const imageFiles = ref([]);
+const imagePreviews = ref([]);
 const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_IMAGE_EXTENSIONS = /\.(jpe?g|png|webp)$/i;
 
@@ -39,8 +40,16 @@ const validateSelectedImages = (files) => {
   return "";
 };
 
-const getNewImagePreviewUrl = (file) => {
-  return URL.createObjectURL(file);
+const buildImagePreviews = (files) => {
+  imagePreviews.value.forEach((url) => {
+    try {
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      // ignore
+    }
+  });
+
+  imagePreviews.value = (files || []).map((file) => URL.createObjectURL(file));
 };
 
 // Format currency helper
@@ -76,6 +85,83 @@ const currentMerchantId = computed(() => {
   return authStore.merchantId ?? null;
 });
 
+const currentMerchantData = computed(() => {
+  if (currentMerchantSlug.value) {
+    return authStore.getMerchantBySlug(currentMerchantSlug.value);
+  }
+  if (currentMerchantId.value) {
+    return authStore.getMerchantById(currentMerchantId.value);
+  }
+  return null;
+});
+
+const merchantProfileFromApi = ref(null);
+
+const normalizeAddressPart = (part) => {
+  if (!part) return "";
+  if (typeof part === "string") return part.trim();
+  if (typeof part === "object") {
+    return String(part.name || part.label || part.value || "").trim();
+  }
+  return "";
+};
+
+const formatMerchantAddress = (merchant) => {
+  if (!merchant) return "";
+
+  const primaryAddress =
+    merchant.primary_address ||
+    merchant.primaryAddress ||
+    merchant.address_primary ||
+    (Array.isArray(merchant.addresses)
+      ? merchant.addresses.find((addr) => addr?.is_primary) || merchant.addresses[0]
+      : null);
+
+  if (primaryAddress) {
+    const parts = [
+      normalizeAddressPart(primaryAddress.detail || primaryAddress.address),
+      normalizeAddressPart(primaryAddress.village),
+      normalizeAddressPart(primaryAddress.district),
+      normalizeAddressPart(primaryAddress.city),
+      normalizeAddressPart(primaryAddress.province),
+    ].filter((item) => item && item.length > 0);
+
+    if (parts.length) return parts.join(", ");
+
+    if (typeof primaryAddress.full_address === "string") {
+      return primaryAddress.full_address.trim();
+    }
+  }
+
+  return (
+    merchant.full_address ||
+    merchant.address ||
+    merchant.alamat ||
+    ""
+  );
+};
+
+const merchantProfileAddress = computed(() => {
+  return (
+    formatMerchantAddress(currentMerchantData.value) ||
+    formatMerchantAddress(merchantProfileFromApi.value)
+  );
+});
+
+const loadMerchantProfileAddress = async () => {
+  if (!currentMerchantSlug.value) return;
+  if (merchantProfileAddress.value) return;
+
+  try {
+    const { data } = await api.get(
+      `/api/merchant/${currentMerchantSlug.value}/profile`
+    );
+    merchantProfileFromApi.value = data?.data ?? data ?? null;
+  } catch (error) {
+    console.error("[Createjasa] Gagal memuat profil merchant", error);
+  }
+};
+
 const breadcrumbItems = computed(() => [
   {
     label: "Jasa",
@@ -103,7 +189,9 @@ const formData = ref({
   jasa_subcategory_id: null,
   fixed_price: 0,
   base_price: 0,
+  operating_times: "",
   service_type: "at_location",
+  location_address: "",
   service_area: "",
   special_notes: "",
   payment_methods: "cod",
@@ -174,12 +262,132 @@ const validationSchema = yup.object({
         return !(baseFilled && fixedFilled);
       }
     ),
+  operating_times: yup.string().nullable().max(255),
   service_type: yup.string().required("Tipe layanan wajib dipilih"),
+  location_address: yup.string().nullable().max(255),
   service_area: yup.string().nullable(),
   special_notes: yup.string().nullable(),
   payment_methods: yup.string().nullable(),
   status: yup.string(),
 });
+
+watch(
+  [() => formData.value.service_type, merchantProfileAddress],
+  ([serviceType, profileAddress]) => {
+    if (serviceType === "at_location") {
+      formData.value.location_address = profileAddress || "";
+    }
+    if (serviceType === "online" || serviceType === "on_site") {
+      formData.value.location_address = "";
+    }
+  },
+  { immediate: true }
+);
+
+const OPERATING_TIME_GROUPS = [
+  { key: "morning", label: "Pagi", times: ["07.00", "08.00", "09.00", "10.00", "11.00"] },
+  { key: "noon", label: "Siang", times: ["12.00", "13.00", "14.00"] },
+  { key: "afternoon", label: "Sore", times: ["15.00", "16.00", "17.00"] },
+  { key: "night", label: "Malam", times: ["18.00", "19.00", "20.00"] },
+];
+
+const allOperatingTimeOptions = OPERATING_TIME_GROUPS.flatMap(
+  (group) => group.times
+);
+
+const selectedOperatingTimes = computed(() => {
+  return String(formData.value.operating_times || "")
+    .split(",")
+    .map((time) => time.trim())
+    .filter(Boolean)
+    .sort();
+});
+
+const customOperatingTime = ref("");
+
+const setOperatingTimes = (nextTimes, setFieldValue) => {
+  const joined = [...new Set(nextTimes)].sort().join(",");
+  formData.value.operating_times = joined;
+  if (typeof setFieldValue === "function") {
+    setFieldValue("operating_times", joined);
+  }
+};
+
+const toggleOperatingTime = (time, setFieldValue) => {
+  const current = [...selectedOperatingTimes.value];
+  const index = current.indexOf(time);
+
+  if (index >= 0) {
+    current.splice(index, 1);
+  } else {
+    current.push(time);
+  }
+
+  setOperatingTimes(current, setFieldValue);
+};
+
+const isOperatingTimeSelected = (time) =>
+  selectedOperatingTimes.value.includes(time);
+
+const isAllOperatingTimesSelected = computed(() => {
+  if (!allOperatingTimeOptions.length) return false;
+  return allOperatingTimeOptions.every((time) =>
+    selectedOperatingTimes.value.includes(time)
+  );
+});
+
+const toggleSelectAllOperatingTimes = (setFieldValue) => {
+  if (isAllOperatingTimesSelected.value) {
+    setOperatingTimes([], setFieldValue);
+    return;
+  }
+
+  setOperatingTimes(allOperatingTimeOptions, setFieldValue);
+};
+
+const isGroupFullySelected = (groupTimes) =>
+  groupTimes.every((time) => selectedOperatingTimes.value.includes(time));
+
+const toggleGroupOperatingTimes = (groupTimes, setFieldValue) => {
+  const current = [...selectedOperatingTimes.value];
+  const allSelected = groupTimes.every((time) => current.includes(time));
+
+  if (allSelected) {
+    setOperatingTimes(
+      current.filter((time) => !groupTimes.includes(time)),
+      setFieldValue
+    );
+    return;
+  }
+
+  setOperatingTimes([...current, ...groupTimes], setFieldValue);
+};
+
+const addCustomOperatingTime = (setFieldValue) => {
+  const raw = String(customOperatingTime.value || "").trim();
+  if (!raw) return;
+
+  const match = raw.match(/^([01]?\d|2[0-3])[:.]([0-5]\d)$/);
+  if (!match) {
+    toast.error("Format jam tidak valid. Gunakan HH.MM atau HH:MM (contoh: 09.30)");
+    return;
+  }
+
+  const hh = String(match[1]).padStart(2, "0");
+  const mm = match[2];
+  const normalized = `${hh}.${mm}`;
+  const current = [...selectedOperatingTimes.value];
+
+  if (!current.includes(normalized)) {
+    current.push(normalized);
+    setOperatingTimes(current, setFieldValue);
+    toast.success("Berhasil ditambahkan");
+  } else {
+    toast.info("Jam layanan sudah ada");
+  }
+
+  customOperatingTime.value = "";
+};
 
 const loadCategories = async () => {
   try {
@@ -295,6 +503,7 @@ const handleImageChange = (e) => {
     }
 
     imageFiles.value = merged;
+    buildImagePreviews(imageFiles.value);
     console.log(
       "Images selected (total):",
       imageFiles.value.length,
@@ -309,6 +518,7 @@ const handleImageChange = (e) => {
 const removeSelectedImage = (index) => {
   if (index < 0 || index >= imageFiles.value.length) return;
   imageFiles.value.splice(index, 1);
+  buildImagePreviews(imageFiles.value);
 };
 
 const addPackage = () => {
@@ -346,10 +556,10 @@ const submitForm = async (values) => {
     // Build multipart form data
     const fd = new FormData();
     Object.entries(values).forEach(([k, v]) => {
-      // location_address sudah tidak digunakan lagi
-      if (k === "location_address") return;
       fd.append(k, v ?? "");
     });
+
+    fd.set("location_address", formData.value.location_address || "");
     // Paksa status selalu disimpan sebagai draft saat create
     fd.set("status", "draft");
 
@@ -403,9 +613,20 @@ const submitForm = async (values) => {
 
 onMounted(() => {
   loadCategories();
+  loadMerchantProfileAddress();
   
   // Restore form draft from localStorage
   restoreFormDraft();
+});
+
+onBeforeUnmount(() => {
+  imagePreviews.value.forEach((url) => {
+    try {
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      // ignore
+    }
+  });
 });
 </script>
 
@@ -688,7 +909,7 @@ onMounted(() => {
                     class="relative overflow-hidden border border-gray-200 rounded-lg group bg-gray-50"
                   >
                     <img
-                      :src="getNewImagePreviewUrl(file)"
+                      :src="imagePreviews[idx]"
                       alt="preview"
                       class="object-cover w-full h-28"
                     />
@@ -746,10 +967,177 @@ onMounted(() => {
                   v-model="formData.service_type"
                   required
                 />
+
+                <Field
+                  v-if="formData.service_type === 'at_location'"
+                  name="location_address"
+                  v-slot="{ errors }"
+                >
+                  <div class="sm:col-span-2">
+                    <label class="block mb-2 text-sm font-semibold text-gray-700"
+                      >Alamat UMKM (dari profil)</label
+                    >
+                    <textarea
+                      :value="merchantProfileAddress || formData.location_address"
+                      readonly
+                      rows="3"
+                      class="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+                    ></textarea>
+                    <p class="mt-1 text-xs text-gray-500">
+                      Alamat ini otomatis diambil dari profil UMKM.
+                    </p>
+                    <p v-if="errors[0]" class="mt-1 text-sm text-red-500">
+                      {{ errors[0] }}
+                    </p>
+                  </div>
+                </Field>
+
+                <Field
+                  v-if="formData.service_type === 'on_site'"
+                  name="service_area"
+                  v-slot="{ field, errors }"
+                >
+                  <div class="sm:col-span-2">
+                    <label class="block mb-2 text-sm font-semibold text-gray-700"
+                      >Area Layanan (opsional)</label
+                    >
+                    <textarea
+                      :name="field.name"
+                      :value="field.value"
+                      @input="(e) => { field.onChange(e.target.value); formData.service_area = e.target.value; }"
+                      @blur="field.onBlur"
+                      rows="2"
+                      placeholder="Contoh: Kota Semarang, radius 10 km dari toko"
+                      class="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    ></textarea>
+                    <p class="mt-1 text-xs text-gray-500">
+                      Saat checkout, customer akan diminta izin lokasi device untuk menentukan alamat layanan.
+                    </p>
+                    <p v-if="errors[0]" class="mt-1 text-sm text-red-500">
+                      {{ errors[0] }}
+                    </p>
+                  </div>
+                </Field>
+
+                <div
+                  v-if="formData.service_type === 'online'"
+                  class="sm:col-span-2 p-3 text-xs border border-blue-200 rounded-lg bg-blue-50 text-blue-700"
+                >
+                  Layanan online tidak membutuhkan alamat lokasi.
+                </div>
+
+                <Field name="operating_times" v-slot="{ errors }">
+                  <div class="sm:col-span-2">
+                    <label class="block mb-2 text-sm font-semibold text-gray-700"
+                      >Jam Layanan <span class="text-xs font-normal text-gray-500">(opsional)</span></label
+                    >
+
+                    <div class="p-3 bg-white border border-orange-100 rounded-lg">
+                      <p class="mb-2 text-xs text-gray-500">
+                        Pilih satu atau beberapa jam layanan yang bisa dipilih customer.
+                      </p>
+
+                      <div class="flex flex-wrap items-center gap-2 mb-3">
+                        <button
+                          type="button"
+                          @click="toggleSelectAllOperatingTimes(setFieldValue)"
+                          class="px-3 py-1.5 text-xs font-medium rounded-full border transition"
+                          :class="
+                            isAllOperatingTimesSelected
+                              ? 'bg-merchant-primary text-white border-merchant-primary'
+                              : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary/60'
+                          "
+                        >
+                          {{ isAllOperatingTimesSelected ? 'Batalkan Semua' : 'Pilih Semua' }}
+                        </button>
+                      </div>
+
+                      <div class="space-y-3">
+                        <div
+                          v-for="group in OPERATING_TIME_GROUPS"
+                          :key="group.key"
+                          class="p-3 border border-gray-200 rounded-lg"
+                        >
+                          <div class="flex items-center justify-between mb-2">
+                            <p class="text-xs font-semibold text-gray-700 uppercase">
+                              {{ group.label }}
+                            </p>
+                            <button
+                              type="button"
+                              @click="toggleGroupOperatingTimes(group.times, setFieldValue)"
+                              class="text-[11px] font-medium px-2 py-1 rounded-full border transition"
+                              :class="
+                                isGroupFullySelected(group.times)
+                                  ? 'bg-merchant-primary text-white border-merchant-primary'
+                                  : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary/60'
+                              "
+                            >
+                              {{ isGroupFullySelected(group.times) ? 'Batalkan' : 'Pilih semua' }}
+                            </button>
+                          </div>
+
+                          <div class="flex flex-wrap gap-2">
+                            <button
+                              v-for="time in group.times"
+                              :key="`${group.key}-${time}`"
+                              type="button"
+                              @click="toggleOperatingTime(time, setFieldValue)"
+                              class="px-3 py-1.5 text-xs rounded-full border transition"
+                              :class="
+                                isOperatingTimeSelected(time)
+                                  ? 'bg-merchant-primary text-white border-merchant-primary'
+                                  : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary/60'
+                              "
+                            >
+                              {{ time }}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="flex items-center gap-2 mt-3">
+                        <input
+                          v-model="customOperatingTime"
+                          type="text"
+                          placeholder="Tambahkan manual (contoh: 09.30)"
+                          @keyup.enter="addCustomOperatingTime(setFieldValue)"
+                          class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary/60"
+                        />
+                        <button
+                          type="button"
+                          @click="addCustomOperatingTime(setFieldValue)"
+                          class="px-3 py-2 text-sm font-medium text-white rounded-lg bg-merchant-primary hover:bg-merchant-primary/90"
+                        >
+                          Tambah
+                        </button>
+                      </div>
+
+                      <div v-if="selectedOperatingTimes.length" class="mt-3">
+                        <p class="mb-1 text-xs text-gray-600">Jam terpilih:</p>
+                        <div class="flex flex-wrap gap-2">
+                          <span
+                            v-for="time in selectedOperatingTimes"
+                            :key="`selected-${time}`"
+                            class="inline-flex items-center px-3 py-1 text-xs font-medium text-white rounded-full bg-merchant-primary"
+                          >
+                            {{ time }}
+                          </span>
+                        </div>
+                      </div>
+                      <p v-else class="mt-2 text-xs text-gray-500">
+                        Belum diatur. Customer tetap bisa isi jam secara manual.
+                      </p>
+                    </div>
+
+                    <p v-if="errors[0]" class="mt-1 text-sm text-red-500">
+                      {{ errors[0] }}
+                    </p>
+                  </div>
+                </Field>
               </div>
             </div>
 
-            <!-- 7. PEMBAYARAN -->
+            <!-- 5. PEMBAYARAN -->
             <div
               class="p-5 border bg-linear-to-r from-violet-50 to-transparent rounded-xl border-violet-100"
             >
@@ -757,7 +1145,7 @@ onMounted(() => {
                 <div
                   class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white rounded-full bg-violet-500"
                 >
-                  7
+                  5
                 </div>
                 <h2 class="text-lg font-bold text-gray-800">
                   Metode Pembayaran
@@ -786,7 +1174,7 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- 8. STATUS -->
+            <!-- 6. STATUS -->
             <div
               class="p-5 border border-red-100 bg-linear-to-r from-red-50 to-transparent rounded-xl"
             >
@@ -794,7 +1182,7 @@ onMounted(() => {
                 <div
                   class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white bg-red-500 rounded-full"
                 >
-                  8
+                  6
                 </div>
                 <h2 class="text-lg font-bold text-gray-800">Status Layanan</h2>
               </div>

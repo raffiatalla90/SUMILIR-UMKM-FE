@@ -62,6 +62,28 @@ const currentMerchantName = computed(() => {
   return merchant?.name || "UMKM";
 });
 
+const currentMerchantAddress = computed(() => {
+  const merchant = currentMerchantSlug.value
+    ? authStore.getMerchantBySlug(currentMerchantSlug.value)
+    : authStore.getMerchantById(currentMerchantId.value);
+
+  if (!merchant) return "";
+
+  const primary = merchant.primary_address;
+  if (primary) {
+    const parts = [
+      primary.detail,
+      primary.village,
+      primary.district,
+      primary.city,
+      primary.province,
+    ].filter(Boolean);
+    if (parts.length) return parts.join(", ");
+  }
+
+  return merchant.address || merchant.alamat || "";
+});
+
 // Pagination / totals
 const totalItems = computed(
   () => pagination.value?.total ?? jasas.value.length
@@ -709,6 +731,22 @@ const getStatusLabel = (status) => {
   return labels[status] || status;
 };
 
+const getServiceTypeLabel = (serviceType) => {
+  if (serviceType === "at_location") return "Di Tempat Saya";
+  if (serviceType === "on_site") return "Ke Lokasi Pelanggan";
+  if (serviceType === "online") return "Online";
+  return "-";
+};
+
+const getDisplayServiceAddress = (jasa) => {
+  if (!jasa) return "-";
+  if (jasa.service_type === "online") return "Tidak memerlukan alamat";
+  if (jasa.service_type === "on_site") {
+    return jasa.service_area || "Alamat akan diisi customer saat pembayaran";
+  }
+  return jasa.location_address || currentMerchantAddress.value || "-";
+};
+
 // Toggle visibility method
 const toggleJasaVisibility = (jasa) => {
   // ✅ GANTI: toggleProductVisibility menjadi toggleJasaVisibility
@@ -864,7 +902,7 @@ const selectConversation = (conversation) => {
           <i class="pi pi-bars"></i>
         </button>
         <div>
-          <h1 class="text-base font-semibold text-gray-900 sm:text-3xl sm:font-bold">Daftar Jasa</h1>
+          <h1 class="text-base font-semibold text-merchant-primary sm:text-3xl sm:font-bold">Daftar Layanan Jasa</h1>
           <p class="mt-1 text-xs sm:text-sm text-gray-600">
             <i class="mr-1 pi pi-shop"></i>
             {{ currentMerchantName }}
@@ -893,7 +931,7 @@ const selectConversation = (conversation) => {
       <p class="mb-6 text-lg text-gray-500">Belum ada jasa yang ditambahkan</p>
       <button
         @click="goToCreate"
-        class="inline-flex items-center gap-2 px-6 py-3 font-medium text-white transition rounded-lg bg-blue-500 hover:bg-blue-600"
+        class="inline-flex items-center gap-2 px-6 py-3 font-medium text-white transition rounded-lg bg-merchant-primary hover:bg-merchant-primary/90"
       >
         <i class="text-sm pi pi-plus"></i>
         <span>Tambah Jasa Baru</span>
@@ -1094,6 +1132,21 @@ const selectConversation = (conversation) => {
                     "
                   >
                     Edit: {{ formatJasaDateTime(jasa.updated_at) }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tipe Layanan & Lokasi -->
+              <div class="flex items-start gap-2 text-xs text-gray-600">
+                <i class="pi pi-map-marker text-merchant-primary text-xs mt-0.5"></i>
+                <div class="space-y-0.5">
+                  <div>
+                    <span class="font-semibold">Tipe:</span>
+                    {{ getServiceTypeLabel(jasa.service_type) }}
+                  </div>
+                  <div class="break-words">
+                    <span class="font-semibold">Lokasi:</span>
+                    {{ getDisplayServiceAddress(jasa) }}
                   </div>
                 </div>
               </div>

@@ -44,6 +44,39 @@ const currentMerchantId = computed(() => {
   return authStore.merchantId ?? null;
 });
 
+const currentMerchantData = computed(() => {
+  if (currentMerchantSlug.value) {
+    return authStore.getMerchantBySlug(currentMerchantSlug.value);
+  }
+  if (currentMerchantId.value) {
+    return authStore.getMerchantById(currentMerchantId.value);
+  }
+  return null;
+});
+
+const formatMerchantAddress = (merchant) => {
+  if (!merchant) return "";
+
+  const primaryAddress = merchant.primary_address;
+  if (primaryAddress) {
+    const parts = [
+      primaryAddress.detail,
+      primaryAddress.village,
+      primaryAddress.district,
+      primaryAddress.city,
+      primaryAddress.province,
+    ].filter(Boolean);
+
+    if (parts.length) return parts.join(", ");
+  }
+
+  return merchant.address || merchant.alamat || "";
+};
+
+const merchantProfileAddress = computed(() => {
+  return formatMerchantAddress(currentMerchantData.value);
+});
+
 const currentJasaId = computed(() => {
   return route.params.id ? Number(route.params.id) : null;
 });
@@ -123,6 +156,7 @@ const formData = ref({
   fixed_price: 0,
   base_price: 0,
   service_type: "at_location",
+  location_address: "",
   service_area: "",
   special_notes: "",
   payment_methods: "cod",
@@ -192,11 +226,25 @@ const validationSchema = yup.object({
       }
     ),
   service_type: yup.string().required("Tipe layanan wajib dipilih"),
+  location_address: yup.string().nullable().max(255),
   service_area: yup.string().nullable(),
   special_notes: yup.string().nullable(),
   payment_methods: yup.string().nullable(),
   status: yup.string(),
 });
+
+watch(
+  [() => formData.value.service_type, merchantProfileAddress],
+  ([serviceType, profileAddress]) => {
+    if (serviceType === "at_location") {
+      formData.value.location_address = profileAddress || "";
+    }
+    if (serviceType === "online" || serviceType === "on_site") {
+      formData.value.location_address = "";
+    }
+  },
+  { immediate: true }
+);
 
 const loadCategories = async () => {
   try {
@@ -411,6 +459,7 @@ const loadJasa = async () => {
       fixed_price: parseInt(jasaData.fixed_price) || 0,
       base_price: parseInt(jasaData.base_price) || 0,
       service_type: jasaData.service_type || "at_location",
+      location_address: jasaData.location_address || "",
       service_area: jasaData.service_area || "",
       special_notes: jasaData.special_notes || "",
       payment_methods: jasaData.payment_methods || "cod",
@@ -457,15 +506,15 @@ const submitForm = async (values) => {
     // Laravel doesn't parse multipart PUT requests correctly, use POST with _method
     fd.append("_method", "PUT");
 
-    // Add all form fields (location_address sudah tidak digunakan lagi)
+    // Add all form fields
     Object.entries(values).forEach(([key, value]) => {
-      if (key === "location_address") return;
       fd.append(key, value ?? "");
     });
 
     // Explicitly add fields that use v-model on formData
     fd.set("status", formData.value.status);
     fd.set("service_type", formData.value.service_type);
+    fd.set("location_address", formData.value.location_address || "");
 
     // Ensure integer prices
     fd.set("fixed_price", parseInt(values.fixed_price) || 0);
@@ -967,6 +1016,64 @@ onMounted(() => {
                   v-model="formData.service_type"
                   required
                 />
+
+                <Field
+                  v-if="formData.service_type === 'at_location'"
+                  name="location_address"
+                  v-slot="{ errors }"
+                >
+                  <div class="sm:col-span-2">
+                    <label class="block mb-2 text-sm font-semibold text-gray-700"
+                      >Alamat UMKM (dari profil)</label
+                    >
+                    <textarea
+                      :value="merchantProfileAddress || formData.location_address"
+                      readonly
+                      rows="3"
+                      class="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+                    ></textarea>
+                    <p class="mt-1 text-xs text-gray-500">
+                      Alamat ini otomatis mengikuti data profil UMKM.
+                    </p>
+                    <p v-if="errors[0]" class="mt-1 text-sm text-red-500">
+                      {{ errors[0] }}
+                    </p>
+                  </div>
+                </Field>
+
+                <Field
+                  v-if="formData.service_type === 'on_site'"
+                  name="service_area"
+                  v-slot="{ field, errors }"
+                >
+                  <div class="sm:col-span-2">
+                    <label class="block mb-2 text-sm font-semibold text-gray-700"
+                      >Area Layanan (opsional)</label
+                    >
+                    <textarea
+                      :name="field.name"
+                      :value="field.value"
+                      @input="(e) => { field.onChange(e.target.value); formData.service_area = e.target.value; }"
+                      @blur="field.onBlur"
+                      rows="2"
+                      placeholder="Contoh: Kota Semarang, radius 10 km dari toko"
+                      class="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    ></textarea>
+                    <p class="mt-1 text-xs text-gray-500">
+                      Saat checkout, customer akan diminta izin lokasi device untuk menentukan alamat layanan.
+                    </p>
+                    <p v-if="errors[0]" class="mt-1 text-sm text-red-500">
+                      {{ errors[0] }}
+                    </p>
+                  </div>
+                </Field>
+
+                <div
+                  v-if="formData.service_type === 'online'"
+                  class="sm:col-span-2 p-3 text-xs border border-blue-200 rounded-lg bg-blue-50 text-blue-700"
+                >
+                  Layanan online tidak membutuhkan alamat lokasi.
+                </div>
               </div>
             </div>
 
