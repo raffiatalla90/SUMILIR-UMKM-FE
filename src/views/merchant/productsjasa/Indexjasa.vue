@@ -84,7 +84,7 @@ const currentMerchantAddress = computed(() => {
 
 // Pagination / totals
 const totalItems = computed(
-  () => pagination.value?.total ?? jasas.value.length,
+  () => pagination.value?.total ?? jasas.value.length
 );
 const totalPages = computed(() => pagination.value?.last_page ?? 1);
 const paginationInfo = computed(() => ({
@@ -110,7 +110,7 @@ const activeFilterCount = computed(() => {
 
 // Count draft jasas
 const draftJasasCount = computed(() => {
-  return jasas.value.filter((j) => j.status === "draft").length;
+  return jasas.value.filter((j) => j.status === 'draft').length;
 });
 
 const hasDraftJasas = computed(() => draftJasasCount.value > 0);
@@ -253,7 +253,7 @@ watch(
       console.log("[Indexjasa] Route query changed, reloading...");
       loadJasas();
     }
-  },
+  }
 );
 
 // ✅ UPDATED: Load jasas dengan merchantId dari route
@@ -440,7 +440,7 @@ const buildExportParams = () => {
     sort_by: buildSortByParam(activeFilters.value) || "newest",
   };
   Object.keys(params).forEach(
-    (k) => params[k] === undefined && delete params[k],
+    (k) => params[k] === undefined && delete params[k]
   );
   return params;
 };
@@ -769,7 +769,7 @@ const confirmSingleStatusChange = async () => {
   try {
     await updateJasaStatus(
       selectedJasaForStatusChange.value.id,
-      newStatusForChange.value,
+      newStatusForChange.value
     );
     const statusLabel = getStatusLabel(newStatusForChange.value);
     toast.success(`Status jasa berhasil diubah menjadi ${statusLabel}`);
@@ -802,7 +802,7 @@ const confirmBulkStatusChange = async () => {
     await bulkUpdateStatus(selectedJasas.value, newBulkStatus.value);
     const statusLabel = getStatusLabel(newBulkStatus.value);
     toast.success(
-      `${selectedJasasCount.value} jasa berhasil diubah menjadi ${statusLabel}`,
+      `${selectedJasasCount.value} jasa berhasil diubah menjadi ${statusLabel}`
     );
     selectedJasas.value = [];
     selectAll.value = false;
@@ -826,25 +826,26 @@ const getPrimaryImageSrc = (jasaItem) => {
   if (jasaItem.image) {
     return getImageUrlJasa(jasaItem.image);
   }
-
+  
   const images = jasaItem.images || [];
-
+  
   if (images.length > 0) {
     // Cari gambar cover atau ambil yang pertama
     const coverImage = images.find((img) => img.is_cover) || images[0];
-
+    
     // Gunakan url/src_url dari backend jika tersedia
     if (coverImage.url) return coverImage.url;
     if (coverImage.src_url) return coverImage.src_url;
-
+    
     // Fallback ke path atau id
     if (coverImage.path) return getImageUrlJasa(coverImage.path);
     if (coverImage.image_path) return getImageUrlJasa(coverImage.image_path);
     if (coverImage.id) return getImageUrlJasa(coverImage.id);
   }
-
+  
   return "";
 };
+
 </script>
 
 <template>
@@ -861,12 +862,8 @@ const getPrimaryImageSrc = (jasaItem) => {
           <i class="pi pi-bars"></i>
         </button>
         <div>
-          <h1
-            class="text-base font-semibold text-merchant-primary sm:text-3xl sm:font-bold"
-          >
-            Daftar Layanan Jasa
-          </h1>
-          <p class="mt-1 text-xs text-gray-600 sm:text-sm">
+          <h1 class="text-base font-semibold text-merchant-primary sm:text-3xl sm:font-bold">Daftar Layanan Jasa</h1>
+          <p class="mt-1 text-xs sm:text-sm text-gray-600">
             <i class="mr-1 pi pi-shop"></i>
             {{ currentMerchantName }}
           </p>
@@ -879,75 +876,72 @@ const getPrimaryImageSrc = (jasaItem) => {
 
     <div class="px-4 sm:px-6">
       <!-- Loading State -->
-      <div v-if="loading" class="flex items-center justify-center py-20">
-        <div
-          class="w-10 h-10 border-4 border-gray-200 rounded-full border-t-blue-500 animate-spin"
-        ></div>
+    <div v-if="loading" class="flex items-center justify-center py-20">
+      <div
+        class="w-10 h-10 border-4 rounded-full border-gray-200 border-t-blue-500 animate-spin"
+      ></div>
+    </div>
+
+    <!-- Empty State -->
+    <div
+      v-else-if="jasas.length === 0"
+      class="py-20 text-center bg-white rounded-2xl shadow-sm border border-gray-100"
+    >
+      <i class="block mb-4 text-6xl text-gray-300 pi pi-inbox"></i>
+      <p class="mb-6 text-lg text-gray-500">Belum ada jasa yang ditambahkan</p>
+      <button
+        @click="goToCreate"
+        class="inline-flex items-center gap-2 px-6 py-3 font-medium text-white transition rounded-lg bg-merchant-primary hover:bg-merchant-primary/90"
+      >
+        <i class="text-sm pi pi-plus"></i>
+        <span>Tambah Jasa Baru</span>
+      </button>
+    </div>
+
+    <!-- Data Table -->
+    <div v-else>
+      <!-- Draft Warning Banner -->
+      <div
+        v-if="hasDraftJasas"
+        class="flex items-start gap-4 p-4 mb-6 border-l-4 rounded-2xl bg-yellow-50 border-l-yellow-400 border border-yellow-200 shadow-sm"
+      >
+        <div class="flex-shrink-0 mt-0.5">
+          <svg
+            class="w-6 h-6 text-amber-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
+          </svg>
+        </div>
+        <div class="flex-1">
+          <h3 class="mb-1 text-base font-semibold text-amber-800">
+            ⚠️ Anda memiliki {{ draftJasasCount }} jasa yang belum dipublikasikan
+          </h3>
+          <p class="text-sm text-amber-700">
+            Jasa dengan status <span class="font-semibold">DRAFT</span> tidak akan
+            terlihat oleh pelanggan. Silakan klik tombol "Publish" pada jasa
+            yang ingin Anda tampilkan kepada pelanggan.
+          </p>
+        </div>
       </div>
 
-      <!-- Empty State -->
-      <div
-        v-else-if="jasas.length === 0"
-        class="py-20 text-center bg-white border border-gray-100 shadow-sm rounded-2xl"
-      >
-        <i class="block mb-4 text-6xl text-gray-300 pi pi-inbox"></i>
-        <p class="mb-6 text-lg text-gray-500">
-          Belum ada jasa yang ditambahkan
-        </p>
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <button
           @click="goToCreate"
-          class="inline-flex items-center gap-2 px-6 py-3 font-medium text-white transition rounded-lg bg-merchant-primary hover:bg-merchant-primary/90"
+          class="inline-flex items-center gap-2 px-5 py-2.5 bg-linear-to-r from-merchant-primary to-merchant-primary/90 text-white rounded-lg font-medium hover:shadow-lg transition"
         >
           <i class="text-sm pi pi-plus"></i>
           <span>Tambah Jasa Baru</span>
         </button>
-      </div>
-
-      <!-- Data Table -->
-      <div v-else>
-        <!-- Draft Warning Banner -->
-        <div
-          v-if="hasDraftJasas"
-          class="flex items-start gap-4 p-4 mb-6 border border-l-4 border-yellow-200 shadow-sm rounded-2xl bg-yellow-50 border-l-yellow-400"
-        >
-          <div class="flex-shrink-0 mt-0.5">
-            <svg
-              class="w-6 h-6 text-amber-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
-          </div>
-          <div class="flex-1">
-            <h3 class="mb-1 text-base font-semibold text-amber-800">
-              ⚠️ Anda memiliki {{ draftJasasCount }} jasa yang belum
-              dipublikasikan
-            </h3>
-            <p class="text-sm text-amber-700">
-              Jasa dengan status <span class="font-semibold">DRAFT</span> tidak
-              akan terlihat oleh pelanggan. Silakan klik tombol "Publish" pada
-              jasa yang ingin Anda tampilkan kepada pelanggan.
-            </p>
-          </div>
-        </div>
-
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
-          <button
-            @click="goToCreate"
-            class="inline-flex items-center gap-2 px-5 py-2.5 bg-linear-to-r from-merchant-primary to-merchant-primary/90 text-white rounded-lg font-medium hover:shadow-lg transition"
-          >
-            <i class="text-sm pi pi-plus"></i>
-            <span>Tambah Jasa Baru</span>
-          </button>
-          <!-- Tombol Chat Pembeli sementara disembunyikan. Aktifkan kembali dengan menghapus komentar ini. -->
-          <!--
+        <!-- Tombol Chat Pembeli sementara disembunyikan. Aktifkan kembali dengan menghapus komentar ini. -->
+        <!--
         <button
           @click="openChatModal"
           class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-merchant-primary/40 text-merchant-primary bg-white hover:bg-merchant-primary/5 transition font-medium"
@@ -955,247 +949,241 @@ const getPrimaryImageSrc = (jasaItem) => {
           <i class="text-sm pi pi-comments"></i>
           <span>Chat Pembeli</span>
         </button>
-        --></div>
+        -->
+      </div>
 
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div
+          v-for="(jasa, index) in jasas"
+          :key="jasa.id"
+          class="overflow-hidden transition bg-white border border-gray-100 rounded-lg shadow-md hover:shadow-lg"
+          :class="
+            !jasa.is_active || jasa.status === 'draft' ? 'opacity-75' : ''
+          "
+        >
+          <!-- Card Header dengan Nomor -->
           <div
-            v-for="(jasa, index) in jasas"
-            :key="jasa.id"
-            class="overflow-hidden transition bg-white border border-gray-100 rounded-lg shadow-md hover:shadow-lg"
-            :class="
-              !jasa.is_active || jasa.status === 'draft' ? 'opacity-75' : ''
-            "
+            class="flex items-center justify-between px-4 py-3 bg-linear-to-r from-merchant-primary to-merchant-primary/80"
           >
-            <!-- Card Header dengan Nomor -->
-            <div
-              class="flex items-center justify-between px-4 py-3 bg-linear-to-r from-merchant-primary to-merchant-primary/80"
-            >
-              <div class="flex items-center gap-3">
-                <span
-                  class="inline-flex items-center justify-center w-8 h-8 text-base font-bold text-white rounded-full bg-white/30"
-                >
-                  {{ (currentPage - 1) * perPage + index + 1 }}
-                </span>
-                <span class="text-sm font-medium text-white truncate">{{
-                  jasa.title
-                }}</span>
-              </div>
+            <div class="flex items-center gap-3">
               <span
-                :class="[
-                  'px-2 py-1 rounded-full text-xs font-medium shrink-0',
-                  jasa.status === 'published'
-                    ? 'bg-green-100 text-green-700'
-                    : jasa.status === 'draft'
-                      ? 'bg-yellow-100 text-yellow-700'
-                      : 'bg-red-100 text-red-700',
-                ]"
+                class="inline-flex items-center justify-center w-8 h-8 text-base font-bold text-white rounded-full bg-white/30"
               >
-                {{
-                  jasa.status === "published"
-                    ? "Dipublish"
-                    : jasa.status === "draft"
-                      ? "Draft"
-                      : "Diarsipkan"
-                }}
+                {{ (currentPage - 1) * perPage + index + 1 }}
               </span>
+              <span class="text-sm font-medium text-white truncate">{{
+                jasa.title
+              }}</span>
             </div>
-
-            <!-- Card Body -->
-            <div class="p-4">
-              <!-- Gambar -->
-              <div class="mb-4">
-                <div
-                  v-if="(jasa.images && jasa.images.length > 0) || jasa.image"
-                  class="flex items-center justify-center w-full h-40 mb-3 overflow-hidden bg-gray-100 rounded-lg"
-                >
-                  <img
-                    :src="getPrimaryImageSrc(jasa)"
-                    :alt="jasa.title"
-                    class="object-cover w-full h-full max-w-full max-h-full"
-                    @error="
-                      (e) =>
-                        (e.target.src =
-                          'data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Crect fill=%27%23f3f4f6%27 width=%27100%27 height=%27100%27/%3E%3Ctext x=%2750%27 y=%2750%27 font-size=%2714%27 text-anchor=%27middle%27 dy=%27.3em%27 fill=%27%239ca3af%27%3ENo Image%3C/text%3E%3C/svg%3E')
-                    "
-                  />
-                </div>
-                <div
-                  v-else
-                  class="flex items-center justify-center w-full h-40 mb-3 bg-gray-100 rounded-lg"
-                >
-                  <i class="text-4xl text-gray-400 pi pi-image"></i>
-                </div>
-              </div>
-
-              <!-- Nama Jasa -->
-              <h3 class="mb-2 text-lg font-bold text-gray-900 line-clamp-2">
-                {{ jasa.title }}
-              </h3>
-
-              <!-- Info Grid -->
-              <div class="mb-4 space-y-2 text-sm">
-                <!-- Kategori -->
-                <div class="flex items-start gap-2">
-                  <i class="mt-1 text-xs pi pi-tag text-merchant-primary"></i>
-                  <div class="flex-1">
-                    <div class="font-medium text-gray-700">
-                      {{ jasa.category?.name || "-" }}
-                    </div>
-                    <div
-                      v-if="jasa.subcategory?.name"
-                      class="text-xs text-gray-500"
-                    >
-                      {{ jasa.subcategory.name }}
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Harga -->
-                <div class="flex items-start gap-2">
-                  <i
-                    class="pi pi-wallet text-merchant-primary text-xs mt-0.5"
-                  ></i>
-                  <div class="flex flex-col">
-                    <span class="text-sm font-semibold text-merchant-primary">
-                      <template v-if="jasa.fixed_price && jasa.fixed_price > 0">
-                        {{ formatPriceId(jasa.fixed_price) }}
-                      </template>
-                      <template
-                        v-else-if="jasa.base_price && jasa.base_price > 0"
-                      >
-                        Mulai {{ formatPriceId(jasa.base_price) }}
-                      </template>
-                      <template v-else> - </template>
-                    </span>
-                    <span
-                      v-if="jasa.fixed_price && jasa.fixed_price > 0"
-                      class="mt-0.5 inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-medium px-2 py-0.5 uppercase tracking-wide"
-                    >
-                      <span
-                        class="w-1.5 h-1.5 rounded-full bg-emerald-500"
-                      ></span>
-                      Harga Tetap
-                    </span>
-                    <span
-                      v-else-if="jasa.base_price && jasa.base_price > 0"
-                      class="mt-0.5 inline-flex items-center gap-1 rounded-full bg-gray-100 text-gray-700 text-[10px] font-medium px-2 py-0.5 uppercase tracking-wide"
-                    >
-                      <span class="w-1.5 h-1.5 rounded-full bg-gray-500"></span>
-                      Harga Mulai
-                    </span>
-                  </div>
-                </div>
-
-                <!-- Tanggal Upload & Edit -->
-                <div class="flex items-start gap-2 text-xs text-gray-500">
-                  <i
-                    class="pi pi-clock text-merchant-primary text-xs mt-0.5"
-                  ></i>
-                  <div>
-                    <div>Upload: {{ formatJasaDateTime(jasa.created_at) }}</div>
-                    <div
-                      v-if="
-                        jasa.updated_at && jasa.updated_at !== jasa.created_at
-                      "
-                    >
-                      Edit: {{ formatJasaDateTime(jasa.updated_at) }}
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Tipe Layanan & Lokasi -->
-                <div class="flex items-start gap-2 text-xs text-gray-600">
-                  <i
-                    class="pi pi-map-marker text-merchant-primary text-xs mt-0.5"
-                  ></i>
-                  <div class="space-y-0.5">
-                    <div>
-                      <span class="font-semibold">Tipe:</span>
-                      {{ getServiceTypeLabel(jasa.service_type) }}
-                    </div>
-                    <div class="break-words">
-                      <span class="font-semibold">Lokasi:</span>
-                      {{ getDisplayServiceAddress(jasa) }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Card Footer dengan Aksi -->
-            <div
-              class="flex flex-wrap gap-2 px-4 py-3 border-t border-gray-100 bg-gray-50"
+            <span
+              :class="[
+                'px-2 py-1 rounded-full text-xs font-medium shrink-0',
+                jasa.status === 'published'
+                  ? 'bg-green-100 text-green-700'
+                  : jasa.status === 'draft'
+                  ? 'bg-yellow-100 text-yellow-700'
+                  : 'bg-red-100 text-red-700',
+              ]"
             >
-              <button
-                @click="goToDetail(jasa)"
-                class="inline-flex items-center justify-center flex-1 px-2 py-2 text-xs font-medium text-blue-600 transition border rounded border-blue-500/30 bg-blue-50 hover:bg-blue-100"
-                title="Lihat detail"
+              {{
+                jasa.status === "published"
+                  ? "Dipublish"
+                  : jasa.status === "draft"
+                  ? "Draft"
+                  : "Diarsipkan"
+              }}
+            </span>
+          </div>
+
+          <!-- Card Body -->
+          <div class="p-4">
+            <!-- Gambar -->
+            <div class="mb-4">
+              <div
+                v-if="(jasa.images && jasa.images.length > 0) || jasa.image"
+                class="flex items-center justify-center w-full h-40 mb-3 overflow-hidden bg-gray-100 rounded-lg"
               >
-                <i class="mr-1 text-xs pi pi-eye"></i>
-                <span>Detail</span>
-              </button>
-              <!-- Tombol Publish khusus untuk jasa Draft -->
-              <button
-                v-if="jasa.status === 'draft'"
-                @click="publishJasa(jasa)"
-                class="inline-flex items-center justify-center flex-1 px-2 py-2 text-xs font-semibold text-white transition rounded shadow-sm bg-linear-to-r from-emerald-500 to-emerald-600 hover:shadow-md hover:from-emerald-600 hover:to-emerald-700"
-                title="Publish jasa ini"
+                <img
+                  :src="getPrimaryImageSrc(jasa)"
+                  :alt="jasa.title"
+                  class="object-cover w-full h-full max-w-full max-h-full"
+                  @error="
+                    (e) =>
+                      (e.target.src =
+                        'data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Crect fill=%27%23f3f4f6%27 width=%27100%27 height=%27100%27/%3E%3Ctext x=%2750%27 y=%2750%27 font-size=%2714%27 text-anchor=%27middle%27 dy=%27.3em%27 fill=%27%239ca3af%27%3ENo Image%3C/text%3E%3C/svg%3E')
+                  "
+                />
+              </div>
+              <div
+                v-else
+                class="flex items-center justify-center w-full h-40 mb-3 bg-gray-100 rounded-lg"
               >
-                <i class="mr-1 text-xs pi pi-send"></i>
-                <span>Publish</span>
-              </button>
-              <button
-                @click="goToEdit(jasa)"
-                class="inline-flex items-center justify-center flex-1 px-2 py-2 text-xs font-medium transition border rounded border-merchant-primary/40 text-merchant-primary bg-merchant-primary/5 hover:bg-merchant-primary/10"
-                title="Edit jasa"
-              >
-                <i class="mr-1 text-xs pi pi-pencil"></i>
-                <span>Edit</span>
-              </button>
-              <button
-                @click="deleteJasaAction(jasa)"
-                class="inline-flex items-center justify-center flex-1 px-2 py-2 text-xs font-medium text-red-600 transition border rounded border-red-500/30 bg-red-50 hover:bg-red-100"
-                title="Hapus jasa"
-              >
-                <i class="mr-1 text-xs pi pi-trash"></i>
-                <span>Hapus</span>
-              </button>
+                <i class="text-4xl text-gray-400 pi pi-image"></i>
+              </div>
+            </div>
+
+            <!-- Nama Jasa -->
+            <h3 class="mb-2 text-lg font-bold text-gray-900 line-clamp-2">
+              {{ jasa.title }}
+            </h3>
+
+            <!-- Info Grid -->
+            <div class="mb-4 space-y-2 text-sm">
+              <!-- Kategori -->
+              <div class="flex items-start gap-2">
+                <i class="mt-1 text-xs pi pi-tag text-merchant-primary"></i>
+                <div class="flex-1">
+                  <div class="font-medium text-gray-700">
+                    {{ jasa.category?.name || "-" }}
+                  </div>
+                  <div
+                    v-if="jasa.subcategory?.name"
+                    class="text-xs text-gray-500"
+                  >
+                    {{ jasa.subcategory.name }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Harga -->
+              <div class="flex items-start gap-2">
+                <i
+                  class="pi pi-wallet text-merchant-primary text-xs mt-0.5"
+                ></i>
+                <div class="flex flex-col">
+                  <span class="text-sm font-semibold text-merchant-primary">
+                    <template v-if="jasa.fixed_price && jasa.fixed_price > 0">
+                      {{ formatPriceId(jasa.fixed_price) }}
+                    </template>
+                    <template
+                      v-else-if="jasa.base_price && jasa.base_price > 0"
+                    >
+                      Mulai {{ formatPriceId(jasa.base_price) }}
+                    </template>
+                    <template v-else> - </template>
+                  </span>
+                  <span
+                    v-if="jasa.fixed_price && jasa.fixed_price > 0"
+                    class="mt-0.5 inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-medium px-2 py-0.5 uppercase tracking-wide"
+                  >
+                    <span
+                      class="w-1.5 h-1.5 rounded-full bg-emerald-500"
+                    ></span>
+                    Harga Tetap
+                  </span>
+                  <span
+                    v-else-if="jasa.base_price && jasa.base_price > 0"
+                    class="mt-0.5 inline-flex items-center gap-1 rounded-full bg-gray-100 text-gray-700 text-[10px] font-medium px-2 py-0.5 uppercase tracking-wide"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full bg-gray-500"></span>
+                    Harga Mulai
+                  </span>
+                </div>
+              </div>
+
+              <!-- Tanggal Upload & Edit -->
+              <div class="flex items-start gap-2 text-xs text-gray-500">
+                <i class="pi pi-clock text-merchant-primary text-xs mt-0.5"></i>
+                <div>
+                  <div>Upload: {{ formatJasaDateTime(jasa.created_at) }}</div>
+                  <div
+                    v-if="
+                      jasa.updated_at && jasa.updated_at !== jasa.created_at
+                    "
+                  >
+                    Edit: {{ formatJasaDateTime(jasa.updated_at) }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tipe Layanan & Lokasi -->
+              <div class="flex items-start gap-2 text-xs text-gray-600">
+                <i class="pi pi-map-marker text-merchant-primary text-xs mt-0.5"></i>
+                <div class="space-y-0.5">
+                  <div>
+                    <span class="font-semibold">Tipe:</span>
+                    {{ getServiceTypeLabel(jasa.service_type) }}
+                  </div>
+                  <div class="break-words">
+                    <span class="font-semibold">Lokasi:</span>
+                    {{ getDisplayServiceAddress(jasa) }}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Delete Confirmation Modal -->
-        <ResponsiveModal
-          v-model:show="showDeleteModal"
-          title="Hapus Jasa"
-          show-footer
-          @close="closeDeleteModal"
-        >
-          <p class="text-sm text-gray-600">
-            Apakah Anda yakin ingin menghapus jasa
-            <span class="font-semibold">{{ selectedJasaForDelete?.title }}</span
-            >? Tindakan ini tidak dapat dibatalkan.
-          </p>
-          <template #footer>
-            <div class="flex w-full gap-2">
-              <Button
-                variant="muted-outline"
-                class="flex-1"
-                @click="closeDeleteModal"
-              >
-                Batal
-              </Button>
-              <Button
-                variant="danger"
-                class="flex-1"
-                @click="confirmDeleteJasa"
-              >
-                Hapus
-              </Button>
-            </div>
-          </template>
-        </ResponsiveModal>
+          <!-- Card Footer dengan Aksi -->
+          <div
+            class="flex flex-wrap gap-2 px-4 py-3 border-t border-gray-100 bg-gray-50"
+          >
+            <button
+              @click="goToDetail(jasa)"
+              class="inline-flex items-center justify-center flex-1 px-2 py-2 text-xs font-medium text-blue-600 transition border rounded border-blue-500/30 bg-blue-50 hover:bg-blue-100"
+              title="Lihat detail"
+            >
+              <i class="mr-1 text-xs pi pi-eye"></i>
+              <span>Detail</span>
+            </button>
+            <!-- Tombol Publish khusus untuk jasa Draft -->
+            <button
+              v-if="jasa.status === 'draft'"
+              @click="publishJasa(jasa)"
+              class="inline-flex items-center justify-center flex-1 px-2 py-2 text-xs font-semibold text-white transition rounded shadow-sm bg-linear-to-r from-emerald-500 to-emerald-600 hover:shadow-md hover:from-emerald-600 hover:to-emerald-700"
+              title="Publish jasa ini"
+            >
+              <i class="mr-1 text-xs pi pi-send"></i>
+              <span>Publish</span>
+            </button>
+            <button
+              @click="goToEdit(jasa)"
+              class="inline-flex items-center justify-center flex-1 px-2 py-2 text-xs font-medium transition border rounded border-merchant-primary/40 text-merchant-primary bg-merchant-primary/5 hover:bg-merchant-primary/10"
+              title="Edit jasa"
+            >
+              <i class="mr-1 text-xs pi pi-pencil"></i>
+              <span>Edit</span>
+            </button>
+            <button
+              @click="deleteJasaAction(jasa)"
+              class="inline-flex items-center justify-center flex-1 px-2 py-2 text-xs font-medium text-red-600 transition border rounded border-red-500/30 bg-red-50 hover:bg-red-100"
+              title="Hapus jasa"
+            >
+              <i class="mr-1 text-xs pi pi-trash"></i>
+              <span>Hapus</span>
+            </button>
+          </div>
+        </div>
       </div>
+
+      <!-- Delete Confirmation Modal -->
+      <ResponsiveModal
+        v-model:show="showDeleteModal"
+        title="Hapus Jasa"
+        show-footer
+        @close="closeDeleteModal"
+      >
+        <p class="text-sm text-gray-600">
+          Apakah Anda yakin ingin menghapus jasa
+          <span class="font-semibold">{{ selectedJasaForDelete?.title }}</span
+          >? Tindakan ini tidak dapat dibatalkan.
+        </p>
+        <template #footer>
+          <div class="flex w-full gap-2">
+            <Button
+              variant="muted-outline"
+              class="flex-1"
+              @click="closeDeleteModal"
+            >
+              Batal
+            </Button>
+            <Button variant="danger" class="flex-1" @click="confirmDeleteJasa">
+              Hapus
+            </Button>
+          </div>
+        </template>
+      </ResponsiveModal>
+
+    </div>
 
       <!-- Pagination -->
       <div v-if="totalPages > 1" class="flex justify-center gap-2 mt-4">

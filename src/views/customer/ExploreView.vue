@@ -845,11 +845,13 @@ const jasaToProductCard = (jasa) => {
 };
 
 const cardItems = computed(() => {
-  return (filteredJasaList.value || []).map((jasa) => ({
-    key: `jasa-${getJasaId(jasa)}`,
-    to: { name: "JasaDetail", params: { slug: jasa.slug || String(getJasaId(jasa)) } },
-    product: jasaToProductCard(jasa),
-  }));
+  return (filteredJasaList.value || [])
+    .filter((jasa) => typeof jasa?.slug === "string" && jasa.slug.trim())
+    .map((jasa) => ({
+      key: `jasa-${getJasaId(jasa)}`,
+      to: { name: "JasaDetail", params: { slug: jasa.slug } },
+      product: jasaToProductCard(jasa),
+    }));
 });
 
 const productCardItems = computed(() => {
@@ -1080,8 +1082,23 @@ const fetchJasas = async ({ append } = { append: false }) => {
     };
 
     const payload = await searchProducts(params);
-    const meta = payload?.jasas_meta ?? {};
-    const items = Array.isArray(payload?.jasas) ? payload.jasas : [];
+
+    // Backward compatible parser:
+    // - legacy: { jasas, jasas_meta }
+    // - current ApiResponse: { data, meta: { jasas, jasas_meta } }
+    const rootJasas = Array.isArray(payload?.jasas) ? payload.jasas : [];
+    const metaJasas = Array.isArray(payload?.meta?.jasas)
+      ? payload.meta.jasas
+      : [];
+
+    const items = rootJasas.length > 0 ? rootJasas : metaJasas;
+
+    const meta =
+      payload?.jasas_meta ??
+      payload?.meta?.jasas_meta ?? {
+        current_page: Number(payload?.meta?.current_page ?? 1),
+        last_page: Number(payload?.meta?.last_page ?? 1),
+      };
     const mapped = items.map((j) => ({
       ...j,
       image: resolveJasaImage(j),

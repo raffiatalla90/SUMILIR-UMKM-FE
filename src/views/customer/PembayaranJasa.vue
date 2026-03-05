@@ -531,7 +531,8 @@ const route = useRoute();
 const router = useRouter();
 // ===== Data dari query =====
 const order = {
-  id: route.query.id || null,
+  jasaSlug: route.query.jasa_slug || "",
+  merchantSlug: route.query.merchant_slug || "",
   title: route.query.title || "Nama Jasa",
   image: route.query.image || "",
   price: Number(route.query.price || 0),
@@ -883,9 +884,14 @@ function useProfileContact() {
 
 // Ambil info jasa (WhatsApp link, merchant info, service type) saat halaman dibuka
 onMounted(async () => {
-  if (!order.id) return;
+  if (order.merchantSlug) {
+    await loadVouchersForJasa(order.merchantSlug);
+  }
+
+  if (!order.jasaSlug) return;
+
   try {
-    const { data } = await api.get(`/api/public/jasas/${order.id}`);
+    const { data } = await api.get(`/api/public/jasas/${encodeURIComponent(order.jasaSlug)}`);
     const payload = data?.data ?? data;
 
     // Prioritas sumber nomor WhatsApp penjual:
@@ -924,7 +930,7 @@ onMounted(async () => {
       form.value.alamat = '';
     }
 
-    if (payload?.merchant?.slug) {
+    if (!order.merchantSlug && payload?.merchant?.slug) {
       await loadVouchersForJasa(payload.merchant.slug);
     }
 

@@ -42,7 +42,7 @@ export const getImageUrlJasa = (imageIdOrPath) => {
     }
   }
 
-  return `${backendBase}/images/${encodeURIComponent(imageIdOrPath)}`;
+  return `${apiBase}/api/images/${encodeURIComponent(imageIdOrPath)}`;
 };
 
 /**

@@ -195,7 +195,7 @@ const formData = ref({
   service_area: "",
   special_notes: "",
   payment_methods: "cod",
-  status: "draft",
+  status: "published",
 });
 
 // Validation schema
@@ -560,8 +560,8 @@ const submitForm = async (values) => {
     });
 
     fd.set("location_address", formData.value.location_address || "");
-    // Paksa status selalu disimpan sebagai draft saat create
-    fd.set("status", "draft");
+    // Default create langsung dipublish agar tampil di halaman customer
+    fd.set("status", "published");
 
     // Append images[] if any
     if (imageFiles.value && imageFiles.value.length) {
@@ -585,18 +585,7 @@ const submitForm = async (values) => {
       fd
     );
 
-    toast.success("Jasa berhasil dibuat!");
-    
-    // Informative toast about draft status
-    setTimeout(() => {
-      toast.info(
-        "💡 Jasa Anda masih dalam status DRAFT. Silakan publikasikan agar dapat dilihat pelanggan.",
-        {
-          timeout: 8000,
-          closeButton: true,
-        }
-      );
-    }, 1500);
+    toast.success("Jasa berhasil dibuat dan dipublish!");
     
     // Clear form draft after successful submission
     clearFormDraft();
@@ -1189,11 +1178,11 @@ onBeforeUnmount(() => {
               <div>
                 <p class="mb-2 text-sm text-gray-700">
                   Layanan baru akan disimpan sebagai
-                  <span class="font-semibold text-orange-600">Draft</span>.
+                  <span class="font-semibold text-emerald-600">Dipublish</span>.
                 </p>
                 <p class="text-xs text-gray-500">
-                  Setelah tersimpan, Anda dapat membuka halaman Edit untuk
-                  mem-publish layanan atau mengarsipkannya sesuai kebutuhan.
+                  Setelah tersimpan, layanan langsung muncul di tampilan customer.
+                  Anda tetap bisa mengubah status ke draft/arsip dari halaman Edit.
                 </p>
               </div>
             </div>

@@ -379,7 +379,6 @@
           :to="{
             name: 'Pembayaran Jasa',
             query: {
-              id: jasa?.id || route.params.slug,
                title: jasa?.title || '-',
               image: jasaImage,
               price: jasa?.fixed_price || jasa?.base_price || 100000,
@@ -387,6 +386,8 @@
               waktu: hasOperatingTimes ? activeTime : '',
               payment_methods: jasa?.payment_methods || '',
               service_type: jasa?.service_type || '',
+              merchant_slug: jasa?.merchant?.slug || '',
+              jasa_slug: jasa?.slug || route.params.slug || '',
               alamat:
                 jasa?.service_type === 'on_site'
                   ? ''

@@ -283,6 +283,18 @@ const handleCategoryChange = async (value) => {
 
 // Auto-save form data to localStorage (debounced)
 let saveTimeout = null;
+
+const sanitizeDraftData = (data) => {
+  if (!data || typeof data !== "object") return {};
+
+  const {
+    status,
+    ...safeData
+  } = data;
+
+  return safeData;
+};
+
 watch(
   formData,
   (newData) => {
@@ -292,7 +304,10 @@ watch(
     if (saveTimeout) clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
       try {
-        localStorage.setItem(FORM_DRAFT_KEY.value, JSON.stringify(newData));
+        localStorage.setItem(
+          FORM_DRAFT_KEY.value,
+          JSON.stringify(sanitizeDraftData(newData))
+        );
       } catch (error) {
         console.error("Failed to save form draft:", error);
       }
@@ -309,14 +324,15 @@ const restoreFormDraft = () => {
     const saved = localStorage.getItem(FORM_DRAFT_KEY.value);
     if (saved) {
       const parsed = JSON.parse(saved);
+      const safeDraft = sanitizeDraftData(parsed);
       
       // Only restore if draft is newer than last load
       // This prevents overwriting with old data
-      Object.assign(formData.value, parsed);
+      Object.assign(formData.value, safeDraft);
       
       // Load subcategories if category is selected
-      if (parsed.jasa_category_id) {
-        loadSubcategories(parsed.jasa_category_id);
+      if (safeDraft.jasa_category_id) {
+        loadSubcategories(safeDraft.jasa_category_id);
       }
 
       formKey.value += 1;
@@ -560,7 +576,6 @@ const submitForm = async (values) => {
           "\ud83d\udca1 Jasa Anda masih dalam status DRAFT. Silakan publikasikan agar dapat dilihat pelanggan.",
           {
             timeout: 8000,
-            closeButton: true,
           }
         );
       }, 1500);
@@ -582,15 +597,10 @@ const submitForm = async (values) => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
   loadCategories();
-  loadJasa();
-  
-  // Restore form draft after data is loaded
-  // Use nextTick to ensure loadJasa has populated the form first
-  setTimeout(() => {
-    restoreFormDraft();
-  }, 1000);
+  await loadJasa();
+  restoreFormDraft();
 });
 </script>
 
