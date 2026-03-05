@@ -43,7 +43,8 @@ const props = defineProps({
   emptyText: { type: String, default: "Tidak ada data" },
   skeleton: { type: Boolean, default: true },
   variant: { type: String, default: "primary" },
-  required: { type: Boolean, default: false }, 
+  required: { type: Boolean, default: false },
+  autocomplete: { type: String, default: "" },
 });
 const emit = defineEmits(["update:modelValue"]);
 
@@ -103,6 +104,7 @@ const selectClasses = (invalid) =>
           @change="field.onChange"
           @blur="field.onBlur"
           :disabled="disabled || loading"
+          :autocomplete="autocomplete || undefined"
           :class="selectClasses(meta.touched && errors.length)"
         >
           <option value="">{{ placeholder }}</option>

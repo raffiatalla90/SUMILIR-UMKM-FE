@@ -19,7 +19,7 @@
           <router-link
             v-for="jasa in jasaList"
             :key="jasa.id"
-            :to="{ name: 'JasaDetail', params: { id: jasa.id } }"
+            :to="{ name: 'JasaDetail', params: { slug: jasa.slug || String(jasa.id) } }"
             class="group cursor-pointer block"
           >
             <div class="relative overflow-hidden rounded-lg shadow-md hover:shadow-lg transition-shadow h-[120px] sm:h-[160px] lg:h-[180px] bg-gray-200">

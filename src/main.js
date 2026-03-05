@@ -12,6 +12,17 @@ import EventCard from "@/components/Card/EventCard.vue";
 import PromoCard from "@/components/Card/PromoCard.vue";
 import 'leaflet/dist/leaflet.css'
 
+if (import.meta.env.DEV && "serviceWorker" in navigator) {
+  window.addEventListener("load", async () => {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map((registration) => registration.unregister()));
+    if (window.caches) {
+      const cacheKeys = await caches.keys();
+      await Promise.all(cacheKeys.map((cacheKey) => caches.delete(cacheKey)));
+    }
+  });
+}
+
 // Minimal waktu splash (ms)
 const MIN_SPLASH_MS = Number(import.meta.env.VITE_SPLASH_MIN_MS || 1000);
 
