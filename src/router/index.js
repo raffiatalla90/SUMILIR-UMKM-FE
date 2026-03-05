@@ -645,39 +645,6 @@ const routes = [
       //   },
       // },
 
-      // ===========================
-      // REVIEWS & ULASAN
-      // ===========================
-      {
-        path: "reviews",
-        name: "Merchant - Reviews",
-        component: () => import("@/views/merchant/reviews/Index.vue"),
-        meta: {
-          title: "Review & Ulasan UMKM | SUMILIR",
-        },
-      },
-
-      // ===========================
-      // CHAT DENGAN PEMBELI
-      // ===========================
-      {
-        path: "chats",
-        name: "Merchant Chat",
-        component: () => import("@/views/merchant/chats/Index.vue"),
-        meta: {
-          title: "Chat dengan Pembeli | SUMILIR",
-        },
-      },
-
-      {
-        path: "chats/:conversationId",
-        name: "Merchant Chat Detail",
-        component: () => import("@/views/merchant/chats/ChatDetail.vue"),
-        meta: {
-          title: "Detail Chat | SUMILIR",
-        },
-      },
-
       {
         path: "orders",
         name: "Merchant - Orders",
@@ -730,24 +697,6 @@ const routes = [
         name: "MyOrder",
         component: () => import("@/views/CustomerOrder/MyOrderView.vue"),
         meta: { title: "My Order | SUMILIR" }, // ← dari kodemu
-      },
-      {
-        path: "give-review/:orderId?",
-        name: "GiveReview",
-        component: () => import("@/views/CustomerOrder/GiveReviewView.vue"),
-        meta: { title: "Beri Nilai | SUMILIR" }, // ← dari kodemu
-      },
-      {
-        path: "review",
-        name: "Review",
-        component: () => import("@/views/CustomerOrder/ReviewView.vue"),
-        meta: { title: "Lihat Penilaian | SUMILIR" }, // ← dari kodemu
-      },
-      {
-        path: "review/edit-review",
-        name: "EditReview",
-        component: () => import("@/views/CustomerOrder/EditReviewView.vue"),
-        meta: { title: "Edit Penilaian | SUMILIR" }, // ← dari kodemu
       },
     ],
   },

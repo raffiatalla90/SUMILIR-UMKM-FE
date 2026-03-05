@@ -28,11 +28,7 @@ import { useRouter, useRoute } from "vue-router";
 const router = useRouter();
 const route = useRoute();
 
-const pageTitle = computed(() => {
-  if (route.name === "Review") return "Penilaian";
-  if (route.name === "EditReview") return "Edit Penilaian";
-  return "Pesanan";
-});
+const pageTitle = computed(() => "Pesanan");
 
 const goBack = () => {
   if (route.name === "MyOrder") {

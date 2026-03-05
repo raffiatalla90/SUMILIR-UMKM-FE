@@ -449,61 +449,6 @@
       </router-link>
     </div>
 
-    <!-- Chat Modal -->
-    <transition
-      enter-active-class="transition duration-200 ease-out"
-      enter-from-class="translate-y-full opacity-0"
-      enter-to-class="translate-y-0 opacity-100"
-      leave-active-class="transition duration-200 ease-in"
-      leave-from-class="translate-y-0 opacity-100"
-      leave-to-class="translate-y-full opacity-0"
-    >
-      <div
-        v-if="showChat && selectedJasaId && isJasaMerchant"
-        class="fixed inset-0 z-50 flex items-end justify-center sm:items-center bg-black/40"
-        @click.self="showChat = false"
-      >
-        <div
-          class="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl h-[78dvh] sm:h-[520px] flex flex-col overflow-hidden"
-        >
-          <div
-            class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-2xl"
-          >
-            <div class="flex items-center gap-3">
-              <div
-                class="flex items-center justify-center w-10 h-10 overflow-hidden bg-gray-100 rounded-full shrink-0"
-              >
-                <img
-                  v-if="merchant?.logo_url"
-                  :src="merchant.logo_url"
-                  alt="Logo Toko"
-                  class="object-cover w-full h-full"
-                />
-                <i v-else class="text-gray-400 pi pi-shop"></i>
-              </div>
-              <div>
-                <p class="text-sm font-semibold text-gray-900">
-                  {{ merchant?.name || "Penjual" }}
-                </p>
-                <p class="text-xs text-gray-500">Konsultasi Layanan</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              class="flex items-center justify-center w-8 h-8 text-gray-500 rounded-full hover:bg-gray-100"
-              @click="showChat = false"
-            >
-              <i class="text-sm pi pi-times"></i>
-            </button>
-          </div>
-
-          <div class="flex-1 min-h-0 p-3">
-            <ChatWindow :jasa-id="selectedJasaId" mode="buyer" />
-          </div>
-        </div>
-      </div>
-    </transition>
-
     <!-- BACK TO TOP BUTTON -->
     <button
       v-show="showBackToTop"
@@ -530,7 +475,6 @@ import { useRouter } from "vue-router";
 import api from "@/libs/axios.js";
 import { getImageUrl, getImageUrlJasa } from "@/libs/getImageUrl.js";
 import { setMeta, setJsonLd } from "@/router/seo";
-import ChatWindow from "@/components/common/ChatWindow.vue";
 import LeafletMap from "@/components/LeafletMap.vue";
 import ProductCard from "@/components/Card/ProductCard.vue";
 import ProductCardSkeleton from "@/components/Card/ProductCardSkeleton.vue";
@@ -556,8 +500,6 @@ const merchant = ref(null);
 const jasaList = ref([]);
 const productList = ref([]);
 const loading = ref(true);
-const showChat = ref(false);
-const selectedJasaId = ref(null);
 const activeTab = ref("menu");
 const menuKind = ref("jasa"); // 'product' | 'jasa'
 
@@ -940,18 +882,6 @@ const resolveJasaImage = (jasa) => {
   }
 
   return null;
-};
-
-// Buka chat dengan jasa pertama dari merchant (hanya untuk jasa merchants)
-const openChat = () => {
-  if (!isJasaMerchant.value) {
-    console.warn("Chat hanya tersedia untuk UMKM Jasa");
-    return;
-  }
-  if (jasaList.value.length > 0) {
-    selectedJasaId.value = jasaList.value[0].id;
-    showChat.value = true;
-  }
 };
 
 const goToProductDetail = (product) => {

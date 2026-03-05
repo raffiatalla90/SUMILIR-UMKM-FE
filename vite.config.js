@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       VitePWA({
         registerType: "autoUpdate",
-        devOptions: { enabled: mode === "development" },
+        devOptions: { enabled: false },
         manifest: {
           name: "Sumilir",
           short_name: "Sumilir",

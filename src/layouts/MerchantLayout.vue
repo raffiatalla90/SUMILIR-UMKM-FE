@@ -85,11 +85,6 @@ const menuItems = computed(() => {
       icon: "pi-chart-bar",
       route: `/merchant-center/${currentMerchantSlug.value}/dashboard`,
     },
-    {
-       label: "Pesanan",
-       icon: "pi-shopping-bag",
-       route: `/merchant-center/${currentMerchantSlug.value}/orders`,
-    },
 
     productOrServiceItem,
     // {
@@ -101,16 +96,6 @@ const menuItems = computed(() => {
       label: "Voucher",
       icon: "pi-tag",
       route: `/merchant-center/${currentMerchantSlug.value}/vouchers`,
-    },
-    {
-      label: "Review & Ulasan",
-      icon: "pi-star",
-      route: `/merchant-center/${currentMerchantSlug.value}/reviews`,
-    },
-    {
-      label: "Chat dengan Pembeli",
-      icon: "pi-comments",
-      route: `/merchant-center/${currentMerchantSlug.value}/chats`,
     },
     // {
     //   label: "Events",

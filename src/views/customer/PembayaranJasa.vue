@@ -460,101 +460,6 @@
       </div>
     </transition>
 
-    <!-- Bottom Sheet Pilih Jam Layanan -->
-    <transition name="fade">
-      <div v-if="openTimeOptions" class="fixed inset-0 z-40">
-        <div
-          class="absolute inset-0 bg-black/40"
-          @click="openTimeOptions = false"
-        ></div>
-        <div
-          class="absolute left-0 right-0 bottom-0 bg-white rounded-t-2xl shadow-2xl p-4 max-h-[70vh] overflow-y-auto"
-        >
-          <div class="w-12 h-1 mx-auto mb-3 bg-gray-300 rounded-full"></div>
-          <div class="mb-3">
-            <h3 class="text-base font-semibold text-gray-900">
-              Pilih Jam Layanan
-            </h3>
-            <p class="text-xs text-gray-500 mt-0.5">
-              Pilih salah satu jam yang tersedia atau isi manual di kolom waktu.
-            </p>
-          </div>
-
-          <div class="space-y-3 text-sm">
-            <div v-if="times.morning.length" class="space-y-2">
-              <p class="text-xs font-semibold text-gray-500 uppercase">Pagi</p>
-              <div class="flex flex-wrap gap-2">
-                <button
-                  v-for="t in times.morning"
-                  :key="'m-' + t"
-                  type="button"
-                  class="px-3 py-1.5 rounded-full border border-gray-300 text-xs hover:bg-amber-50"
-                  @click="
-                    form.waktu = t;
-                    openTimeOptions = false;
-                  "
-                >
-                  {{ t }}
-                </button>
-              </div>
-            </div>
-
-            <div v-if="times.afternoon.length" class="space-y-2">
-              <p class="text-xs font-semibold text-gray-500 uppercase">
-                Siang / Sore
-              </p>
-              <div class="flex flex-wrap gap-2">
-                <button
-                  v-for="t in times.afternoon"
-                  :key="'a-' + t"
-                  type="button"
-                  class="px-3 py-1.5 rounded-full border border-gray-300 text-xs hover:bg-amber-50"
-                  @click="
-                    form.waktu = t;
-                    openTimeOptions = false;
-                  "
-                >
-                  {{ t }}
-                </button>
-              </div>
-            </div>
-
-            <div v-if="times.evening.length" class="space-y-2">
-              <p class="text-xs font-semibold text-gray-500 uppercase">Malam</p>
-              <div class="flex flex-wrap gap-2">
-                <button
-                  v-for="t in times.evening"
-                  :key="'e-' + t"
-                  type="button"
-                  class="px-3 py-1.5 rounded-full border border-gray-300 text-xs hover:bg-amber-50"
-                  @click="
-                    form.waktu = t;
-                    openTimeOptions = false;
-                  "
-                >
-                  {{ t }}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div
-            class="mt-4 flex justify-between items-center gap-2 text-[11px] text-gray-500"
-          >
-            <p>
-              Ingin jam di luar pilihan? Tutup dan ketik manual di kolom waktu.
-            </p>
-            <button
-              class="px-4 py-2 text-xs font-semibold border border-gray-200 rounded-lg"
-              @click="openTimeOptions = false"
-            >
-              Tutup
-            </button>
-          </div>
-        </div>
-      </div>
-    </transition>
-
     <!-- Overlay Ringkasan Pemesanan (Card) -->
     <transition name="fade">
       <div
@@ -976,7 +881,7 @@ function useProfileContact() {
     "Data pemesan berhasil diisi dari profil. Kamu masih bisa mengubahnya jika perlu.";
 }
 
-// Ambil info jasa untuk jadwal (operating_days & operating_times) saat halaman dibuka
+// Ambil info jasa (WhatsApp link, merchant info, service type) saat halaman dibuka
 onMounted(async () => {
   if (!order.id) return;
   try {

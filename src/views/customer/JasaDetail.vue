@@ -176,28 +176,6 @@
       </div>
     </div>
 
-    <!-- Jam Operasional -->
-    <section class="px-4 py-4 mt-3 bg-white/95">
-      <div class="max-w-3xl mx-auto lg:max-w-5xl">
-        <h2 class="flex items-center gap-2 mb-3 text-sm font-semibold text-gray-900">
-          <i class="pi pi-clock text-merchant-primary"></i>
-          Jam & Hari Operasional
-        </h2>
-        <div class="space-y-2 text-sm">
-          <div class="flex items-center justify-between">
-            <span class="text-gray-600 flex items-center gap-1.5"><i class="text-gray-500 pi pi-clock"></i> Jam Operasional</span>
-            <span class="font-medium text-gray-900">
-              {{ displayOperatingHours || 'Belum diatur' }}
-            </span>
-          </div>
-          <div class="flex items-center justify-between">
-            <span class="text-gray-600 flex items-center gap-1.5"><i class="text-gray-500 pi pi-calendar"></i> Hari Kerja</span>
-            <span class="font-medium text-gray-900">{{ formatOperatingDays(jasa?.operating_days) }}</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
     <!-- Lokasi & Tipe Layanan -->
     <section
       v-if="jasa?.service_type || jasa?.location_address || merchantAddress"
@@ -255,7 +233,7 @@
     </section>
 
     <!-- Pembayaran & Kontak -->
-    <section class="px-4 py-4 mt-3 bg-white/95">
+    <section v-if="hasOperatingDays" class="px-4 py-4 mt-3 bg-white/95">
       <div class="max-w-3xl mx-auto lg:max-w-5xl">
         <h2 class="flex items-center gap-2 mb-3 text-sm font-semibold text-gray-900">
           <i class="pi pi-wallet text-merchant-primary"></i>
@@ -322,7 +300,7 @@
     </section>
 
     <!-- Pilih Waktu -->
-    <section class="px-4 py-4 mt-3 mb-2 bg-white/95">
+    <section v-if="hasOperatingTimes" class="px-4 py-4 mt-3 mb-2 bg-white/95">
       <div class="max-w-3xl mx-auto lg:max-w-5xl">
         <h3 class="flex items-center gap-2 mb-2 text-sm font-semibold">
           <i class="pi pi-clock text-merchant-primary"></i>
@@ -397,15 +375,6 @@
       class="fixed left-0 right-0 bottom-16 sm:bottom-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200/80 shadow-[0_-4px_12px_rgba(0,0,0,0.04)] px-4 py-3"
     >
       <div class="flex items-center max-w-3xl gap-4 mx-auto lg:max-w-5xl">
-        <button
-          type="button"
-          class="flex items-center justify-center w-11 h-11 rounded-xl bg-white border border-gray-200 text-[#FFA30E] hover:bg-[#FFF2D9] hover:border-[#FFA30E] transition shadow-sm"
-          @click="showChat = true"
-          title="Chat dengan Penjual"
-        >
-          <i class="text-lg pi pi-comments"></i>
-        </button>
-
         <router-link
           :to="{
             name: 'Pembayaran Jasa',
@@ -414,8 +383,8 @@
                title: jasa?.title || '-',
               image: jasaImage,
               price: jasa?.fixed_price || jasa?.base_price || 100000,
-              tgl: selectedDate.toISOString(),
-              waktu: activeTime,
+              tgl: hasOperatingDays ? selectedDate.toISOString() : '',
+              waktu: hasOperatingTimes ? activeTime : '',
               payment_methods: jasa?.payment_methods || '',
               service_type: jasa?.service_type || '',
               alamat:
@@ -448,53 +417,6 @@
       @close="calendarOpen = false"
     />
 
-    <!-- Chat Pembeli -->
-    <transition>
-      <div
-        v-if="showChat && jasa"
-        class="fixed inset-0 z-50 flex items-end justify-center sm:items-center bg-black/40"
-        @click.self="showChat = false"
-      >
-        <div
-          class="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl h-[78dvh] sm:h-[520px] flex flex-col overflow-hidden"
-        >
-          <div
-            class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-2xl"
-          >
-            <div class="flex items-center gap-3">
-              <div
-                class="flex items-center justify-center w-10 h-10 overflow-hidden bg-gray-100 rounded-full shrink-0"
-              >
-                <img
-                  v-if="getMerchantLogo(jasa?.merchant?.logo_path)"
-                  :src="getMerchantLogo(jasa.merchant.logo_path)"
-                  alt="Logo Toko"
-                  class="object-cover w-full h-full"
-                />
-                <i v-else class="text-gray-400 pi pi-shop"></i>
-              </div>
-              <div>
-                <p class="text-sm font-semibold text-gray-900">
-                  {{ jasa?.merchant?.name || "Penjual" }}
-                </p>
-                <p class="text-xs text-gray-500">Konsultasi Layanan</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              class="flex items-center justify-center w-8 h-8 text-gray-500 rounded-full hover:bg-gray-100"
-              @click="showChat = false"
-            >
-              <i class="text-sm pi pi-times"></i>
-            </button>
-          </div>
-
-          <div class="flex-1 min-h-0 p-3">
-            <ChatWindow :jasa-id="jasa?.id || route.params.slug" mode="buyer" />
-          </div>
-        </div>
-      </div>
-    </transition>
   </div>
 </template>
 
@@ -504,13 +426,11 @@ import { useRoute, useRouter } from "vue-router";
 import api from "@/libs/axios.js";
 import { getImageUrl, getImageUrlJasa } from "@/libs/getImageUrl.js";
 import CalendarModal from "@/components/CalendarModal.vue";
-import ChatWindow from "@/components/common/ChatWindow.vue";
 
 const route = useRoute();
 const router = useRouter();
 const jasa = ref(null);
 const selectedImagePath = ref(null);
-const showChat = ref(false);
 
 // Fallback images for error handling
 const fallbackHeader = 'data:image/svg+xml,%3Csvg width="400" height="300" xmlns="http://www.w3.org/2000/svg"%3E%3Crect fill="%23E5E7EB" width="400" height="300"/%3E%3C/svg%3E';
@@ -519,6 +439,19 @@ const fallbackLogo = 'data:image/svg+xml,%3Csvg width="100" height="100" xmlns="
 const goBack = () => {
   router.back();
 };
+
+const hasOperatingDays = computed(() =>
+  Boolean(String(jasa.value?.operating_days || "").trim())
+);
+
+const parsedOperatingTimes = computed(() =>
+  String(jasa.value?.operating_times || "")
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean)
+);
+
+const hasOperatingTimes = computed(() => parsedOperatingTimes.value.length > 0);
 
 // Helper untuk mendapatkan URL logo merchant
 const getMerchantLogo = (logo) => {
@@ -575,31 +508,9 @@ const selectQuick = (d, available) => {
 };
 
 // ----- waktu -----
-const fallbackOperatingTimes = [
-  "08.00",
-  "09.00",
-  "10.00",
-  "11.00",
-  "13.00",
-  "14.00",
-  "15.00",
-  "16.00",
-  "19.00",
-  "20.00",
-];
-
-// Parse operating_times dari jasa. Jika tidak ada data, tampilkan jam fallback agar customer tetap bisa memilih.
+// Parse operating_times dari jasa. Jika tidak diatur saat create, waktu tidak ditampilkan di customer.
 const times = computed(() => {
-  const operatingTimesRaw = jasa.value?.operating_times
-    ? jasa.value.operating_times
-        .split(',')
-        .map(t => t.trim())
-        .filter(t => t)
-    : [];
-
-  const operatingTimes = operatingTimesRaw.length
-    ? operatingTimesRaw
-    : fallbackOperatingTimes;
+  const operatingTimes = parsedOperatingTimes.value;
 
   if (operatingTimes.length === 0) {
     return { morning: [], afternoon: [], evening: [] };
@@ -632,6 +543,11 @@ const initActiveTime = () => {
   const allTimes = [...times.value.morning, ...times.value.afternoon, ...(times.value.evening || [])];
   if (allTimes.length > 0 && !activeTime.value) {
     activeTime.value = allTimes[0];
+    return;
+  }
+
+  if (allTimes.length === 0) {
+    activeTime.value = "";
   }
 };
 
@@ -739,29 +655,6 @@ const priceDisplayMain = computed(() => {
 });
 
 const formatIDR = (v) => Number(v || 0).toLocaleString("id-ID");
-
-// Helper functions untuk format data
-// Ambil range jam dari operating_times (paling awal - paling akhir)
-const displayOperatingHours = computed(() => {
-  if (!jasa.value?.operating_times) return "";
-  const list = jasa.value.operating_times
-    .split(",")
-    .map((t) => t.trim())
-    .filter(Boolean)
-    .sort();
-  if (list.length === 0) return "";
-  const first = list[0];
-  const last = list[list.length - 1];
-  if (first === last) return first;
-  return `${first} - ${last}`;
-});
-
-const formatOperatingDays = (days) => {
-  if (!days) return "Belum diatur";
-  const daysMap = { 1: "Sen", 2: "Sel", 3: "Rab", 4: "Kam", 5: "Jum", 6: "Sab", 7: "Min" };
-  const dayList = days.split(",").map(d => daysMap[d.trim()]).filter(Boolean);
-  return dayList.join(", ");
-};
 
 const formatPaymentMethods = (methods) => {
   if (!methods) return "COD (Bayar di Tempat)";
