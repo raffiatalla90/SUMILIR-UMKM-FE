@@ -259,13 +259,15 @@ const schema = yup.object({
       .typeError("Latitude tidak valid")
       .min(-90)
       .max(90)
-      .required("Latitude wajib diisi"),
+      .nullable()
+      .optional(),
     longitude: yup
       .number()
       .typeError("Longitude tidak valid")
       .min(-180)
       .max(180)
-      .required("Longitude wajib diisi"),
+      .nullable()
+      .optional(),
   }),
 });
 
@@ -407,8 +409,8 @@ const handleRegister = async (values) => {
         district_id: Number(values.address.district_id),
         village_id: Number(values.address.village_id),
         detail: values.address.detail || null,
-        latitude: Number(values.address.latitude),
-        longitude: Number(values.address.longitude),
+        latitude: latitude.value ? Number(latitude.value) : null,
+        longitude: longitude.value ? Number(longitude.value) : null,
       },
     };
     await registerMerchant(payload);

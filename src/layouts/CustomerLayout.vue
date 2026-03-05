@@ -403,12 +403,5 @@ watch(
         </RouterLink>
       </div>
     </nav>
-
-    <!-- Footer Desktop -->
-    <footer
-      class="hidden py-6 text-sm text-center bg-gray-100 sm:block text-muted-foreground"
-    >
-      <p>&copy; {{ new Date().getFullYear() }} SUMILIR. All rights reserved.</p>
-    </footer>
   </div>
 </template>

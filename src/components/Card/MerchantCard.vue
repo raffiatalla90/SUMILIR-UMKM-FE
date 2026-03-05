@@ -74,15 +74,8 @@
         v-if="merchant.primary_address"
         class="flex items-center gap-1 mb-1 text-[11px] text-gray-500"
       >
-        <span
-          class="line-clamp-1"
-          :title="`${merchant.primary_address?.detail}, ${merchant.primary_address.village?.name}, ${merchant.primary_address.district?.name}, ${merchant.primary_address.city?.name}, ${merchant.primary_address.province?.name}`"
-        >
-          {{ merchant.primary_address?.detail }},
-          {{ merchant.primary_address.village?.name }},
-          {{ merchant.primary_address.district?.name }},
-          {{ merchant.primary_address.city?.name }},
-          {{ merchant.primary_address.province?.name }}
+        <span class="line-clamp-1" :title="primaryAddressString">
+          {{ primaryAddressString }}
         </span>
       </div>
     </div>
@@ -111,5 +104,20 @@ const distanceKm = computed(() => {
 const formattedDistanceKm = computed(() => {
   if (distanceKm.value == null) return null;
   return `${distanceKm.value.toFixed(1)} km`;
+});
+
+const primaryAddressString = computed(() => {
+  const addr = props.merchant?.primary_address;
+  if (!addr) return "";
+
+  const parts = [];
+  const detail = addr.detail ? String(addr.detail).trim() : "";
+  if (detail) parts.push(detail);
+  if (addr.village?.name) parts.push(String(addr.village.name));
+  if (addr.district?.name) parts.push(String(addr.district.name));
+  if (addr.city?.name) parts.push(String(addr.city.name));
+  if (addr.province?.name) parts.push(String(addr.province.name));
+
+  return parts.join(", ");
 });
 </script>

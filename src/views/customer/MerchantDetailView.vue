@@ -405,6 +405,8 @@
               v-if="hasCoordinates"
               :lat="latitude"
               :lng="longitude"
+              :myLat="myLatitude"
+              :myLng="myLongitude"
               :zoom="12"
               :showMyLocation="true"
               variant="merchant"
