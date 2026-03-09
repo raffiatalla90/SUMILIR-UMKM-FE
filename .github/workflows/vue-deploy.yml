@@ -71,8 +71,10 @@ jobs:
           protocol: ftp
           passive: true
           local-dir: dist/
-          server-dir: ${{ secrets.FTP_PATH_FRONTEND }}/
+          server-dir: /
           dangerous-clean-slate: false
+          log-level: verbose
+          security: loose
           exclude: |
             **/.git*
             **/.git*/**
