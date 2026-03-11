@@ -41,20 +41,20 @@ export default defineConfig(({ mode }) => {
         workbox: {
           cleanupOutdatedCaches: true,
           navigateFallback: "/index.html", // ✅ Root
-          navigateFallbackDenylist: [/^\/api\//], // ✅ Exclude /api/
+          navigateFallbackDenylist: [/^\/api\//, /^\/backend\//], // ✅ Exclude /api/ and /backend/
           runtimeCaching: [
             {
               urlPattern: ({ request, sameOrigin }) =>
                 sameOrigin &&
                 ["style", "script", "image", "font"].includes(
-                  request.destination
+                  request.destination,
                 ),
               handler: "StaleWhileRevalidate",
               options: { cacheName: "assets-cache-v1" },
             },
             {
               urlPattern: new RegExp(
-                `^${apiBase.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}/.*`
+                `^${apiBase.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}/.*`,
               ),
               handler: "NetworkFirst",
               method: "GET",

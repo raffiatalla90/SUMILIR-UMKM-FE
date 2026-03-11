@@ -97,7 +97,7 @@ const routes = [
             try {
               // Fetch jasa by ID to get the proper slug
               const { data } = await api.get(`/api/public/jasas/${slug}`);
-              
+
               if (data?.slug) {
                 // Redirect to proper slug URL
                 next({
@@ -120,7 +120,9 @@ const routes = [
             } catch (e) {
               try {
                 // If this slug belongs to a merchant, redirect to merchant detail page
-                await api.get(`/api/public/merchants/${encodeURIComponent(slug)}`);
+                await api.get(
+                  `/api/public/merchants/${encodeURIComponent(slug)}`,
+                );
                 return next({
                   name: "Merchant Detail",
                   params: { slug },
@@ -701,8 +703,8 @@ const routes = [
     ],
   },
 
-  // Fallback
-  { path: "/:pathMatch(.*)*", redirect: "/" },
+  // Fallback — explicit function form prevents query params from leaking into the root URL
+  { path: "/:pathMatch(.*)*", redirect: () => ({ path: "/" }) },
 ];
 
 const router = createRouter({
