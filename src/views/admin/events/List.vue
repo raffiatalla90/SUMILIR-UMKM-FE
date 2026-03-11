@@ -1,8 +1,8 @@
 <script setup>
-import { ref, computed, onMounted, watch, inject } from "vue"; 
+import { ref, computed, onMounted, watch, inject } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
-import api from "@/libs/axios"; 
+import api from "@/libs/axios";
 import AdminTable from "@/components/common/AdminTable.vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
@@ -30,20 +30,14 @@ const exportLoading = ref(false);
 
 const selectedEvent = ref(null);
 
-const selectedEvents = ref([]); 
+const selectedEvents = ref([]);
 const selectAll = ref(false);
 
 const activeFilters = ref({
   status: "",
 });
 
-const {
-  events,
-  loading,
-  pagination,
-  fetchEvents,
-  deleteEvent,
-} = useEvents();
+const { events, loading, pagination, fetchEvents, deleteEvent } = useEvents();
 
 const tableColumns = [
   { key: "banner_img_path", label: "Banner", sortable: false },
@@ -54,10 +48,12 @@ const tableColumns = [
 ];
 
 const paginationInfo = computed(() => ({
-  start: (pagination.value?.current_page - 1) * (pagination.value?.per_page || 10) + 1,
+  start:
+    (pagination.value?.current_page - 1) * (pagination.value?.per_page || 10) +
+    1,
   end: Math.min(
     (pagination.value?.current_page || 1) * (pagination.value?.per_page || 10),
-    pagination.value?.total || 0
+    pagination.value?.total || 0,
   ),
   total: pagination.value?.total || 0,
 }));
@@ -107,7 +103,7 @@ function highlightText(text) {
     re,
     '<span class="bg-merchant-primary/20 text-merchant-primary font-bold px-1 rounded">' +
       "$1" +
-      "</span>"
+      "</span>",
   );
 }
 
@@ -162,14 +158,18 @@ const prevPage = () => {
   }
 };
 
+let searchDebounceTimer = null;
 watch([searchQuery, () => activeFilters.value.status], () => {
-  currentPage.value = 1;
-  loadEvents();
+  clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(() => {
+    currentPage.value = 1;
+    loadEvents();
+  }, 400);
 });
 
 // Modal methods
 const openExportModal = () => {
-  console.log('openExportModal called in List.vue');
+  console.log("openExportModal called in List.vue");
   showExportModal.value = true;
 };
 
@@ -179,7 +179,7 @@ const closeExportModal = () => {
 
 // ✅ Export PDF method
 const exportPDF = async () => {
-  console.log('exportPDF called'); // ✅ ADD debug log
+  console.log("exportPDF called"); // ✅ ADD debug log
   exportLoading.value = true;
   try {
     const response = await api.get("/api/admin/events/export-pdf", {
@@ -193,7 +193,10 @@ const exportPDF = async () => {
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", `events-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    link.setAttribute(
+      "download",
+      `events-report-${new Date().toISOString().split("T")[0]}.pdf`,
+    );
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -209,21 +212,20 @@ const exportPDF = async () => {
 };
 
 // ✅ Inject the register function from parent
-const registerExportModal = inject('registerExportModal', null);
+const registerExportModal = inject("registerExportModal", null);
 
 // ✅ Expose openExportModal to parent via register callback
 onMounted(() => {
   loadEvents();
-  
+
   // Register the export modal function with parent
-  if (registerExportModal && typeof registerExportModal === 'function') {
-    console.log('Registering export modal callback for events list');
+  if (registerExportModal && typeof registerExportModal === "function") {
+    console.log("Registering export modal callback for events list");
     registerExportModal(openExportModal);
   } else {
-    console.warn('registerExportModal not provided by parent');
+    console.warn("registerExportModal not provided by parent");
   }
 });
-
 </script>
 
 <template>
@@ -268,7 +270,10 @@ onMounted(() => {
         :selected-items="selectedEvents"
         :select-all="selectAll"
         @update:selected-items="selectedEvents = $event"
-        @update:select-all="selectAll = $event; toggleSelectAll()"
+        @update:select-all="
+          selectAll = $event;
+          toggleSelectAll();
+        "
         empty-message="Belum ada event. Klik tombol 'Tambah Event' untuk memulai."
         @row-click="goToDetail"
         @page-change="goToPage"
@@ -277,7 +282,9 @@ onMounted(() => {
       >
         <!-- Banner column -->
         <template #cell-banner_img_path="{ item }">
-          <div class="w-16 h-10 rounded bg-gray-100 flex items-center justify-center overflow-hidden">
+          <div
+            class="w-16 h-10 rounded bg-gray-100 flex items-center justify-center overflow-hidden"
+          >
             <img
               v-if="item.banner_img_path"
               :src="getEventBannerUrl(item)"
@@ -292,8 +299,14 @@ onMounted(() => {
         <!-- Event Name column -->
         <template #cell-event_name="{ item }">
           <div class="min-w-0">
-            <p class="font-semibold text-gray-900 truncate" v-html="highlightText(item.event_name)"></p>
-            <p class="text-xs text-muted-foreground truncate" v-html="highlightText(item.event_description)"></p>
+            <p
+              class="font-semibold text-gray-900 truncate"
+              v-html="highlightText(item.event_name)"
+            ></p>
+            <p
+              class="text-xs text-muted-foreground truncate"
+              v-html="highlightText(item.event_description)"
+            ></p>
           </div>
         </template>
 
@@ -301,30 +314,47 @@ onMounted(() => {
         <template #cell-event_start_date="{ item }">
           <div class="text-sm">
             <p class="font-medium">
-              {{ new Date(item.event_start_date).toLocaleDateString('id-ID') }}
+              {{ new Date(item.event_start_date).toLocaleDateString("id-ID") }}
             </p>
             <p class="text-xs text-muted-foreground">
-              s/d {{ new Date(item.event_end_date).toLocaleDateString('id-ID') }}
+              s/d
+              {{ new Date(item.event_end_date).toLocaleDateString("id-ID") }}
             </p>
           </div>
         </template>
 
         <!-- Status column -->
         <template #cell-status="{ item }">
-          <StatusLabel v-if="item && item.status" :status="item.status" variant="event" />
+          <StatusLabel
+            v-if="item && item.status"
+            :status="item.status"
+            variant="event"
+          />
           <span v-else>-</span>
         </template>
 
         <!-- Actions column -->
         <template #cell-actions="{ item }">
           <div class="flex items-center gap-2">
-            <Button @click.stop="goToDetail(item)" variant="admin-outline" size="sm">
+            <Button
+              @click.stop="goToDetail(item)"
+              variant="admin-outline"
+              size="sm"
+            >
               <i class="pi pi-eye"></i>
             </Button>
-            <Button @click.stop="goToEdit(item)" variant="admin-outline" size="sm">
+            <Button
+              @click.stop="goToEdit(item)"
+              variant="admin-outline"
+              size="sm"
+            >
               <i class="pi pi-pencil"></i>
             </Button>
-            <Button @click.stop="confirmDelete(item)" variant="danger-outline" size="sm">
+            <Button
+              @click.stop="confirmDelete(item)"
+              variant="danger-outline"
+              size="sm"
+            >
               <i class="pi pi-trash"></i>
             </Button>
           </div>
@@ -371,21 +401,40 @@ onMounted(() => {
                 {{ event.event_description }}
               </p>
               <div class="flex items-center justify-between">
-                <StatusLabel v-if="event && event.status" :status="event.status" variant="event" size="xs" />
+                <StatusLabel
+                  v-if="event && event.status"
+                  :status="event.status"
+                  variant="event"
+                  size="xs"
+                />
                 <span v-else>-</span>
                 <span class="text-xs text-muted-foreground">
-                  {{ new Date(event.event_start_date).toLocaleDateString('id-ID', { month: 'short', day: 'numeric' }) }}
+                  {{
+                    new Date(event.event_start_date).toLocaleDateString(
+                      "id-ID",
+                      { month: "short", day: "numeric" },
+                    )
+                  }}
                 </span>
               </div>
             </div>
           </div>
 
           <div class="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-            <Button @click.stop="goToEdit(event)" variant="admin-outline" size="sm" class="flex-1">
+            <Button
+              @click.stop="goToEdit(event)"
+              variant="admin-outline"
+              size="sm"
+              class="flex-1"
+            >
               <i class="pi pi-pencil mr-1"></i>
               Edit
             </Button>
-            <Button @click.stop="confirmDelete(event)" variant="danger-outline" size="sm">
+            <Button
+              @click.stop="confirmDelete(event)"
+              variant="danger-outline"
+              size="sm"
+            >
               <i class="pi pi-trash"></i>
             </Button>
           </div>
@@ -410,9 +459,12 @@ onMounted(() => {
     >
       <div class="text-center py-4">
         <i class="pi pi-exclamation-triangle text-4xl text-red-500 mb-3"></i>
-        <p class="text-lg font-semibold mb-2">Yakin ingin menghapus event ini?</p>
+        <p class="text-lg font-semibold mb-2">
+          Yakin ingin menghapus event ini?
+        </p>
         <p class="text-gray-500 mb-2">
-          Event <strong>{{ selectedEvent?.event_name }}</strong> akan dihapus dari sistem.
+          Event <strong>{{ selectedEvent?.event_name }}</strong> akan dihapus
+          dari sistem.
         </p>
         <p class="text-xs text-muted-foreground">
           Tindakan ini tidak dapat dibatalkan.
@@ -420,7 +472,9 @@ onMounted(() => {
       </div>
       <template #footer>
         <div class="flex gap-3 justify-end">
-          <Button @click="showDeleteModal = false" variant="secondary">Batal</Button>
+          <Button @click="showDeleteModal = false" variant="secondary"
+            >Batal</Button
+          >
           <Button @click="handleDelete" variant="danger">
             <i class="pi pi-trash mr-2"></i> Hapus
           </Button>
@@ -440,7 +494,9 @@ onMounted(() => {
           <div class="flex items-start gap-3">
             <i class="pi pi-info-circle text-blue-600 text-xl mt-0.5"></i>
             <div class="flex-1">
-              <p class="text-sm text-blue-900 font-medium mb-1">Laporan akan mencakup:</p>
+              <p class="text-sm text-blue-900 font-medium mb-1">
+                Laporan akan mencakup:
+              </p>
               <ul class="text-xs text-blue-800 space-y-1 list-disc list-inside">
                 <li>Data lengkap events (Nama, Tanggal, Status)</li>
                 <li>Jumlah merchants dan vouchers yang terlibat</li>

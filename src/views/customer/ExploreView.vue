@@ -1093,8 +1093,7 @@ const fetchJasas = async ({ append } = { append: false }) => {
 
     const items = rootJasas.length > 0 ? rootJasas : metaJasas;
 
-    const meta =
-      payload?.jasas_meta ??
+    const meta = payload?.jasas_meta ??
       payload?.meta?.jasas_meta ?? {
         current_page: Number(payload?.meta?.current_page ?? 1),
         last_page: Number(payload?.meta?.last_page ?? 1),
@@ -1243,9 +1242,12 @@ const fetchMerchants = async ({ append } = { append: false }) => {
   }
 };
 
+let isModeChanging = false;
+
 watch(
   () => activeMode.value,
   async () => {
+    isModeChanging = true;
     // reset UI filters saat mode berganti
     selectedCategoryId.value = null;
     showAllCategories.value = false;
@@ -1271,12 +1273,14 @@ watch(
 
     await nextTick();
     setupObserver();
+    isModeChanging = false;
   },
 );
 
 watch(
   () => [...activeInstantSorts.value],
   async () => {
+    if (isModeChanging) return;
     // reset pagination ketika sort berubah
     resetInfiniteScroll();
     currentPage.value = 1;

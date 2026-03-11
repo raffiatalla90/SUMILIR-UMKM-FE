@@ -16,7 +16,7 @@
       >
         <i class="text-xl pi pi-arrow-left"></i>
       </button>
-      <h1 class="text-lg font-semibold">Edit Informasi Toko</h1>
+      <h1 class="text-lg font-semibold">Edit Informasi UMKM</h1>
     </div>
 
     <!-- Desktop Header with Breadcrumb -->
@@ -29,7 +29,7 @@
             <!-- Breadcrumb Component -->
             <Breadcrumb :items="breadcrumbItems" :merchantId="merchantSlug" />
             <p class="mt-1 text-xs text-muted-foreground lg:text-sm">
-              Perbarui informasi toko Anda.
+              Perbarui informasi UMKM Anda.
             </p>
           </div>
 
@@ -72,16 +72,16 @@
               Informasi Penting
             </h4>
             <ul class="pl-4 space-y-1 text-xs list-disc text-merchant-primary">
-              <li>Kontak toko harus aktif dan dapat dihubungi.</li>
-              <li>Lengkapi deskripsi untuk memperkenalkan toko Anda.</li>
-              <li>Pastikan alamat dan lokasi toko sudah benar dan lengkap.</li>
+              <li>Kontak UMKM harus aktif dan dapat dihubungi.</li>
+              <li>Lengkapi deskripsi untuk memperkenalkan UMKM Anda.</li>
+              <li>Pastikan alamat dan lokasi UMKM sudah benar dan lengkap.</li>
               <li>
                 Unggah logo dan cover dengan ukuran maksimal 5 MB (format
                 JPG/PNG).
               </li>
-              <li>Atur jam operasional sesuai waktu buka toko Anda.</li>
+              <li>Atur jam operasional sesuai waktu buka UMKM Anda.</li>
               <li>
-                Data yang valid akan memudahkan pelanggan menemukan toko Anda.
+                Data yang valid akan memudahkan pelanggan menemukan UMKM Anda.
               </li>
             </ul>
           </div>
@@ -276,15 +276,15 @@
           class="p-4 mx-4 mb-2 space-y-5 bg-white shadow-sm sm:hidden rounded-2xl"
         >
           <h2 class="text-lg font-bold text-merchant-primary">
-            Informasi Toko
+            Informasi UMKM
           </h2>
 
-          <!-- Nama Toko -->
+          <!-- Nama UMKM -->
           <div>
             <label
               class="block mb-2 text-sm font-semibold text-merchant-primary"
             >
-              Nama Toko
+              Nama UMKM
             </label>
             <input
               v-model="form.name"
@@ -498,25 +498,25 @@
           class="hidden p-6 mb-4 space-y-8 bg-white shadow-sm sm:block rounded-xl"
         >
           <h2 class="text-2xl font-bold text-merchant-primary">
-            Informasi Toko
+            Informasi UMKM
           </h2>
 
           <!-- Grid Layout for Desktop -->
           <div
             class="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-x-8 md:gap-y-6"
           >
-            <!-- Nama Toko -->
+            <!-- Nama UMKM -->
             <div>
               <label
                 class="block mb-2 text-base font-medium text-merchant-primary"
               >
-                Nama Toko
+                Nama UMKM
               </label>
               <input
                 v-model="form.name"
                 type="text"
                 class="w-full p-4 text-base text-gray-700 transition-shadow bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-merchant-primary"
-                placeholder="Masukkan nama toko"
+                placeholder="Masukkan nama UMKM"
               />
             </div>
 
@@ -546,7 +546,7 @@
                 v-model="form.description"
                 rows="4"
                 class="w-full p-4 text-base text-gray-700 transition-shadow bg-gray-100 resize-none rounded-xl focus:outline-none focus:ring-2 focus:ring-merchant-primary"
-                placeholder="Ceritakan tentang toko Anda..."
+                placeholder="Ceritakan tentang UMKM Anda..."
               ></textarea>
             </div>
 
