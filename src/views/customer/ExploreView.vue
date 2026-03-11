@@ -899,10 +899,8 @@ const selectCategory = (categoryId) => {
 
 // normalisasi path gambar jasa → URL lengkap dari backend
 const resolveJasaImage = (jasa) => {
-  // Prioritas utama: cover legacy yang dipakai saat create/edit merchant
-  if (jasa?.image) {
-    return getImageUrlJasa(jasa.image);
-  }
+  if (jasa?.cover_img?.src_url) return jasa.cover_img.src_url;
+  if (jasa?.cover_img?.url) return jasa.cover_img.url;
 
   // If backend already provides a resolved cover URL
   if (typeof jasa?.cover_image === "string" && jasa.cover_image)
@@ -918,8 +916,17 @@ const resolveJasaImage = (jasa) => {
     const coverImage =
       jasa.images.find((img) => img.is_cover) || jasa.images[0];
     const path =
-      coverImage.path || coverImage.url || coverImage.image || coverImage.id;
+      coverImage.src_url ||
+      coverImage.url ||
+      coverImage.path ||
+      coverImage.image ||
+      coverImage.id;
     if (path) return getImageUrlJasa(path);
+  }
+
+  // fallback legacy
+  if (jasa?.image) {
+    return getImageUrlJasa(jasa.image);
   }
 
   return "";

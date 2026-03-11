@@ -848,14 +848,13 @@ function applyMerchantSeo(merchantData, merchantSlug) {
 
 // Resolve gambar jasa
 const resolveJasaImage = (jasa) => {
-  // Prioritas utama: legacy cover path yang dipakai create/edit merchant
-  if (jasa?.image) {
-    return getImageUrlJasa(jasa.image);
-  }
-
   // Prefer API-provided cover image URL (id-based)
   if (jasa?.cover_img?.src_url) {
     return jasa.cover_img.src_url;
+  }
+
+  if (jasa?.cover_img?.url) {
+    return jasa.cover_img.url;
   }
 
   if (typeof jasa?.cover_image === "string" && jasa.cover_image) {
@@ -881,6 +880,11 @@ const resolveJasaImage = (jasa) => {
     if (coverImage.id) return getImageUrlJasa(coverImage.id);
     if (coverImage.path || coverImage.image)
       return getImageUrlJasa(coverImage.path || coverImage.image);
+  }
+
+  // Fallback legacy cover path
+  if (jasa?.image) {
+    return getImageUrlJasa(jasa.image);
   }
 
   return null;

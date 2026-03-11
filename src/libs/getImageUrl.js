@@ -10,7 +10,7 @@ export const getImageUrl = (imageId) => {
 export const getImageUrlJasa = (imageIdOrPath) => {
   if (!imageIdOrPath) return "";
 
-  const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+  const apiBase = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/$/, "");
   const backendBase = apiBase.replace(/\/api\/?$/, "");
 
   if (typeof imageIdOrPath === "string") {
@@ -29,6 +29,13 @@ export const getImageUrlJasa = (imageIdOrPath) => {
       return `${backendBase}/${path}`;
     }
 
+    if (path.startsWith("/api/images/")) {
+      return `${backendBase}${path}`;
+    }
+    if (path.startsWith("api/images/")) {
+      return `${backendBase}/${path}`;
+    }
+
     if (path.startsWith("/jasa/")) {
       return `${backendBase}/storage${path}`;
     }
@@ -42,7 +49,7 @@ export const getImageUrlJasa = (imageIdOrPath) => {
     }
   }
 
-  return `${apiBase}/api/images/${encodeURIComponent(imageIdOrPath)}`;
+  return `${backendBase}/api/images/${encodeURIComponent(imageIdOrPath)}`;
 };
 
 /**

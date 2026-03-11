@@ -569,19 +569,25 @@ const jasaImage = computed(() => {
 
   if (!jasa.value) return "";
 
-  // Prioritas utama samakan dengan halaman merchant index/create
-  if (jasa.value.image) {
-    if (String(jasa.value.image).startsWith("http")) {
-      return jasa.value.image;
-    }
-    return getImageUrlJasa(jasa.value.image);
+  // Prioritaskan cover URL dari API agar aman di environment deploy
+  if (jasa.value.cover_img?.src_url) {
+    return jasa.value.cover_img.src_url;
+  }
+  if (jasa.value.cover_img?.url) {
+    return jasa.value.cover_img.url;
   }
 
   // Fallback ke array images (cover image)
   if (jasa.value.images && jasa.value.images.length > 0) {
     const coverImg =
       jasa.value.images.find((img) => img.is_cover) || jasa.value.images[0];
-    return resolveJasaAssetSrc(coverImg);
+    const resolved = resolveJasaAssetSrc(coverImg);
+    if (resolved) return resolved;
+  }
+
+  // Fallback legacy
+  if (jasa.value.image) {
+    return getImageUrlJasa(jasa.value.image);
   }
 
   return "";
