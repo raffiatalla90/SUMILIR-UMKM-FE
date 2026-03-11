@@ -150,6 +150,9 @@ onMounted(async () => {
 
   // Load merchants
   await loadRecommendedMerchants();
+
+  // Load statistics (uses 5-min cache)
+  fetchStatistics();
 });
 </script>
 
