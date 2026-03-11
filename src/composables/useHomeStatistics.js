@@ -1,4 +1,4 @@
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
 import api from "@/libs/axios";
 
 // Module-level cache to avoid refetching on every component mount
@@ -42,11 +42,6 @@ export function useHomeStatistics() {
       loading.value = false;
     }
   };
-
-  // Fetch once on mount (uses cache if available)
-  onMounted(() => {
-    fetchStatistics();
-  });
 
   return {
     statistics,
