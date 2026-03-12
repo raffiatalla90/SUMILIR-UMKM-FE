@@ -306,7 +306,7 @@ const routes = [
     component: () => import("@/views/auth/MerchantRegister.vue"),
     meta: {
       requiresAuth: true,
-      roles: ["customer", "umkm-owner"],
+      roles: ["customer"],
       denyRoles: ["admin"],
       title: "Pendaftaran UMKM | SUMILIR",
     },
