@@ -848,7 +848,7 @@ function applyMerchantSeo(merchantData, merchantSlug) {
 
 // Resolve gambar jasa
 const resolveJasaImage = (jasa) => {
-  // Prefer API-provided cover image URL (id-based)
+  // Prefer API-provided cover image URL (id-based) - sama seperti produk
   if (jasa?.cover_img?.src_url) {
     return getImageUrlJasa(jasa.cover_img.src_url);
   }
@@ -857,14 +857,13 @@ const resolveJasaImage = (jasa) => {
     return getImageUrlJasa(jasa.cover_img.url);
   }
 
-  if (typeof jasa?.cover_image === "string" && jasa.cover_image) {
-    return getImageUrlJasa(jasa.cover_image);
+  if (jasa?.cover_img?.id) {
+    return getImageUrlJasa(jasa.cover_img.id);
   }
 
   if (jasa?.cover_image && typeof jasa.cover_image === "object") {
     if (jasa.cover_image?.src_url) return getImageUrlJasa(jasa.cover_image.src_url);
     if (jasa.cover_image?.url) return getImageUrlJasa(jasa.cover_image.url);
-    if (jasa.cover_image?.path) return getImageUrlJasa(jasa.cover_image.path);
     if (jasa.cover_image?.id) return getImageUrlJasa(jasa.cover_image.id);
   }
 
@@ -872,19 +871,10 @@ const resolveJasaImage = (jasa) => {
     const coverImage =
       jasa.images.find((img) => img.is_cover) || jasa.images[0];
 
-    // New API returns url/src_url; keep backward-compat
-    const url = coverImage.src_url || coverImage.url;
-    if (url) return url;
-
-    // Fallbacks
+    // API returns url/src_url
+    if (coverImage.src_url) return getImageUrlJasa(coverImage.src_url);
+    if (coverImage.url) return getImageUrlJasa(coverImage.url);
     if (coverImage.id) return getImageUrlJasa(coverImage.id);
-    if (coverImage.path || coverImage.image)
-      return getImageUrlJasa(coverImage.path || coverImage.image);
-  }
-
-  // Fallback legacy cover path
-  if (jasa?.image) {
-    return getImageUrlJasa(jasa.image);
   }
 
   return null;

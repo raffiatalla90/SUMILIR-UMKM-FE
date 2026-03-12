@@ -897,36 +897,27 @@ const selectCategory = (categoryId) => {
     selectedCategoryId.value === categoryId ? null : categoryId;
 };
 
-// normalisasi path gambar jasa → URL lengkap dari backend
+// normalisasi path gambar jasa → URL lengkap dari backend (sama seperti produk)
 const resolveJasaImage = (jasa) => {
+  // Prioritas: API URL (cover_img.src_url, images[].src_url) > ID
   if (jasa?.cover_img?.src_url) return getImageUrlJasa(jasa.cover_img.src_url);
   if (jasa?.cover_img?.url) return getImageUrlJasa(jasa.cover_img.url);
+  if (jasa?.cover_img?.id) return getImageUrlJasa(jasa.cover_img.id);
 
-  // If backend already provides a resolved cover URL
-  if (typeof jasa?.cover_image === "string" && jasa.cover_image)
-    return getImageUrlJasa(jasa.cover_image);
   // Some endpoints return cover_image object: { id, src_url }
   if (jasa?.cover_image && typeof jasa.cover_image === "object") {
-    const srcUrl = jasa.cover_image?.src_url;
-    if (typeof srcUrl === "string" && srcUrl) return getImageUrlJasa(srcUrl);
+    if (jasa.cover_image?.src_url) return getImageUrlJasa(jasa.cover_image.src_url);
+    if (jasa.cover_image?.url) return getImageUrlJasa(jasa.cover_image.url);
+    if (jasa.cover_image?.id) return getImageUrlJasa(jasa.cover_image.id);
   }
 
   // Prioritaskan relasi images (cover image)
   if (jasa.images && jasa.images.length > 0) {
     const coverImage =
       jasa.images.find((img) => img.is_cover) || jasa.images[0];
-    const path =
-      coverImage.src_url ||
-      coverImage.url ||
-      coverImage.path ||
-      coverImage.image ||
-      coverImage.id;
-    if (path) return getImageUrlJasa(path);
-  }
-
-  // fallback legacy
-  if (jasa?.image) {
-    return getImageUrlJasa(jasa.image);
+    if (coverImage.src_url) return getImageUrlJasa(coverImage.src_url);
+    if (coverImage.url) return getImageUrlJasa(coverImage.url);
+    if (coverImage.id) return getImageUrlJasa(coverImage.id);
   }
 
   return "";

@@ -137,40 +137,33 @@ const addOnPriceRange = computed(() => {
   return `+${formatPrice(min)} - ${formatPrice(max)}`;
 });
 
-const resolveJasaImageSrc = (image, fallbackImage = "") => {
-  if (image?.url) return image.url;
-  if (image?.src_url) return image.src_url;
-  if (image?.path) return getImageUrlJasa(image.path);
-  if (image?.image_path) return getImageUrlJasa(image.image_path);
+const resolveJasaImageSrc = (image) => {
+  // Prioritas: API URL terlebih dahulu (sama seperti produk)
+  if (image?.url) return getImageUrlJasa(image.url);
+  if (image?.src_url) return getImageUrlJasa(image.src_url);
   if (image?.id) return getImageUrlJasa(image.id);
-  if (fallbackImage) return getImageUrlJasa(fallbackImage);
   return "";
 };
 
-// Main image src: pakai relasi images dulu, fallback ke field legacy `image`
+// Main image src: pakai relasi images dengan API URL
 const mainImageSrc = computed(() => {
   if (!jasa.value) return "";
 
-  const images = jasa.value.images || [];
-
-  // Default utama: samakan dengan index/create (legacy cover path)
-  // Navigasi galeri baru dipakai setelah user memilih thumbnail/arrow.
-  if (currentImageIndex.value < 0 && jasa.value.image) {
-    return getImageUrlJasa(jasa.value.image);
+  // Prioritas 1: cover_img.src_url dari backend (sama seperti produk)
+  if (jasa.value.cover_img?.src_url) {
+    return getImageUrlJasa(jasa.value.cover_img.src_url);
   }
+
+  const images = jasa.value.images || [];
 
   if (images.length && currentImageIndex.value >= 0) {
     const img = images[currentImageIndex.value] || images[0];
-    return resolveJasaImageSrc(img, jasa.value.image);
+    return resolveJasaImageSrc(img);
   }
 
   if (images.length) {
     const coverImage = images.find((img) => img?.is_cover) || images[0];
-    return resolveJasaImageSrc(coverImage, jasa.value.image);
-  }
-
-  if (jasa.value.image) {
-    return getImageUrlJasa(jasa.value.image);
+    return resolveJasaImageSrc(coverImage);
   }
 
   return "";
@@ -252,7 +245,7 @@ const loadDetail = async () => {
     );
     jasa.value = data;
 
-    // Default tampilan gunakan `jasa.image` agar konsisten dengan index/create.
+    // Default tampilan gunakan cover_img.src_url dari API
     currentImageIndex.value = -1;
 
     console.log("[Detail] Jasa loaded", jasa.value);
@@ -390,7 +383,7 @@ const getSelectionTypeLabel = (group) => {
         <!-- Left Column (Images + Basic Info) -->
         <div class="space-y-2 lg:col-span-1 sm:space-y-4">
           <!-- Image Gallery Card -->
-          <div v-if="(jasa.images && jasa.images.length > 0) || jasa.image">
+          <div v-if="(jasa.images && jasa.images.length > 0) || jasa.cover_img">
             <!-- Main Image -->
             <div
               class="relative flex items-center justify-center max-w-2xl mx-auto mb-4 -mt-4 overflow-hidden bg-gray-100 shadow-sm aspect-square sm:mt-0 sm:rounded-2xl"
@@ -437,8 +430,8 @@ const getSelectionTypeLabel = (group) => {
                 class="relative flex items-center justify-center overflow-hidden transition border rounded-lg aspect-square bg-gray-50"
               >
                 <img
-                  v-if="resolveJasaImageSrc(image, jasa.image)"
-                  :src="resolveJasaImageSrc(image, jasa.image)"
+                  v-if="resolveJasaImageSrc(image)"
+                  :src="resolveJasaImageSrc(image)"
                   :alt="`${jasa.title} ${index + 1}`"
                   class="object-contain max-w-full max-h-full"
                   @error="(e) => (e.target.style.display = 'none')"

@@ -889,7 +889,7 @@ onMounted(async () => {
                       class="relative"
                     >
                       <img
-                        :src="getImageUrlJasa(image.path || image.id)"
+                        :src="getImageUrlJasa(image.url || image.src_url || image.id)"
                         alt="preview"
                         class="object-cover w-full border border-gray-200 rounded h-28 bg-gray-50"
                         @error="(e) => (e.target.style.display = 'none')"
