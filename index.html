@@ -4,52 +4,19 @@
     <meta charset="UTF-8" />
 
     <!--
-      Backend API redirect: MUST be the first script in <head> so it runs
-      BEFORE the speculative parser in Brave/Safari discovers <script type="module">
-      in <body>. If the Service Worker served this page for a /backend/ URL,
-      stop all parsing, unregister SW, and hard-navigate to the real server.
+      Backend API redirect: Sets a global flag so Vue Router's catch-all
+      does NOT redirect /backend/ paths to "/". Then unregisters SW and
+      hard-navigates so the real server handles the request.
+      NO window.stop() — that breaks parsing in many browsers.
     -->
     <script>
       (function () {
         if (location.pathname.indexOf("/backend/") !== 0) return;
 
-        // Stop HTML parser immediately — <body> never gets parsed,
-        // so <script type="module" src="/src/main.js"> is never discovered.
-        // This is critical for Brave and Safari whose speculative parsers
-        // are more aggressive than Chrome/Firefox.
-        window.stop();
+        // Signal to Vue Router: do NOT redirect this path.
+        window.__BACKEND_REDIRECT = true;
 
-        var key = "__backend_sw_retry";
-        var retried = false;
-        try {
-          retried = !!sessionStorage.getItem(key);
-        } catch (e) {}
-
-        if (retried) {
-          // Second attempt also landed here — SW is gone but server
-          // still returned index.html (misconfiguration). Show fallback.
-          try {
-            sessionStorage.removeItem(key);
-          } catch (e) {}
-          document.open();
-          document.write(
-            "<!doctype html><html><head><title>Redirecting\u2026</title></head>" +
-              '<body style="display:grid;place-items:center;height:100vh;font-family:system-ui">' +
-              '<div style="text-align:center">' +
-              "<p>Halaman tidak dapat dimuat otomatis.</p>" +
-              '<p><a href="' +
-              location.href +
-              '" style="color:#ff9800">Klik di sini untuk mencoba lagi</a></p>' +
-              "</div></body></html>",
-          );
-          document.close();
-          return;
-        }
-
-        try {
-          sessionStorage.setItem(key, "1");
-        } catch (e) {}
-
+        // Unregister all Service Workers, then hard-navigate to the real server URL.
         function hardNav() {
           location.replace(location.href);
         }
