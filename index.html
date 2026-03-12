@@ -2,6 +2,76 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
+
+    <!--
+      Backend API redirect: MUST be the first script in <head> so it runs
+      BEFORE the speculative parser in Brave/Safari discovers <script type="module">
+      in <body>. If the Service Worker served this page for a /backend/ URL,
+      stop all parsing, unregister SW, and hard-navigate to the real server.
+    -->
+    <script>
+      (function () {
+        if (location.pathname.indexOf("/backend/") !== 0) return;
+
+        // Stop HTML parser immediately — <body> never gets parsed,
+        // so <script type="module" src="/src/main.js"> is never discovered.
+        // This is critical for Brave and Safari whose speculative parsers
+        // are more aggressive than Chrome/Firefox.
+        window.stop();
+
+        var key = "__backend_sw_retry";
+        var retried = false;
+        try {
+          retried = !!sessionStorage.getItem(key);
+        } catch (e) {}
+
+        if (retried) {
+          // Second attempt also landed here — SW is gone but server
+          // still returned index.html (misconfiguration). Show fallback.
+          try {
+            sessionStorage.removeItem(key);
+          } catch (e) {}
+          document.open();
+          document.write(
+            "<!doctype html><html><head><title>Redirecting\u2026</title></head>" +
+              '<body style="display:grid;place-items:center;height:100vh;font-family:system-ui">' +
+              '<div style="text-align:center">' +
+              "<p>Halaman tidak dapat dimuat otomatis.</p>" +
+              '<p><a href="' +
+              location.href +
+              '" style="color:#ff9800">Klik di sini untuk mencoba lagi</a></p>' +
+              "</div></body></html>",
+          );
+          document.close();
+          return;
+        }
+
+        try {
+          sessionStorage.setItem(key, "1");
+        } catch (e) {}
+
+        function hardNav() {
+          location.replace(location.href);
+        }
+
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker
+            .getRegistrations()
+            .then(function (r) {
+              return Promise.all(
+                r.map(function (sw) {
+                  return sw.unregister();
+                }),
+              );
+            })
+            .then(hardNav)
+            .catch(hardNav);
+        } else {
+          hardNav();
+        }
+      })();
+    </script>
+
     <!-- Favicons (cache-busted) -->
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="shortcut icon" href="/favicon.ico" />
@@ -80,68 +150,6 @@
     />
   </head>
   <body>
-    <!--
-      Fix: Backend API routes (e.g. /backend/api/auth/verify-email/...)
-      should NEVER be handled by the Vue SPA. If the Service Worker
-      incorrectly served this index.html for a /backend/ URL, unregister
-      the SW and reload so the request reaches the actual server.
-    -->
-    <script>
-      (function () {
-        var path = window.location.pathname;
-
-        // Not a backend path → continue normally (load Vue SPA)
-        if (path.indexOf("/backend/") !== 0) return;
-
-        // ── CRITICAL: Stop ALL further page loading immediately ──
-        // This prevents <script type="module" src="/src/main.js"> from loading,
-        // so Vue Router never boots and never redirects to "/".
-        window.stop();
-
-        // Prevent infinite reload loop (max 1 retry)
-        var key = "__backend_sw_retry";
-        try {
-          if (sessionStorage.getItem(key)) {
-            sessionStorage.removeItem(key);
-            // Already retried once — show a helpful fallback message
-            document.title = "Redirecting…";
-            document.body.innerHTML =
-              '<div style="display:grid;place-items:center;height:100vh;font-family:system-ui">' +
-              '<div style="text-align:center">' +
-              "<p>Halaman tidak dapat dimuat otomatis.</p>" +
-              '<p><a href="' +
-              location.href +
-              '" style="color:#ff9800">Klik di sini untuk mencoba lagi</a></p>' +
-              "</div></div>";
-            return;
-          }
-          sessionStorage.setItem(key, "1");
-        } catch (e) {}
-
-        // Unregister all Service Workers, then hard-navigate
-        function hardNav() {
-          // Use replace so the broken entry doesn't pollute browser history
-          window.location.replace(window.location.href);
-        }
-
-        if ("serviceWorker" in navigator) {
-          navigator.serviceWorker
-            .getRegistrations()
-            .then(function (regs) {
-              return Promise.all(
-                regs.map(function (r) {
-                  return r.unregister();
-                }),
-              );
-            })
-            .then(hardNav)
-            .catch(hardNav);
-        } else {
-          hardNav();
-        }
-      })();
-    </script>
-
     <!-- Splash -->
     <div id="splash" aria-hidden="true">
       <!-- <div class="splash-title">SUMILIR</div> -->
