@@ -40,8 +40,16 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           cleanupOutdatedCaches: true,
+          skipWaiting: true,
+          clientsClaim: true,
           navigateFallback: "/index.html", // ✅ Root
-          navigateFallbackDenylist: [/^\/api\//, /^\/backend\//], // ✅ Exclude /api/ and /backend/
+          navigateFallbackDenylist: [
+            /^\/api\//,
+            /^\/api$/,
+            /^\/backend\//,
+            /^\/backend$/,
+            /^\/sanctum\//,
+          ], // ✅ Exclude /api/ and /backend/ and /sanctum/
           runtimeCaching: [
             {
               urlPattern: ({ request, sameOrigin }) =>

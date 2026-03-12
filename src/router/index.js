@@ -745,6 +745,14 @@ let lastNavigationPath = null;
 let authInitialized = false;
 
 router.beforeEach(async (to, from, next) => {
+  // Backend API routes should NEVER be handled by Vue.
+  // If the Service Worker served index.html for a /backend/ URL,
+  // force a full-page navigation so the server handles it.
+  if (to.path.startsWith("/backend/")) {
+    window.location.href = to.fullPath;
+    return;
+  }
+
   const authStore = useAuthStore();
   // Basic SEO for all routes (can be overridden by page-level dynamic SEO)
   try {
