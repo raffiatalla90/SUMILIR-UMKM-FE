@@ -103,7 +103,7 @@
           <div class="flex items-center gap-3 pb-3 mb-3 border-b border-gray-100">
         <div class="flex items-center justify-center w-12 h-12 overflow-hidden bg-gray-100 rounded-full shrink-0">
           <img 
-            v-if="jasa?.merchant?.logo_path" 
+                v-if="jasa?.merchant?.id || jasa?.merchant?.logo_path || jasa?.merchant?.logo_url" 
             :src="getMerchantLogo(jasa.merchant.logo_path)" 
             alt="Logo Toko" 
             class="object-cover w-full h-full"
@@ -425,7 +425,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import api from "@/libs/axios.js";
-import { getImageUrl } from "@/libs/getImageUrl.js";
+import { getImageUrl, getMerchantLogoUrl } from "@/libs/getImageUrl.js";
 import CalendarModal from "@/components/CalendarModal.vue";
 
 const route = useRoute();
@@ -456,6 +456,9 @@ const hasOperatingTimes = computed(() => parsedOperatingTimes.value.length > 0);
 
 // Helper untuk mendapatkan URL logo merchant
 const getMerchantLogo = (logo) => {
+  if (jasa.value?.merchant?.id) {
+    return getMerchantLogoUrl(jasa.value.merchant);
+  }
   if (!logo) return null;
   return getImageUrl(logo);
 };
