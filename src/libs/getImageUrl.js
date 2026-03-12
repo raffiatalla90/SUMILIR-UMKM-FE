@@ -16,37 +16,33 @@ export const getImageUrlJasa = (imageIdOrPath) => {
   if (typeof imageIdOrPath === "string") {
     let path = imageIdOrPath.trim();
 
-    // Already a full URL (e.g., from API src_url) - just normalize protocol
     if (path.startsWith("http")) {
-      try {
-        const resolved = new URL(path);
-        if (
-          typeof window !== "undefined" &&
-          window.location?.protocol === "https:" &&
-          resolved.protocol === "http:"
-        ) {
-          resolved.protocol = "https:";
-          return resolved.toString();
-        }
-      } catch (_) {
-        // ignore parse failures
-      }
       return path;
     }
 
     path = path.replace(/\\/g, "/");
 
-    // Already an API path - just prepend base URL
-    if (path.startsWith("/api/images/")) {
+    if (path.startsWith("/storage/")) {
       return `${backendBase}${path}`;
     }
-    if (path.startsWith("api/images/")) {
+    if (path.startsWith("storage/")) {
       return `${backendBase}/${path}`;
+    }
+
+    if (path.startsWith("/jasa/")) {
+      return `${backendBase}/storage${path}`;
+    }
+
+    if (path.startsWith("jasa/")) {
+      return `${backendBase}/storage/${path}`;
+    }
+
+    if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(path)) {
+      return `${backendBase}/storage/jasa/${path}`;
     }
   }
 
-  // For image IDs, use the standard /api/images/{id} endpoint (same as products)
-  return `${backendBase}/api/images/${encodeURIComponent(imageIdOrPath)}`;
+  return `${apiBase}/api/images/${encodeURIComponent(imageIdOrPath)}`;
 };
 
 /**
