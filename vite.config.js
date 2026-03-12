@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       VitePWA({
         registerType: "autoUpdate",
-        devOptions: { enabled: false },
+        devOptions: { enabled: true },
         manifest: {
           name: "Sumilir",
           short_name: "Sumilir",
@@ -40,6 +40,8 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           cleanupOutdatedCaches: true,
+          skipWaiting: true,
+          clientsClaim: true,
           navigateFallback: "/index.html", // ✅ Root
           navigateFallbackDenylist: [/^\/api\//], // ✅ Exclude /api/
           runtimeCaching: [

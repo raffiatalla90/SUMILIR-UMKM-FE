@@ -40,20 +40,14 @@
         {{ merchant.name }}
       </h3>
 
-      <!-- Products Count -->
+      <!-- Products/Jasa Count -->
 
       <div class="flex items-center gap-1 mb-1 text-[11px] text-gray-500 mt-2">
         <i class="text-base me-1 pi pi-shopping-bag text-primary"></i>
 
         <span class="line-clamp-1">
-          {{
-            merchant.products_count && merchant.products_count !== 0
-              ? merchant.products_count
-              : merchant.jasas_count && merchant.jasas_count !== 0
-                ? merchant.jasas_count
-                : 0
-          }}
-          Produk
+          {{ totalItemCount }}
+          {{ itemCountLabel }}
         </span>
       </div>
 
@@ -119,5 +113,20 @@ const primaryAddressString = computed(() => {
   if (addr.province?.name) parts.push(String(addr.province.name));
 
   return parts.join(", ");
+});
+
+const totalItemCount = computed(() => {
+  const products = props.merchant?.products_count || 0;
+  const jasas = props.merchant?.jasas_count || 0;
+  return products + jasas;
+});
+
+const itemCountLabel = computed(() => {
+  const products = props.merchant?.products_count || 0;
+  const jasas = props.merchant?.jasas_count || 0;
+  
+  if (products > 0 && jasas > 0) return "Produk & Layanan";
+  if (jasas > 0) return "Layanan";
+  return "Produk";
 });
 </script>

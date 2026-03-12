@@ -201,7 +201,7 @@ const formData = ref({
 // Validation schema
 const validationSchema = yup.object({
   title: yup.string().required("Nama layanan wajib diisi"),
-  description: yup.string().nullable(),
+  description: yup.string().required("Deskripsi layanan wajib diisi").min(20, "Deskripsi minimal 20 karakter"),
   jasa_category_id: yup.number().required("Kategori layanan wajib dipilih"),
   jasa_subcategory_id: yup
     .number()
@@ -560,6 +560,7 @@ const submitForm = async (values) => {
     });
 
     fd.set("location_address", formData.value.location_address || "");
+    fd.set("operating_times", formData.value.operating_times || "");
     // Default create langsung dipublish agar tampil di halaman customer
     fd.set("status", "published");
 
@@ -717,21 +718,29 @@ onBeforeUnmount(() => {
                   :disabled="!jasaSubcategories.length"
                 />
 
-                <Field name="description" v-slot="{ field }">
+                <Field name="description" v-slot="{ field, errors }">
                   <div class="sm:col-span-2">
                     <label
                       class="block mb-2 text-sm font-semibold text-gray-700"
-                      >Deskripsi Layanan</label
+                      >Deskripsi Layanan <span class="text-red-500">*</span></label
                     >
                     <textarea
                       :name="field.name"
                       :value="field.value"
                       @input="(e) => { field.onChange(e.target.value); formData.description = e.target.value; }"
                       @blur="field.onBlur"
-                      placeholder="Jelaskan detail tentang layanan Anda secara lengkap..."
-                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Jelaskan detail tentang layanan Anda secara lengkap (minimal 20 karakter)..."
+                      class="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      :class="errors.length ? 'border-red-500' : 'border-gray-300'"
                       rows="4"
                     />
+                    <div class="flex justify-between mt-1">
+                      <span v-if="errors.length" class="text-xs text-red-500">{{ errors[0] }}</span>
+                      <span v-else class="text-xs text-gray-400"></span>
+                      <span class="text-xs" :class="(formData.description?.length || 0) >= 20 ? 'text-green-600' : 'text-gray-400'">
+                        {{ formData.description?.length || 0 }} / 20 karakter
+                      </span>
+                    </div>
                   </div>
                 </Field>
               </div>

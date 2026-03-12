@@ -1,63 +1,88 @@
 <template>
   <div class="min-h-screen pb-32 bg-gradient-to-b from-gray-50 via-white to-gray-100 sm:pb-28">
-    <!-- Gambar header (mobile/tablet) -->
-    <div class="relative w-full h-48 overflow-hidden bg-gray-200 sm:h-60 lg:h-72 lg:hidden">
-      <img :src="jasaImage" @error="onImgError($event, 'header')" class="object-cover w-full h-full" />
-      <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent"></div>
-      <!-- Tombol kembali -->
-      <button
-        type="button"
-        class="absolute z-20 flex items-center justify-center text-white transition rounded-full shadow-md top-3 left-3 w-9 h-9 bg-black/35 backdrop-blur-sm hover:bg-black/50"
-        @click="goBack"
-        aria-label="Kembali"
-      >
-        <i class="text-sm pi pi-arrow-left"></i>
-      </button>
+    <!-- Loading State -->
+    <div v-if="isLoading" class="flex items-center justify-center min-h-screen">
+      <div class="text-center">
+        <i class="text-4xl text-gray-300 pi pi-spin pi-spinner"></i>
+        <p class="mt-2 text-gray-500">Memuat detail layanan...</p>
+      </div>
     </div>
 
-    <!-- Preview galeri di bawah cover (mobile/tablet) -->
-    <section
-      v-if="jasa?.images && jasa.images.length > 1"
-      class="px-4 pt-3 pb-2 bg-white border-b border-gray-100 lg:hidden"
-    >
-      <div class="max-w-3xl mx-auto lg:max-w-5xl">
-        <h2 class="mb-2 text-xs font-semibold text-gray-700">
-          Galeri Layanan
-        </h2>
-        <div class="flex gap-2 pb-1 overflow-x-auto">
-          <button
-            v-for="img in jasa.images"
-            :key="img.id || img.path || img.image"
-            type="button"
-            class="relative flex-shrink-0 w-14 h-14 rounded-md overflow-hidden border text-[10px] bg-gray-50 focus:outline-none focus:ring-1 focus:ring-[#FFA30E] focus:ring-offset-1"
-            :class="[
-              (resolveJasaAssetSrc(img) === selectedImagePath) || (!selectedImagePath && img.is_cover)
-                ? 'border-[#FFA30E]'
-                : 'border-gray-200'
-            ]"
-            @click="onSelectGalleryImage(img)"
-          >
-            <img
-              :src="resolveJasaAssetSrc(img)"
-              class="object-cover w-full h-full"
-              @error="onImgError($event, 'gallery')"
-            />
-            <span
-              v-if="img.is_cover"
-              class="absolute bottom-0 left-0 right-0 bg-black/45 text-white text-[9px] py-0.5 text-center"
-            >
-              Cover
-            </span>
-          </button>
-        </div>
+    <!-- Not Found State -->
+    <div v-else-if="!jasa && !isLoading" class="flex items-center justify-center min-h-screen">
+      <div class="text-center">
+        <i class="text-5xl text-gray-300 pi pi-exclamation-triangle"></i>
+        <h2 class="mt-4 text-xl font-semibold text-gray-700">Layanan Tidak Ditemukan</h2>
+        <p class="mt-2 text-gray-500">Layanan yang Anda cari tidak tersedia.</p>
+        <button 
+          @click="goBack" 
+          class="px-6 py-2 mt-4 text-white transition rounded-full bg-primary hover:bg-primary-hover"
+        >
+          Kembali
+        </button>
       </div>
-    </section>
+    </div>
 
-    <!-- Info utama -->
-    <div v-if="jasa" class="px-4 py-4 border-b border-gray-100 shadow-sm bg-white/95">
-      <div class="max-w-3xl mx-auto lg:max-w-5xl lg:grid lg:grid-cols-12 lg:gap-6">
-        <!-- Kolom kiri (desktop): gambar & galeri -->
-        <div class="hidden lg:flex lg:flex-col lg:gap-3 lg:col-span-5">
+    <!-- Main Content -->
+    <template v-else>
+      <!-- Gambar header (mobile/tablet) -->
+      <div class="relative w-full h-48 overflow-hidden bg-gray-200 sm:h-60 lg:h-72 lg:hidden">
+        <img :src="jasaImage" @error="onImgError($event, 'header')" class="object-cover w-full h-full" />
+        <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent"></div>
+        <!-- Tombol kembali -->
+        <button
+          type="button"
+          class="absolute z-20 flex items-center justify-center text-white transition rounded-full shadow-md top-3 left-3 w-9 h-9 bg-black/35 backdrop-blur-sm hover:bg-black/50"
+          @click="goBack"
+          aria-label="Kembali"
+        >
+          <i class="text-sm pi pi-arrow-left"></i>
+        </button>
+      </div>
+
+      <!-- Preview galeri di bawah cover (mobile/tablet) -->
+      <section
+        v-if="jasa?.images && jasa.images.length > 1"
+        class="px-4 pt-3 pb-2 bg-white border-b border-gray-100 lg:hidden"
+      >
+        <div class="max-w-3xl mx-auto lg:max-w-5xl">
+          <h2 class="mb-2 text-xs font-semibold text-gray-700">
+            Galeri Layanan
+          </h2>
+          <div class="flex gap-2 pb-1 overflow-x-auto">
+            <button
+              v-for="img in jasa.images"
+              :key="img.id || img.path || img.image"
+              type="button"
+              class="relative flex-shrink-0 w-14 h-14 rounded-md overflow-hidden border text-[10px] bg-gray-50 focus:outline-none focus:ring-1 focus:ring-[#FFA30E] focus:ring-offset-1"
+              :class="[
+                (resolveJasaAssetSrc(img) === selectedImagePath) || (!selectedImagePath && img.is_cover)
+                  ? 'border-[#FFA30E]'
+                  : 'border-gray-200'
+              ]"
+              @click="onSelectGalleryImage(img)"
+            >
+              <img
+                :src="resolveJasaAssetSrc(img)"
+                class="object-cover w-full h-full"
+                @error="onImgError($event, 'gallery')"
+              />
+              <span
+                v-if="img.is_cover"
+                class="absolute bottom-0 left-0 right-0 bg-black/45 text-white text-[9px] py-0.5 text-center"
+              >
+                Cover
+              </span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Info utama -->
+      <div v-if="jasa" class="px-4 py-4 border-b border-gray-100 shadow-sm bg-white/95">
+        <div class="max-w-3xl mx-auto lg:max-w-5xl lg:grid lg:grid-cols-12 lg:gap-6">
+          <!-- Kolom kiri (desktop): gambar & galeri -->
+          <div class="hidden lg:flex lg:flex-col lg:gap-3 lg:col-span-5">
           <div class="relative w-full h-64 overflow-hidden bg-gray-200 rounded-2xl">
             <img
               :src="jasaImage"
@@ -417,6 +442,7 @@
       :operating-days="jasa?.operating_days || ''"
       @close="calendarOpen = false"
     />
+    </template>
 
   </div>
 </template>
@@ -431,6 +457,7 @@ import CalendarModal from "@/components/CalendarModal.vue";
 const route = useRoute();
 const router = useRouter();
 const jasa = ref(null);
+const isLoading = ref(true);
 const selectedImagePath = ref(null);
 
 // Fallback images for error handling
@@ -689,6 +716,7 @@ onMounted(async () => {
   if (!slugParam) {
     console.error("[JasaDetail] Missing slug param");
     jasa.value = null;
+    isLoading.value = false;
     return;
   }
 
@@ -729,6 +757,8 @@ onMounted(async () => {
     console.error("[JasaDetail] Error fetching jasa:", e);
     // Biarkan jasa kosong jika tidak ditemukan / 404 supaya tidak menampilkan data dummy
     jasa.value = null;
+  } finally {
+    isLoading.value = false;
   }
 });
 
