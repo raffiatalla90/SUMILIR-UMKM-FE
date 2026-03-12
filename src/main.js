@@ -10,15 +10,30 @@ import { useAuthStore } from "@/stores/auth";
 import ProductCard from "@/components/Card/ProductCard.vue";
 import EventCard from "@/components/Card/EventCard.vue";
 import PromoCard from "@/components/Card/PromoCard.vue";
-import 'leaflet/dist/leaflet.css'
+import "leaflet/dist/leaflet.css";
 
 if (import.meta.env.DEV && "serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     const registrations = await navigator.serviceWorker.getRegistrations();
-    await Promise.all(registrations.map((registration) => registration.unregister()));
+    await Promise.all(
+      registrations.map((registration) => registration.unregister()),
+    );
     if (window.caches) {
       const cacheKeys = await caches.keys();
       await Promise.all(cacheKeys.map((cacheKey) => caches.delete(cacheKey)));
+    }
+  });
+}
+
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", async () => {
+    try {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(
+        registrations.map((registration) => registration.update()),
+      );
+    } catch (err) {
+      console.warn("[PWA] Failed to update service worker registrations:", err);
     }
   });
 }
@@ -53,16 +68,19 @@ app.component("PromoCard", PromoCard);
 app.mount("#app");
 
 // Wait for router to be ready before hiding splash
-router.isReady().then(() => {
-  const isDesktop = window.matchMedia("(min-width: 640px)").matches;
+router
+  .isReady()
+  .then(() => {
+    const isDesktop = window.matchMedia("(min-width: 640px)").matches;
 
-  if (isDesktop) {
+    if (isDesktop) {
+      hideSplash();
+    } else {
+      const minTimePromise = new Promise((r) => setTimeout(r, MIN_SPLASH_MS));
+      minTimePromise.finally(() => nextTick().then(hideSplash));
+    }
+  })
+  .catch((err) => {
+    console.error("[App] Router failed to initialize:", err);
     hideSplash();
-  } else {
-    const minTimePromise = new Promise((r) => setTimeout(r, MIN_SPLASH_MS));
-    minTimePromise.finally(() => nextTick().then(hideSplash));
-  }
-}).catch((err) => {
-  console.error("[App] Router failed to initialize:", err);
-  hideSplash();
-});
+  });
