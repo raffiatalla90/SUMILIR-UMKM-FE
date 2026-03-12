@@ -555,8 +555,8 @@ const initActiveTime = () => {
 // ----- gambar jasa -----
 const resolveJasaAssetSrc = (img) => {
   if (!img) return "";
-  if (img.src_url) return img.src_url;
-  if (img.url) return img.url;
+  if (img.src_url) return getImageUrlJasa(img.src_url);
+  if (img.url) return getImageUrlJasa(img.url);
   if (img.image_path) return getImageUrlJasa(img.image_path);
   if (img.path) return getImageUrlJasa(img.path);
   if (img.image) return getImageUrlJasa(img.image);
@@ -571,10 +571,10 @@ const jasaImage = computed(() => {
 
   // Prioritaskan cover URL dari API agar aman di environment deploy
   if (jasa.value.cover_img?.src_url) {
-    return jasa.value.cover_img.src_url;
+    return getImageUrlJasa(jasa.value.cover_img.src_url);
   }
   if (jasa.value.cover_img?.url) {
-    return jasa.value.cover_img.url;
+    return getImageUrlJasa(jasa.value.cover_img.url);
   }
 
   // Fallback ke array images (cover image)
