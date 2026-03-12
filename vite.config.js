@@ -43,20 +43,26 @@ export default defineConfig(({ mode }) => {
           skipWaiting: true,
           clientsClaim: true,
           navigateFallback: "/index.html", // ✅ Root
-          navigateFallbackDenylist: [/^\/api\//], // ✅ Exclude /api/
+          navigateFallbackDenylist: [
+            /^\/api\//,
+            /^\/api$/,
+            /^\/backend\//,
+            /^\/backend$/,
+            /^\/sanctum\//,
+          ], // ✅ Exclude /api/ and /backend/ and /sanctum/
           runtimeCaching: [
             {
               urlPattern: ({ request, sameOrigin }) =>
                 sameOrigin &&
                 ["style", "script", "image", "font"].includes(
-                  request.destination
+                  request.destination,
                 ),
               handler: "StaleWhileRevalidate",
               options: { cacheName: "assets-cache-v1" },
             },
             {
               urlPattern: new RegExp(
-                `^${apiBase.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}/.*`
+                `^${apiBase.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}/.*`,
               ),
               handler: "NetworkFirst",
               method: "GET",

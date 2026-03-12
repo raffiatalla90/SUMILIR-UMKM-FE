@@ -19,7 +19,7 @@ import MobilePagination from "@/components/common/MobilePagination.vue";
 import BulkActionBar from "@/components/common/BulkActionBar.vue";
 import { useJasa } from "@/composables/useJasa"; // ✅ GANTI: import useJasa
 import { useCategories } from "@/composables/useCategories";
-import { getImageUrlJasa } from "@/libs/getImageUrl.js";
+import { getImageUrl } from "@/libs/getImageUrl.js";
 import api from "@/libs/axios";
 
 const router = useRouter();
@@ -825,7 +825,7 @@ const getPrimaryImageSrc = (jasaItem) => {
 
   // Prioritas 1: cover_img.src_url dari backend (sama seperti produk)
   if (jasaItem.cover_img?.src_url) {
-    return getImageUrlJasa(jasaItem.cover_img.src_url);
+    return getImageUrl(jasaItem.cover_img.src_url);
   }
   
   const images = jasaItem.images || [];
@@ -835,11 +835,11 @@ const getPrimaryImageSrc = (jasaItem) => {
     const coverImage = images.find((img) => img.is_cover) || images[0];
     
     // Prioritas 2: url/src_url dari backend (API endpoint /api/images/{id})
-    if (coverImage.url) return getImageUrlJasa(coverImage.url);
-    if (coverImage.src_url) return getImageUrlJasa(coverImage.src_url);
+    if (coverImage.url) return getImageUrl(coverImage.url);
+    if (coverImage.src_url) return getImageUrl(coverImage.src_url);
     
     // Prioritas 3: gunakan image ID untuk akses via /api/images/{id}
-    if (coverImage.id) return getImageUrlJasa(coverImage.id);
+    if (coverImage.id) return getImageUrl(coverImage.id);
   }
   
   return "";

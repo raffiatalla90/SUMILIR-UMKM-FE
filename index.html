@@ -1,7 +1,44 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
+
+    <!--
+      Backend API redirect: Sets a global flag so Vue Router's catch-all
+      does NOT redirect /backend/ paths to "/". Then unregisters SW and
+      hard-navigates so the real server handles the request.
+      NO window.stop() — that breaks parsing in many browsers.
+    -->
+    <script>
+      (function () {
+        if (location.pathname.indexOf("/backend/") !== 0) return;
+
+        // Signal to Vue Router: do NOT redirect this path.
+        window.__BACKEND_REDIRECT = true;
+
+        // Unregister all Service Workers, then hard-navigate to the real server URL.
+        function hardNav() {
+          location.replace(location.href);
+        }
+
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker
+            .getRegistrations()
+            .then(function (r) {
+              return Promise.all(
+                r.map(function (sw) {
+                  return sw.unregister();
+                }),
+              );
+            })
+            .then(hardNav)
+            .catch(hardNav);
+        } else {
+          hardNav();
+        }
+      })();
+    </script>
+
     <!-- Favicons (cache-busted) -->
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="shortcut icon" href="/favicon.ico" />
@@ -21,7 +58,9 @@
         display: grid;
         place-items: center;
         background: #ff9800;
-        transition: opacity 0.3s ease, visibility 0.3s ease;
+        transition:
+          opacity 0.3s ease,
+          visibility 0.3s ease;
       }
       #splash.splash-hidden {
         opacity: 0;
@@ -29,8 +68,13 @@
       }
 
       .splash-title {
-        font: 800 clamp(36px, 8vw, 72px) / 1 system-ui, -apple-system, Segoe UI,
-          Roboto, Arial, sans-serif;
+        font:
+          800 clamp(36px, 8vw, 72px) / 1 system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          Arial,
+          sans-serif;
         color: #fff;
         text-transform: uppercase;
         animation: breathe 3s ease-in-out infinite;

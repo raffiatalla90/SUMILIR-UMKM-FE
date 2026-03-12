@@ -10,7 +10,7 @@ import TextField from "@/components/forms/TextField.vue";
 import SelectField from "@/components/forms/SelectField.vue";
 import Button from "@/components/common/Button.vue";
 import api from "@/libs/axios";
-import { getImageUrl, getImageUrlJasa } from "@/libs/getImageUrl.js";
+import { getImageUrl } from "@/libs/getImageUrl.js";
 
 // Format currency helper
 const formatCurrency = (value) => {
@@ -155,7 +155,6 @@ const formData = ref({
   jasa_subcategory_id: null,
   fixed_price: 0,
   base_price: 0,
-  operating_times: "",
   service_type: "at_location",
   location_address: "",
   service_area: "",
@@ -167,7 +166,7 @@ const formData = ref({
 // Validation schema
 const validationSchema = yup.object({
   title: yup.string().required("Nama layanan wajib diisi"),
-  description: yup.string().required("Deskripsi layanan wajib diisi").min(20, "Deskripsi minimal 20 karakter"),
+  description: yup.string().nullable(),
   jasa_category_id: yup.number().required("Kategori layanan wajib dipilih"),
   jasa_subcategory_id: yup
     .number()
@@ -229,116 +228,10 @@ const validationSchema = yup.object({
   service_type: yup.string().required("Tipe layanan wajib dipilih"),
   location_address: yup.string().nullable().max(255),
   service_area: yup.string().nullable(),
-  operating_times: yup.string().nullable().max(255),
   special_notes: yup.string().nullable(),
   payment_methods: yup.string().nullable(),
   status: yup.string(),
 });
-
-// Operating Times Configuration
-const OPERATING_TIME_GROUPS = [
-  { key: "morning", label: "Pagi", times: ["06.00", "07.00", "08.00", "09.00"] },
-  { key: "noon", label: "Siang", times: ["10.00", "11.00", "12.00", "13.00", "14.00"] },
-  { key: "afternoon", label: "Sore", times: ["15.00", "16.00", "17.00"] },
-  { key: "night", label: "Malam", times: ["18.00", "19.00", "20.00"] },
-];
-
-const allOperatingTimeOptions = OPERATING_TIME_GROUPS.flatMap(
-  (group) => group.times
-);
-
-const selectedOperatingTimes = computed(() => {
-  return String(formData.value.operating_times || "")
-    .split(",")
-    .map((time) => time.trim())
-    .filter(Boolean)
-    .sort();
-});
-
-const customOperatingTime = ref("");
-
-const setOperatingTimes = (nextTimes, setFieldValue) => {
-  const joined = [...new Set(nextTimes)].sort().join(",");
-  formData.value.operating_times = joined;
-  if (typeof setFieldValue === "function") {
-    setFieldValue("operating_times", joined);
-  }
-};
-
-const toggleOperatingTime = (time, setFieldValue) => {
-  const current = [...selectedOperatingTimes.value];
-  const index = current.indexOf(time);
-
-  if (index >= 0) {
-    current.splice(index, 1);
-  } else {
-    current.push(time);
-  }
-
-  setOperatingTimes(current, setFieldValue);
-};
-
-const isOperatingTimeSelected = (time) =>
-  selectedOperatingTimes.value.includes(time);
-
-const isAllOperatingTimesSelected = computed(() => {
-  if (!allOperatingTimeOptions.length) return false;
-  return allOperatingTimeOptions.every((time) =>
-    selectedOperatingTimes.value.includes(time)
-  );
-});
-
-const toggleSelectAllOperatingTimes = (setFieldValue) => {
-  if (isAllOperatingTimesSelected.value) {
-    setOperatingTimes([], setFieldValue);
-    return;
-  }
-  setOperatingTimes(allOperatingTimeOptions, setFieldValue);
-};
-
-const isGroupFullySelected = (groupTimes) =>
-  groupTimes.every((time) => selectedOperatingTimes.value.includes(time));
-
-const toggleGroupOperatingTimes = (groupTimes, setFieldValue) => {
-  const current = [...selectedOperatingTimes.value];
-  const allSelected = groupTimes.every((time) => current.includes(time));
-
-  if (allSelected) {
-    setOperatingTimes(
-      current.filter((time) => !groupTimes.includes(time)),
-      setFieldValue
-    );
-    return;
-  }
-
-  setOperatingTimes([...current, ...groupTimes], setFieldValue);
-};
-
-const addCustomOperatingTime = (setFieldValue) => {
-  const raw = String(customOperatingTime.value || "").trim();
-  if (!raw) return;
-
-  const match = raw.match(/^([01]?\d|2[0-3])[:.]([0-5]\d)$/);
-  if (!match) {
-    toast.error("Format jam tidak valid. Gunakan HH.MM atau HH:MM (contoh: 09.30)");
-    return;
-  }
-
-  const hh = String(match[1]).padStart(2, "0");
-  const mm = match[2];
-  const normalized = `${hh}.${mm}`;
-  const current = [...selectedOperatingTimes.value];
-
-  if (!current.includes(normalized)) {
-    current.push(normalized);
-    setOperatingTimes(current, setFieldValue);
-    toast.success("Berhasil ditambahkan");
-  } else {
-    toast.info("Jam layanan sudah ada");
-  }
-
-  customOperatingTime.value = "";
-};
 
 watch(
   [() => formData.value.service_type, merchantProfileAddress],
@@ -581,7 +474,6 @@ const loadJasa = async () => {
       jasa_subcategory_id: jasaData.jasa_subcategory_id || null,
       fixed_price: parseInt(jasaData.fixed_price) || 0,
       base_price: parseInt(jasaData.base_price) || 0,
-      operating_times: jasaData.operating_times || "",
       service_type: jasaData.service_type || "at_location",
       location_address: jasaData.location_address || "",
       service_area: jasaData.service_area || "",
@@ -639,7 +531,6 @@ const submitForm = async (values) => {
     fd.set("status", formData.value.status);
     fd.set("service_type", formData.value.service_type);
     fd.set("location_address", formData.value.location_address || "");
-    fd.set("operating_times", formData.value.operating_times || "");
 
     // Ensure integer prices
     fd.set("fixed_price", parseInt(values.fixed_price) || 0);
@@ -831,29 +722,21 @@ onMounted(async () => {
                   :disabled="!jasaSubcategories.length"
                 />
 
-                <Field name="description" v-slot="{ field, errors }">
+                <Field name="description" v-slot="{ field }">
                   <div class="sm:col-span-2">
                     <label
                       class="block mb-2 text-sm font-semibold text-gray-700"
-                      >Deskripsi Layanan <span class="text-red-500">*</span></label
+                      >Deskripsi Layanan</label
                     >
                     <textarea
                       :name="field.name"
                       :value="field.value"
                       @input="(e) => { field.onChange(e.target.value); formData.description = e.target.value; }"
                       @blur="field.onBlur"
-                      placeholder="Jelaskan detail tentang layanan Anda secara lengkap (minimal 20 karakter)..."
-                      class="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      :class="errors.length ? 'border-red-500' : 'border-gray-300'"
+                      placeholder="Jelaskan detail tentang layanan Anda secara lengkap..."
+                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows="4"
                     />
-                    <div class="flex justify-between mt-1">
-                      <span v-if="errors.length" class="text-xs text-red-500">{{ errors[0] }}</span>
-                      <span v-else class="text-xs text-gray-400"></span>
-                      <span class="text-xs" :class="(formData.description?.length || 0) >= 20 ? 'text-green-600' : 'text-gray-400'">
-                        {{ formData.description?.length || 0 }} / 20 karakter
-                      </span>
-                    </div>
                   </div>
                 </Field>
               </div>
@@ -1006,7 +889,7 @@ onMounted(async () => {
                       class="relative"
                     >
                       <img
-                        :src="getImageUrlJasa(image.url || image.src_url || image.id)"
+                        :src="getImageUrl(image.url || image.src_url || image.id)"
                         alt="preview"
                         class="object-cover w-full border border-gray-200 rounded h-28 bg-gray-50"
                         @error="(e) => (e.target.style.display = 'none')"
@@ -1189,115 +1072,6 @@ onMounted(async () => {
                     <p class="mt-1 text-xs text-gray-500">
                       Saat checkout, customer akan diminta izin lokasi device untuk menentukan alamat layanan.
                     </p>
-                    <p v-if="errors[0]" class="mt-1 text-sm text-red-500">
-                      {{ errors[0] }}
-                    </p>
-                  </div>
-                </Field>
-
-                <Field name="operating_times" v-slot="{ errors }">
-                  <div class="sm:col-span-2">
-                    <label class="block mb-2 text-sm font-semibold text-gray-700"
-                      >Jam Layanan <span class="text-xs font-normal text-gray-500">(opsional)</span></label
-                    >
-
-                    <div class="p-3 bg-white border border-orange-100 rounded-lg">
-                      <p class="mb-2 text-xs text-gray-500">
-                        Pilih satu atau beberapa jam layanan yang bisa dipilih customer.
-                      </p>
-
-                      <div class="flex flex-wrap items-center gap-2 mb-3">
-                        <button
-                          type="button"
-                          @click="toggleSelectAllOperatingTimes(setFieldValue)"
-                          class="px-3 py-1.5 text-xs font-medium rounded-full border transition"
-                          :class="
-                            isAllOperatingTimesSelected
-                              ? 'bg-merchant-primary text-white border-merchant-primary'
-                              : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary/60'
-                          "
-                        >
-                          {{ isAllOperatingTimesSelected ? 'Batalkan Semua' : 'Pilih Semua' }}
-                        </button>
-                      </div>
-
-                      <div class="space-y-3">
-                        <div
-                          v-for="group in OPERATING_TIME_GROUPS"
-                          :key="group.key"
-                          class="p-3 border border-gray-200 rounded-lg"
-                        >
-                          <div class="flex items-center justify-between mb-2">
-                            <p class="text-xs font-semibold text-gray-700 uppercase">
-                              {{ group.label }}
-                            </p>
-                            <button
-                              type="button"
-                              @click="toggleGroupOperatingTimes(group.times, setFieldValue)"
-                              class="text-[11px] font-medium px-2 py-1 rounded-full border transition"
-                              :class="
-                                isGroupFullySelected(group.times)
-                                  ? 'bg-merchant-primary text-white border-merchant-primary'
-                                  : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary/60'
-                              "
-                            >
-                              {{ isGroupFullySelected(group.times) ? 'Batalkan' : 'Pilih semua' }}
-                            </button>
-                          </div>
-
-                          <div class="flex flex-wrap gap-2">
-                            <button
-                              v-for="time in group.times"
-                              :key="`${group.key}-${time}`"
-                              type="button"
-                              @click="toggleOperatingTime(time, setFieldValue)"
-                              class="px-3 py-1.5 text-xs rounded-full border transition"
-                              :class="
-                                isOperatingTimeSelected(time)
-                                  ? 'bg-merchant-primary text-white border-merchant-primary'
-                                  : 'bg-white text-gray-700 border-gray-300 hover:border-merchant-primary/60'
-                              "
-                            >
-                              {{ time }}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div class="flex items-center gap-2 mt-3">
-                        <input
-                          v-model="customOperatingTime"
-                          type="text"
-                          placeholder="Tambahkan manual (contoh: 09.30)"
-                          @keyup.enter="addCustomOperatingTime(setFieldValue)"
-                          class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary/60"
-                        />
-                        <button
-                          type="button"
-                          @click="addCustomOperatingTime(setFieldValue)"
-                          class="px-3 py-2 text-sm font-medium text-white rounded-lg bg-merchant-primary hover:bg-merchant-primary/90"
-                        >
-                          Tambah
-                        </button>
-                      </div>
-
-                      <div v-if="selectedOperatingTimes.length" class="mt-3">
-                        <p class="mb-1 text-xs text-gray-600">Jam terpilih:</p>
-                        <div class="flex flex-wrap gap-2">
-                          <span
-                            v-for="time in selectedOperatingTimes"
-                            :key="`selected-${time}`"
-                            class="inline-flex items-center px-3 py-1 text-xs font-medium text-white rounded-full bg-merchant-primary"
-                          >
-                            {{ time }}
-                          </span>
-                        </div>
-                      </div>
-                      <p v-else class="mt-2 text-xs text-gray-500">
-                        Belum diatur. Customer tetap bisa isi jam secara manual.
-                      </p>
-                    </div>
-
                     <p v-if="errors[0]" class="mt-1 text-sm text-red-500">
                       {{ errors[0] }}
                     </p>

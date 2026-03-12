@@ -97,7 +97,7 @@ const routes = [
             try {
               // Fetch jasa by ID to get the proper slug
               const { data } = await api.get(`/api/public/jasas/${slug}`);
-              
+
               if (data?.slug) {
                 // Redirect to proper slug URL
                 next({
@@ -120,7 +120,9 @@ const routes = [
             } catch (e) {
               try {
                 // If this slug belongs to a merchant, redirect to merchant detail page
-                await api.get(`/api/public/merchants/${encodeURIComponent(slug)}`);
+                await api.get(
+                  `/api/public/merchants/${encodeURIComponent(slug)}`,
+                );
                 return next({
                   name: "Merchant Detail",
                   params: { slug },
@@ -701,8 +703,19 @@ const routes = [
     ],
   },
 
-  // Fallback
-  { path: "/:pathMatch(.*)*", redirect: "/" },
+  // Fallback — uses beforeEnter so /backend/ paths are NOT redirected to "/".
+  // The inline <head> script sets window.__BACKEND_REDIRECT and handles hard-nav.
+  {
+    path: "/:pathMatch(.*)*",
+    beforeEnter: (to, from, next) => {
+      if (window.__BACKEND_REDIRECT || to.path.startsWith("/backend/")) {
+        // Abort Vue navigation — the inline script handles the redirect.
+        return;
+      }
+      next("/");
+    },
+    component: { render: () => null },
+  },
 ];
 
 const router = createRouter({
@@ -743,6 +756,14 @@ let lastNavigationPath = null;
 let authInitialized = false;
 
 router.beforeEach(async (to, from, next) => {
+  // Backend API routes should NEVER be handled by Vue.
+  // If the Service Worker served index.html for a /backend/ URL,
+  // force a full-page navigation so the server handles it.
+  if (to.path.startsWith("/backend/")) {
+    window.location.href = to.fullPath;
+    return;
+  }
+
   const authStore = useAuthStore();
   // Basic SEO for all routes (can be overridden by page-level dynamic SEO)
   try {

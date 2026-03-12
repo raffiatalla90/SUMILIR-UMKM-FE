@@ -40,14 +40,14 @@
         {{ merchant.name }}
       </h3>
 
-      <!-- Products/Jasa Count -->
+      <!-- Products Count -->
 
       <div class="flex items-center gap-1 mb-1 text-[11px] text-gray-500 mt-2">
         <i class="text-base me-1 pi pi-shopping-bag text-primary"></i>
 
         <span class="line-clamp-1">
-          {{ totalItemCount }}
-          {{ itemCountLabel }}
+          {{ displayCount }}
+          {{ displayLabel }}
         </span>
       </div>
 
@@ -115,18 +115,22 @@ const primaryAddressString = computed(() => {
   return parts.join(", ");
 });
 
-const totalItemCount = computed(() => {
-  const products = props.merchant?.products_count || 0;
-  const jasas = props.merchant?.jasas_count || 0;
-  return products + jasas;
+// Tentukan apakah merchant ini tipe Jasa berdasarkan segmentation
+const isMerchantJasa = computed(() => {
+  const segmentName = props.merchant?.segmentation?.name || "";
+  return segmentName.toLowerCase().includes("jasa");
 });
 
-const itemCountLabel = computed(() => {
-  const products = props.merchant?.products_count || 0;
-  const jasas = props.merchant?.jasas_count || 0;
-  
-  if (products > 0 && jasas > 0) return "Produk & Layanan";
-  if (jasas > 0) return "Layanan";
-  return "Produk";
+// Tampilkan counter yang sesuai
+const displayCount = computed(() => {
+  if (isMerchantJasa.value) {
+    return props.merchant?.jasas_count || 0;
+  }
+  return props.merchant?.products_count || 0;
+});
+
+// Tampilkan label yang sesuai
+const displayLabel = computed(() => {
+  return isMerchantJasa.value ? "Layanan Jasa" : "Produk";
 });
 </script>
