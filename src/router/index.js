@@ -703,8 +703,19 @@ const routes = [
     ],
   },
 
-  // Fallback — explicit function form prevents query params from leaking into the root URL
-  { path: "/:pathMatch(.*)*", redirect: () => ({ path: "/" }) },
+  // Fallback — uses beforeEnter so /backend/ paths are NOT redirected to "/".
+  // The inline <head> script sets window.__BACKEND_REDIRECT and handles hard-nav.
+  {
+    path: "/:pathMatch(.*)*",
+    beforeEnter: (to, from, next) => {
+      if (window.__BACKEND_REDIRECT || to.path.startsWith("/backend/")) {
+        // Abort Vue navigation — the inline script handles the redirect.
+        return;
+      }
+      next("/");
+    },
+    component: { render: () => null },
+  },
 ];
 
 const router = createRouter({
