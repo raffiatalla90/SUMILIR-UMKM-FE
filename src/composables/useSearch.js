@@ -32,13 +32,14 @@ export function useSearch() {
       }
       productsMeta.value = data.meta ?? {};
 
-      // Also hydrate jasa results if present
+      // Also hydrate jasa results if present (nested under meta by ApiResponse)
+      const meta = data.meta ?? {};
       if (append) {
-        jasas.value.push(...(data.jasas ?? []));
+        jasas.value.push(...(meta.jasas ?? []));
       } else {
-        jasas.value = data.jasas ?? [];
+        jasas.value = meta.jasas ?? [];
       }
-      jasasMeta.value = data.jasas_meta ?? {};
+      jasasMeta.value = meta.jasas_meta ?? {};
     } catch (err) {
       if (isDev) {
         console.error("Error fetching products:", err);
