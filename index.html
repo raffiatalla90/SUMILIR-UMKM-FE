@@ -89,27 +89,39 @@
     <script>
       (function () {
         var path = window.location.pathname;
+
+        // Not a backend path → continue normally (load Vue SPA)
+        if (path.indexOf("/backend/") !== 0) return;
+
+        // ── CRITICAL: Stop ALL further page loading immediately ──
+        // This prevents <script type="module" src="/src/main.js"> from loading,
+        // so Vue Router never boots and never redirects to "/".
+        window.stop();
+
+        // Prevent infinite reload loop (max 1 retry)
         var key = "__backend_sw_retry";
-
-        // Not a backend path → clear flag and continue normally
-        if (path.indexOf("/backend/") !== 0) {
-          try {
-            sessionStorage.removeItem(key);
-          } catch (e) {}
-          return;
-        }
-
-        // Prevent infinite reload: only retry once
         try {
           if (sessionStorage.getItem(key)) {
             sessionStorage.removeItem(key);
-            return; // already retried, let Vue handle gracefully
+            // Already retried once — show a helpful fallback message
+            document.title = "Redirecting…";
+            document.body.innerHTML =
+              '<div style="display:grid;place-items:center;height:100vh;font-family:system-ui">' +
+              '<div style="text-align:center">' +
+              "<p>Halaman tidak dapat dimuat otomatis.</p>" +
+              '<p><a href="' +
+              location.href +
+              '" style="color:#ff9800">Klik di sini untuk mencoba lagi</a></p>' +
+              "</div></div>";
+            return;
           }
           sessionStorage.setItem(key, "1");
         } catch (e) {}
 
-        function reload() {
-          window.location.reload();
+        // Unregister all Service Workers, then hard-navigate
+        function hardNav() {
+          // Use replace so the broken entry doesn't pollute browser history
+          window.location.replace(window.location.href);
         }
 
         if ("serviceWorker" in navigator) {
@@ -122,10 +134,10 @@
                 }),
               );
             })
-            .then(reload)
-            .catch(reload);
+            .then(hardNav)
+            .catch(hardNav);
         } else {
-          reload();
+          hardNav();
         }
       })();
     </script>
