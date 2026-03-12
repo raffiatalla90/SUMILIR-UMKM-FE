@@ -17,6 +17,19 @@ export const getImageUrlJasa = (imageIdOrPath) => {
     let path = imageIdOrPath.trim();
 
     if (path.startsWith("http")) {
+      try {
+        const resolved = new URL(path);
+        if (
+          typeof window !== "undefined" &&
+          window.location?.protocol === "https:" &&
+          resolved.protocol === "http:"
+        ) {
+          resolved.protocol = "https:";
+          return resolved.toString();
+        }
+      } catch (_) {
+        // ignore parse failures and return original path
+      }
       return path;
     }
 
@@ -30,15 +43,15 @@ export const getImageUrlJasa = (imageIdOrPath) => {
     }
 
     if (path.startsWith("/jasa/")) {
-      return `${backendBase}/storage${path}`;
+      return `${backendBase}/api/jasa-images${path}`;
     }
 
     if (path.startsWith("jasa/")) {
-      return `${backendBase}/storage/${path}`;
+      return `${backendBase}/api/jasa-images/${path}`;
     }
 
     if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(path)) {
-      return `${backendBase}/storage/jasa/${path}`;
+      return `${backendBase}/api/jasa-images/jasa/${path}`;
     }
   }
 

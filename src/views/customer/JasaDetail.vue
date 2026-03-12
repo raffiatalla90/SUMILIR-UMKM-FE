@@ -555,8 +555,8 @@ const initActiveTime = () => {
 // ----- gambar jasa -----
 const resolveJasaAssetSrc = (img) => {
   if (!img) return "";
-  if (img.src_url) return img.src_url;
-  if (img.url) return img.url;
+  if (img.src_url) return getImageUrlJasa(img.src_url);
+  if (img.url) return getImageUrlJasa(img.url);
   if (img.image_path) return getImageUrlJasa(img.image_path);
   if (img.path) return getImageUrlJasa(img.path);
   if (img.image) return getImageUrlJasa(img.image);
@@ -569,6 +569,13 @@ const jasaImage = computed(() => {
 
   if (!jasa.value) return "";
 
+  // Prioritaskan cover URL dari API agar aman di environment deploy
+  if (jasa.value.cover_img?.src_url) {
+    return getImageUrlJasa(jasa.value.cover_img.src_url);
+  }
+  if (jasa.value.cover_img?.url) {
+    return getImageUrlJasa(jasa.value.cover_img.url);
+  }
   // Prioritas utama samakan dengan halaman merchant index/create
   if (jasa.value.image) {
     if (String(jasa.value.image).startsWith("http")) {

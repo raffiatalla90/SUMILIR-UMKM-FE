@@ -855,16 +855,20 @@ const resolveJasaImage = (jasa) => {
 
   // Prefer API-provided cover image URL (id-based)
   if (jasa?.cover_img?.src_url) {
-    return jasa.cover_img.src_url;
+    return getImageUrlJasa(jasa.cover_img.src_url);
+  }
+
+  if (jasa?.cover_img?.url) {
+    return getImageUrlJasa(jasa.cover_img.url);
   }
 
   if (typeof jasa?.cover_image === "string" && jasa.cover_image) {
-    return jasa.cover_image;
+    return getImageUrlJasa(jasa.cover_image);
   }
 
   if (jasa?.cover_image && typeof jasa.cover_image === "object") {
-    if (jasa.cover_image?.src_url) return jasa.cover_image.src_url;
-    if (jasa.cover_image?.url) return jasa.cover_image.url;
+    if (jasa.cover_image?.src_url) return getImageUrlJasa(jasa.cover_image.src_url);
+    if (jasa.cover_image?.url) return getImageUrlJasa(jasa.cover_image.url);
     if (jasa.cover_image?.path) return getImageUrlJasa(jasa.cover_image.path);
     if (jasa.cover_image?.id) return getImageUrlJasa(jasa.cover_image.id);
   }
