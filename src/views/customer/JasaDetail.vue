@@ -555,11 +555,9 @@ const initActiveTime = () => {
 // ----- gambar jasa -----
 const resolveJasaAssetSrc = (img) => {
   if (!img) return "";
+  // Prioritas: API URL terlebih dahulu (sama seperti produk)
   if (img.src_url) return getImageUrlJasa(img.src_url);
   if (img.url) return getImageUrlJasa(img.url);
-  if (img.image_path) return getImageUrlJasa(img.image_path);
-  if (img.path) return getImageUrlJasa(img.path);
-  if (img.image) return getImageUrlJasa(img.image);
   if (img.id) return getImageUrlJasa(img.id);
   return "";
 };
@@ -576,19 +574,16 @@ const jasaImage = computed(() => {
   if (jasa.value.cover_img?.url) {
     return getImageUrlJasa(jasa.value.cover_img.url);
   }
-  // Prioritas utama samakan dengan halaman merchant index/create
-  if (jasa.value.image) {
-    if (String(jasa.value.image).startsWith("http")) {
-      return jasa.value.image;
-    }
-    return getImageUrlJasa(jasa.value.image);
+  if (jasa.value.cover_img?.id) {
+    return getImageUrlJasa(jasa.value.cover_img.id);
   }
 
   // Fallback ke array images (cover image)
   if (jasa.value.images && jasa.value.images.length > 0) {
     const coverImg =
       jasa.value.images.find((img) => img.is_cover) || jasa.value.images[0];
-    return resolveJasaAssetSrc(coverImg);
+    const resolved = resolveJasaAssetSrc(coverImg);
+    if (resolved) return resolved;
   }
 
   return "";
