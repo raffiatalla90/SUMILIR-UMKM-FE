@@ -425,7 +425,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import api from "@/libs/axios.js";
-import { getImageUrl, getImageUrlJasa } from "@/libs/getImageUrl.js";
+import { getImageUrl } from "@/libs/getImageUrl.js";
 import CalendarModal from "@/components/CalendarModal.vue";
 
 const route = useRoute();
@@ -556,9 +556,9 @@ const initActiveTime = () => {
 const resolveJasaAssetSrc = (img) => {
   if (!img) return "";
   // Prioritas: API URL terlebih dahulu (sama seperti produk)
-  if (img.src_url) return getImageUrlJasa(img.src_url);
-  if (img.url) return getImageUrlJasa(img.url);
-  if (img.id) return getImageUrlJasa(img.id);
+  if (img.id) return getImageUrl(img.id);
+  if (img.src_url) return getImageUrl(img.src_url);
+  if (img.url) return getImageUrl(img.url);
   return "";
 };
 
@@ -568,14 +568,14 @@ const jasaImage = computed(() => {
   if (!jasa.value) return "";
 
   // Prioritaskan cover URL dari API agar aman di environment deploy
+  if (jasa.value.cover_img?.id) {
+    return getImageUrl(jasa.value.cover_img.id);
+  }
   if (jasa.value.cover_img?.src_url) {
-    return getImageUrlJasa(jasa.value.cover_img.src_url);
+    return getImageUrl(jasa.value.cover_img.src_url);
   }
   if (jasa.value.cover_img?.url) {
-    return getImageUrlJasa(jasa.value.cover_img.url);
-  }
-  if (jasa.value.cover_img?.id) {
-    return getImageUrlJasa(jasa.value.cover_img.id);
+    return getImageUrl(jasa.value.cover_img.url);
   }
 
   // Fallback ke array images (cover image)

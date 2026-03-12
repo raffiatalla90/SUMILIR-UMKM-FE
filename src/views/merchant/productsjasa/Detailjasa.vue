@@ -9,7 +9,7 @@ import Button from "@/components/common/Button.vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";
 import { useBodyScrollLock } from "@/composables/useBodyScrollLock";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
-import { getImageUrlJasa } from "@/libs/getImageUrl.js";
+import { getImageUrl } from "@/libs/getImageUrl.js";
 import { useJasa } from "@/composables/useJasa";
 import { useAuthStore } from "@/stores/auth";
 
@@ -139,9 +139,9 @@ const addOnPriceRange = computed(() => {
 
 const resolveJasaImageSrc = (image) => {
   // Prioritas: API URL terlebih dahulu (sama seperti produk)
-  if (image?.url) return getImageUrlJasa(image.url);
-  if (image?.src_url) return getImageUrlJasa(image.src_url);
-  if (image?.id) return getImageUrlJasa(image.id);
+  if (image?.url) return getImageUrl(image.url);
+  if (image?.src_url) return getImageUrl(image.src_url);
+  if (image?.id) return getImageUrl(image.id);
   return "";
 };
 
@@ -151,7 +151,7 @@ const mainImageSrc = computed(() => {
 
   // Prioritas 1: cover_img.src_url dari backend (sama seperti produk)
   if (jasa.value.cover_img?.src_url) {
-    return getImageUrlJasa(jasa.value.cover_img.src_url);
+    return getImageUrl(jasa.value.cover_img.src_url);
   }
 
   const images = jasa.value.images || [];

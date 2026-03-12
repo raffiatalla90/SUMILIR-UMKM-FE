@@ -475,7 +475,7 @@ import {
 import { useRoute } from "vue-router";
 import { useRouter } from "vue-router";
 import api from "@/libs/axios.js";
-import { getImageUrl, getImageUrlJasa } from "@/libs/getImageUrl.js";
+import { getImageUrl } from "@/libs/getImageUrl.js";
 import { setMeta, setJsonLd } from "@/router/seo";
 import LeafletMap from "@/components/LeafletMap.vue";
 import ProductCard from "@/components/Card/ProductCard.vue";
@@ -849,22 +849,22 @@ function applyMerchantSeo(merchantData, merchantSlug) {
 // Resolve gambar jasa
 const resolveJasaImage = (jasa) => {
   // Prefer API-provided cover image URL (id-based) - sama seperti produk
+  if (jasa?.cover_img?.id) {
+    return getImageUrl(jasa.cover_img.id);
+  }
+
   if (jasa?.cover_img?.src_url) {
-    return getImageUrlJasa(jasa.cover_img.src_url);
+    return getImageUrl(jasa.cover_img.src_url);
   }
 
   if (jasa?.cover_img?.url) {
-    return getImageUrlJasa(jasa.cover_img.url);
-  }
-
-  if (jasa?.cover_img?.id) {
-    return getImageUrlJasa(jasa.cover_img.id);
+    return getImageUrl(jasa.cover_img.url);
   }
 
   if (jasa?.cover_image && typeof jasa.cover_image === "object") {
-    if (jasa.cover_image?.src_url) return getImageUrlJasa(jasa.cover_image.src_url);
-    if (jasa.cover_image?.url) return getImageUrlJasa(jasa.cover_image.url);
-    if (jasa.cover_image?.id) return getImageUrlJasa(jasa.cover_image.id);
+    if (jasa.cover_image?.id) return getImageUrl(jasa.cover_image.id);
+    if (jasa.cover_image?.src_url) return getImageUrl(jasa.cover_image.src_url);
+    if (jasa.cover_image?.url) return getImageUrl(jasa.cover_image.url);
   }
 
   if (jasa.images && jasa.images.length > 0) {
@@ -872,9 +872,9 @@ const resolveJasaImage = (jasa) => {
       jasa.images.find((img) => img.is_cover) || jasa.images[0];
 
     // API returns url/src_url
-    if (coverImage.src_url) return getImageUrlJasa(coverImage.src_url);
-    if (coverImage.url) return getImageUrlJasa(coverImage.url);
-    if (coverImage.id) return getImageUrlJasa(coverImage.id);
+    if (coverImage.id) return getImageUrl(coverImage.id);
+    if (coverImage.src_url) return getImageUrl(coverImage.src_url);
+    if (coverImage.url) return getImageUrl(coverImage.url);
 
   }
 

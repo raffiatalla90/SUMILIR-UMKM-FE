@@ -1,13 +1,7 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
-export const getImageUrl = (imageId) => {
-  if (!imageId) return "";
-  const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-  return `${baseURL}/api/images/${encodeURIComponent(imageId)}`;
-};
-
-export const getImageUrlJasa = (imageIdOrPath) => {
+const resolveApiImageUrl = (imageIdOrPath) => {
   if (!imageIdOrPath) return "";
 
   const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
@@ -22,27 +16,45 @@ export const getImageUrlJasa = (imageIdOrPath) => {
 
     path = path.replace(/\\/g, "/");
 
-    if (path.startsWith("/storage/")) {
+    if (path.startsWith("/api/images/")) {
       return `${backendBase}${path}`;
     }
-    if (path.startsWith("storage/")) {
+    if (path.startsWith("api/images/")) {
       return `${backendBase}/${path}`;
     }
 
+    if (path.startsWith("/storage/")) {
+      const storagePath = path.replace(/^\/storage\//, "");
+      return `${apiBase}/api/images/${encodeURIComponent(storagePath)}`;
+    }
+    if (path.startsWith("storage/")) {
+      const storagePath = path.replace(/^storage\//, "");
+      return `${apiBase}/api/images/${encodeURIComponent(storagePath)}`;
+    }
+
     if (path.startsWith("/jasa/")) {
-      return `${backendBase}/storage${path}`;
+      const jasaPath = path.replace(/^\//, "");
+      return `${apiBase}/api/images/${encodeURIComponent(jasaPath)}`;
     }
 
     if (path.startsWith("jasa/")) {
-      return `${backendBase}/storage/${path}`;
+      return `${apiBase}/api/images/${encodeURIComponent(path)}`;
     }
 
     if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(path)) {
-      return `${backendBase}/storage/jasa/${path}`;
+      return `${apiBase}/api/images/${encodeURIComponent(path)}`;
     }
   }
 
   return `${apiBase}/api/images/${encodeURIComponent(imageIdOrPath)}`;
+};
+
+export const getImageUrl = (imageIdOrPath) => {
+  return resolveApiImageUrl(imageIdOrPath);
+};
+
+export const getImageUrlJasa = (imageIdOrPath) => {
+  return resolveApiImageUrl(imageIdOrPath);
 };
 
 /**

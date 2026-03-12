@@ -310,7 +310,7 @@ import "vue3-carousel/dist/carousel.css";
 
 import api from "@/libs/axios.js";
 import { useToast } from "vue-toastification";
-import { getImageUrlJasa, getEventBannerUrl } from "@/libs/getImageUrl.js";
+import { getImageUrl, getEventBannerUrl } from "@/libs/getImageUrl.js";
 import { usePublicEvents } from "@/composables/usePublicEvents";
 import { useRoute, useRouter } from "vue-router";
 import * as ProductService from "@/services/api/product";
@@ -900,24 +900,24 @@ const selectCategory = (categoryId) => {
 // normalisasi path gambar jasa → URL lengkap dari backend (sama seperti produk)
 const resolveJasaImage = (jasa) => {
   // Prioritas: API URL (cover_img.src_url, images[].src_url) > ID
-  if (jasa?.cover_img?.src_url) return getImageUrlJasa(jasa.cover_img.src_url);
-  if (jasa?.cover_img?.url) return getImageUrlJasa(jasa.cover_img.url);
-  if (jasa?.cover_img?.id) return getImageUrlJasa(jasa.cover_img.id);
+  if (jasa?.cover_img?.id) return getImageUrl(jasa.cover_img.id);
+  if (jasa?.cover_img?.src_url) return getImageUrl(jasa.cover_img.src_url);
+  if (jasa?.cover_img?.url) return getImageUrl(jasa.cover_img.url);
 
   // Some endpoints return cover_image object: { id, src_url }
   if (jasa?.cover_image && typeof jasa.cover_image === "object") {
-    if (jasa.cover_image?.src_url) return getImageUrlJasa(jasa.cover_image.src_url);
-    if (jasa.cover_image?.url) return getImageUrlJasa(jasa.cover_image.url);
-    if (jasa.cover_image?.id) return getImageUrlJasa(jasa.cover_image.id);
+    if (jasa.cover_image?.id) return getImageUrl(jasa.cover_image.id);
+    if (jasa.cover_image?.src_url) return getImageUrl(jasa.cover_image.src_url);
+    if (jasa.cover_image?.url) return getImageUrl(jasa.cover_image.url);
   }
 
   // Prioritaskan relasi images (cover image)
   if (jasa.images && jasa.images.length > 0) {
     const coverImage =
       jasa.images.find((img) => img.is_cover) || jasa.images[0];
-    if (coverImage.src_url) return getImageUrlJasa(coverImage.src_url);
-    if (coverImage.url) return getImageUrlJasa(coverImage.url);
-    if (coverImage.id) return getImageUrlJasa(coverImage.id);
+    if (coverImage.id) return getImageUrl(coverImage.id);
+    if (coverImage.src_url) return getImageUrl(coverImage.src_url);
+    if (coverImage.url) return getImageUrl(coverImage.url);
   }
 
   return "";

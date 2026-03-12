@@ -85,7 +85,7 @@
 import { ref, computed, onMounted } from "vue";
 import { Form } from "vee-validate";
 import api from "@/libs/axios.js";
-import { getImageUrlJasa } from "@/libs/getImageUrl.js";
+import { getImageUrl } from "@/libs/getImageUrl.js";
 
 import TextField from "@/components/forms/TextField.vue";
 import CategoryCard from "@/components/Card/CategoryCard.vue";
@@ -114,15 +114,15 @@ const jasaList = ref([]);
 const resolveJasaImage = (jasa) => {
   if (!jasa) return null;
   // Prioritas: cover_img.src_url dari API (sama seperti produk)
-  if (jasa.cover_img?.src_url) return getImageUrlJasa(jasa.cover_img.src_url);
-  if (jasa.cover_img?.url) return getImageUrlJasa(jasa.cover_img.url);
-  if (jasa.cover_img?.id) return getImageUrlJasa(jasa.cover_img.id);
+  if (jasa.cover_img?.id) return getImageUrl(jasa.cover_img.id);
+  if (jasa.cover_img?.src_url) return getImageUrl(jasa.cover_img.src_url);
+  if (jasa.cover_img?.url) return getImageUrl(jasa.cover_img.url);
   // Fallback ke images array
   if (jasa.images?.length > 0) {
     const cover = jasa.images.find(img => img.is_cover) || jasa.images[0];
-    if (cover?.src_url) return getImageUrlJasa(cover.src_url);
-    if (cover?.url) return getImageUrlJasa(cover.url);
-    if (cover?.id) return getImageUrlJasa(cover.id);
+    if (cover?.id) return getImageUrl(cover.id);
+    if (cover?.src_url) return getImageUrl(cover.src_url);
+    if (cover?.url) return getImageUrl(cover.url);
   }
   return null;
 };
