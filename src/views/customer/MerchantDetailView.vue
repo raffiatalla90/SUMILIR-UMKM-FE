@@ -475,7 +475,7 @@ import {
 import { useRoute } from "vue-router";
 import { useRouter } from "vue-router";
 import api from "@/libs/axios.js";
-import { getImageUrl, getImageUrlJasa } from "@/libs/getImageUrl.js";
+import { getImageUrl } from "@/libs/getImageUrl.js";
 import { setMeta, setJsonLd } from "@/router/seo";
 import LeafletMap from "@/components/LeafletMap.vue";
 import ProductCard from "@/components/Card/ProductCard.vue";
@@ -848,39 +848,34 @@ function applyMerchantSeo(merchantData, merchantSlug) {
 
 // Resolve gambar jasa
 const resolveJasaImage = (jasa) => {
-  // Prioritas utama: legacy cover path yang dipakai create/edit merchant
-  if (jasa?.image) {
-    return getImageUrlJasa(jasa.image);
+  // Prefer API-provided cover image URL (id-based) - sama seperti produk
+  if (jasa?.cover_img?.id) {
+    return getImageUrl(jasa.cover_img.id);
   }
 
-  // Prefer API-provided cover image URL (id-based)
   if (jasa?.cover_img?.src_url) {
-    return jasa.cover_img.src_url;
+    return getImageUrl(jasa.cover_img.src_url);
   }
 
-  if (typeof jasa?.cover_image === "string" && jasa.cover_image) {
-    return jasa.cover_image;
+  if (jasa?.cover_img?.url) {
+    return getImageUrl(jasa.cover_img.url);
   }
 
   if (jasa?.cover_image && typeof jasa.cover_image === "object") {
-    if (jasa.cover_image?.src_url) return jasa.cover_image.src_url;
-    if (jasa.cover_image?.url) return jasa.cover_image.url;
-    if (jasa.cover_image?.path) return getImageUrlJasa(jasa.cover_image.path);
-    if (jasa.cover_image?.id) return getImageUrlJasa(jasa.cover_image.id);
+    if (jasa.cover_image?.id) return getImageUrl(jasa.cover_image.id);
+    if (jasa.cover_image?.src_url) return getImageUrl(jasa.cover_image.src_url);
+    if (jasa.cover_image?.url) return getImageUrl(jasa.cover_image.url);
   }
 
   if (jasa.images && jasa.images.length > 0) {
     const coverImage =
       jasa.images.find((img) => img.is_cover) || jasa.images[0];
 
-    // New API returns url/src_url; keep backward-compat
-    const url = coverImage.src_url || coverImage.url;
-    if (url) return url;
+    // API returns url/src_url
+    if (coverImage.id) return getImageUrl(coverImage.id);
+    if (coverImage.src_url) return getImageUrl(coverImage.src_url);
+    if (coverImage.url) return getImageUrl(coverImage.url);
 
-    // Fallbacks
-    if (coverImage.id) return getImageUrlJasa(coverImage.id);
-    if (coverImage.path || coverImage.image)
-      return getImageUrlJasa(coverImage.path || coverImage.image);
   }
 
   return null;

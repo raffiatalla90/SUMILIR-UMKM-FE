@@ -46,14 +46,8 @@
         <i class="text-base me-1 pi pi-shopping-bag text-primary"></i>
 
         <span class="line-clamp-1">
-          {{
-            merchant.products_count && merchant.products_count !== 0
-              ? merchant.products_count
-              : merchant.jasas_count && merchant.jasas_count !== 0
-                ? merchant.jasas_count
-                : 0
-          }}
-          Produk
+          {{ displayCount }}
+          {{ displayLabel }}
         </span>
       </div>
 
@@ -119,5 +113,24 @@ const primaryAddressString = computed(() => {
   if (addr.province?.name) parts.push(String(addr.province.name));
 
   return parts.join(", ");
+});
+
+// Tentukan apakah merchant ini tipe Jasa berdasarkan segmentation
+const isMerchantJasa = computed(() => {
+  const segmentName = props.merchant?.segmentation?.name || "";
+  return segmentName.toLowerCase().includes("jasa");
+});
+
+// Tampilkan counter yang sesuai
+const displayCount = computed(() => {
+  if (isMerchantJasa.value) {
+    return props.merchant?.jasas_count || 0;
+  }
+  return props.merchant?.products_count || 0;
+});
+
+// Tampilkan label yang sesuai
+const displayLabel = computed(() => {
+  return isMerchantJasa.value ? "Layanan Jasa" : "Produk";
 });
 </script>

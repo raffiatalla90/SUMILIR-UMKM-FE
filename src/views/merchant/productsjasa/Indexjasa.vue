@@ -19,7 +19,7 @@ import MobilePagination from "@/components/common/MobilePagination.vue";
 import BulkActionBar from "@/components/common/BulkActionBar.vue";
 import { useJasa } from "@/composables/useJasa"; // ✅ GANTI: import useJasa
 import { useCategories } from "@/composables/useCategories";
-import { getImageUrlJasa } from "@/libs/getImageUrl.js";
+import { getImageUrl } from "@/libs/getImageUrl.js";
 import api from "@/libs/axios";
 
 const router = useRouter();
@@ -819,12 +819,13 @@ const closeBulkStatusChangeModal = () => {
 };
 
 // Helper: pilih cover image dari relasi baru atau fallback ke field legacy `image`
+// Prioritas: API URL (cover_img.src_url, images[].url) > fallback ke ID
 const getPrimaryImageSrc = (jasaItem) => {
   if (!jasaItem) return "";
 
-  // Prioritas 1: cover utama yang disinkronkan backend saat create/edit
-  if (jasaItem.image) {
-    return getImageUrlJasa(jasaItem.image);
+  // Prioritas 1: cover_img.src_url dari backend (sama seperti produk)
+  if (jasaItem.cover_img?.src_url) {
+    return getImageUrl(jasaItem.cover_img.src_url);
   }
   
   const images = jasaItem.images || [];
@@ -833,14 +834,12 @@ const getPrimaryImageSrc = (jasaItem) => {
     // Cari gambar cover atau ambil yang pertama
     const coverImage = images.find((img) => img.is_cover) || images[0];
     
-    // Gunakan url/src_url dari backend jika tersedia
-    if (coverImage.url) return coverImage.url;
-    if (coverImage.src_url) return coverImage.src_url;
+    // Prioritas 2: url/src_url dari backend (API endpoint /api/images/{id})
+    if (coverImage.url) return getImageUrl(coverImage.url);
+    if (coverImage.src_url) return getImageUrl(coverImage.src_url);
     
-    // Fallback ke path atau id
-    if (coverImage.path) return getImageUrlJasa(coverImage.path);
-    if (coverImage.image_path) return getImageUrlJasa(coverImage.image_path);
-    if (coverImage.id) return getImageUrlJasa(coverImage.id);
+    // Prioritas 3: gunakan image ID untuk akses via /api/images/{id}
+    if (coverImage.id) return getImageUrl(coverImage.id);
   }
   
   return "";
@@ -1000,7 +999,7 @@ const getPrimaryImageSrc = (jasaItem) => {
             <!-- Gambar -->
             <div class="mb-4">
               <div
-                v-if="(jasa.images && jasa.images.length > 0) || jasa.image"
+                v-if="(jasa.images && jasa.images.length > 0) || jasa.cover_img"
                 class="flex items-center justify-center w-full h-40 mb-3 overflow-hidden bg-gray-100 rounded-lg"
               >
                 <img

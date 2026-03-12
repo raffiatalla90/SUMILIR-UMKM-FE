@@ -24,8 +24,8 @@
           >
             <div class="relative overflow-hidden rounded-lg shadow-md hover:shadow-lg transition-shadow h-[120px] sm:h-[160px] lg:h-[180px] bg-gray-200">
               <img
-                v-if="jasa.image"
-                :src="jasa.image"
+                v-if="jasa.resolvedImage"
+                :src="jasa.resolvedImage"
                 :alt="jasa.name || jasa.title || 'Jasa'"
                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               />
@@ -85,6 +85,7 @@
 import { ref, computed, onMounted } from "vue";
 import { Form } from "vee-validate";
 import api from "@/libs/axios.js";
+import { getImageUrl } from "@/libs/getImageUrl.js";
 
 import TextField from "@/components/forms/TextField.vue";
 import CategoryCard from "@/components/Card/CategoryCard.vue";
@@ -109,16 +110,21 @@ const categories = ref([
 
 const jasaList = ref([]);
 
-const resolveJasaImage = (img) => {
-  if (!img) return null;
-  const s = String(img);
-  if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("/storage/")) {
-    return s;
+// Resolve jasa image using API URL (same as products)
+const resolveJasaImage = (jasa) => {
+  if (!jasa) return null;
+  // Prioritas: cover_img.src_url dari API (sama seperti produk)
+  if (jasa.cover_img?.id) return getImageUrl(jasa.cover_img.id);
+  if (jasa.cover_img?.src_url) return getImageUrl(jasa.cover_img.src_url);
+  if (jasa.cover_img?.url) return getImageUrl(jasa.cover_img.url);
+  // Fallback ke images array
+  if (jasa.images?.length > 0) {
+    const cover = jasa.images.find(img => img.is_cover) || jasa.images[0];
+    if (cover?.id) return getImageUrl(cover.id);
+    if (cover?.src_url) return getImageUrl(cover.src_url);
+    if (cover?.url) return getImageUrl(cover.url);
   }
-  if (s.startsWith("jasa/")) {
-    return `/storage/${s}`;
-  }
-  return `/storage/jasa/${s}`;
+  return null;
 };
 
 const formatPrice = (basePrice, packages) => {
@@ -140,7 +146,8 @@ onMounted(async () => {
     console.log("Jasa Response:", jasaRes.data);
     jasaList.value = (jasaRes.data ?? []).map((item) => ({
       ...item,
-      image: resolveJasaImage(item.image),
+      // Use API URL for image, not raw storage path
+      resolvedImage: resolveJasaImage(item),
     }));
     console.log("Jasa List after mapping:", jasaList.value);
   } catch (e) {

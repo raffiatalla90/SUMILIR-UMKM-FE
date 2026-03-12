@@ -10,7 +10,7 @@ import TextField from "@/components/forms/TextField.vue";
 import SelectField from "@/components/forms/SelectField.vue";
 import Button from "@/components/common/Button.vue";
 import api from "@/libs/axios";
-import { getImageUrl, getImageUrlJasa } from "@/libs/getImageUrl.js";
+import { getImageUrl } from "@/libs/getImageUrl.js";
 
 // Format currency helper
 const formatCurrency = (value) => {
@@ -889,7 +889,7 @@ onMounted(async () => {
                       class="relative"
                     >
                       <img
-                        :src="getImageUrlJasa(image.path || image.id)"
+                        :src="getImageUrl(image.url || image.src_url || image.id)"
                         alt="preview"
                         class="object-cover w-full border border-gray-200 rounded h-28 bg-gray-50"
                         @error="(e) => (e.target.style.display = 'none')"
