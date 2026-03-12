@@ -6,6 +6,16 @@
     Deny from all
 </FilesMatch>
 
+# Force fresh fetch for SPA shell and Service Worker entry files.
+# This prevents stale PWA behavior from intercepting backend verification URLs.
+<IfModule mod_headers.c>
+    <FilesMatch "^(index\.html|sw\.js|registerSW\.js|manifest\.webmanifest)$">
+        Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+</IfModule>
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
