@@ -261,18 +261,6 @@ const schema = yup.object({
       .typeError("Desa wajib dipilih")
       .required("Desa wajib dipilih"),
     detail: yup.string().nullable(),
-    latitude: yup
-      .number()
-      .typeError("Latitude tidak valid")
-      .min(-90)
-      .max(90)
-      .required("Lokasi wajib dipilih"),
-    longitude: yup
-      .number()
-      .typeError("Longitude tidak valid")
-      .min(-180)
-      .max(180)
-      .required("Lokasi wajib dipilih"),
   }),
 });
 
