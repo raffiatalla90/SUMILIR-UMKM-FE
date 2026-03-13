@@ -266,15 +266,13 @@ const schema = yup.object({
       .typeError("Latitude tidak valid")
       .min(-90)
       .max(90)
-      .nullable()
-      .optional(),
+      .required("Lokasi wajib dipilih"),
     longitude: yup
       .number()
       .typeError("Longitude tidak valid")
       .min(-180)
       .max(180)
-      .nullable()
-      .optional(),
+      .required("Lokasi wajib dipilih"),
   }),
 });
 
@@ -405,6 +403,13 @@ const handleRegister = async (values) => {
   errorMessage.value = "";
 
   // Validate coordinates from MapPicker
+  if (latitude.value === null || longitude.value === null) {
+    errorMessage.value =
+      "Lokasi wajib dipilih. Gunakan peta untuk menentukan titik lokasi UMKM.";
+    isLoading.value = false;
+    return;
+  }
+
   const lat = Number(latitude.value);
   const lng = Number(longitude.value);
 
@@ -434,8 +439,8 @@ const handleRegister = async (values) => {
         district_id: Number(values.address.district_id),
         village_id: Number(values.address.village_id),
         detail: values.address.detail || null,
-        latitude: latitude.value ? Number(latitude.value) : null,
-        longitude: longitude.value ? Number(longitude.value) : null,
+        latitude: lat,
+        longitude: lng,
       },
     };
 
