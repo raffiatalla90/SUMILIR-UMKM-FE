@@ -195,7 +195,7 @@ const formData = ref({
   service_area: "",
   special_notes: "",
   payment_methods: "cod",
-  status: "published",
+  status: "draft",
 });
 
 // Validation schema
@@ -561,8 +561,8 @@ const submitForm = async (values) => {
 
     fd.set("location_address", formData.value.location_address || "");
     fd.set("operating_times", formData.value.operating_times || "");
-    // Default create langsung dipublish agar tampil di halaman customer
-    fd.set("status", "published");
+      // Default create sebagai draft — pelaku UMKM harus publish manual
+      fd.set("status", "draft");
 
     // Append images[] if any
     if (imageFiles.value && imageFiles.value.length) {
@@ -586,7 +586,7 @@ const submitForm = async (values) => {
       fd
     );
 
-    toast.success("Jasa berhasil dibuat dan dipublish!");
+    toast.success("Jasa berhasil dibuat sebagai Draft. Silakan publish agar tampil ke customer.");
     
     // Clear form draft after successful submission
     clearFormDraft();
@@ -1187,11 +1187,12 @@ onBeforeUnmount(() => {
               <div>
                 <p class="mb-2 text-sm text-gray-700">
                   Layanan baru akan disimpan sebagai
-                  <span class="font-semibold text-emerald-600">Dipublish</span>.
+                  <span class="font-semibold text-amber-600">Draft</span>.
                 </p>
                 <p class="text-xs text-gray-500">
-                  Setelah tersimpan, layanan langsung muncul di tampilan customer.
-                  Anda tetap bisa mengubah status ke draft/arsip dari halaman Edit.
+                  Setelah tersimpan, layanan belum tampil di customer. Publish
+                  terlebih dahulu dari halaman Daftar Jasa/Edit agar layanan
+                  muncul.
                 </p>
               </div>
             </div>
