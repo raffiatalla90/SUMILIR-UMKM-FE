@@ -827,6 +827,12 @@ const getPrimaryImageSrc = (jasaItem) => {
   if (jasaItem.cover_img?.src_url) {
     return getImageUrl(jasaItem.cover_img.src_url);
   }
+  if (jasaItem.cover_img?.url) {
+    return getImageUrl(jasaItem.cover_img.url);
+  }
+  if (jasaItem.cover_img?.id) {
+    return getImageUrl(jasaItem.cover_img.id);
+  }
   
   const images = jasaItem.images || [];
   
@@ -840,7 +846,10 @@ const getPrimaryImageSrc = (jasaItem) => {
     
     // Prioritas 3: gunakan image ID untuk akses via /api/images/{id}
     if (coverImage.id) return getImageUrl(coverImage.id);
+    if (coverImage.image_path) return getImageUrl(coverImage.image_path);
   }
+
+  if (jasaItem.image) return getImageUrl(jasaItem.image);
   
   return "";
 };
