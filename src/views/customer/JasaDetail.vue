@@ -391,10 +391,7 @@
               alamat:
                 jasa?.service_type === 'on_site'
                   ? ''
-                  : jasa?.location_address ||
-                    jasa?.merchant?.address ||
-                    jasa?.merchant?.alamat ||
-                    '',
+                  : jasa?.location_address || merchantAddress || '',
               price_type:
                 jasa?.fixed_price && jasa.fixed_price > 0
                   ? 'fixed'

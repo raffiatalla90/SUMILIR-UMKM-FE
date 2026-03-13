@@ -140,7 +140,10 @@ const merchantLogoUrl = computed(() => {
 const isMerchantJasa = computed(() => {
   const segmentName = String(props.merchant?.segmentation?.name || "").toLowerCase();
   const jasasCount = Number(
-    props.merchant?.jasas_count ?? props.merchant?.services_count ?? 0,
+    props.merchant?.jasas_count ??
+      props.merchant?.services_count ??
+      props.merchant?.jasa_count ??
+      0,
   );
   const productsCount = Number(props.merchant?.products_count ?? 0);
 
@@ -149,10 +152,13 @@ const isMerchantJasa = computed(() => {
 
 // Tampilkan counter yang sesuai
 const displayCount = computed(() => {
-  const jasasCount = Number(
-    props.merchant?.jasas_count ?? props.merchant?.services_count ?? 0,
-  );
   const productsCount = Number(props.merchant?.products_count ?? 0);
+  const jasasCount = Number(
+    props.merchant?.jasas_count ??
+      props.merchant?.services_count ??
+      props.merchant?.jasa_count ??
+      (isMerchantJasa.value ? productsCount : 0),
+  );
 
   if (isMerchantJasa.value) {
     return jasasCount;

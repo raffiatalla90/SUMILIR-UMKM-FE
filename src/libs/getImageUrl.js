@@ -11,6 +11,25 @@ const resolveApiImageUrl = (imageIdOrPath) => {
     let path = imageIdOrPath.trim();
 
     if (path.startsWith("http")) {
+      try {
+        const parsedUrl = new URL(path);
+        const pathname = parsedUrl.pathname || "";
+
+        if (pathname.startsWith("/api/images/")) {
+          return path;
+        }
+
+        if (pathname.includes("/storage/")) {
+          const [, storagePathRaw = ""] = pathname.split("/storage/");
+          const storagePath = decodeURIComponent(storagePathRaw);
+          if (storagePath) {
+            return `${apiBase}/api/images/${encodeURIComponent(storagePath)}`;
+          }
+        }
+      } catch {
+        return path;
+      }
+
       return path;
     }
 
