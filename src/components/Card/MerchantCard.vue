@@ -9,8 +9,8 @@
     <!-- Logo/Image -->
     <div class="relative bg-muted-background aspect-square">
       <img
-        v-if="merchant.logo_url"
-        :src="merchant.logo_url"
+        v-if="merchantLogoUrl"
+        :src="merchantLogoUrl"
         :alt="merchant.name"
         class="object-cover w-full h-full"
       />
@@ -46,14 +46,8 @@
         <i class="text-base me-1 pi pi-shopping-bag text-primary"></i>
 
         <span class="line-clamp-1">
-          {{
-            merchant.products_count && merchant.products_count !== 0
-              ? merchant.products_count
-              : merchant.jasas_count && merchant.jasas_count !== 0
-                ? merchant.jasas_count
-                : 0
-          }}
-          Produk
+          {{ displayCount }}
+          {{ displayLabel }}
         </span>
       </div>
 
@@ -84,6 +78,7 @@
 
 <script setup>
 import { computed } from "vue";
+import { getImageUrl, getMerchantLogoUrl } from "@/libs/getImageUrl";
 
 const props = defineProps({
   merchant: {
@@ -119,5 +114,60 @@ const primaryAddressString = computed(() => {
   if (addr.province?.name) parts.push(String(addr.province.name));
 
   return parts.join(", ");
+});
+
+const merchantLogoUrl = computed(() => {
+  const merchant = props.merchant;
+
+  if (!merchant) return "";
+
+  if (merchant.logo_url) {
+    return merchant.logo_url;
+  }
+
+  if (merchant.id && merchant.logo_path) {
+    return getMerchantLogoUrl(merchant);
+  }
+
+  if (merchant.logo_path) {
+    return getImageUrl(merchant.logo_path);
+  }
+
+  return "";
+});
+
+// Tentukan apakah merchant ini tipe Jasa berdasarkan segmentation
+const isMerchantJasa = computed(() => {
+  const segmentName = String(props.merchant?.segmentation?.name || "").toLowerCase();
+  const jasasCount = Number(
+    props.merchant?.jasas_count ??
+      props.merchant?.services_count ??
+      props.merchant?.jasa_count ??
+      0,
+  );
+  const productsCount = Number(props.merchant?.products_count ?? 0);
+
+  return segmentName.includes("jasa") || (jasasCount > 0 && productsCount === 0);
+});
+
+// Tampilkan counter yang sesuai
+const displayCount = computed(() => {
+  const productsCount = Number(props.merchant?.products_count ?? 0);
+  const jasasCount = Number(
+    props.merchant?.jasas_count ??
+      props.merchant?.services_count ??
+      props.merchant?.jasa_count ??
+      (isMerchantJasa.value ? productsCount : 0),
+  );
+
+  if (isMerchantJasa.value) {
+    return jasasCount;
+  }
+  return productsCount;
+});
+
+// Tampilkan label yang sesuai
+const displayLabel = computed(() => {
+  return isMerchantJasa.value ? "Layanan Jasa" : "Produk";
 });
 </script>

@@ -79,53 +79,33 @@ define(["./workbox-14ef65e8"], function (workbox) {
    * requests for URLs in the manifest.
    * See https://goo.gl/S9QRab
    */
-  workbox.precacheAndRoute(
-    [
-      {
-        url: "registerSW.js",
-        revision: "3ca0b8505b4bec776b69afdba2768812",
-      },
-      {
-        url: "/index.html",
-        revision: "0.ufpsnk4lpro",
-      },
-    ],
-    {},
-  );
+  workbox.precacheAndRoute([{
+    "url": "registerSW.js",
+    "revision": "3ca0b8505b4bec776b69afdba2768812"
+  }, {
+    "url": "/index.html",
+    "revision": "0.u8o62ep31jo"
+  }], {});
   workbox.cleanupOutdatedCaches();
-  workbox.registerRoute(
-    new workbox.NavigationRoute(
-      workbox.createHandlerBoundToURL("/index.html"),
-      {
-        allowlist: [/^\/$/],
-        denylist: [/^\/api\//],
-      },
-    ),
-  );
-  workbox.registerRoute(
-    ({ request, sameOrigin }) =>
-      sameOrigin &&
-      ["style", "script", "image", "font"].includes(request.destination),
-    new workbox.StaleWhileRevalidate({
-      cacheName: "assets-cache-v1",
-      plugins: [],
-    }),
-    "GET",
-  );
-  workbox.registerRoute(
-    /^http:\/\/localhost:8000\/.*/,
-    new workbox.NetworkFirst({
-      cacheName: "api-cache-v1",
-      plugins: [
-        new workbox.CacheableResponsePlugin({
-          statuses: [0, 200],
-        }),
-        new workbox.ExpirationPlugin({
-          maxEntries: 200,
-          maxAgeSeconds: 3600,
-        }),
-      ],
-    }),
-    "GET",
-  );
-});
+  workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("/index.html"), {
+    allowlist: [/^\/$/],
+    denylist: [/^\/api\//, /^\/api$/, /^\/backend\//, /^\/backend$/, /^\/sanctum\//]
+  }));
+  workbox.registerRoute(({
+    request,
+    sameOrigin
+  }) => sameOrigin && ["style", "script", "image", "font"].includes(request.destination), new workbox.StaleWhileRevalidate({
+    "cacheName": "assets-cache-v1",
+    plugins: []
+  }), 'GET');
+  workbox.registerRoute(/^http:\/\/localhost:8000\/.*/, new workbox.NetworkFirst({
+    "cacheName": "api-cache-v1",
+    plugins: [new workbox.CacheableResponsePlugin({
+      statuses: [0, 200]
+    }), new workbox.ExpirationPlugin({
+      maxEntries: 200,
+      maxAgeSeconds: 3600
+    })]
+  }), 'GET');
+
+}));

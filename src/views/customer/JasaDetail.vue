@@ -103,7 +103,7 @@
           <div class="flex items-center gap-3 pb-3 mb-3 border-b border-gray-100">
         <div class="flex items-center justify-center w-12 h-12 overflow-hidden bg-gray-100 rounded-full shrink-0">
           <img 
-            v-if="jasa?.merchant?.logo_path" 
+                v-if="jasa?.merchant?.id || jasa?.merchant?.logo_path || jasa?.merchant?.logo_url" 
             :src="getMerchantLogo(jasa.merchant.logo_path)" 
             alt="Logo Toko" 
             class="object-cover w-full h-full"
@@ -391,10 +391,7 @@
               alamat:
                 jasa?.service_type === 'on_site'
                   ? ''
-                  : jasa?.location_address ||
-                    jasa?.merchant?.address ||
-                    jasa?.merchant?.alamat ||
-                    '',
+                  : jasa?.location_address || merchantAddress || '',
               price_type:
                 jasa?.fixed_price && jasa.fixed_price > 0
                   ? 'fixed'
@@ -425,7 +422,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import api from "@/libs/axios.js";
-import { getImageUrl, getImageUrlJasa } from "@/libs/getImageUrl.js";
+import { getImageUrl, getMerchantLogoUrl } from "@/libs/getImageUrl.js";
 import CalendarModal from "@/components/CalendarModal.vue";
 
 const route = useRoute();
@@ -456,6 +453,9 @@ const hasOperatingTimes = computed(() => parsedOperatingTimes.value.length > 0);
 
 // Helper untuk mendapatkan URL logo merchant
 const getMerchantLogo = (logo) => {
+  if (jasa.value?.merchant?.id) {
+    return getMerchantLogoUrl(jasa.value.merchant);
+  }
   if (!logo) return null;
   return getImageUrl(logo);
 };
@@ -555,12 +555,10 @@ const initActiveTime = () => {
 // ----- gambar jasa -----
 const resolveJasaAssetSrc = (img) => {
   if (!img) return "";
-  if (img.src_url) return img.src_url;
-  if (img.url) return img.url;
-  if (img.image_path) return getImageUrlJasa(img.image_path);
-  if (img.path) return getImageUrlJasa(img.path);
-  if (img.image) return getImageUrlJasa(img.image);
-  if (img.id) return getImageUrlJasa(img.id);
+  // Prioritas: API URL terlebih dahulu (sama seperti produk)
+  if (img.id) return getImageUrl(img.id);
+  if (img.src_url) return getImageUrl(img.src_url);
+  if (img.url) return getImageUrl(img.url);
   return "";
 };
 
@@ -569,19 +567,23 @@ const jasaImage = computed(() => {
 
   if (!jasa.value) return "";
 
-  // Prioritas utama samakan dengan halaman merchant index/create
-  if (jasa.value.image) {
-    if (String(jasa.value.image).startsWith("http")) {
-      return jasa.value.image;
-    }
-    return getImageUrlJasa(jasa.value.image);
+  // Prioritaskan cover URL dari API agar aman di environment deploy
+  if (jasa.value.cover_img?.id) {
+    return getImageUrl(jasa.value.cover_img.id);
+  }
+  if (jasa.value.cover_img?.src_url) {
+    return getImageUrl(jasa.value.cover_img.src_url);
+  }
+  if (jasa.value.cover_img?.url) {
+    return getImageUrl(jasa.value.cover_img.url);
   }
 
   // Fallback ke array images (cover image)
   if (jasa.value.images && jasa.value.images.length > 0) {
     const coverImg =
       jasa.value.images.find((img) => img.is_cover) || jasa.value.images[0];
-    return resolveJasaAssetSrc(coverImg);
+    const resolved = resolveJasaAssetSrc(coverImg);
+    if (resolved) return resolved;
   }
 
   return "";

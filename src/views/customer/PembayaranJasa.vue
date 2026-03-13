@@ -608,6 +608,29 @@ const clearNotification = () => {
 
 const isOnlineService = computed(() => serviceType.value === "online");
 
+function resolveMerchantAddress(merchant, jasaLocationAddress = "") {
+  const locationCandidate = String(jasaLocationAddress || "").trim();
+  if (locationCandidate) return locationCandidate;
+
+  if (!merchant) return "";
+
+  const primaryAddress = merchant.primary_address || merchant.primaryAddress;
+  if (primaryAddress) {
+    const parts = [
+      primaryAddress.detail,
+      primaryAddress.village,
+      primaryAddress.district,
+      primaryAddress.city,
+      primaryAddress.province,
+    ].filter(Boolean);
+
+    const formatted = parts.join(", ").trim();
+    if (formatted) return formatted;
+  }
+
+  return String(merchant.address || merchant.alamat || "").trim();
+}
+
 // Validasi sederhana form sebelum lanjut pembayaran
 // Hanya butuh jadwal (tanggal & waktu). Data pemesan (nama & telp)
 // sudah dicek terpisah di sendToChat.
@@ -906,25 +929,14 @@ onMounted(async () => {
     jasaWhatsappLink.value = rawWhatsapp;
 
     // Otomatis isi alamat berdasarkan service_type
-    // - at_location: gunakan alamat UMKM dari primary_address
-    // - on_site: gunakan location_address atau alamat merchant
+    // - at_location: gunakan alamat UMKM (prioritas location_address, lalu profil merchant)
+    // - on_site: alamat diisi customer (kosongkan default)
     // - online: tidak perlu alamat
     if (payload?.service_type === 'at_location') {
-      // Untuk layanan di tempat merchant, gunakan alamat merchant dari primary_address
-      const primaryAddress = payload?.merchant?.primary_address;
-      if (primaryAddress) {
-        const parts = [
-          primaryAddress.detail,
-          primaryAddress.village,
-          primaryAddress.district,
-          primaryAddress.city,
-          primaryAddress.province,
-        ].filter(Boolean);
-        form.value.alamat = parts.join(', ') || '';
-      } else {
-        // Fallback ke field address lama
-        form.value.alamat = payload?.merchant?.address || payload?.merchant?.alamat || '';
-      }
+      form.value.alamat = resolveMerchantAddress(
+        payload?.merchant,
+        payload?.location_address,
+      );
     } else if (payload?.service_type === 'on_site') {
       // Untuk layanan ke lokasi customer, alamat berasal dari device customer
       form.value.alamat = '';
