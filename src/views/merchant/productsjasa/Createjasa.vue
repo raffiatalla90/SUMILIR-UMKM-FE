@@ -734,13 +734,7 @@ onBeforeUnmount(() => {
                       :class="errors.length ? 'border-red-500' : 'border-gray-300'"
                       rows="4"
                     />
-                    <div class="flex justify-between mt-1">
-                      <span v-if="errors.length" class="text-xs text-red-500">{{ errors[0] }}</span>
-                      <span v-else class="text-xs text-gray-400"></span>
-                      <span class="text-xs" :class="(formData.description?.length || 0) >= 20 ? 'text-green-600' : 'text-gray-400'">
-                        {{ formData.description?.length || 0 }} / 20 karakter
-                      </span>
-                    </div>
+                    <span v-if="errors.length" class="mt-1 text-xs text-red-500">{{ errors[0] }}</span>
                   </div>
                 </Field>
               </div>
