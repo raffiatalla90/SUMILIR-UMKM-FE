@@ -434,7 +434,7 @@ onMounted(async () => {
               dipercaya, dan dibeli.
             </p>
 
-            <div class="flex items-center gap-3 mt-6">
+            <!-- <div class="flex items-center gap-3 mt-6">
               <a
                 href="https://www.facebook.com/pages/Kantor-Kelurahan-Banyuanyar"
                 target="_blank"
@@ -456,7 +456,7 @@ onMounted(async () => {
             <p class="mt-4 text-xs text-white/60">
               Informasi & pembaruan kegiatan dapat diikuti melalui kanal resmi
               di atas.
-            </p>
+            </p> -->
           </div>
 
           <div>
@@ -504,12 +504,51 @@ onMounted(async () => {
             <div class="mt-4 space-y-4">
               <div class="flex gap-3 text-sm text-white/80">
                 <i class="pi pi-map-marker mt-0.5 shrink-0 opacity-80"></i>
-                <p>
+                <a
+                  href="https://maps.google.com/?q=Jl.+Adi+Sumarmo+No.163,+Banyuanyar,+Kec.+Banjarsari,+Kota+Surakarta,+Jawa+Tengah+57137"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="transition hover:text-white"
+                >
                   Kelurahan Banyuanyar, Surakarta, Jawa Tengah
                   <span class="block mt-1 text-xs text-white/60">
                     Jl. Adi Sumarmo No.163, Banyuanyar, Kec. Banjarsari, Kota
                     Surakarta, Jawa Tengah 57137
                   </span>
+                </a>
+              </div>
+              <div class="flex gap-3 text-sm text-white/80">
+                <i class="pi pi-phone mt-0.5 shrink-0 opacity-80"></i>
+                <p>
+                  <a
+                    href="tel:+62882003634666"
+                    class="transition hover:text-white"
+                  >
+                    0882-0036-34666 (Kelurahan Banyuanyar)
+                  </a>
+                  <br />
+                  <a
+                    href="tel:+6281931966044"
+                    class="transition hover:text-white"
+                  >
+                    0819-3196-6044 (Fasilitator Pemerintahan)
+                  </a>
+
+                  <!-- <span class="block mt-1 text-xs text-white/60">
+                  </span> -->
+                </p>
+              </div>
+              <div class="flex gap-3 text-sm text-white/80">
+                <i class="pi pi-envelope mt-0.5 shrink-0 opacity-80"></i>
+                <p>
+                  <a
+                    href="mailto:kelh.banyuanyar@gmail.com"
+                    class="transition hover:text-white"
+                  >
+                    kelh.banyuanyar@gmail.com
+                  </a>
+                  <!-- <span class="block mt-1 text-xs text-white/60">
+                  </span> -->
                 </p>
               </div>
 
