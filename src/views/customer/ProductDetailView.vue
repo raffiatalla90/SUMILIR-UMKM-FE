@@ -1,5 +1,5 @@
 <template>
-  <div class="pb-16 bg-gray-50 sm:pb-4">
+  <div class="pb-16 bg-gray-50 sm:pb-24">
     <!-- Header dengan tombol close (Hidden - replaced by floating button) -->
     <div
       class="sticky top-0 z-50 hidden bg-white border-b border-gray-200 sm:hidden"
@@ -2031,8 +2031,19 @@ function buyNow() {
   const merchantPhone =
     store.phone ||
     store.phone_number ||
+    store.phoneNumber ||
     store.whatsapp ||
     store.whatsapp_number ||
+    store.whatsappNumber ||
+    store.mobile ||
+    store.mobile_phone ||
+    store.mobilePhone ||
+    store.no_hp ||
+    store.noHp ||
+    store.telp ||
+    store.telepon ||
+    store.user?.phone ||
+    store.user?.phone_number ||
     "";
   const checkout = useCheckoutStore();
 

@@ -1332,6 +1332,7 @@ const checkoutFromCart = (storeId) => {
   checkoutStore.setFromCart({
     store: {
       id: store.id,
+      slug: store.slug || store.merchant_slug || store.store_slug || null,
       name: store.name,
       address: store.address,
       phone:

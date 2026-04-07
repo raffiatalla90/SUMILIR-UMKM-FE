@@ -1,5 +1,5 @@
 <template>
-  <div class="mx-auto pb-28 sm:pb-12 max-w-7xl">
+  <div class="mx-auto pb-28 sm:pb-30 max-w-7xl">
     <!-- Mobile Header -->
     <MobileHeader title="Checkout Pesanan" variant="primary" />
 
@@ -548,7 +548,7 @@
 
 <script setup>
 import { computed, ref, watch, onMounted } from "vue";
-import { useRouter, onBeforeRouteLeave } from "vue-router";
+import { useRouter, useRoute, onBeforeRouteLeave } from "vue-router";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
 import TextField from "@/components/forms/TextField.vue";
 import MobileHeader from "@/components/customer/MobileHeader.vue";
@@ -559,6 +559,7 @@ import * as yup from "yup";
 import { Form } from "vee-validate";
 import { useVouchers } from "@/composables/useVouchers";
 import { useToast } from "vue-toastification";
+import api from "@/libs/axios.js";
 const {
   fetchVouchersByMerchant,
   vouchers,
@@ -585,6 +586,7 @@ const schema = yup.object({
 
 const auth = useAuthStore();
 const router = useRouter();
+const route = useRoute();
 const checkout = useCheckoutStore();
 const checkoutItems = computed(() => {
   if (checkout.from === "cart") {
@@ -678,30 +680,46 @@ const formatIDR = (v) => Number(v || 0).toLocaleString("id-ID");
 // Merchant phone
 function normalizePhone(raw) {
   if (!raw) return "";
-  let p = String(raw)
-    .trim()
-    .replace(/[^\d+]/g, "")
-    .replace(/^\+/, "");
-  if (p.startsWith("08")) p = "628" + p.slice(2);
+  let p = String(raw).trim().replace(/[^\d]/g, "");
+
+  // Handle common Indonesian formats: 08xx, 8xx, 62xx, and malformed 6208xx
+  if (p.startsWith("6208")) p = "628" + p.slice(4);
+  else if (p.startsWith("08")) p = "628" + p.slice(2);
+  else if (p.startsWith("8")) p = "62" + p;
   else if (p.startsWith("0")) p = "62" + p.slice(1);
+
+  // Keep only a single country-code prefix if duplicated accidentally
+  p = p.replace(/^62+/, "62");
   return p;
+}
+
+function pickPhoneCandidate(source) {
+  const s = source || {};
+  return (
+    s.phone ||
+    s.phone_number ||
+    s.phoneNumber ||
+    s.whatsapp ||
+    s.whatsapp_number ||
+    s.whatsappNumber ||
+    s.mobile ||
+    s.mobile_phone ||
+    s.mobilePhone ||
+    s.no_hp ||
+    s.noHp ||
+    s.telp ||
+    s.telepon ||
+    s.user?.phone ||
+    s.user?.phone_number ||
+    ""
+  );
 }
 
 function resolveMerchantPhoneRaw() {
   const s1 = checkout.store || {};
   const s2 = order.value?.store || {};
 
-  return (
-    s1.phone ||
-    s1.phone_number ||
-    s1.whatsapp ||
-    s1.whatsapp_number ||
-    s2.phone ||
-    s2.phone_number ||
-    s2.whatsapp ||
-    s2.whatsapp_number ||
-    ""
-  );
+  return pickPhoneCandidate(s1) || pickPhoneCandidate(s2) || "";
 }
 
 const merchantPhoneNormalized = computed(() =>
@@ -716,6 +734,22 @@ function isValidWhatsAppPhone(phone) {
   // Indonesia store numbers should be normalized to start with 62
   if (!digitsOnly.startsWith("62")) return false;
   return true;
+}
+
+async function fetchMerchantPhoneBySlug() {
+  const slugFromStore = checkout.store?.slug || order.value?.store?.slug || "";
+  const slugFromQuery = String(route.query?.storeSlug || "").trim();
+  const merchantSlug = String(slugFromStore || slugFromQuery || "").trim();
+
+  if (!merchantSlug) return "";
+
+  try {
+    const { data } = await api.get(`/api/public/merchants/${merchantSlug}`);
+    const merchant = data?.data || data || {};
+    return pickPhoneCandidate(merchant);
+  } catch (e) {
+    return "";
+  }
 }
 
 // Tambah state alamat merchant dari product detail
@@ -894,7 +928,7 @@ const isFormValid = computed(() => {
 });
 
 // WhatsApp text: gunakan lineSubtotal untuk ringkasan harga
-const openWhatsapp = () => {
+const openWhatsapp = async () => {
   if (!isFormValid.value) {
     alert("Mohon lengkapi data pemesan dan pilih alamat (jika diantar)");
     return;
@@ -975,7 +1009,21 @@ const openWhatsapp = () => {
     .filter(Boolean)
     .join("\n");
 
-  const phone = merchantPhoneNormalized.value;
+  let phone = merchantPhoneNormalized.value;
+
+  if (!isValidWhatsAppPhone(phone)) {
+    const fetchedRawPhone = await fetchMerchantPhoneBySlug();
+    const fetchedPhone = normalizePhone(fetchedRawPhone);
+
+    if (isValidWhatsAppPhone(fetchedPhone)) {
+      phone = fetchedPhone;
+      checkout.store = {
+        ...checkout.store,
+        phone: fetchedRawPhone || fetchedPhone,
+      };
+    }
+  }
+
   if (!isValidWhatsAppPhone(phone)) {
     toast.error(
       "Nomor WhatsApp penjual belum tersedia atau tidak valid. Silakan hubungi admin / cek data toko.",
