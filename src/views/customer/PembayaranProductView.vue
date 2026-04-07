@@ -305,7 +305,7 @@
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 20 20"
                 fill="currentColor"
-                class="w-4 h-4 flex-shrink-0 mt-0.5"
+                class="w-4 h-4 shrink-0 mt-0.5"
               >
                 <path
                   fill-rule="evenodd"
@@ -676,7 +676,6 @@ const formatIDR = (v) => Number(v || 0).toLocaleString("id-ID");
 // checkout.setAddons(newAddonsArray);
 
 // Merchant phone
-const merchantPhone = ref(order.value.store.phone || "");
 function normalizePhone(raw) {
   if (!raw) return "";
   let p = String(raw)
@@ -686,6 +685,20 @@ function normalizePhone(raw) {
   if (p.startsWith("08")) p = "628" + p.slice(2);
   else if (p.startsWith("0")) p = "62" + p.slice(1);
   return p;
+}
+
+const merchantPhoneNormalized = computed(() =>
+  normalizePhone(checkout.store?.phone || order.value.store?.phone || ""),
+);
+
+function isValidWhatsAppPhone(phone) {
+  const digitsOnly = String(phone || "").replace(/\D/g, "");
+  if (!digitsOnly) return false;
+  // WhatsApp generally expects E.164 digits without '+', typically up to 15 digits
+  if (digitsOnly.length < 10 || digitsOnly.length > 15) return false;
+  // Indonesia store numbers should be normalized to start with 62
+  if (!digitsOnly.startsWith("62")) return false;
+  return true;
 }
 
 // Tambah state alamat merchant dari product detail
@@ -945,10 +958,17 @@ const openWhatsapp = () => {
     .filter(Boolean)
     .join("\n");
 
-  const phone = normalizePhone(
-    merchantPhone.value || order.value.store.phone || "",
-  );
-  const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+  const phone = merchantPhoneNormalized.value;
+  if (!isValidWhatsAppPhone(phone)) {
+    toast.error(
+      "Nomor WhatsApp penjual belum tersedia atau tidak valid. Silakan hubungi admin / cek data toko.",
+    );
+    return;
+  }
+
+  const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(
+    text,
+  )}`;
   window.open(url, "_blank");
   checkout.clear();
   router.back();
