@@ -687,8 +687,25 @@ function normalizePhone(raw) {
   return p;
 }
 
+function resolveMerchantPhoneRaw() {
+  const s1 = checkout.store || {};
+  const s2 = order.value?.store || {};
+
+  return (
+    s1.phone ||
+    s1.phone_number ||
+    s1.whatsapp ||
+    s1.whatsapp_number ||
+    s2.phone ||
+    s2.phone_number ||
+    s2.whatsapp ||
+    s2.whatsapp_number ||
+    ""
+  );
+}
+
 const merchantPhoneNormalized = computed(() =>
-  normalizePhone(checkout.store?.phone || order.value.store?.phone || ""),
+  normalizePhone(resolveMerchantPhoneRaw()),
 );
 
 function isValidWhatsAppPhone(phone) {

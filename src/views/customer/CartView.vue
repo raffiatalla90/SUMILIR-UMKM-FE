@@ -1334,7 +1334,12 @@ const checkoutFromCart = (storeId) => {
       id: store.id,
       name: store.name,
       address: store.address,
-      phone: store.phone,
+      phone:
+        store.phone ||
+        store.phone_number ||
+        store.whatsapp ||
+        store.whatsapp_number ||
+        "",
     },
     items: selectedStoreItems.map((item) => ({
       id: item.id,
