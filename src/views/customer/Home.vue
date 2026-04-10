@@ -5,7 +5,7 @@ import "vue3-carousel/dist/carousel.css";
 
 import InfoteknoIcon from "@/assets/images/infotekno.png";
 import SekolahVokasiUNSIcon from "@/assets/images/LOGO SV BIRU.png";
-import PemkotSurakartaIcon from "@/assets/images/surakarta.jpeg";
+import PemkotSurakartaIcon from "@/assets/images/surakarta.png";
 
 import TextField from "@/components/forms/TextField.vue";
 import CategoryCard from "@/components/Card/CategoryCard.vue";
@@ -442,19 +442,19 @@ onMounted(async () => {
               <img
                 :src="InfoteknoIcon"
                 alt="Infotekno"
-                class="flex items-center justify-center h-16 p-2 transition border border-white/20 hover:border-white/40 hover:bg-white/10"
+                class="flex items-center justify-center h-16 p-2 transition-all duration-200 hover:bg-white/10 hover:scale-105"
                 title="Infotekno"
               />
               <img
                 :src="SekolahVokasiUNSIcon"
                 alt="Sekolah Vokasi UNS"
-                class="flex items-center justify-center h-16 p-2 transition border border-white/20 hover:border-white/40 hover:bg-white/10"
+                class="flex items-center justify-center h-16 transition-all duration-200 hover:bg-white/10 hover:scale-105"
                 title="Sekolah Vokasi UNS"
               />
               <img
                 :src="PemkotSurakartaIcon"
                 alt="Pemkot Surakarta"
-                class="flex items-center justify-center h-16 p-2 transition border border-white/20 hover:border-white/40 hover:bg-white/10"
+                class="flex items-center justify-center h-16 p-2 transition-all duration-200 hover:bg-white/10 hover:scale-105"
                 title="Pemkot Surakarta"
               />
             </div>
