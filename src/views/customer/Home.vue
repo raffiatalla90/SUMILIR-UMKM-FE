@@ -3,6 +3,10 @@ import { ref, onMounted, nextTick, watch } from "vue";
 import { Carousel, Slide } from "vue3-carousel";
 import "vue3-carousel/dist/carousel.css";
 
+import InfoteknoIcon from "@/assets/images/infotekno.png";
+import SekolahVokasiUNSIcon from "@/assets/images/LOGO SV BIRU.png";
+import PemkotSurakartaIcon from "@/assets/images/surakarta.jpeg";
+
 import TextField from "@/components/forms/TextField.vue";
 import CategoryCard from "@/components/Card/CategoryCard.vue";
 import MerchantCard from "@/components/Card/MerchantCard.vue";
@@ -434,6 +438,27 @@ onMounted(async () => {
               dipercaya, dan dibeli.
             </p>
 
+            <div class="flex items-center gap-3 mt-6">
+              <img
+                :src="InfoteknoIcon"
+                alt="Infotekno"
+                class="flex items-center justify-center h-16 p-2 transition border border-white/20 hover:border-white/40 hover:bg-white/10"
+                title="Infotekno"
+              />
+              <img
+                :src="SekolahVokasiUNSIcon"
+                alt="Sekolah Vokasi UNS"
+                class="flex items-center justify-center h-16 p-2 transition border border-white/20 hover:border-white/40 hover:bg-white/10"
+                title="Sekolah Vokasi UNS"
+              />
+              <img
+                :src="PemkotSurakartaIcon"
+                alt="Pemkot Surakarta"
+                class="flex items-center justify-center h-16 p-2 transition border border-white/20 hover:border-white/40 hover:bg-white/10"
+                title="Pemkot Surakarta"
+              />
+            </div>
+
             <!-- <div class="flex items-center gap-3 mt-6">
               <a
                 href="https://www.facebook.com/pages/Kantor-Kelurahan-Banyuanyar"
@@ -464,20 +489,38 @@ onMounted(async () => {
             <ul class="mt-4 space-y-3 text-sm">
               <li>
                 <router-link
-                  to="/explore"
+                  to="/explore?mode=UMKM"
                   class="inline-flex items-center gap-2 transition text-white/80 hover:text-white"
                 >
-                  <i class="text-xs pi pi-angle-right opacity-80"></i> Daftar
+                  <i class="text-xs pi pi-angle-right opacity-80"></i> Semua
                   UMKM
                 </router-link>
               </li>
               <li>
                 <router-link
-                  to="/explore"
+                  to="/explore?mode=toko"
                   class="inline-flex items-center gap-2 transition text-white/80 hover:text-white"
                 >
-                  <i class="text-xs pi pi-angle-right opacity-80"></i> Semua
-                  Produk
+                  <i class="text-xs pi pi-angle-right opacity-80"></i>
+                  Produk Toko
+                </router-link>
+              </li>
+              <li>
+                <router-link
+                  to="/explore?mode=kuliner"
+                  class="inline-flex items-center gap-2 transition text-white/80 hover:text-white"
+                >
+                  <i class="text-xs pi pi-angle-right opacity-80"></i>
+                  Produk Kuliner
+                </router-link>
+              </li>
+              <li>
+                <router-link
+                  to="/explore?mode=jasa"
+                  class="inline-flex items-center gap-2 transition text-white/80 hover:text-white"
+                >
+                  <i class="text-xs pi pi-angle-right opacity-80"></i>
+                  Layanan Jasa
                 </router-link>
               </li>
               <li>
