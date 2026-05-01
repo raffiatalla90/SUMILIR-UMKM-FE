@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed, watch } from "vue";
 
+import ReportButton from "@/components/ReportButton.vue";
+
 const imageError = ref(false);
 
 const props = defineProps({
@@ -94,17 +96,7 @@ watch(
 
 <template>
   <div
-    :class="`    group
-    flex flex-col rounded-2xl
-    border border-gray-200
-    bg-white
-    shadow-sm
-    overflow-hidden
-    transition-transform duration-300 ease-out
-    hover:-translate-y-1 hover:shadow-md
-    cursor-pointer
-    min-w-[161px]
-    ${customClass} `"
+    class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow"
   >
     <!-- Product Image (1:1 aspect ratio) -->
     <div
@@ -157,6 +149,23 @@ watch(
           {{ formattedDistanceKm }}
         </span>
       </div>
+    </div>
+
+    <!-- Header with Report Button -->
+    <div class="p-4 flex items-start justify-between">
+      <div class="flex-1">
+        <!-- Product info -->
+        <h3 class="font-semibold text-gray-900 dark:text-white">
+          {{ product.name }}
+        </h3>
+      </div>
+
+      <!-- Report Button -->
+      <ReportButton
+        reportable-type="product"
+        :reportable-id="product.id"
+        :reportable-name="product.name"
+      />
     </div>
   </div>
 </template>

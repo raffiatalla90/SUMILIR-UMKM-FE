@@ -423,6 +423,14 @@ const routes = [
         component: () => import("@/views/admin/reports/Detail.vue"),
         meta: { title: "Report Detail | Admin SUMILIR" },
       },
+
+      // ✅ ADD: Report routes
+      {
+        path: "/reports",
+        name: "MyReports",
+        component: () => import("@/views/reports/M"),
+        meta: { requiresAuth: true },
+      },
     ],
   },
 
