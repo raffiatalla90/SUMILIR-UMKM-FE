@@ -145,53 +145,18 @@
               v-if="serviceType === 'on_site'"
               type="button"
               class="ml-3 text-[11px] px-3 py-1 rounded-full border border-emerald-300 text-emerald-700 bg-emerald-50 whitespace-nowrap"
-              @click="openAlamatOptions = true"
+              :disabled="locatingDevice"
+              @click="requestDeviceLocation"
             >
-              Gunakan alamat profil
+              {{ locatingDevice ? 'Mengambil lokasi...' : 'Pakai lokasi device' }}
             </button>
           </div>
-          <input
-            v-model="form.catatanAlamat"
-            type="text"
-            placeholder="Catatan alamat"
-            class="w-full px-3 py-2 mt-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-merchant-primary/70 focus:border-merchant-primary"
-          />
-        </section>
-
-        <!-- Jadwal (auto filled) -->
-        <section
-          class="p-4 border border-gray-100 shadow-sm bg-white/95 rounded-2xl sm:p-5"
-        >
-          <h2
-            class="flex items-center gap-2 mb-3 text-sm font-semibold text-gray-900 sm:text-base"
+          <p
+            v-if="serviceType === 'on_site' && deviceCoordinates"
+            class="mt-2 text-[11px] text-gray-500"
           >
-            <i class="pi pi-calendar text-merchant-primary"></i>
-            Jadwal Layanan
-          </h2>
-          <div class="space-y-3">
-            <div class="relative">
-              <input
-                v-model="form.tanggalLabel"
-                readonly
-                @click="calendarOpen = true"
-                class="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-merchant-primary/70 focus:border-merchant-primary"
-              />
-              <span class="absolute -translate-y-1/2 right-3 top-1/2">
-                <i class="text-gray-400 pi pi-calendar"></i>
-              </span>
-            </div>
-            <div class="relative">
-              <input
-                v-model="form.waktu"
-                readonly
-                @click="openTimeOptions = true"
-                class="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-merchant-primary/70 focus:border-merchant-primary"
-              />
-              <span class="absolute -translate-y-1/2 right-3 top-1/2">
-                <i class="text-gray-400 pi pi-clock"></i>
-              </span>
-            </div>
-          </div>
+            Koordinat terdeteksi: {{ deviceCoordinates.latitude.toFixed(6) }}, {{ deviceCoordinates.longitude.toFixed(6) }}
+          </p>
         </section>
 
         <!-- Promo -->
@@ -647,13 +612,6 @@
       </div>
     </transition>
 
-    <!-- Kalender Pilih Tanggal (mengikuti hari operasional jasa) -->
-    <CalendarModal
-      v-model="selectedDate"
-      :open="calendarOpen"
-      :operating-days="jasaOperatingDays || ''"
-      @close="calendarOpen = false"
-    />
   </div>
 </template>
 
@@ -663,7 +621,6 @@ import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useUserStore } from "@/stores/user";
 import api from "@/libs/axios.js";
-import CalendarModal from "@/components/CalendarModal.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -695,19 +652,12 @@ const form = ref({
   tel: "",
   alamat: route.query.alamat || "",
   catatan: route.query.catatan || "",
-  catatanAlamat: route.query.catatanAlamat || "",
   tanggalISO: order.tglISO,
   tanggalLabel: fmtTanggal(order.tglISO),
   waktu: order.waktu || "—",
 });
 
-// ===== Jadwal (tanggal & jam) =====
-const calendarOpen = ref(false);
-const selectedDate = ref(order.tglISO ? new Date(order.tglISO) : new Date());
-
-// Simpan data jadwal & kontak dari jasa
-const jasaOperatingDays = ref("");
-const jasaOperatingTimes = ref("");
+// Simpan data kontak dari jasa
 const jasaWhatsappLink = ref("");
 
 // Helper tanggal
@@ -798,68 +748,18 @@ function fmtTanggal(iso) {
   });
 }
 
-// Default times jika tidak ada operating_times dari jasa
-const defaultTimes = {
-  morning: ["06.00", "08.30", "10.00"],
-  afternoon: ["13.00", "15.00", "17.00"],
-  evening: ["18.00", "19.00", "20.00"],
-};
-
-// Kelompokkan jam layanan dari operating_times jasa
-const times = computed(() => {
-  if (!jasaOperatingTimes.value) return defaultTimes;
-
-  const operatingTimes = jasaOperatingTimes.value
-    .split(",")
-    .map((t) => t.trim())
-    .filter((t) => t);
-
-  if (operatingTimes.length === 0) return defaultTimes;
-
-  const morning = operatingTimes.filter((t) => {
-    const hour = parseInt(t.split(".")[0]);
-    return hour >= 6 && hour < 12;
-  });
-
-  const afternoon = operatingTimes.filter((t) => {
-    const hour = parseInt(t.split(".")[0]);
-    return hour >= 12 && hour < 18;
-  });
-
-  const evening = operatingTimes.filter((t) => {
-    const hour = parseInt(t.split(".")[0]);
-    return hour >= 18;
-  });
-
-  return { morning, afternoon, evening };
-});
-
-// Bottom sheet pilih jam
-const openTimeOptions = ref(false);
-
-// Sinkron selectedDate -> form tanggal
-watch(
-  selectedDate,
-  (val) => {
-    if (!val) return;
-    form.value.tanggalISO = val.toISOString();
-    form.value.tanggalLabel = fmtTanggal(form.value.tanggalISO);
-  },
-  { immediate: true },
-);
-
 // ===== Promo State =====
 const openPromo = ref(false);
 const selectedPromo = ref(null);
 const promos = ref([]);
 const promosLoading = ref(false);
 
-async function loadVouchersForJasa(merchantId) {
-  if (!merchantId) return;
+async function loadVouchersForJasa(merchantSlug) {
+  if (!merchantSlug) return;
   promosLoading.value = true;
   try {
     const { data } = await api.get(
-      `/api/public/merchants/${merchantId}/vouchers`,
+      `/api/checkout/${merchantSlug}/vouchers`,
       {
         params: { amount: order.price || 0 },
       },
@@ -933,8 +833,10 @@ const showDetails = ref(false);
 
 const authStore = useAuthStore();
 const userStore = useUserStore();
+const locatingDevice = ref(false);
+const deviceCoordinates = ref(null);
 
-// Modal pilihan alamat
+// Modal pilihan alamat (legacy, dipertahankan agar kompatibel)
 const openAlamatOptions = ref(false);
 
 // Coba gunakan alamat dari profil user (jika ada)
@@ -998,7 +900,51 @@ async function reverseGeocode(lat, lng) {
   }
 }
 
-// Fungsi pengambilan lokasi device dihapus, alamat hanya dari jasa/UMKM
+async function requestDeviceLocation() {
+  if (!navigator.geolocation) {
+    errorMessage.value =
+      "Perangkat/browser tidak mendukung GPS. Silakan isi alamat manual.";
+    return;
+  }
+
+  locatingDevice.value = true;
+  clearNotification();
+
+  try {
+    const position = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      });
+    });
+
+    const latitude = position?.coords?.latitude;
+    const longitude = position?.coords?.longitude;
+
+    if (typeof latitude !== "number" || typeof longitude !== "number") {
+      throw new Error("Koordinat tidak valid");
+    }
+
+    deviceCoordinates.value = { latitude, longitude };
+
+    const address = await reverseGeocode(latitude, longitude);
+    if (address) {
+      form.value.alamat = address;
+      successMessage.value = "Lokasi device berhasil digunakan.";
+    } else {
+      form.value.alamat = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+      successMessage.value =
+        "Koordinat ditemukan, tetapi alamat detail tidak tersedia.";
+    }
+  } catch (error) {
+    console.error("[PembayaranJasa] Gagal mengambil lokasi device", error);
+    errorMessage.value =
+      "Izin lokasi ditolak atau gagal mengambil GPS. Aktifkan lokasi lalu coba lagi.";
+  } finally {
+    locatingDevice.value = false;
+  }
+}
 
 // Isi nama & nomor telepon dari profil user (opsional, tetap bisa diedit manual)
 function useProfileContact() {
@@ -1036,8 +982,6 @@ onMounted(async () => {
   try {
     const { data } = await api.get(`/api/public/jasas/${order.id}`);
     const payload = data?.data ?? data;
-    jasaOperatingDays.value = payload?.operating_days || "";
-    jasaOperatingTimes.value = payload?.operating_times || "";
 
     // Prioritas sumber nomor WhatsApp penjual:
     // 1) Link khusus di jasa (whatsapp_link)
@@ -1050,43 +994,40 @@ onMounted(async () => {
       "";
     jasaWhatsappLink.value = rawWhatsapp;
 
-    // Otomatis isi alamat dari jasa atau merchant
-    if (payload?.location_address) {
-      form.value.alamat = payload.location_address;
-    } else if (payload?.merchant?.address) {
-      form.value.alamat = payload.merchant.address;
-    } else if (payload?.merchant?.alamat) {
-      form.value.alamat = payload.merchant.alamat;
+    // Otomatis isi alamat berdasarkan service_type
+    // - at_location: gunakan alamat UMKM dari primary_address
+    // - on_site: gunakan location_address atau alamat merchant
+    // - online: tidak perlu alamat
+    if (payload?.service_type === 'at_location') {
+      // Untuk layanan di tempat merchant, gunakan alamat merchant dari primary_address
+      const primaryAddress = payload?.merchant?.primary_address;
+      if (primaryAddress) {
+        const parts = [
+          primaryAddress.detail,
+          primaryAddress.village,
+          primaryAddress.district,
+          primaryAddress.city,
+          primaryAddress.province,
+        ].filter(Boolean);
+        form.value.alamat = parts.join(', ') || '';
+      } else {
+        // Fallback ke field address lama
+        form.value.alamat = payload?.merchant?.address || payload?.merchant?.alamat || '';
+      }
+    } else if (payload?.service_type === 'on_site') {
+      // Untuk layanan ke lokasi customer, alamat berasal dari device customer
+      form.value.alamat = '';
     }
 
-    if (payload?.merchant_id) {
-      await loadVouchersForJasa(payload.merchant_id);
+    if (payload?.merchant?.slug) {
+      await loadVouchersForJasa(payload.merchant.slug);
     }
 
     if (!serviceType.value && payload?.service_type) {
       serviceType.value = payload.service_type;
     }
-
-    // Jika tanggal dari query kosong, set default ke hari pertama yang tersedia dalam 7 hari ke depan
-    if (!order.tglISO && jasaOperatingDays.value) {
-      const operatingDays = jasaOperatingDays.value
-        .split(",")
-        .map((d) => parseInt(d.trim()))
-        .filter((d) => !Number.isNaN(d));
-
-      const today = atMidnight(new Date());
-      for (let i = 0; i < 7; i++) {
-        const checkDate = addDays(today, i);
-        const jsDay = checkDate.getDay(); // 0 Minggu..6 Sabtu
-        const dbDay = jsDay === 0 ? 7 : jsDay; // 1 Senin..7 Minggu
-        if (operatingDays.includes(dbDay)) {
-          selectedDate.value = checkDate;
-          break;
-        }
-      }
-    }
   } catch (e) {
-    console.error("[PembayaranJasa] Gagal mengambil data jasa untuk jadwal", e);
+    console.error("[PembayaranJasa] Gagal mengambil data jasa", e);
   }
 });
 
@@ -1126,11 +1067,13 @@ function buildWhatsappMessage() {
   if (!isOnlineService.value) {
     lines.push(`Alamat    : ${form.value.alamat || "-"}`);
   }
+  if (deviceCoordinates.value) {
+    lines.push(
+      `Koordinat : ${deviceCoordinates.value.latitude.toFixed(6)}, ${deviceCoordinates.value.longitude.toFixed(6)}`
+    );
+  }
   if (form.value.catatan) {
     lines.push(`Catatan   : ${form.value.catatan}`);
-  }
-  if (form.value.catatanAlamat && !isOnlineService.value) {
-    lines.push(`Catatan Alamat : ${form.value.catatanAlamat}`);
   }
   lines.push("");
 
@@ -1166,6 +1109,12 @@ const sendToChat = async () => {
   if (!form.value.tel || !isValidPhone(form.value.tel)) {
     errorMessage.value =
       "Nomor telepon wajib diisi dan hanya boleh berisi angka (min. 8 digit).";
+    return;
+  }
+
+  if (serviceType.value === "on_site" && !form.value.alamat) {
+    errorMessage.value =
+      "Untuk layanan ke alamat pelanggan, izinkan lokasi device atau isi alamat terlebih dahulu.";
     return;
   }
 

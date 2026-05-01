@@ -62,6 +62,28 @@ const currentMerchantName = computed(() => {
   return merchant?.name || "UMKM";
 });
 
+const currentMerchantAddress = computed(() => {
+  const merchant = currentMerchantSlug.value
+    ? authStore.getMerchantBySlug(currentMerchantSlug.value)
+    : authStore.getMerchantById(currentMerchantId.value);
+
+  if (!merchant) return "";
+
+  const primary = merchant.primary_address;
+  if (primary) {
+    const parts = [
+      primary.detail,
+      primary.village,
+      primary.district,
+      primary.city,
+      primary.province,
+    ].filter(Boolean);
+    if (parts.length) return parts.join(", ");
+  }
+
+  return merchant.address || merchant.alamat || "";
+});
+
 // Pagination / totals
 const totalItems = computed(
   () => pagination.value?.total ?? jasas.value.length
@@ -87,6 +109,13 @@ const activeFilterCount = computed(() => {
   if (f.sortByStock) count++;
   return count;
 });
+
+// Count draft jasas
+const draftJasasCount = computed(() => {
+  return jasas.value.filter((j) => j.status === 'draft').length;
+});
+
+const hasDraftJasas = computed(() => draftJasasCount.value > 0);
 
 // ✅ Use categories composable (declare before using categoryOptions)
 const { categoriesLevel1, loadingLevel1, fetchLevel1Categories } =
@@ -646,28 +675,6 @@ const formatPrice = (min, max) => {
   return `${formatCompact(min)} - ${formatCompact(max)}`;
 };
 
-// Format operating days
-const dayLabels = {
-  1: "Sen",
-  2: "Sel",
-  3: "Rab",
-  4: "Kam",
-  5: "Jum",
-  6: "Sab",
-  7: "Min",
-};
-
-const formatOperatingDays = (operatingDays) => {
-  if (!operatingDays) return "-";
-  const days = operatingDays
-    .split(",")
-    .map((d) => parseInt(d.trim()))
-    .filter((d) => !isNaN(d));
-  if (days.length === 0) return "-";
-  if (days.length === 7) return "Setiap Hari";
-  return days.map((d) => dayLabels[d] || d).join(", ");
-};
-
 // Format tanggal & jam jasa (created_at / updated_at)
 const formatJasaDateTime = (value) => {
   if (!value) return "-";
@@ -722,6 +729,22 @@ const getStatusLabel = (status) => {
     out_of_stock: "Stok Habis",
   };
   return labels[status] || status;
+};
+
+const getServiceTypeLabel = (serviceType) => {
+  if (serviceType === "at_location") return "Di Tempat Saya";
+  if (serviceType === "on_site") return "Ke Lokasi Pelanggan";
+  if (serviceType === "online") return "Online";
+  return "-";
+};
+
+const getDisplayServiceAddress = (jasa) => {
+  if (!jasa) return "-";
+  if (jasa.service_type === "online") return "Tidak memerlukan alamat";
+  if (jasa.service_type === "on_site") {
+    return jasa.service_area || "Alamat akan diisi customer saat pembayaran";
+  }
+  return jasa.location_address || currentMerchantAddress.value || "-";
 };
 
 // Toggle visibility method
@@ -800,14 +823,28 @@ const closeBulkStatusChangeModal = () => {
 // Helper: pilih cover image dari relasi baru atau fallback ke field legacy `image`
 const getPrimaryImageSrc = (jasaItem) => {
   if (!jasaItem) return "";
-  const images = jasaItem.images || [];
-  if (images.length) {
-    const image = images.find((img) => img.is_cover) || images[0];
-    return getImageUrlJasa(image?.path || image?.id || jasaItem.image);
-  }
+
+  // Prioritas 1: cover utama yang disinkronkan backend saat create/edit
   if (jasaItem.image) {
     return getImageUrlJasa(jasaItem.image);
   }
+  
+  const images = jasaItem.images || [];
+  
+  if (images.length > 0) {
+    // Cari gambar cover atau ambil yang pertama
+    const coverImage = images.find((img) => img.is_cover) || images[0];
+    
+    // Gunakan url/src_url dari backend jika tersedia
+    if (coverImage.url) return coverImage.url;
+    if (coverImage.src_url) return coverImage.src_url;
+    
+    // Fallback ke path atau id
+    if (coverImage.path) return getImageUrlJasa(coverImage.path);
+    if (coverImage.image_path) return getImageUrlJasa(coverImage.image_path);
+    if (coverImage.id) return getImageUrlJasa(coverImage.id);
+  }
+  
   return "";
 };
 
@@ -852,32 +889,49 @@ const selectConversation = (conversation) => {
 </script>
 
 <template>
-  <div class="p-6">
-    <div class="mb-6">
-      <h1 class="text-3xl font-bold text-gray-900">Daftar Jasa</h1>
-      <p class="mt-1 text-sm text-gray-600">
-        <i class="mr-1 pi pi-shop text-merchant-primary"></i>
-        {{ currentMerchantName }}
-      </p>
+  <div class="min-h-screen bg-gray-50">
+    <!-- Mobile Header -->
+    <div
+      class="fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-6 bg-white border-b border-gray-100 sm:static sm:px-6 sm:mb-6"
+    >
+      <div class="flex items-center gap-3">
+        <button
+          @click="emit('toggle-sidebar')"
+          class="flex items-center justify-center w-10 h-10 rounded-full sm:hidden hover:bg-gray-100"
+        >
+          <i class="pi pi-bars"></i>
+        </button>
+        <div>
+          <h1 class="text-base font-semibold text-merchant-primary sm:text-3xl sm:font-bold">Daftar Layanan Jasa</h1>
+          <p class="mt-1 text-xs sm:text-sm text-gray-600">
+            <i class="mr-1 pi pi-shop"></i>
+            {{ currentMerchantName }}
+          </p>
+        </div>
+      </div>
     </div>
 
-    <!-- Loading State -->
+    <!-- Spacer for fixed mobile header -->
+    <div class="h-24 sm:h-0"></div>
+
+    <div class="px-4 sm:px-6">
+      <!-- Loading State -->
     <div v-if="loading" class="flex items-center justify-center py-20">
       <div
-        class="w-12 h-12 border-b-2 rounded-full animate-spin border-merchant-primary"
+        class="w-10 h-10 border-4 rounded-full border-gray-200 border-t-blue-500 animate-spin"
       ></div>
     </div>
 
     <!-- Empty State -->
     <div
       v-else-if="jasas.length === 0"
-      class="py-20 text-center bg-white rounded-lg shadow"
+      class="py-20 text-center bg-white rounded-2xl shadow-sm border border-gray-100"
     >
       <i class="block mb-4 text-6xl text-gray-300 pi pi-inbox"></i>
       <p class="mb-6 text-lg text-gray-500">Belum ada jasa yang ditambahkan</p>
       <button
         @click="goToCreate"
-        class="inline-flex items-center gap-2 px-6 py-3 font-medium text-white transition rounded-lg shadow-md bg-merchant-primary hover:bg-merchant-primary/90"
+        class="inline-flex items-center gap-2 px-6 py-3 font-medium text-white transition rounded-lg bg-merchant-primary hover:bg-merchant-primary/90"
       >
         <i class="text-sm pi pi-plus"></i>
         <span>Tambah Jasa Baru</span>
@@ -886,6 +940,38 @@ const selectConversation = (conversation) => {
 
     <!-- Data Table -->
     <div v-else>
+      <!-- Draft Warning Banner -->
+      <div
+        v-if="hasDraftJasas"
+        class="flex items-start gap-4 p-4 mb-6 border-l-4 rounded-2xl bg-yellow-50 border-l-yellow-400 border border-yellow-200 shadow-sm"
+      >
+        <div class="flex-shrink-0 mt-0.5">
+          <svg
+            class="w-6 h-6 text-amber-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
+          </svg>
+        </div>
+        <div class="flex-1">
+          <h3 class="mb-1 text-base font-semibold text-amber-800">
+            ⚠️ Anda memiliki {{ draftJasasCount }} jasa yang belum dipublikasikan
+          </h3>
+          <p class="text-sm text-amber-700">
+            Jasa dengan status <span class="font-semibold">DRAFT</span> tidak akan
+            terlihat oleh pelanggan. Silakan klik tombol "Publish" pada jasa
+            yang ingin Anda tampilkan kepada pelanggan.
+          </p>
+        </div>
+      </div>
+
       <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <button
           @click="goToCreate"
@@ -1035,16 +1121,6 @@ const selectConversation = (conversation) => {
                 </div>
               </div>
 
-              <!-- Hari Layanan -->
-              <div class="flex items-start gap-2">
-                <i
-                  class="mt-1 text-xs pi pi-calendar text-merchant-primary"
-                ></i>
-                <span class="text-gray-700">{{
-                  formatOperatingDays(jasa.operating_days)
-                }}</span>
-              </div>
-
               <!-- Tanggal Upload & Edit -->
               <div class="flex items-start gap-2 text-xs text-gray-500">
                 <i class="pi pi-clock text-merchant-primary text-xs mt-0.5"></i>
@@ -1056,6 +1132,21 @@ const selectConversation = (conversation) => {
                     "
                   >
                     Edit: {{ formatJasaDateTime(jasa.updated_at) }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tipe Layanan & Lokasi -->
+              <div class="flex items-start gap-2 text-xs text-gray-600">
+                <i class="pi pi-map-marker text-merchant-primary text-xs mt-0.5"></i>
+                <div class="space-y-0.5">
+                  <div>
+                    <span class="font-semibold">Tipe:</span>
+                    {{ getServiceTypeLabel(jasa.service_type) }}
+                  </div>
+                  <div class="break-words">
+                    <span class="font-semibold">Lokasi:</span>
+                    {{ getDisplayServiceAddress(jasa) }}
                   </div>
                 </div>
               </div>
@@ -1245,6 +1336,7 @@ const selectConversation = (conversation) => {
           </div>
         </div>
       </transition>
+    </div>
 
       <!-- Pagination -->
       <div v-if="totalPages > 1" class="flex justify-center gap-2 mt-4">

@@ -102,6 +102,24 @@ watch(
 // =========================
 // METHODS
 // =========================
+const handleNavigateToMerchantRegister = () => {
+  console.log("🔍 DEBUG: handleNavigateToMerchantRegister clicked");
+  console.log("📦 Auth Store State:", {
+    isAuthenticated: authStore.isAuthenticated,
+    userRoles: authStore.userRoles,
+    isCustomer: authStore.isCustomer,
+    user: authStore.user,
+  });
+
+  try {
+    router.push("/merchant-register");
+    console.log("✅ Navigation initiated to /merchant-register");
+  } catch (error) {
+    console.error("❌ Navigation error:", error);
+    toast.error("Gagal navigasi ke halaman registrasi UMKM: " + error.message);
+  }
+};
+
 const handleLogout = async () => {
   isLoggingOut.value = true;
   try {
@@ -494,7 +512,7 @@ onMounted(async () => {
                   </template>
                   <button
                     class="flex items-center w-full gap-3 px-4 py-3 mt-2 text-left transition-all bg-white rounded-lg hover:bg-primary/10 group hover:shadow"
-                    @click="router.push('/merchant-register')"
+                    @click="handleNavigateToMerchantRegister"
                   >
                     <svg
                       class="w-5 h-5 text-merchant-primary"
@@ -829,7 +847,7 @@ onMounted(async () => {
 
                 <button
                   class="flex items-center w-full gap-3 px-4 py-3 mt-2 text-left transition-all bg-white rounded-lg hover:bg-primary/10 group"
-                  @click="router.push('/merchant-register')"
+                  @click="handleNavigateToMerchantRegister"
                 >
                   <svg
                     class="w-5 h-5 text-merchant-primary"

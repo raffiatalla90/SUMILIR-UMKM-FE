@@ -266,7 +266,7 @@
           <router-link
             v-for="jasa in jasaList"
             :key="jasa.id"
-            :to="{ name: 'JasaDetail', params: { id: jasa.id } }"
+            :to="{ name: 'JasaDetail', params: { slug: jasa.slug || String(jasa.id) } }"
             class="block overflow-hidden transition bg-white border border-gray-200 shadow-sm rounded-2xl hover:shadow-md"
           >
             <!-- Gambar -->
@@ -459,12 +459,12 @@
       leave-to-class="translate-y-full opacity-0"
     >
       <div
-        v-if="showChat && selectedJasaId"
+        v-if="showChat && selectedJasaId && isJasaMerchant"
         class="fixed inset-0 z-50 flex items-end justify-center sm:items-center bg-black/40"
         @click.self="showChat = false"
       >
         <div
-          class="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl h-[70vh] sm:h-[520px] flex flex-col"
+          class="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl h-[78dvh] sm:h-[520px] flex flex-col overflow-hidden"
         >
           <div
             class="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-2xl"
@@ -497,7 +497,7 @@
             </button>
           </div>
 
-          <div class="flex-1 p-3">
+          <div class="flex-1 min-h-0 p-3">
             <ChatWindow :jasa-id="selectedJasaId" mode="buyer" />
           </div>
         </div>
@@ -726,6 +726,20 @@ const hasMyCoordinates = computed(() => {
   );
 });
 
+// Helper function to get segmentation ID
+function getSegmentationId(data) {
+  const raw = data?.segmentation_id ?? data?.segmentation?.id ?? null;
+  const num = Number(raw);
+  return Number.isFinite(num) ? num : null;
+}
+
+// Check if merchant is a Jasa (Service) merchant
+// Only Jasa merchants (segmentation id = 3) should have chat feature
+const isJasaMerchant = computed(() => {
+  const segId = getSegmentationId(merchant.value);
+  return segId === 3;
+});
+
 function toRad(deg) {
   return (deg * Math.PI) / 180;
 }
@@ -890,9 +904,25 @@ function applyMerchantSeo(merchantData, merchantSlug) {
 
 // Resolve gambar jasa
 const resolveJasaImage = (jasa) => {
+  // Prioritas utama: legacy cover path yang dipakai create/edit merchant
+  if (jasa?.image) {
+    return getImageUrlJasa(jasa.image);
+  }
+
   // Prefer API-provided cover image URL (id-based)
   if (jasa?.cover_img?.src_url) {
     return jasa.cover_img.src_url;
+  }
+
+  if (typeof jasa?.cover_image === "string" && jasa.cover_image) {
+    return jasa.cover_image;
+  }
+
+  if (jasa?.cover_image && typeof jasa.cover_image === "object") {
+    if (jasa.cover_image?.src_url) return jasa.cover_image.src_url;
+    if (jasa.cover_image?.url) return jasa.cover_image.url;
+    if (jasa.cover_image?.path) return getImageUrlJasa(jasa.cover_image.path);
+    if (jasa.cover_image?.id) return getImageUrlJasa(jasa.cover_image.id);
   }
 
   if (jasa.images && jasa.images.length > 0) {
@@ -904,18 +934,20 @@ const resolveJasaImage = (jasa) => {
     if (url) return url;
 
     // Fallbacks
-    if (coverImage.id) return getImageUrl(coverImage.id);
+    if (coverImage.id) return getImageUrlJasa(coverImage.id);
     if (coverImage.path || coverImage.image)
       return getImageUrlJasa(coverImage.path || coverImage.image);
   }
-  if (jasa.image) {
-    return getImageUrlJasa(jasa.image);
-  }
+
   return null;
 };
 
-// Buka chat dengan jasa pertama dari merchant
+// Buka chat dengan jasa pertama dari merchant (hanya untuk jasa merchants)
 const openChat = () => {
+  if (!isJasaMerchant.value) {
+    console.warn("Chat hanya tersedia untuk UMKM Jasa");
+    return;
+  }
   if (jasaList.value.length > 0) {
     selectedJasaId.value = jasaList.value[0].id;
     showChat.value = true;
@@ -926,12 +958,6 @@ const goToProductDetail = (product) => {
   if (!product?.slug) return;
   router.push({ name: "Product Detail", params: { slug: product.slug } });
 };
-
-function getSegmentationId(data) {
-  const raw = data?.segmentation_id ?? data?.segmentation?.id ?? null;
-  const num = Number(raw);
-  return Number.isFinite(num) ? num : null;
-}
 
 function parseLaravelPaginator(payload) {
   // Support: array (legacy) OR Laravel paginator object

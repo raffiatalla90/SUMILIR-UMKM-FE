@@ -80,10 +80,58 @@ const routes = [
         },
       },
       {
-        path: "jasa/:id",
+        path: "jasa/:slug",
         name: "JasaDetail",
         component: () => import("@/views/customer/JasaDetail.vue"),
         meta: { title: "Detail Jasa | SUMILIR" },
+        beforeEnter: async (to, from, next) => {
+          const slug = String(to.params.slug || "").trim();
+          if (!slug) {
+            return next({ name: "Beranda" });
+          }
+
+          const api = (await import("@/libs/axios.js")).default;
+
+          // Check if slug is numeric (old ID-based URL)
+          if (/^\d+$/.test(slug)) {
+            try {
+              // Fetch jasa by ID to get the proper slug
+              const { data } = await api.get(`/api/public/jasas/${slug}`);
+              
+              if (data?.slug) {
+                // Redirect to proper slug URL
+                next({
+                  name: "JasaDetail",
+                  params: { slug: data.slug },
+                  replace: true,
+                });
+              } else {
+                next();
+              }
+            } catch (e) {
+              console.warn("[Router] Could not fetch jasa by ID:", slug);
+              next();
+            }
+          } else {
+            try {
+              // Validate slug really belongs to a jasa to avoid hard 404 in view
+              await api.get(`/api/public/jasas/${encodeURIComponent(slug)}`);
+              return next();
+            } catch (e) {
+              try {
+                // If this slug belongs to a merchant, redirect to merchant detail page
+                await api.get(`/api/public/merchants/${encodeURIComponent(slug)}`);
+                return next({
+                  name: "Merchant Detail",
+                  params: { slug },
+                  replace: true,
+                });
+              } catch (_) {
+                return next();
+              }
+            }
+          }
+        },
       },
       {
         path: "search:keyword?",
@@ -623,14 +671,47 @@ const routes = [
       //   },
       // },
 
-      // {
-      //   path: "orders",
-      //   name: "Merchant - Orders",
-      //   component: () => import("@/views/merchant/orders/Index.vue"),
-      //   meta: {
-      //     title: "Orders",
-      //   },
-      // },
+      // ===========================
+      // REVIEWS & ULASAN
+      // ===========================
+      {
+        path: "reviews",
+        name: "Merchant - Reviews",
+        component: () => import("@/views/merchant/reviews/Index.vue"),
+        meta: {
+          title: "Review & Ulasan UMKM | SUMILIR",
+        },
+      },
+
+      // ===========================
+      // CHAT DENGAN PEMBELI
+      // ===========================
+      {
+        path: "chats",
+        name: "Merchant Chat",
+        component: () => import("@/views/merchant/chats/Index.vue"),
+        meta: {
+          title: "Chat dengan Pembeli | SUMILIR",
+        },
+      },
+
+      {
+        path: "chats/:conversationId",
+        name: "Merchant Chat Detail",
+        component: () => import("@/views/merchant/chats/ChatDetail.vue"),
+        meta: {
+          title: "Detail Chat | SUMILIR",
+        },
+      },
+
+      {
+        path: "orders",
+        name: "Merchant - Orders",
+        component: () => import("@/views/merchant/orders/Index.vue"),
+        meta: {
+          title: "Pesanan",
+        },
+      },
 
       // ===========================
       // Profil UMKM
