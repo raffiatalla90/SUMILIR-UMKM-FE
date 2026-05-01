@@ -1,36 +1,35 @@
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
       <!-- Header -->
-      <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-        <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
+      <div class="flex items-center justify-between p-6 border-b border-gray-200">
+        <h3 class="text-xl font-semibold text-gray-900">
           Laporkan {{ reportableTypeLabel }}
         </h3>
         <button
           @click="$emit('close')"
-          class="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+          class="p-1 rounded-lg hover:bg-gray-100"
         >
           <X :size="24" class="text-gray-500" />
         </button>
       </div>
 
       <!-- Content Preview -->
-      <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-        <p class="text-sm text-gray-600 dark:text-gray-400">Konten yang dilaporkan:</p>
-        <p class="font-medium text-gray-900 dark:text-white mt-1">{{ reportableName }}</p>
+      <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+        <p class="text-sm text-gray-600">Konten yang dilaporkan:</p>
+        <p class="font-medium text-gray-900 mt-1">{{ reportableName }}</p>
       </div>
 
       <!-- Form -->
       <form @submit.prevent="submitReport" class="p-6 space-y-4">
         <!-- Report Reason -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label class="block text-sm font-medium text-gray-700 mb-2">
             Alasan Laporan <span class="text-red-500">*</span>
           </label>
           <select
             v-model="form.report_reason_id"
-            class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
-            required
+            class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
           >
             <option value="">Pilih alasan...</option>
             <option
@@ -41,14 +40,14 @@
               {{ reason.reason_title }}
             </option>
           </select>
-          <p v-if="selectedReason" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <p v-if="selectedReason" class="text-xs text-gray-500 mt-1">
             {{ selectedReason.reason_description }}
           </p>
         </div>
 
         <!-- Additional Comment (Required if "Lainnya") -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label class="block text-sm font-medium text-gray-700 mb-2">
             Keterangan Tambahan
             <span v-if="isLainnya" class="text-red-500">*</span>
             <span v-else class="text-gray-400">(Opsional)</span>
@@ -58,7 +57,7 @@
             rows="4"
             :required="isLainnya"
             :placeholder="isLainnya ? 'Wajib diisi untuk alasan Lainnya' : 'Jelaskan lebih detail (opsional)'"
-            class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white resize-none"
+            class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 resize-none"
           ></textarea>
           <p v-if="isLainnya" class="text-xs text-red-500 mt-1">
             * Wajib diisi untuk alasan "Lainnya"
@@ -66,23 +65,22 @@
         </div>
 
         <!-- Error Message -->
-        <div v-if="errorMessage" class="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-          <p class="text-sm text-red-600 dark:text-red-400">{{ errorMessage }}</p>
+        <div v-if="errorMessage" class="p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p class="text-sm text-red-600">{{ errorMessage }}</p>
         </div>
 
-        <!-- Actions -->
         <div class="flex gap-3 pt-4">
           <button
             type="button"
             @click="$emit('close')"
-            class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+            class="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
           >
             Batal
           </button>
           <button
             type="submit"
             :disabled="isSubmitting"
-            class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            class="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <Loader2 v-if="isSubmitting" :size="16" class="animate-spin" />
             {{ isSubmitting ? 'Mengirim...' : 'Kirim Laporan' }}
@@ -97,7 +95,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { X, Loader2 } from 'lucide-vue-next';
 import { useToast } from 'vue-toastification';
-import api from '@/utils/api';
+import api from '@/libs/axios';
 
 const props = defineProps({
   reportableType: {
@@ -130,6 +128,7 @@ const errorMessage = ref('');
 const reportableTypeLabel = computed(() => {
   const labels = {
     product: 'Produk',
+    service: 'Jasa',
     merchant: 'Merchant',
     post: 'Postingan',
     post_comment: 'Komentar',
@@ -149,7 +148,7 @@ const isLainnya = computed(() => {
 // Methods
 const fetchReasons = async () => {
   try {
-    const response = await api.get(`/admin/reports/reasons`, {
+    const response = await api.get(`/api/report-reasons`, {
       params: { type: props.reportableType },
     });
     reasons.value = response.data;
@@ -161,7 +160,13 @@ const fetchReasons = async () => {
 
 const submitReport = async () => {
   errorMessage.value = '';
-  
+
+  // Validate reason selected
+  if (!form.value.report_reason_id) {
+    errorMessage.value = 'Pilih alasan laporan terlebih dahulu';
+    return;
+  }
+
   // Validate "Lainnya" requires comment
   if (isLainnya.value && !form.value.report_comment.trim()) {
     errorMessage.value = 'Keterangan wajib diisi untuk alasan "Lainnya"';
@@ -171,7 +176,7 @@ const submitReport = async () => {
   isSubmitting.value = true;
 
   try {
-    await api.post('/reports', {
+    await api.post('/api/reports', {
       reportable_type: props.reportableType,
       reportable_id: props.reportableId,
       report_reason_id: form.value.report_reason_id,

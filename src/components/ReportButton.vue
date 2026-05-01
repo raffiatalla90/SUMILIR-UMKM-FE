@@ -1,42 +1,46 @@
 <template>
-  <div class="relative">
+  <div class="relative" @click.stop.prevent>
     <!-- 3-dots button -->
     <button
-      @click="toggleMenu"
-      class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+      @click.stop.prevent="toggleMenu"
+      class="p-1.5 transition-colors focus:outline-none rounded hover:bg-black/5"
       :aria-label="`Report ${reportableName}`"
     >
-      <MoreVertical :size="20" class="text-gray-600 dark:text-gray-400" />
+      <MoreVertical :size="18" class="text-gray-500 hover:text-gray-800" />
     </button>
 
     <!-- Dropdown menu -->
     <div
       v-if="isMenuOpen"
       v-click-outside="closeMenu"
-      class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+      class="absolute right-0 mt-1 w-44 bg-white rounded-lg shadow-lg border border-gray-100 z-50"
     >
       <button
-        @click="openReportModal"
-        class="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg flex items-center gap-2"
+        @click.stop="openReportModal"
+        class="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 rounded-lg flex items-center gap-2"
       >
-        <Flag :size="16" />
+        <Flag :size="15" />
         Laporkan
       </button>
     </div>
 
-    <!-- Report Modal -->
-    <ReportModal
-      v-if="showReportModal"
-      :reportable-type="reportableType"
-      :reportable-id="reportableId"
-      :reportable-name="reportableName"
-      @close="closeReportModal"
-    />
+    <!-- Report Modal via Teleport → renders at body level, bypasses overflow:hidden -->
+    <Teleport to="body">
+      <ReportModal
+        v-if="showReportModal"
+        :reportable-type="reportableType"
+        :reportable-id="reportableId"
+        :reportable-name="reportableName"
+        @close="closeReportModal"
+      />
+    </Teleport>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
 import { MoreVertical, Flag } from 'lucide-vue-next';
 import ReportModal from './ReportModal.vue';
 
@@ -44,7 +48,7 @@ defineProps({
   reportableType: {
     type: String,
     required: true,
-    validator: (value) => ['product', 'merchant', 'post', 'post_comment', 'user'].includes(value),
+    validator: (value) => ['product', 'service', 'merchant', 'post', 'post_comment', 'user'].includes(value),
   },
   reportableId: {
     type: Number,
@@ -59,7 +63,15 @@ defineProps({
 const isMenuOpen = ref(false);
 const showReportModal = ref(false);
 
+const router = useRouter();
+const authStore = useAuthStore();
+
 const toggleMenu = () => {
+  if (!authStore.isAuthenticated) {
+    authStore.requireLoginToast();
+    router.push({ name: 'Login' });
+    return;
+  }
   isMenuOpen.value = !isMenuOpen.value;
 };
 
@@ -68,8 +80,11 @@ const closeMenu = () => {
 };
 
 const openReportModal = () => {
-  showReportModal.value = true;
   closeMenu();
+  // small tick so dropdown closes before modal opens
+  setTimeout(() => {
+    showReportModal.value = true;
+  }, 50);
 };
 
 const closeReportModal = () => {

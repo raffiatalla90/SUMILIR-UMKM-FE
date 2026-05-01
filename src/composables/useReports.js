@@ -42,7 +42,7 @@ export function useReports() {
     loading.value = true;
     try {
       const response = await api.get(`/api/admin/reports/${id}`);
-      return response.data;
+      return response.data?.data ?? response.data;
     } catch (error) {
       console.error("[useReports] Detail fetch failed:", error);
       toast.error("Gagal memuat detail laporan");
@@ -67,6 +67,32 @@ export function useReports() {
     }
   };
 
+  // Export reports list PDF
+  const exportReportsPdf = async (params = {}) => {
+    try {
+      // Remove undefined/null/empty values
+      const cleanParams = Object.fromEntries(
+        Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
+      );
+      const query = new URLSearchParams(cleanParams).toString();
+      const url = `/api/admin/reports/export-pdf${query ? `?${query}` : ''}`;
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error('[useReports] Export PDF failed:', error);
+      toast.error('Gagal mengexport PDF');
+    }
+  };
+
+  // Export single report detail PDF
+  const exportReportDetailPdf = async (id) => {
+    try {
+      window.open(`/api/admin/reports/${id}/export-pdf`, '_blank');
+    } catch (error) {
+      console.error('[useReports] Export detail PDF failed:', error);
+      toast.error('Gagal mengexport PDF');
+    }
+  };
+
   return {
     reports,
     loading,
@@ -74,5 +100,7 @@ export function useReports() {
     fetchReports,
     fetchReportDetail,
     reviewReport,
+    exportReportsPdf,
+    exportReportDetailPdf,
   };
 }

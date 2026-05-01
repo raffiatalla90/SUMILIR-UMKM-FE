@@ -1,6 +1,5 @@
 <script setup>
 import { ref, computed, watch } from "vue";
-
 import ReportButton from "@/components/ReportButton.vue";
 
 const imageError = ref(false);
@@ -96,7 +95,17 @@ watch(
 
 <template>
   <div
-    class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow"
+    :class="`    group
+    flex flex-col rounded-2xl
+    border border-gray-200
+    bg-white
+    shadow-sm
+    overflow-hidden
+    transition-transform duration-300 ease-out
+    hover:-translate-y-1 hover:shadow-md
+    cursor-pointer
+    min-w-[161px]
+    ${customClass} `"
   >
     <!-- Product Image (1:1 aspect ratio) -->
     <div
@@ -114,6 +123,15 @@ watch(
         class="absolute inset-0 flex items-center justify-center w-full h-full bg-muted-background"
       >
         <i class="text-4xl pi pi-shopping-bag text-primary"></i>
+      </div>
+
+      <!-- Report Button -->
+      <div class="absolute top-2 right-2 z-10">
+        <ReportButton
+          reportable-type="product"
+          :reportable-id="product.id"
+          :reportable-name="product.name"
+        />
       </div>
     </div>
 
@@ -150,22 +168,5 @@ watch(
         </span>
       </div>
     </div>
-
-    <!-- Header with Report Button -->
-    <div class="p-4 flex items-start justify-between">
-      <div class="flex-1">
-        <!-- Product info -->
-        <h3 class="font-semibold text-gray-900 dark:text-white">
-          {{ product.name }}
-        </h3>
-      </div>
-
-      <!-- Report Button -->
-      <ReportButton
-        reportable-type="product"
-        :reportable-id="product.id"
-        :reportable-name="product.name"
-      />
-    </div>
   </div>
-</template>
+</template> 

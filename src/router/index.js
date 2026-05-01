@@ -97,7 +97,7 @@ const routes = [
             try {
               // Fetch jasa by ID to get the proper slug
               const { data } = await api.get(`/api/public/jasas/${slug}`);
-              
+
               if (data?.slug) {
                 // Redirect to proper slug URL
                 next({
@@ -182,6 +182,12 @@ const routes = [
         props: true,
         meta: { title: "Detail Komunitas | SUMILIR" },
       },
+      {
+        path: "profile/:id",
+        name: "Public Profile",
+        component: () => import("@/views/PublicProfileView.vue"),
+        meta: { title: "Profil Pengguna | SUMILIR" },
+      },
 
       // ===========================
       // Halaman Customer (butuh auth)
@@ -250,6 +256,16 @@ const routes = [
             meta: { title: "Ubah Kata Sandi | SUMILIR" }, // ← dari kodemu
           },
         ],
+      },
+      {
+        path: "reports",
+        name: "MyReports",
+        component: () => import("@/views/reports/MyReports.vue"),
+        meta: {
+          requiresAuth: true,
+          denyRoles: ["admin"],
+          title: "Laporan Saya | SUMILIR",
+        },
       },
     ],
   },
@@ -472,13 +488,6 @@ const routes = [
         meta: { title: "Report Detail | Admin SUMILIR" },
       },
 
-      // ✅ ADD: Report routes
-      {
-        path: "/reports",
-        name: "MyReports",
-        component: () => import("@/views/reports/M"),
-        meta: { requiresAuth: true },
-      },
     ],
   },
 

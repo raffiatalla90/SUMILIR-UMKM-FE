@@ -48,10 +48,10 @@
           </label>
           <div class="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
             <p class="font-medium text-gray-900 dark:text-white">
-              {{ report.reason?.title }}
+              {{ report.reason?.reason_title }}
             </p>
-            <p v-if="report.reason?.description" class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              {{ report.reason.description }}
+            <p v-if="report.reason?.reason_description" class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              {{ report.reason.reason_description }}
             </p>
           </div>
         </div>
@@ -97,8 +97,8 @@
                 <p class="text-sm text-gray-600 dark:text-gray-400">
                   {{ formatDate(report.reviewed_at) }}
                 </p>
-                <p v-if="report.reviewed_by" class="text-sm text-gray-600 dark:text-gray-400">
-                  Oleh: {{ report.reviewed_by }}
+                <p v-if="report.reviewed_by || report.reviewer?.name" class="text-sm text-gray-600 dark:text-gray-400">
+                  Oleh: {{ report.reviewed_by || report.reviewer?.name }}
                 </p>
               </div>
             </div>
@@ -163,15 +163,26 @@ const getStatusLabel = (status) => {
   return labels[status] || status;
 };
 
+const normalizeType = (type) => {
+  if (!type) return type;
+  const raw = type.split('\\').pop();
+  const lower = raw.toLowerCase();
+  if (lower === 'communitypost') return 'post';
+  if (lower === 'postcomment') return 'post_comment';
+  if (lower === 'jasa') return 'service';
+  return lower;
+};
+
 const getTypeLabel = (type) => {
   const labels = {
     product: 'Produk',
+    service: 'Jasa',
     merchant: 'Merchant',
     post: 'Postingan',
     post_comment: 'Komentar',
     user: 'Pengguna',
   };
-  return labels[type] || type;
+  return labels[normalizeType(type)] || type;
 };
 
 const formatDate = (date) => {
