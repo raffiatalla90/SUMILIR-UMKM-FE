@@ -391,17 +391,26 @@ const handleRegister = async (values) => {
   errorMessage.value = "";
 
   // Validate coordinates from MapPicker
-  const lat = Number(latitude.value);
-  const lng = Number(longitude.value);
-  
-  if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
-    errorMessage.value = "Latitude tidak valid. Gunakan peta untuk memilih lokasi.";
+  if (latitude.value === null || longitude.value === null) {
+    errorMessage.value =
+      "Lokasi wajib dipilih. Gunakan peta untuk menentukan titik lokasi UMKM.";
     isLoading.value = false;
     return;
   }
-  
+
+  const lat = Number(latitude.value);
+  const lng = Number(longitude.value);
+
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+    errorMessage.value =
+      "Latitude tidak valid. Gunakan peta untuk memilih lokasi.";
+    isLoading.value = false;
+    return;
+  }
+
   if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
-    errorMessage.value = "Longitude tidak valid. Gunakan peta untuk memilih lokasi.";
+    errorMessage.value =
+      "Longitude tidak valid. Gunakan peta untuk memilih lokasi.";
     isLoading.value = false;
     return;
   }
@@ -422,7 +431,7 @@ const handleRegister = async (values) => {
         longitude: lng,
       },
     };
-    
+
     console.log("Submitting merchant registration:", payload);
     await registerMerchant(payload);
 

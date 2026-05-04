@@ -65,14 +65,6 @@
 
           <button
             v-if="activeTab === 'selesai'"
-            @click="router.push(order.reviewRoute)"
-            class="px-3 py-2 text-xs font-medium text-white rounded-lg bg-merchant-primary hover:bg-merchant-primary/90"
-          >
-            {{ order.reviewLabel }}
-          </button>
-
-          <button
-            v-if="activeTab === 'selesai'"
             class="px-3 py-2 text-xs font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
           >
             Pesan Lagi
@@ -85,9 +77,6 @@
 
 <script setup>
 import { ref, computed } from "vue";
-import { useRouter } from "vue-router";
-
-const router = useRouter();
 const activeTab = ref("aktif");
 
 const activeOrders = [
@@ -114,8 +103,6 @@ const doneOrders = [
     items: "Pentol Juara, Pempek Kapal Selam",
     total: "Rp 36.000",
     status: "Selesai",
-    reviewLabel: "Beri Nilai",
-    reviewRoute: "/my-order/give-review",
   },
   {
     id: 4,
@@ -123,8 +110,6 @@ const doneOrders = [
     items: "Beras WangiKu, MinyakKita",
     total: "Rp 85.000",
     status: "Selesai",
-    reviewLabel: "Lihat Penilaian",
-    reviewRoute: "/my-order/review",
   },
 ];
 

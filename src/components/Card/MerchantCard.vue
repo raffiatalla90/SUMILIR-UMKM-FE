@@ -124,4 +124,74 @@ const formattedDistanceKm = computed(() => {
   if (distanceKm.value == null) return null;
   return `${distanceKm.value.toFixed(1)} km`;
 });
+
+const primaryAddressString = computed(() => {
+  const addr = props.merchant?.primary_address;
+  if (!addr) return "";
+
+  const parts = [];
+  const detail = addr.detail ? String(addr.detail).trim() : "";
+  if (detail) parts.push(detail);
+  if (addr.village?.name) parts.push(String(addr.village.name));
+  if (addr.district?.name) parts.push(String(addr.district.name));
+  if (addr.city?.name) parts.push(String(addr.city.name));
+  if (addr.province?.name) parts.push(String(addr.province.name));
+
+  return parts.join(", ");
+});
+
+const merchantLogoUrl = computed(() => {
+  const merchant = props.merchant;
+
+  if (!merchant) return "";
+
+  if (merchant.logo_url) {
+    return merchant.logo_url;
+  }
+
+  if (merchant.id && merchant.logo_path) {
+    return getMerchantLogoUrl(merchant);
+  }
+
+  if (merchant.logo_path) {
+    return getImageUrl(merchant.logo_path);
+  }
+
+  return "";
+});
+
+// Tentukan apakah merchant ini tipe Jasa berdasarkan segmentation
+const isMerchantJasa = computed(() => {
+  const segmentName = String(props.merchant?.segmentation?.name || "").toLowerCase();
+  const jasasCount = Number(
+    props.merchant?.jasas_count ??
+      props.merchant?.services_count ??
+      props.merchant?.jasa_count ??
+      0,
+  );
+  const productsCount = Number(props.merchant?.products_count ?? 0);
+
+  return segmentName.includes("jasa") || (jasasCount > 0 && productsCount === 0);
+});
+
+// Tampilkan counter yang sesuai
+const displayCount = computed(() => {
+  const productsCount = Number(props.merchant?.products_count ?? 0);
+  const jasasCount = Number(
+    props.merchant?.jasas_count ??
+      props.merchant?.services_count ??
+      props.merchant?.jasa_count ??
+      (isMerchantJasa.value ? productsCount : 0),
+  );
+
+  if (isMerchantJasa.value) {
+    return jasasCount;
+  }
+  return productsCount;
+});
+
+// Tampilkan label yang sesuai
+const displayLabel = computed(() => {
+  return isMerchantJasa.value ? "Layanan Jasa" : "Produk";
+});
 </script>

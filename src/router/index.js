@@ -120,7 +120,9 @@ const routes = [
             } catch (e) {
               try {
                 // If this slug belongs to a merchant, redirect to merchant detail page
-                await api.get(`/api/public/merchants/${encodeURIComponent(slug)}`);
+                await api.get(
+                  `/api/public/merchants/${encodeURIComponent(slug)}`,
+                );
                 return next({
                   name: "Merchant Detail",
                   params: { slug },
@@ -692,39 +694,6 @@ const routes = [
       //   },
       // },
 
-      // ===========================
-      // REVIEWS & ULASAN
-      // ===========================
-      {
-        path: "reviews",
-        name: "Merchant - Reviews",
-        component: () => import("@/views/merchant/reviews/Index.vue"),
-        meta: {
-          title: "Review & Ulasan UMKM | SUMILIR",
-        },
-      },
-
-      // ===========================
-      // CHAT DENGAN PEMBELI
-      // ===========================
-      {
-        path: "chats",
-        name: "Merchant Chat",
-        component: () => import("@/views/merchant/chats/Index.vue"),
-        meta: {
-          title: "Chat dengan Pembeli | SUMILIR",
-        },
-      },
-
-      {
-        path: "chats/:conversationId",
-        name: "Merchant Chat Detail",
-        component: () => import("@/views/merchant/chats/ChatDetail.vue"),
-        meta: {
-          title: "Detail Chat | SUMILIR",
-        },
-      },
-
       {
         path: "orders",
         name: "Merchant - Orders",
@@ -799,29 +768,22 @@ const routes = [
         component: () => import("@/views/CustomerOrder/MyOrderView.vue"),
         meta: { title: "My Order | SUMILIR" }, // ← dari kodemu
       },
-      {
-        path: "give-review/:orderId?",
-        name: "GiveReview",
-        component: () => import("@/views/CustomerOrder/GiveReviewView.vue"),
-        meta: { title: "Beri Nilai | SUMILIR" }, // ← dari kodemu
-      },
-      {
-        path: "review",
-        name: "Review",
-        component: () => import("@/views/CustomerOrder/ReviewView.vue"),
-        meta: { title: "Lihat Penilaian | SUMILIR" }, // ← dari kodemu
-      },
-      {
-        path: "review/edit-review",
-        name: "EditReview",
-        component: () => import("@/views/CustomerOrder/EditReviewView.vue"),
-        meta: { title: "Edit Penilaian | SUMILIR" }, // ← dari kodemu
-      },
     ],
   },
 
-  // Fallback
-  { path: "/:pathMatch(.*)*", redirect: "/" },
+  // Fallback — uses beforeEnter so /backend/ paths are NOT redirected to "/".
+  // The inline <head> script sets window.__BACKEND_REDIRECT and handles hard-nav.
+  {
+    path: "/:pathMatch(.*)*",
+    beforeEnter: (to, from, next) => {
+      if (window.__BACKEND_REDIRECT || to.path.startsWith("/backend/")) {
+        // Abort Vue navigation — the inline script handles the redirect.
+        return;
+      }
+      next("/");
+    },
+    component: { render: () => null },
+  },
 ];
 
 const router = createRouter({
@@ -862,6 +824,14 @@ let lastNavigationPath = null;
 let authInitialized = false;
 
 router.beforeEach(async (to, from, next) => {
+  // Backend API routes should NEVER be handled by Vue.
+  // If the Service Worker served index.html for a /backend/ URL,
+  // force a full-page navigation so the server handles it.
+  if (to.path.startsWith("/backend/")) {
+    window.location.href = to.fullPath;
+    return;
+  }
+
   const authStore = useAuthStore();
   // Basic SEO for all routes (can be overridden by page-level dynamic SEO)
   try {

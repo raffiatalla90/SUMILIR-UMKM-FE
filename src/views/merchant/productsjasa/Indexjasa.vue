@@ -18,10 +18,8 @@ import JasaCard from "@/components/common/ProductCard.vue"; // reuse ProductCard
 import MobilePagination from "@/components/common/MobilePagination.vue";
 import BulkActionBar from "@/components/common/BulkActionBar.vue";
 import { useJasa } from "@/composables/useJasa"; // ✅ GANTI: import useJasa
-import { useChat } from "@/composables/useChat";
-// import ChatWindow from "@/components/common/ChatWindow.vue";
 import { useCategories } from "@/composables/useCategories";
-import { getImageUrlJasa } from "@/libs/getImageUrl.js";
+import { getImageUrl } from "@/libs/getImageUrl.js";
 import api from "@/libs/axios";
 
 const router = useRouter();
@@ -821,12 +819,19 @@ const closeBulkStatusChangeModal = () => {
 };
 
 // Helper: pilih cover image dari relasi baru atau fallback ke field legacy `image`
+// Prioritas: API URL (cover_img.src_url, images[].url) > fallback ke ID
 const getPrimaryImageSrc = (jasaItem) => {
   if (!jasaItem) return "";
 
-  // Prioritas 1: cover utama yang disinkronkan backend saat create/edit
-  if (jasaItem.image) {
-    return getImageUrlJasa(jasaItem.image);
+  // Prioritas 1: cover_img.src_url dari backend (sama seperti produk)
+  if (jasaItem.cover_img?.src_url) {
+    return getImageUrl(jasaItem.cover_img.src_url);
+  }
+  if (jasaItem.cover_img?.url) {
+    return getImageUrl(jasaItem.cover_img.url);
+  }
+  if (jasaItem.cover_img?.id) {
+    return getImageUrl(jasaItem.cover_img.id);
   }
   
   const images = jasaItem.images || [];
@@ -835,57 +840,20 @@ const getPrimaryImageSrc = (jasaItem) => {
     // Cari gambar cover atau ambil yang pertama
     const coverImage = images.find((img) => img.is_cover) || images[0];
     
-    // Gunakan url/src_url dari backend jika tersedia
-    if (coverImage.url) return coverImage.url;
-    if (coverImage.src_url) return coverImage.src_url;
+    // Prioritas 2: url/src_url dari backend (API endpoint /api/images/{id})
+    if (coverImage.url) return getImageUrl(coverImage.url);
+    if (coverImage.src_url) return getImageUrl(coverImage.src_url);
     
-    // Fallback ke path atau id
-    if (coverImage.path) return getImageUrlJasa(coverImage.path);
-    if (coverImage.image_path) return getImageUrlJasa(coverImage.image_path);
-    if (coverImage.id) return getImageUrlJasa(coverImage.id);
+    // Prioritas 3: gunakan image ID untuk akses via /api/images/{id}
+    if (coverImage.id) return getImageUrl(coverImage.id);
+    if (coverImage.image_path) return getImageUrl(coverImage.image_path);
   }
+
+  if (jasaItem.image) return getImageUrl(jasaItem.image);
   
   return "";
 };
 
-// =======================
-// Chat (Daftar Percakapan)
-// =======================
-// Fitur chat pembeli di halaman Index Jasa sementara disembunyikan dari UI,
-// namun logika chat tetap aktif sehingga bisa digunakan kembali kapan saja.
-
-// Chat composable
-const { conversations, fetchConversations } = useChat();
-
-const showChatPanel = ref(false);
-const selectedConversationId = ref(null);
-
-// Kunci scroll body ketika popup chat terbuka
-useBodyScrollLock(showChatPanel);
-
-const hasConversations = computed(() => {
-  return Array.isArray(conversations.value) && conversations.value.length > 0;
-});
-
-const openChatModal = async () => {
-  showChatPanel.value = true;
-  try {
-    await fetchConversations();
-    if (!selectedConversationId.value && hasConversations.value) {
-      selectedConversationId.value = conversations.value[0]?.id || null;
-    }
-  } catch (e) {
-    console.error("Gagal memuat percakapan", e);
-  }
-};
-
-const closeChatModal = () => {
-  showChatPanel.value = false;
-};
-
-const selectConversation = (conversation) => {
-  selectedConversationId.value = conversation.id;
-};
 </script>
 
 <template>
@@ -1040,7 +1008,7 @@ const selectConversation = (conversation) => {
             <!-- Gambar -->
             <div class="mb-4">
               <div
-                v-if="(jasa.images && jasa.images.length > 0) || jasa.image"
+                v-if="(jasa.images && jasa.images.length > 0) || jasa.cover_img"
                 class="flex items-center justify-center w-full h-40 mb-3 overflow-hidden bg-gray-100 rounded-lg"
               >
                 <img
@@ -1223,119 +1191,6 @@ const selectConversation = (conversation) => {
         </template>
       </ResponsiveModal>
 
-      <!-- Chat Popup dengan blur background -->
-      <transition
-        enter-active-class="transition duration-200 ease-out"
-        enter-from-class="opacity-0"
-        enter-to-class="opacity-100"
-        leave-active-class="transition duration-150 ease-in"
-        leave-from-class="opacity-100"
-        leave-to-class="opacity-0"
-      >
-        <div
-          v-if="showChatPanel"
-          class="fixed inset-0 z-50 flex items-end justify-center sm:items-center bg-black/40 backdrop-blur-sm"
-          @click.self="closeChatModal"
-        >
-          <div
-            class="w-full max-w-full sm:max-w-4xl lg:max-w-5xl mx-0 sm:mx-4 bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col h-[70vh] sm:h-[80vh] sm:max-h-[85vh]"
-          >
-            <!-- Header -->
-            <div
-              class="flex items-center justify-between px-3 py-2 border-b border-gray-200 sm:px-4 sm:py-3 bg-gray-50 rounded-t-2xl"
-            >
-              <div>
-                <h2 class="text-xs font-semibold text-gray-900 sm:text-base">
-                  Chat Pembeli
-                </h2>
-                <p class="text-[10px] sm:text-xs text-gray-500 hidden sm:block">
-                  Balas pertanyaan dan berikan penawaran harga ke pembeli.
-                </p>
-              </div>
-              <button
-                type="button"
-                class="flex items-center justify-center text-gray-500 rounded-full w-7 h-7 sm:w-8 sm:h-8 hover:bg-gray-100"
-                @click="closeChatModal"
-              >
-                <i class="text-xs pi pi-times sm:text-sm"></i>
-              </button>
-            </div>
-
-            <!-- Body -->
-            <div class="flex flex-col flex-1 p-2 overflow-hidden sm:p-4">
-              <div
-                class="flex flex-col flex-1 min-h-0 gap-2 overflow-hidden md:flex-row sm:gap-4"
-              >
-                <!-- Daftar percakapan -->
-                <div
-                  class="flex flex-col w-full overflow-hidden bg-white border border-gray-200 rounded-lg h-28 sm:h-auto md:w-1/3 sm:rounded-xl shrink-0 md:shrink"
-                >
-                  <div
-                    class="px-2 sm:px-3 py-1.5 sm:py-2 border-b border-gray-200 bg-gray-50"
-                  >
-                    <p
-                      class="text-[10px] sm:text-xs font-semibold text-gray-700 flex items-center gap-1 sm:gap-2"
-                    >
-                      <i
-                        class="pi pi-inbox text-gray-500 text-[10px] sm:text-xs"
-                      ></i>
-                      Daftar Percakapan
-                    </p>
-                  </div>
-                  <div class="flex-1 overflow-y-auto divide-y divide-gray-100">
-                    <div
-                      v-if="!hasConversations"
-                      class="px-2 sm:px-3 py-2 sm:py-4 text-[10px] sm:text-xs text-gray-500 text-center"
-                    >
-                      Belum ada percakapan dari pembeli.
-                    </div>
-                    <button
-                      v-else
-                      v-for="convo in conversations"
-                      :key="convo.id"
-                      type="button"
-                      @click="selectConversation(convo)"
-                      :class="[
-                        'w-full text-left px-2 sm:px-3 py-1.5 sm:py-2 flex flex-col gap-0.5 hover:bg-gray-50 transition',
-                        selectedConversationId === convo.id
-                          ? 'bg-merchant-primary/5 border-l-2 sm:border-l-4 border-merchant-primary'
-                          : '',
-                      ]"
-                    >
-                      <p
-                        class="text-[10px] sm:text-xs font-semibold text-gray-900 truncate"
-                      >
-                        {{ convo?.buyer?.name || "Pembeli" }}
-                      </p>
-                      <p
-                        class="text-[9px] sm:text-[11px] text-gray-500 truncate hidden sm:block"
-                      >
-                        Jasa:
-                        {{ convo?.jasa?.title || convo?.jasa?.name || "-" }}
-                      </p>
-                      <p
-                        v-if="convo?.last_message"
-                        class="text-[9px] sm:text-[11px] text-gray-400 truncate hidden sm:block"
-                      >
-                        {{ convo.last_message.body || "Pesan terbaru" }}
-                      </p>
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Chat window sementara dinonaktifkan -->
-                <div class="flex-1 w-full min-h-0 md:flex-1">
-                  <div
-                    class="h-full text-[10px] sm:text-xs text-gray-500 text-center border border-dashed border-gray-300 rounded-lg sm:rounded-xl bg-gray-50/60 px-2 sm:px-4 py-4 sm:py-6 flex items-center justify-center"
-                  >
-                    Fitur chat merchant belum tersedia untuk sementara.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </transition>
     </div>
 
       <!-- Pagination -->

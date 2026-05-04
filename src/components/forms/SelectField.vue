@@ -30,7 +30,7 @@ Events:
 - update:modelValue => emit saat nilai berubah
 */
 import { Field, ErrorMessage } from "vee-validate";
-import { computed } from "vue";
+import { computed, getCurrentInstance } from "vue";
 
 const props = defineProps({
   name: { type: String, required: true },
@@ -45,8 +45,11 @@ const props = defineProps({
   variant: { type: String, default: "primary" },
   required: { type: Boolean, default: false },
   autocomplete: { type: String, default: "" },
+  id: { type: String, default: "" },
 });
 const emit = defineEmits(["update:modelValue"]);
+const instanceUid = getCurrentInstance()?.uid;
+const selectId = computed(() => props.id || `${props.name}-${instanceUid}`);
 
 const focusRingClass = computed(() => {
   return props.variant === "merchant"
@@ -76,7 +79,7 @@ const selectClasses = (invalid) =>
   <div>
     <label
       v-if="label"
-      :for="name"
+      :for="selectId"
       class="block text-sm font-bold text-black mb-2"
     >
       {{ label }}
@@ -98,7 +101,7 @@ const selectClasses = (invalid) =>
         v-slot="{ field, meta, errors }"
       >
         <select
-          :id="name"
+          :id="selectId"
           :name="field.name"
           :value="field.value"
           @change="field.onChange"

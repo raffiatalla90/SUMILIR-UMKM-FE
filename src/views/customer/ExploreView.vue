@@ -310,7 +310,7 @@ import "vue3-carousel/dist/carousel.css";
 
 import api from "@/libs/axios.js";
 import { useToast } from "vue-toastification";
-import { getImageUrlJasa, getEventBannerUrl } from "@/libs/getImageUrl.js";
+import { getImageUrl, getEventBannerUrl } from "@/libs/getImageUrl.js";
 import { usePublicEvents } from "@/composables/usePublicEvents";
 import { useRoute, useRouter } from "vue-router";
 import * as ProductService from "@/services/api/product";
@@ -845,11 +845,13 @@ const jasaToProductCard = (jasa) => {
 };
 
 const cardItems = computed(() => {
-  return (filteredJasaList.value || []).map((jasa) => ({
-    key: `jasa-${getJasaId(jasa)}`,
-    to: { name: "JasaDetail", params: { slug: jasa.slug || String(getJasaId(jasa)) } },
-    product: jasaToProductCard(jasa),
-  }));
+  return (filteredJasaList.value || [])
+    .filter((jasa) => typeof jasa?.slug === "string" && jasa.slug.trim())
+    .map((jasa) => ({
+      key: `jasa-${getJasaId(jasa)}`,
+      to: { name: "JasaDetail", params: { slug: jasa.slug } },
+      product: jasaToProductCard(jasa),
+    }));
 });
 
 const productCardItems = computed(() => {
@@ -895,29 +897,27 @@ const selectCategory = (categoryId) => {
     selectedCategoryId.value === categoryId ? null : categoryId;
 };
 
-// normalisasi path gambar jasa → URL lengkap dari backend
+// normalisasi path gambar jasa → URL lengkap dari backend (sama seperti produk)
 const resolveJasaImage = (jasa) => {
-  // Prioritas utama: cover legacy yang dipakai saat create/edit merchant
-  if (jasa?.image) {
-    return getImageUrlJasa(jasa.image);
-  }
+  // Prioritas: API URL (cover_img.src_url, images[].src_url) > ID
+  if (jasa?.cover_img?.id) return getImageUrl(jasa.cover_img.id);
+  if (jasa?.cover_img?.src_url) return getImageUrl(jasa.cover_img.src_url);
+  if (jasa?.cover_img?.url) return getImageUrl(jasa.cover_img.url);
 
-  // If backend already provides a resolved cover URL
-  if (typeof jasa?.cover_image === "string" && jasa.cover_image)
-    return jasa.cover_image;
   // Some endpoints return cover_image object: { id, src_url }
   if (jasa?.cover_image && typeof jasa.cover_image === "object") {
-    const srcUrl = jasa.cover_image?.src_url;
-    if (typeof srcUrl === "string" && srcUrl) return srcUrl;
+    if (jasa.cover_image?.id) return getImageUrl(jasa.cover_image.id);
+    if (jasa.cover_image?.src_url) return getImageUrl(jasa.cover_image.src_url);
+    if (jasa.cover_image?.url) return getImageUrl(jasa.cover_image.url);
   }
 
   // Prioritaskan relasi images (cover image)
   if (jasa.images && jasa.images.length > 0) {
     const coverImage =
       jasa.images.find((img) => img.is_cover) || jasa.images[0];
-    const path =
-      coverImage.path || coverImage.url || coverImage.image || coverImage.id;
-    if (path) return getImageUrlJasa(path);
+    if (coverImage.id) return getImageUrl(coverImage.id);
+    if (coverImage.src_url) return getImageUrl(coverImage.src_url);
+    if (coverImage.url) return getImageUrl(coverImage.url);
   }
 
   return "";
@@ -1080,8 +1080,22 @@ const fetchJasas = async ({ append } = { append: false }) => {
     };
 
     const payload = await searchProducts(params);
-    const meta = payload?.jasas_meta ?? {};
-    const items = Array.isArray(payload?.jasas) ? payload.jasas : [];
+
+    // Backward compatible parser:
+    // - legacy: { jasas, jasas_meta }
+    // - current ApiResponse: { data, meta: { jasas, jasas_meta } }
+    const rootJasas = Array.isArray(payload?.jasas) ? payload.jasas : [];
+    const metaJasas = Array.isArray(payload?.meta?.jasas)
+      ? payload.meta.jasas
+      : [];
+
+    const items = rootJasas.length > 0 ? rootJasas : metaJasas;
+
+    const meta = payload?.jasas_meta ??
+      payload?.meta?.jasas_meta ?? {
+        current_page: Number(payload?.meta?.current_page ?? 1),
+        last_page: Number(payload?.meta?.last_page ?? 1),
+      };
     const mapped = items.map((j) => ({
       ...j,
       image: resolveJasaImage(j),
@@ -1226,9 +1240,12 @@ const fetchMerchants = async ({ append } = { append: false }) => {
   }
 };
 
+let isModeChanging = false;
+
 watch(
   () => activeMode.value,
   async () => {
+    isModeChanging = true;
     // reset UI filters saat mode berganti
     selectedCategoryId.value = null;
     showAllCategories.value = false;
@@ -1254,12 +1271,14 @@ watch(
 
     await nextTick();
     setupObserver();
+    isModeChanging = false;
   },
 );
 
 watch(
   () => [...activeInstantSorts.value],
   async () => {
+    if (isModeChanging) return;
     // reset pagination ketika sort berubah
     resetInfiniteScroll();
     currentPage.value = 1;

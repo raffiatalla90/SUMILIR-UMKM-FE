@@ -1,8 +1,8 @@
 <script setup>
-import { ref, computed, onMounted, watch, inject } from "vue"; 
+import { ref, computed, onMounted, watch, inject } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
-import api from "@/libs/axios"; 
+import api from "@/libs/axios";
 import AdminTable from "@/components/common/AdminTable.vue";
 import StatusLabel from "@/components/common/StatusLabel.vue";
 import ResponsiveModal from "@/components/common/ResponsiveModal.vue";
@@ -30,20 +30,14 @@ const exportLoading = ref(false);
 
 const selectedEvent = ref(null);
 
-const selectedEvents = ref([]); 
+const selectedEvents = ref([]);
 const selectAll = ref(false);
 
 const activeFilters = ref({
   status: "",
 });
 
-const {
-  events,
-  loading,
-  pagination,
-  fetchEvents,
-  deleteEvent,
-} = useEvents();
+const { events, loading, pagination, fetchEvents, deleteEvent } = useEvents();
 
 const tableColumns = [
   { key: "banner_img_path", label: "Banner", sortable: false },
@@ -56,10 +50,12 @@ const tableColumns = [
 ];
 
 const paginationInfo = computed(() => ({
-  start: (pagination.value?.current_page - 1) * (pagination.value?.per_page || 10) + 1,
+  start:
+    (pagination.value?.current_page - 1) * (pagination.value?.per_page || 10) +
+    1,
   end: Math.min(
     (pagination.value?.current_page || 1) * (pagination.value?.per_page || 10),
-    pagination.value?.total || 0
+    pagination.value?.total || 0,
   ),
   total: pagination.value?.total || 0,
 }));
@@ -109,7 +105,7 @@ function highlightText(text) {
     re,
     '<span class="bg-merchant-primary/20 text-merchant-primary font-bold px-1 rounded">' +
       "$1" +
-      "</span>"
+      "</span>",
   );
 }
 
@@ -164,14 +160,18 @@ const prevPage = () => {
   }
 };
 
+let searchDebounceTimer = null;
 watch([searchQuery, () => activeFilters.value.status], () => {
-  currentPage.value = 1;
-  loadEvents();
+  clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(() => {
+    currentPage.value = 1;
+    loadEvents();
+  }, 400);
 });
 
 // Modal methods
 const openExportModal = () => {
-  console.log('openExportModal called in List.vue');
+  console.log("openExportModal called in List.vue");
   showExportModal.value = true;
 };
 
@@ -181,7 +181,7 @@ const closeExportModal = () => {
 
 // ✅ Export PDF method
 const exportPDF = async () => {
-  console.log('exportPDF called'); // ✅ ADD debug log
+  console.log("exportPDF called"); // ✅ ADD debug log
   exportLoading.value = true;
   try {
     const response = await api.get("/api/admin/events/export-pdf", {
@@ -195,7 +195,10 @@ const exportPDF = async () => {
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", `events-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    link.setAttribute(
+      "download",
+      `events-report-${new Date().toISOString().split("T")[0]}.pdf`,
+    );
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -211,21 +214,20 @@ const exportPDF = async () => {
 };
 
 // ✅ Inject the register function from parent
-const registerExportModal = inject('registerExportModal', null);
+const registerExportModal = inject("registerExportModal", null);
 
 // ✅ Expose openExportModal to parent via register callback
 onMounted(() => {
   loadEvents();
-  
+
   // Register the export modal function with parent
-  if (registerExportModal && typeof registerExportModal === 'function') {
-    console.log('Registering export modal callback for events list');
+  if (registerExportModal && typeof registerExportModal === "function") {
+    console.log("Registering export modal callback for events list");
     registerExportModal(openExportModal);
   } else {
-    console.warn('registerExportModal not provided by parent');
+    console.warn("registerExportModal not provided by parent");
   }
 });
-
 </script>
 
 <template>

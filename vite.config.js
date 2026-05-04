@@ -14,8 +14,12 @@ export default defineConfig(({ mode }) => {
       vue(),
       tailwindcss(),
       VitePWA({
+        // Emergency recovery mode: generate a self-destroying SW so clients
+        // with a stale worker stop intercepting /backend verification URLs.
+        // Re-enable normal PWA behavior after affected clients have recovered.
+        selfDestroying: true,
         registerType: "autoUpdate",
-        devOptions: { enabled: mode === "development" },
+        devOptions: { enabled: false },
         manifest: {
           name: "Sumilir",
           short_name: "Sumilir",
@@ -40,21 +44,29 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           cleanupOutdatedCaches: true,
+          skipWaiting: true,
+          clientsClaim: true,
           navigateFallback: "/index.html", // ✅ Root
-          navigateFallbackDenylist: [/^\/api\//], // ✅ Exclude /api/
+          navigateFallbackDenylist: [
+            /^\/api\//,
+            /^\/api$/,
+            /^\/backend\//,
+            /^\/backend$/,
+            /^\/sanctum\//,
+          ], // ✅ Exclude /api/ and /backend/ and /sanctum/
           runtimeCaching: [
             {
               urlPattern: ({ request, sameOrigin }) =>
                 sameOrigin &&
                 ["style", "script", "image", "font"].includes(
-                  request.destination
+                  request.destination,
                 ),
               handler: "StaleWhileRevalidate",
               options: { cacheName: "assets-cache-v1" },
             },
             {
               urlPattern: new RegExp(
-                `^${apiBase.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}/.*`
+                `^${apiBase.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}/.*`,
               ),
               handler: "NetworkFirst",
               method: "GET",

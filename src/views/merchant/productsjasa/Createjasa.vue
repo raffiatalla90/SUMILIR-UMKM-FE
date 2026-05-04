@@ -201,7 +201,7 @@ const formData = ref({
 // Validation schema
 const validationSchema = yup.object({
   title: yup.string().required("Nama layanan wajib diisi"),
-  description: yup.string().nullable(),
+  description: yup.string().required("Deskripsi layanan wajib diisi").min(20, "Deskripsi minimal 20 karakter"),
   jasa_category_id: yup.number().required("Kategori layanan wajib dipilih"),
   jasa_subcategory_id: yup
     .number()
@@ -560,8 +560,9 @@ const submitForm = async (values) => {
     });
 
     fd.set("location_address", formData.value.location_address || "");
-    // Paksa status selalu disimpan sebagai draft saat create
-    fd.set("status", "draft");
+    fd.set("operating_times", formData.value.operating_times || "");
+      // Default create sebagai draft — pelaku UMKM harus publish manual
+      fd.set("status", "draft");
 
     // Append images[] if any
     if (imageFiles.value && imageFiles.value.length) {
@@ -585,18 +586,7 @@ const submitForm = async (values) => {
       fd
     );
 
-    toast.success("Jasa berhasil dibuat!");
-    
-    // Informative toast about draft status
-    setTimeout(() => {
-      toast.info(
-        "💡 Jasa Anda masih dalam status DRAFT. Silakan publikasikan agar dapat dilihat pelanggan.",
-        {
-          timeout: 8000,
-          closeButton: true,
-        }
-      );
-    }, 1500);
+    toast.success("Jasa berhasil dibuat sebagai Draft. Silakan publish agar tampil ke customer.");
     
     // Clear form draft after successful submission
     clearFormDraft();
@@ -728,21 +718,23 @@ onBeforeUnmount(() => {
                   :disabled="!jasaSubcategories.length"
                 />
 
-                <Field name="description" v-slot="{ field }">
+                <Field name="description" v-slot="{ field, errors }">
                   <div class="sm:col-span-2">
                     <label
                       class="block mb-2 text-sm font-semibold text-gray-700"
-                      >Deskripsi Layanan</label
+                      >Deskripsi Layanan <span class="text-red-500">*</span></label
                     >
                     <textarea
                       :name="field.name"
                       :value="field.value"
                       @input="(e) => { field.onChange(e.target.value); formData.description = e.target.value; }"
                       @blur="field.onBlur"
-                      placeholder="Jelaskan detail tentang layanan Anda secara lengkap..."
-                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Jelaskan detail tentang layanan Anda secara lengkap (minimal 20 karakter)..."
+                      class="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      :class="errors.length ? 'border-red-500' : 'border-gray-300'"
                       rows="4"
                     />
+                    <span v-if="errors.length" class="mt-1 text-xs text-red-500">{{ errors[0] }}</span>
                   </div>
                 </Field>
               </div>
@@ -1189,11 +1181,12 @@ onBeforeUnmount(() => {
               <div>
                 <p class="mb-2 text-sm text-gray-700">
                   Layanan baru akan disimpan sebagai
-                  <span class="font-semibold text-orange-600">Draft</span>.
+                  <span class="font-semibold text-amber-600">Draft</span>.
                 </p>
                 <p class="text-xs text-gray-500">
-                  Setelah tersimpan, Anda dapat membuka halaman Edit untuk
-                  mem-publish layanan atau mengarsipkannya sesuai kebutuhan.
+                  Setelah tersimpan, layanan belum tampil di customer. Publish
+                  terlebih dahulu dari halaman Daftar Jasa/Edit agar layanan
+                  muncul.
                 </p>
               </div>
             </div>
