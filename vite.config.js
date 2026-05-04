@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
         // Re-enable normal PWA behavior after affected clients have recovered.
         selfDestroying: true,
         registerType: "autoUpdate",
-        devOptions: { enabled: false },
+        devOptions: { enabled: true },
         manifest: {
           name: "Sumilir",
           short_name: "Sumilir",

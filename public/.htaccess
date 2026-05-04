@@ -12,9 +12,19 @@
     <FilesMatch "^(index\.html|sw\.js|registerSW\.js|manifest\.webmanifest|workbox-.*\.js)$">
         Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
         Header set Pragma "no-cache"
-        Header set Expires "0"
+        Header set Expires "0"di local masi
     </FilesMatch>
 </IfModule>
+
+<IfModule mod_mime.c>
+    AddType application/manifest+json .webmanifest
+</IfModule>
+
+<FilesMatch "^manifest\.webmanifest$">
+    Order allow,deny
+    Allow from all
+    Require all granted
+</FilesMatch>
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
