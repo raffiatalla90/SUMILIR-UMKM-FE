@@ -480,7 +480,7 @@ watch(searchQuery, () => {
               <ul class="text-xs text-blue-800 space-y-1 list-disc list-inside">
                 <li>Data lengkap users (Nama, Email, Phone, NIK)</li>
                 <li>Role dan status users</li>
-                <li>Informasi merchants yang dimiliki</li>
+                <li>Informasi UMKM yang dimiliki</li>
                 <li>Filter yang diterapkan (Status, Role, Pencarian)</li>
                 <li>Informasi waktu download dan user yang mendownload</li>
               </ul>

@@ -48,7 +48,7 @@ const {
 const tableColumns = [
   { key: "banner_img_path", label: "Banner", sortable: false },
   { key: "event_name", label: "Event", sortable: true },
-  { key: "merchants_count", label: "Merchant", sortable: true },
+  { key: "merchants_count", label: "UMKM", sortable: true },
   { key: "vouchers_count", label: "Voucher", sortable: true },
   { key: "event_start_date", label: "Periode", sortable: true },
   { key: "status", label: "Status", sortable: true },

@@ -536,7 +536,7 @@ onMounted(async () => {
           <div class="space-y-4">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-3">
-                <h3 class="text-xl font-bold text-gray-900">Merchant Terdaftar</h3>
+                <h3 class="text-xl font-bold text-gray-900">UMKM Terdaftar</h3>
                 <span class="px-2.5 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs font-bold">{{ activeMerchants.length }}</span>
               </div>
               <div class="flex items-center gap-2">
@@ -609,7 +609,7 @@ onMounted(async () => {
                   @click="router.push({ name: 'Admin - Merchant Detail', params: { id: merchant.id } })"
                   class="w-full py-2 text-xs font-bold text-merchant-primary hover:bg-merchant-primary hover:text-white border border-merchant-primary/20 rounded-xl transition-all"
                 >
-                  Detail Merchant
+                  Detail UMKM
                 </button>
               </div>
             </div>
@@ -637,7 +637,7 @@ onMounted(async () => {
             <div class="grid grid-cols-2 gap-4 relative z-10">
               <div class="bg-white/10 rounded-2xl p-4 backdrop-blur-sm">
                 <p class="text-3xl font-bold mb-1">{{ activeMerchants.length }}</p>
-                <p class="text-[10px] font-bold uppercase opacity-80">Total Merchant</p>
+                <p class="text-[10px] font-bold uppercase opacity-80">Total UMKM</p>
               </div>
               <div class="bg-white/10 rounded-2xl p-4 backdrop-blur-sm">
                 <p class="text-3xl font-bold mb-1">{{ event.vouchers?.length || 0 }}</p>
