@@ -82,7 +82,12 @@ export const getImageUrlJasa = (imageIdOrPath) => {
  * @returns {string} Event banner URL
  */
 export function getEventBannerUrl(event) {
-  if (!event?.id || !event?.banner_img_path) {
+  if (!event?.id) {
+    return null;
+  }
+
+  // Support both banner_img_path (raw) and banner_url (transformed by API)
+  if (!event.banner_img_path && !event.banner_url) {
     return null;
   }
 
