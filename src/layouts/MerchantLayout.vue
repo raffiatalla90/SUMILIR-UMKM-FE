@@ -112,11 +112,11 @@ const menuItems = computed(() => {
       icon: "pi-comments",
       route: `/merchant-center/${currentMerchantSlug.value}/chats`,
     },
-    // {
-    //   label: "Events",
-    //   icon: "pi-calendar",
-    //   route: `/merchant-center/${currentMerchantSlug.value}/events`,
-    // },
+    {
+      label: "Events",
+      icon: "pi-calendar",
+      route: `/merchant-center/${currentMerchantSlug.value}/events`,
+    },
   ];
 });
 

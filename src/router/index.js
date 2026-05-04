@@ -188,6 +188,18 @@ const routes = [
         component: () => import("@/views/PublicProfileView.vue"),
         meta: { title: "Profil Pengguna | SUMILIR" },
       },
+      {
+        path: "events",
+        name: "Event List",
+        component: () => import("@/views/customer/events/EventIndexView.vue"),
+        meta: { title: "Daftar Event | SUMILIR" },
+      },
+      {
+        path: "events/:id",
+        name: "Event Detail",
+        component: () => import("@/views/customer/events/EventDetailView.vue"),
+        meta: { title: "Detail Event | SUMILIR" },
+      },
 
       // ===========================
       // Halaman Customer (butuh auth)
@@ -725,6 +737,27 @@ const routes = [
       // ===========================
       // Profil UMKM
       // ===========================
+      // ===========================
+      // ✅ EVENTS (UNDANGAN & MANAJEMEN)
+      // ===========================
+      {
+        path: "events",
+        children: [
+          {
+            path: "",
+            name: "Merchant - Event Index",
+            component: () => import("@/views/merchant/events/EventIndex.vue"),
+            meta: { title: "Daftar Event & Undangan | SUMILIR" },
+          },
+          {
+            path: ":id",
+            name: "Merchant - Event Detail",
+            component: () => import("@/views/merchant/events/EventDetail.vue"),
+            meta: { title: "Manajemen Event | SUMILIR" },
+          }
+        ]
+      },
+
       {
         path: "profile",
         children: [

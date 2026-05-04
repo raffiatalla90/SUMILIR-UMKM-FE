@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, nextTick, watch } from "vue";
+import { ref, onMounted, computed, nextTick, watch } from "vue";
 import { Carousel, Slide } from "vue3-carousel";
 import "vue3-carousel/dist/carousel.css";
 
@@ -56,7 +56,16 @@ watch(
 
 // Banner carousel
 const { events: eventBanners, fetchPublicEvents } = usePublicEvents();
-const eventBannersProcessed = ref([]);
+const eventBannersProcessed = computed(() => {
+  return (eventBanners.value || []).map((event) => ({
+    ...event,
+    bannerUrl: event.banner_url || getEventBannerUrl(event),
+  }));
+});
+
+const goToEvent = () => {
+  router.push({ name: "Event List" });
+};
 
 // Statistics with animated counter
 const {
@@ -137,11 +146,6 @@ onMounted(async () => {
   try {
     isLoadingBanner.value = true;
     await fetchPublicEvents();
-
-    eventBannersProcessed.value = eventBanners.value.map((event) => ({
-      ...event,
-      bannerUrl: getEventBannerUrl(event),
-    }));
   } catch (e) {
     console.error("Failed to load event banners:", e);
   } finally {
@@ -176,7 +180,8 @@ onMounted(async () => {
         >
           <Slide v-for="event in eventBannersProcessed" :key="event.id">
             <div
-              class="relative w-full h-full cursor-grab group active:cursor-grabbing"
+              @click="goToEvent()"
+              class="relative w-full h-full cursor-pointer group"
             >
               <img
                 :src="event.bannerUrl"
