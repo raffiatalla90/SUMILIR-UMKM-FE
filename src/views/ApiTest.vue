@@ -17,7 +17,7 @@ onMounted(async () => {
     //   {}
     // );
     const response = await api.get(
-      `/api/public/merchants/one-more-light-oMwnA/products`,
+      `/api/public/locations/provinces`,
       {}
     );
     // const response = await api.get("/api/public/search-merchants", {

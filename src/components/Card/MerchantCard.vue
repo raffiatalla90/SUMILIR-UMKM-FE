@@ -1,84 +1,108 @@
 <template>
-  <router-link
-    :to="{
-      name: 'Merchant Detail',
-      params: { slug: merchant.slug || merchant.id },
-    }"
-    class="block overflow-hidden transition-shadow duration-300 bg-white border border-gray-200 rounded-xl hover:shadow-lg sm:max-w-xs"
-  >
-    <!-- Logo/Image -->
-    <div class="relative bg-muted-background aspect-square">
-      <img
-        v-if="merchantLogoUrl"
-        :src="merchantLogoUrl"
-        :alt="merchant.name"
-        class="object-cover w-full h-full"
-      />
-      <div
-        v-else
-        class="flex items-center justify-center w-full h-full text-merchant-primary"
-      >
-        <i class="text-4xl pi pi-shop text-merchant-primary"></i>
-      </div>
+  <!-- Wrapper: relative positioning untuk menempatkan report button di luar router-link -->
+  <div class="relative block overflow-hidden transition-shadow duration-300 bg-white border border-gray-200 rounded-xl hover:shadow-lg sm:max-w-xs">
+    <!-- Router-link covers the whole card EXCEPT the report button area -->
+    <router-link
+      :to="{
+        name: 'Merchant Detail',
+        params: { slug: merchant.slug || merchant.id },
+      }"
+      class="block"
+    >
+      <!-- Logo/Image -->
+      <div class="relative bg-muted-background aspect-square">
+        <img
+          v-if="merchant.logo_url"
+          :src="merchant.logo_url"
+          :alt="merchant.name"
+          class="object-cover w-full h-full"
+        />
+        <div
+          v-else
+          class="flex items-center justify-center w-full h-full text-merchant-primary"
+        >
+          <i class="text-4xl pi pi-shop text-merchant-primary"></i>
+        </div>
 
-      <!-- Badge Segmentation -->
-      <div
-        v-if="merchant.segmentation"
-        class="absolute px-2 py-1 text-xs font-medium rounded-full text-merchant-primary top-2 left-2 bg-white/90 backdrop-blur-sm"
-      >
-        {{ merchant.segmentation.name }}
-      </div>
-    </div>
-
-    <!-- Content -->
-    <div class="p-3 sm:p-4 sm:py-3">
-      <!-- Name -->
-      <h3
-        class="mb-1 text-sm font-bold text-black line-clamp-1"
-        :title="merchant.name"
-      >
-        {{ merchant.name }}
-      </h3>
-
-      <!-- Products Count -->
-
-      <div class="flex items-center gap-1 mb-1 text-[11px] text-gray-500 mt-2">
-        <i class="text-base me-1 pi pi-shopping-bag text-primary"></i>
-
-        <span class="line-clamp-1">
-          {{ displayCount }}
-          {{ displayLabel }}
-        </span>
-      </div>
-
-      <!-- Location -->
-      <div
-        v-if="formattedDistanceKm"
-        class="flex items-center gap-1 mb-1 text-[11px] text-gray-500"
-      >
-        <i class="text-base pi pi-map-marker me-1 text-danger-foreground"></i>
-        <div>
-          <span v-if="formattedDistanceKm">
-            {{ formattedDistanceKm }}
-          </span>
+        <!-- Badge Segmentation -->
+        <div
+          v-if="merchant.segmentation"
+          class="absolute px-2 py-1 text-xs font-medium rounded-full text-merchant-primary top-2 left-2 bg-white/90 backdrop-blur-sm"
+        >
+          {{ merchant.segmentation.name }}
         </div>
       </div>
 
-      <div
-        v-if="merchant.primary_address"
-        class="flex items-center gap-1 mb-1 text-[11px] text-gray-500"
-      >
-        <span class="line-clamp-1" :title="primaryAddressString">
-          {{ primaryAddressString }}
-        </span>
+      <!-- Content -->
+      <div class="p-3 sm:p-4 sm:py-3">
+        <!-- Name -->
+        <h3
+          class="mb-1 text-sm font-bold text-black line-clamp-1"
+          :title="merchant.name"
+        >
+          {{ merchant.name }}
+        </h3>
+
+        <!-- Products Count -->
+        <div class="flex items-center gap-1 mb-1 text-[11px] text-gray-500 mt-2">
+          <i class="text-base me-1 pi pi-shopping-bag text-primary"></i>
+          <span class="line-clamp-1">
+            {{
+              merchant.products_count && merchant.products_count !== 0
+                ? merchant.products_count
+                : merchant.jasas_count && merchant.jasas_count !== 0
+                  ? merchant.jasas_count
+                  : 0
+            }}
+            Produk
+          </span>
+        </div>
+
+        <!-- Location -->
+        <div
+          v-if="formattedDistanceKm"
+          class="flex items-center gap-1 mb-1 text-[11px] text-gray-500"
+        >
+          <i class="text-base pi pi-map-marker me-1 text-danger-foreground"></i>
+          <div>
+            <span v-if="formattedDistanceKm">
+              {{ formattedDistanceKm }}
+            </span>
+          </div>
+        </div>
+
+        <div
+          v-if="merchant.primary_address"
+          class="flex items-center gap-1 mb-1 text-[11px] text-gray-500"
+        >
+          <span
+            class="line-clamp-1"
+            :title="`${merchant.primary_address?.detail}, ${merchant.primary_address.village?.name}, ${merchant.primary_address.district?.name}, ${merchant.primary_address.city?.name}, ${merchant.primary_address.province?.name}`"
+          >
+            {{ merchant.primary_address?.detail }}
+            {{ merchant.primary_address.village?.name }}
+            {{ merchant.primary_address.district?.name }}
+            {{ merchant.primary_address.city?.name }}
+            {{ merchant.primary_address.province?.name }}
+          </span>
+        </div>
       </div>
+    </router-link>
+
+    <!-- Report Button: diletakkan di LUAR router-link agar tidak terkena navigasi -->
+    <div class="absolute top-2 right-2 z-20" @click.stop.prevent>
+      <ReportButton
+        reportable-type="merchant"
+        :reportable-id="merchant.id"
+        :reportable-name="merchant.name"
+      />
     </div>
-  </router-link>
+  </div>
 </template>
 
 <script setup>
 import { computed } from "vue";
-import { getImageUrl, getMerchantLogoUrl } from "@/libs/getImageUrl";
+import ReportButton from "@/components/ReportButton.vue";
 
 const props = defineProps({
   merchant: {

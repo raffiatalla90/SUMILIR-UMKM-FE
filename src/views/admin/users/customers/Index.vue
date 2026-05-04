@@ -35,12 +35,11 @@ const activeFilters = ref({
 
 // Cycle through role filters
 const toggleRoleFilter = () => {
+  // ✅ Cycle only between customer and umkm-owner, never admin
   if (activeFilters.value.role === "") {
     activeFilters.value.role = "customer";
   } else if (activeFilters.value.role === "customer") {
     activeFilters.value.role = "umkm-owner";
-  } else if (activeFilters.value.role === "umkm-owner") {
-    activeFilters.value.role = "admin";
   } else {
     activeFilters.value.role = "";
   }
@@ -56,14 +55,12 @@ const onStatusChange = () => {
 const getRoleLabel = computed(() => {
   if (activeFilters.value.role === "customer") return "Hanya Customer";
   if (activeFilters.value.role === "umkm-owner") return "Hanya UMKM";
-  if (activeFilters.value.role === "admin") return "Hanya Admin";
   return "Semua Role";
 });
 
 const getRoleIcon = computed(() => {
   if (activeFilters.value.role === "customer") return "pi-user";
   if (activeFilters.value.role === "umkm-owner") return "pi-building";
-  if (activeFilters.value.role === "admin") return "pi-shield";
   return "pi-users";
 });
 
@@ -73,10 +70,10 @@ useBodyScrollLock(isAnyModalOpen);
 const tableColumns = [
   { key: "photo", label: "Foto", sortable: false },
   { key: "name", label: "Username", sortable: true },
-  { key: "phone", label: "Phone", sortable: false },
+  { key: "phone", label: "No HP", sortable: false },
   { key: "nik", label: "NIK", sortable: false },
   { key: "roles", label: "Roles", sortable: false },
-  { key: "merchants", label: "Merchants", sortable: false },
+  { key: "merchants", label: "UMKM", sortable: false },
   { key: "status", label: "Status", sortable: true },
 ];
 
@@ -136,10 +133,11 @@ const activeFilterCount = computed(() => {
 const loadUsers = async () => {
   try {
     await fetchUsers({
-      exclude_admin: false,
+      exclude_admin: true, // ⬅️ pastikan admin tidak ditampilkan
       search: searchQuery.value,
       status: activeFilters.value.status,
-      role: activeFilters.value.role,
+      // ✅ Filter: never show admin in customer list
+      role: activeFilters.value.role === "admin" ? "" : activeFilters.value.role,
       page: currentPage.value,
       per_page: perPage.value,
     });
@@ -551,7 +549,7 @@ watch(searchQuery, () => {
               <ul class="text-xs text-blue-800 space-y-1 list-disc list-inside">
                 <li>Data lengkap users (Nama, Email, Phone, NIK)</li>
                 <li>Role dan status users</li>
-                <li>Informasi merchants yang dimiliki</li>
+                <li>Informasi UMKM yang dimiliki</li>
                 <li>Filter yang diterapkan (Status, Role, Pencarian)</li>
                 <li>Informasi waktu download dan user yang mendownload</li>
               </ul>
