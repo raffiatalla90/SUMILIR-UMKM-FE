@@ -20,6 +20,7 @@ export default defineConfig(({ mode }) => {
         selfDestroying: true,
         registerType: "autoUpdate",
         devOptions: { enabled: true },
+        manifestFilename: "manifest.json",
         manifest: {
           name: "Sumilir",
           short_name: "Sumilir",
