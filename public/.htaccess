@@ -19,11 +19,16 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # ─── Skip /backend routes (handled by Laravel's own .htaccess) ──────────
+    # Skip backend
     RewriteRule ^backend(/.*)?$ - [L]
 
-    # ─── Vue SPA fallback ───────────────────────────────────────────────────
-    # If the request is not an existing file or directory, serve index.html
+    # FIX: jangan ganggu file PWA
+    RewriteRule ^manifest\.webmanifest$ - [L]
+    RewriteRule ^sw\.js$ - [L]
+    RewriteRule ^registerSW\.js$ - [L]
+    RewriteRule ^workbox-.*\.js$ - [L]
+
+    # SPA fallback
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^ index.html [L]
