@@ -598,6 +598,7 @@ const checkoutItems = computed(() => {
           ? item.image
           : (item.image?.src_url ?? item.image?.url ?? ""),
       quantity: item.quantity,
+      stock: Number(item.stock || 0),
       price: item.unitPrice,
       addons: item.addons || [],
       variant: item.variant || null,
@@ -611,6 +612,7 @@ const checkoutItems = computed(() => {
       name: checkout.productTitle,
       image: checkout.productImage,
       quantity: checkout.qty,
+      stock: Number(checkout.combination?.stock || 0),
       price: checkout.unitPrice,
       addons: checkout.selectedAddons,
       variant: checkout.selectedVariantName,
@@ -633,6 +635,7 @@ const order = computed(() => {
     title: checkout.productTitle,
     image: checkout.productImage,
     quantity: checkout.qty,
+    stock: Number(checkout.combination?.stock || 0),
     size: checkout.selectedSizeName || "",
     variant: checkout.selectedVariantName || "",
     addons: checkout.selectedAddons.map((a) => a.name),
@@ -776,6 +779,10 @@ const promos = computed(() =>
     max_discount: Number(v.max_discount_amount || 0),
     min_purchase: Number(v.min_purchase_amount || 0),
     usage: v.usage,
+    usage_limit: v.usage_limit === null || v.usage_limit === undefined ? null : Number(v.usage_limit),
+    usages_count: Number(v.usages_count || 0),
+    usage_limit_per_user: v.usage_limit_per_user === null || v.usage_limit_per_user === undefined ? null : Number(v.usage_limit_per_user),
+    user_usages_count: Number(v.user_usages_count || 0),
     is_expired: v.is_expired,
   })),
 );
@@ -889,6 +896,40 @@ function clearPromo() {
   amounts.value.diskon = 0;
 }
 
+function getItemStockSummary(item) {
+  const stock = Number(item?.stock || 0);
+  const quantity = Number(item?.quantity || 0);
+  const shortage = Math.max(0, quantity - stock);
+
+  return {
+    stock,
+    shortage,
+  };
+}
+
+function getPromoStockSummary(promo) {
+  if (!promo) return null;
+
+  const totalRemaining =
+    promo.usage_limit === null
+      ? null
+      : Math.max(0, Number(promo.usage_limit || 0) - Number(promo.usages_count || 0));
+
+  const userRemaining =
+    promo.usage_limit_per_user === null
+      ? null
+      : Math.max(
+          0,
+          Number(promo.usage_limit_per_user || 0) -
+            Number(promo.user_usages_count || 0),
+        );
+
+  return {
+    totalRemaining,
+    userRemaining,
+  };
+}
+
 // Nama/telp dari auth
 const customerName = computed(() => auth.user?.name || form.value.nama || "");
 const customerPhone = computed(() =>
@@ -940,16 +981,30 @@ const openWhatsapp = async () => {
     productDetails = checkout.cartItems
       .map(
         (i, idx) =>
+          (() => {
+            const stockInfo = getItemStockSummary(i);
+            return (
           `${idx + 1}. ${i.name}\n` +
           (i.variant ? `Varian: ${i.variant}\n` : "") +
           (i.size ? `Ukuran: ${i.size}\n` : "") +
           `Jumlah: ${i.quantity}x\n` +
+          `Stok tersedia: ${stockInfo.stock}\n` +
+          (stockInfo.shortage > 0
+            ? `Kurang stok: ${stockInfo.shortage}\n`
+            : "") +
           `Harga: Rp ${formatIDR(
             (i.unitPrice + i.addonTotalPrice) * i.quantity,
-          )}`,
+          )}`
+            );
+          })(),
       )
       .join("\n\n");
   } else {
+    const stockInfo = getItemStockSummary({
+      quantity: checkout.qty,
+      stock: checkout.combination?.stock || 0,
+    });
+
     productDetails = [
       `Produk: ${order.value.title}`,
       order.value.size ? `Ukuran: ${order.value.size}` : "",
@@ -958,11 +1013,29 @@ const openWhatsapp = async () => {
         ? `Tambahan: ${checkout.selectedAddons.map((a) => a.name).join(", ")}`
         : "",
       `Jumlah: ${checkout.qty}x`,
+      `Stok tersedia: ${stockInfo.stock}`,
+      stockInfo.shortage > 0 ? `Kurang stok: ${stockInfo.shortage}` : "",
       `Subtotal: Rp ${formatIDR(total.value)}`,
     ]
       .filter(Boolean)
       .join("\n");
   }
+
+  const promoStockInfo = getPromoStockSummary(selectedPromo.value);
+  const voucherInfo = selectedPromo.value
+    ? [
+        "\n*VOUCHER*",
+        `Voucher: ${selectedPromo.value.name} (${selectedPromo.value.code})`,
+        promoStockInfo?.totalRemaining === null
+          ? "Sisa voucher: unlimited"
+          : `Sisa voucher: ${promoStockInfo.totalRemaining}`,
+        promoStockInfo?.userRemaining === null
+          ? null
+          : `Sisa voucher per user: ${promoStockInfo.userRemaining}`,
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : "";
 
   const deliveryInfo =
     form.value.metodePengiriman === "delivery"
@@ -992,6 +1065,7 @@ const openWhatsapp = async () => {
     productDetails,
     form.value.catatanProduk ? `\nCatatan: ${form.value.catatanProduk}` : "",
     deliveryInfo,
+    voucherInfo,
     "\n*PEMBAYARAN*",
     `Metode: ${pay.value.method}`,
     "\n*RINCIAN HARGA*",
@@ -1029,6 +1103,58 @@ const openWhatsapp = async () => {
       "Nomor WhatsApp penjual belum tersedia atau tidak valid. Silakan hubungi admin / cek data toko.",
     );
     return;
+  }
+
+  if (auth.isAuthenticated) {
+    try {
+      const checkoutPayload = {
+        merchant_slug: checkout.store?.slug || order.value.store?.slug || "",
+        mode: checkout.from,
+        shipping_method: form.value.metodePengiriman,
+        payment_method: pay.value.method,
+        customer_name: customerName.value,
+        customer_phone: customerPhone.value,
+        delivery_address:
+          form.value.metodePengiriman === "delivery"
+            ? selectedAddress.value?.fullAddress || ""
+            : order.value.store?.address || "",
+        delivery_note: form.value.catatanAlamat || "",
+        product_note: form.value.catatanProduk || "",
+        voucher_code: selectedPromo.value?.code || "",
+        shipping_fee: Number(amounts.value.ongkir || 0),
+      };
+
+      if (checkout.from === "cart") {
+        checkoutPayload.cart_item_ids = checkout.cartItems.map((item) => item.id);
+      } else {
+        checkoutPayload.product_slug = checkout.productSlug;
+        checkoutPayload.product_variant_id =
+          checkout.selectedVariantId || checkout.combination?.variantId || null;
+        checkoutPayload.quantity = checkout.qty;
+        checkoutPayload.addons = (checkout.selectedAddons || []).map((addon) => ({
+          id: addon.id,
+          name: addon.name,
+          price: addon.price,
+        }));
+      }
+
+      const checkoutResponse = await api.post(
+        "/api/checkout/whatsapp",
+        checkoutPayload,
+      );
+
+      if (checkoutResponse.data?.success === false) {
+        toast.error(checkoutResponse.data?.message || "Checkout gagal diproses");
+        return;
+      }
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        "Checkout gagal diproses";
+      toast.error(message);
+      return;
+    }
   }
 
   const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(

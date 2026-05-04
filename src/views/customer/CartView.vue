@@ -1347,6 +1347,7 @@ const checkoutFromCart = (storeId) => {
       name: item.name,
       image: item.image,
       quantity: item.quantity,
+      stock: item.stock,
       unitPrice: item.unitPrice,
       addonTotalPrice: item.addonTotalPrice,
       size: item.size ?? "",
