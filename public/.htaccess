@@ -9,36 +9,21 @@
 # Force fresh fetch for SPA shell and Service Worker entry files.
 # This prevents stale PWA behavior from intercepting backend verification URLs.
 <IfModule mod_headers.c>
-    <FilesMatch "^(index\.html|sw\.js|registerSW\.js|manifest\.json|workbox-.*\.js)$">
+    <FilesMatch "^(index\.html|sw\.js|registerSW\.js|manifest\.webmanifest|workbox-.*\.js)$">
         Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
         Header set Pragma "no-cache"
         Header set Expires "0"
     </FilesMatch>
 </IfModule>
 
-<IfModule mod_mime.c>
-    AddType application/manifest+json .json
-</IfModule>
-
-<FilesMatch "^manifest\.json$">
-    Order allow,deny
-    Allow from all
-    Require all granted
-</FilesMatch>
-
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # Skip backend
+    # ─── Skip /backend routes (handled by Laravel's own .htaccess) ──────────
     RewriteRule ^backend(/.*)?$ - [L]
 
-    # FIX: jangan ganggu file PWA
-    RewriteRule ^manifest\.json$ - [L]
-    RewriteRule ^sw\.js$ - [L]
-    RewriteRule ^registerSW\.js$ - [L]
-    RewriteRule ^workbox-.*\.js$ - [L]
-
-    # SPA fallback
+    # ─── Vue SPA fallback ───────────────────────────────────────────────────
+    # If the request is not an existing file or directory, serve index.html
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^ index.html [L]

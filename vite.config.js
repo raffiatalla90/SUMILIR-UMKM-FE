@@ -19,13 +19,12 @@ export default defineConfig(({ mode }) => {
         // Re-enable normal PWA behavior after affected clients have recovered.
         selfDestroying: true,
         registerType: "autoUpdate",
-        devOptions: { enabled: true },
-        manifestFilename: "manifest.json",
+        devOptions: { enabled: false },
         manifest: {
           name: "Sumilir",
           short_name: "Sumilir",
           description: "UMKM App",
-          theme_color: "#ffffff",
+          theme_color: "#ff9800",
           background_color: "#ffffff",
           display: "standalone",
           start_url: "/", // ✅ Root
