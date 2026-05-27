@@ -156,6 +156,7 @@ const formData = ref({
   fixed_price: 0,
   base_price: 0,
   service_type: "at_location",
+  service_type_booking: "cart",  // 🆕 New: cart or booking
   location_address: "",
   service_area: "",
   special_notes: "",
@@ -227,6 +228,7 @@ const validationSchema = yup.object({
       }
     ),
   service_type: yup.string().required("Tipe layanan wajib dipilih"),
+  service_type_booking: yup.string().required("Cara pemesanan wajib dipilih").oneOf(['cart', 'booking', 'consultation'], "Pilih 'Keranjang', 'Booking', atau 'Konsultasi'"),
   operating_times: yup.string().nullable().max(255),
   location_address: yup.string().nullable().max(255),
   service_area: yup.string().nullable(),
@@ -587,6 +589,7 @@ const loadJasa = async () => {
       fixed_price: parseInt(jasaData.fixed_price) || 0,
       base_price: parseInt(jasaData.base_price) || 0,
       service_type: jasaData.service_type || "at_location",
+      service_type_booking: jasaData.service_type_booking || "cart",  // 🆕 Load booking type
       location_address: jasaData.location_address || "",
       service_area: jasaData.service_area || "",
       special_notes: jasaData.special_notes || "",
@@ -643,6 +646,7 @@ const submitForm = async (values) => {
     // Explicitly add fields that use v-model on formData
     fd.set("status", formData.value.status);
     fd.set("service_type", formData.value.service_type);
+    fd.set("service_type_booking", formData.value.service_type_booking || "cart");  // 🆕 Set booking type
     fd.set("location_address", formData.value.location_address || "");
     fd.set("operating_times", formData.value.operating_times || "");
 
@@ -805,7 +809,7 @@ onMounted(async () => {
 
                 <SelectField
                   name="jasa_category_id"
-                  label="Kategori Utama"
+                  label="Kategori"
                   placeholder="Pilih kategori..."
                   :options="
                     jasaCategories.map((c) => ({
@@ -1114,6 +1118,60 @@ onMounted(async () => {
               </div>
             </div>
 
+            <!-- 3.5. CARA PEMESANAN -->
+            <div
+              class="p-5 border bg-linear-to-r from-pink-50 to-transparent rounded-xl border-pink-100"
+            >
+              <div class="flex items-center gap-3 mb-5">
+                <div
+                  class="flex items-center justify-center w-8 h-8 text-sm font-bold text-white bg-pink-500 rounded-full"
+                >
+                  3.5
+                </div>
+                <h2 class="text-lg font-bold text-gray-800">
+                  Cara Pemesanan
+                </h2>
+              </div>
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <SelectField
+                  name="service_type_booking"
+                  label="Mekanisme Pemesanan"
+                  :options="[
+                    { value: 'cart', label: '🛒 Keranjang (Tanpa Jadwal)' },
+                    { value: 'booking', label: '📅 Booking (Pilih Jadwal)' },
+                    { value: 'consultation', label: '💬 Konsultasi (Hubungi Penjual)' },
+                  ]"
+                  v-model="formData.service_type_booking"
+                  required
+                />
+                <div class="sm:col-span-2">
+                  <p class="text-xs text-gray-500 mb-2">
+                    Pilih cara pemesanan yang paling mudah untuk pelanggan:
+                    langsung checkout, pilih jadwal terlebih dahulu, atau konsultasi dulu.
+                    Jika pilih Booking, bagian Jam Layanan akan muncul di bawah.
+                  </p>
+                  <div
+                    v-if="formData.service_type_booking === 'cart'"
+                    class="p-3 text-xs border border-blue-200 rounded-lg bg-blue-50 text-blue-700"
+                  >
+                    💡 <strong>Keranjang:</strong> Layanan langsung masuk keranjang tanpa konsultasi atau jadwal. Pelanggan bisa segera melanjutkan pembayaran.
+                  </div>
+                  <div
+                    v-else-if="formData.service_type_booking === 'booking'"
+                    class="p-3 text-xs border border-green-200 rounded-lg bg-green-50 text-green-700"
+                  >
+                    💡 <strong>Booking:</strong> Pelanggan memilih tanggal dan jam terlebih dahulu, kemudian lanjut ke ringkasan pembayaran.
+                  </div>
+                  <div
+                    v-else-if="formData.service_type_booking === 'consultation'"
+                    class="p-3 text-xs border border-purple-200 rounded-lg bg-purple-50 text-purple-700"
+                  >
+                    💡 <strong>Konsultasi:</strong> Pelanggan menghubungi UMKM dulu untuk berdiskusi. Setelah konsultasi, penjual akan mengirimkan link layanan atau detail order.
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- 4. LOKASI -->
             <div
               class="p-5 border border-orange-100 bg-linear-to-r from-orange-50 to-transparent rounded-xl"
@@ -1205,9 +1263,10 @@ onMounted(async () => {
                       >Jam Layanan <span class="text-xs font-normal text-gray-500">(opsional)</span></label
                     >
 
-                    <div class="p-3 bg-white border border-orange-100 rounded-lg">
+                    <div v-if="formData.service_type_booking === 'booking'" class="p-3 bg-white border border-orange-100 rounded-lg">
                       <p class="mb-2 text-xs text-gray-500">
                         Pilih satu atau beberapa jam layanan yang bisa dipilih customer.
+                        Jika tidak diisi, customer tetap bisa memilih atau mengetik jam manual di halaman pemesanan.
                       </p>
 
                       <div class="flex flex-wrap items-center gap-2 mb-3">
@@ -1300,6 +1359,10 @@ onMounted(async () => {
                       <p v-else class="mt-2 text-xs text-gray-500">
                         Belum diatur. Customer tetap bisa isi jam secara manual.
                       </p>
+                    </div>
+
+                    <div v-else class="p-3 text-xs border border-gray-200 rounded-lg bg-gray-50 text-gray-600">
+                      Jam layanan hanya perlu diisi untuk pemesanan Booking. Jika memilih Keranjang atau Konsultasi, customer tidak perlu menentukan jam di sini.
                     </div>
 
                     <p v-if="errors[0]" class="mt-1 text-sm text-red-500">

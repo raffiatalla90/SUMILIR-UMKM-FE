@@ -234,6 +234,14 @@ const routes = [
           title: "Pembayaran | SUMILIR",
         },
       },
+      {
+        path: "booking-confirmation",
+        name: "Booking Confirmation",
+        component: () => import("@/views/customer/BookingConfirmation.vue"),
+        meta: {
+          title: "Konfirmasi Pemesanan | SUMILIR",
+        },
+      },
 
       // ===========================
       // Profil User
@@ -611,6 +619,32 @@ const routes = [
         name: "Merchant - Jasa Edit",
         component: () => import("@/views/merchant/productsjasa/Editjasa.vue"),
         meta: { title: "Edit Jasa UMKM | SUMILIR" },
+      },
+
+      // ===========================
+      // BOOKING MANAGEMENT
+      // ===========================
+      {
+        path: "bookings",
+        name: "Merchant - Booking Management",
+        component: () => import("@/views/merchant/booking/BookingManagement.vue"),
+        meta: { title: "Status Layanan Jasa | SUMILIR" },
+      },
+
+      // ===========================
+      // 🆕 KONSULTASI (UMKM JASA)
+      // ===========================
+      {
+        path: "consultations",
+        name: "Merchant Konsultasi",
+        component: () => import("@/views/merchant/consultation/MerchantConsultations.vue"),
+        meta: { title: "Konsultasi | SUMILIR" },
+      },
+      {
+        path: "consultations/:id",
+        name: "Merchant Konsultasi Detail",
+        component: () => import("@/views/merchant/consultation/MerchantConsultationDetail.vue"),
+        meta: { title: "Detail Konsultasi | SUMILIR" },
       },
 
       // ===========================

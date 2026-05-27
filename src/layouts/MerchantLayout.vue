@@ -107,33 +107,24 @@ const menuItems = computed(() => {
       icon: "pi-chart-bar",
       route: `/merchant-center/${currentMerchantSlug.value}/dashboard`,
     },
-    // {
-    //   label: "Pesanan",
-    //   icon: "pi-shopping-bag",
-    //   route: `/merchant-center/${currentMerchantSlug.value}/orders`,
-    // },
-
     productOrServiceItem,
-    // {
-    //   label: "Komunitas",
-    //   icon: "pi-comments",
-    //   route: `/merchant-center/${currentMerchantSlug.value}/community`,
-    // },
+    // 🆕 Booking Status Menu (for Jasa merchants)
+    ...(segmentationId === 3 ? [{
+      label: "Status Layanan Jasa",
+      icon: "pi-calendar",
+      route: `/merchant-center/${currentMerchantSlug.value}/bookings`,
+    }] : []),
+    // 🆕 Konsultasi Menu (for Jasa merchants)
+    ...(segmentationId === 3 ? [{
+      label: "Konsultasi",
+      icon: "pi-comments",
+      route: `/merchant-center/${currentMerchantSlug.value}/consultations`,
+    }] : []),
     {
       label: "Voucher",
       icon: "pi-tag",
       route: `/merchant-center/${currentMerchantSlug.value}/vouchers`,
     },
-    // {
-    //   label: "Review & Ulasan",
-    //   icon: "pi-star",
-    //   route: `/merchant-center/${currentMerchantSlug.value}/reviews`,
-    // },
-    // {
-    //   label: "Chat dengan Pembeli",
-    //   icon: "pi-comments",
-    //   route: `/merchant-center/${currentMerchantSlug.value}/chats`,
-    // },
     {
       label: "Events",
       icon: "pi-calendar",
@@ -218,22 +209,21 @@ defineExpose({
       <!-- Header -->
       <div
         :class="[
-          'flex items-center  h-23 ',
+          'flex items-center h-16',
           isOpen
             ? 'justify-between px-4'
-            : 'justify-between px-4 sm:justify-center ',
+            : 'justify-between px-4 sm:justify-center',
         ]"
       >
         <router-link to="/">
           <img
             :src="LogoWithText"
             alt="SUMILIR"
-            class=""
             :class="[
-              '',
+              'h-8 transition-all duration-300',
               isOpen
-                ? 'ms-3 opacity-100 h-8'
-                : 'sm:opacity-0 sm:h-0 sm:ms-0 ms-3 h-8',
+                ? 'ms-3 opacity-100'
+                : 'sm:opacity-0 sm:h-0 sm:ms-0 ms-3',
             ]"
           />
         </router-link>
@@ -295,47 +285,6 @@ defineExpose({
 
       <!-- Footer -->
       <div class="p-3 space-y-2 border-t border-gray-200">
-        <!-- Notification -->
-        <!-- <button
-          :class="[
-            'w-full flex items-center rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition',
-            isOpen
-              ? 'justify-between px-4 py-3'
-              : 'justify-between px-4 py-3 sm:justify-center sm:px-3 sm:relative',
-          ]"
-          :title="!isOpen ? 'Notifikasi' : ''"
-        >
-          <div
-            :class="[
-              'flex items-center',
-              isOpen ? 'gap-3' : 'gap-3 sm:gap-0 sm:relative',
-            ]"
-          >
-            <i class="flex-shrink-0 text-lg text-gray-600 pi pi-bell"></i>
-            <span
-              :class="[
-                'transition-all duration-300',
-                isOpen
-                  ? 'opacity-100 w-auto'
-                  : 'opacity-100 w-auto sm:opacity-0 sm:w-0 sm:overflow-hidden',
-              ]"
-            >
-              Notifikasi
-            </span>
-          </div>
-          <span
-            v-if="notificationCount > 0"
-            :class="[
-              'bg-merchant-primary text-white text-xs font-bold rounded-full text-center transition-all duration-300',
-              isOpen
-                ? 'px-2 py-0.5 min-w-6'
-                : 'px-2 py-0.5 min-w-6 sm:absolute sm:-top-1 sm:-right-1 sm:w-5 sm:h-5 sm:p-0 sm:flex sm:items-center sm:justify-center',
-            ]"
-          >
-            {{ notificationCount }}
-          </span>
-        </button> -->
-
         <!-- Logout -->
         <button
           @click="logout"
@@ -360,7 +309,7 @@ defineExpose({
           </span>
         </button>
 
-        <!-- ✅ Profile Card - Display current merchant based on route -->
+        <!-- Profile Card -->
         <div v-if="isOpen" class="mt-2 overflow-hidden rounded-xl">
           <!-- Merchant info header -->
           <div
@@ -393,7 +342,7 @@ defineExpose({
                 <i class="text-sm pi pi-user"></i>
               </button>
 
-              <!-- Switcher toggle (only show if multiple merchants) -->
+              <!-- Switcher toggle -->
               <button
                 v-if="showMerchantSelector"
                 @click="showMerchantSwitcher = !showMerchantSwitcher"
@@ -439,7 +388,6 @@ defineExpose({
                     : '',
                 ]"
               >
-                <!-- Avatar -->
                 <div
                   :class="[
                     'flex items-center justify-center w-8 h-8 rounded-full shrink-0 text-sm font-bold text-white',
@@ -467,7 +415,6 @@ defineExpose({
                   </p>
                 </div>
 
-                <!-- Status dot -->
                 <span
                   :class="[
                     'w-2 h-2 rounded-full shrink-0',
@@ -476,7 +423,6 @@ defineExpose({
                   :title="merchant.status"
                 ></span>
 
-                <!-- Active check -->
                 <i
                   v-if="merchant.slug === currentMerchantSlug"
                   class="text-xs pi pi-check text-merchant-primary shrink-0"
@@ -486,8 +432,8 @@ defineExpose({
           </transition>
         </div>
 
-        <!-- Collapsed State -->
-        <div v-else class="flex-col items-center hidden gap-1 sm:flex">
+        <!-- Collapsed State (Profile only icon) -->
+        <div v-if="!isOpen" class="flex flex-col items-center gap-1">
           <button
             @click="
               navigateTo(`/merchant-center/${currentMerchantSlug}/profile`)
@@ -500,7 +446,7 @@ defineExpose({
             </span>
           </button>
 
-          <!-- Collapsed switcher: show dots if multiple merchants -->
+          <!-- Show dots if multiple merchants -->
           <div v-if="showMerchantSelector" class="flex gap-1">
             <span
               v-for="m in allMerchants.slice(0, 4)"

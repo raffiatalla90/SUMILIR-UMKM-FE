@@ -1,31 +1,23 @@
 <template>
-  <div
-    class="min-h-screen pb-32 bg-gradient-to-b from-gray-50 via-white to-gray-100 sm:pb-28"
-  >
-    <!-- AppBar -->
-    <header
-      class="sticky top-0 z-20 px-4 py-3 text-white shadow-md bg-gradient-to-r from-merchant-primary to-merchant-primary/90"
-    >
-      <div class="flex items-center max-w-screen-sm gap-3 mx-auto">
-        <button
-          type="button"
-          class="flex items-center justify-center text-white transition rounded-full shadow-sm w-9 h-9 bg-white/15 hover:bg-white/25 backdrop-blur-sm"
-          @click="goBack"
-          aria-label="Kembali"
-        >
-          <i class="text-sm pi pi-arrow-left"></i>
-        </button>
-        <div class="flex flex-col">
-          <h1 class="text-sm font-semibold sm:text-base">Ringkasan Pesanan</h1>
-          <p class="text-[11px] sm:text-xs text-white/80">
-            Cek kembali data sebelum mengirim ke chat penjual
-          </p>
-        </div>
-      </div>
-    </header>
+  <div class="min-h-screen pb-32 bg-gradient-to-b from-gray-50 via-white to-gray-100 sm:pb-28">
 
-    <main class="px-4 mt-4">
-      <div class="max-w-screen-sm mx-auto space-y-4">
+    <!-- Mobile Layout (default) -->
+    <div class="max-w-lg mx-auto lg:hidden">
+      <!-- AppBar -->
+      <header class="sticky top-0 z-20 px-4 py-3 text-white shadow-md bg-gradient-to-r from-merchant-primary to-merchant-primary/90">
+        <div class="flex items-center max-w-screen-sm gap-3 mx-auto">
+          <button type="button" class="flex items-center justify-center text-white transition rounded-full shadow-sm w-9 h-9 bg-white/15 hover:bg-white/25 backdrop-blur-sm" @click="goBack" aria-label="Kembali">
+            <i class="text-sm pi pi-arrow-left"></i>
+          </button>
+          <div class="flex flex-col">
+            <h1 class="text-sm font-semibold sm:text-base">Ringkasan Pesanan</h1>
+            <p class="text-[11px] sm:text-xs text-white/80">Cek kembali data sebelum mengirim ke chat penjual</p>
+          </div>
+        </div>
+      </header>
+
+      <main class="px-4 mt-4">
+        <div class="max-w-screen-sm mx-auto space-y-4">
         <!-- Data Pemesan -->
         <section
           class="p-4 border border-gray-100 shadow-sm bg-white/95 rounded-2xl sm:p-5"
@@ -275,132 +267,274 @@
             </div>
           </div>
         </section>
+        </div>
+      </main>
+
+      <!-- Bottom bar (Total + Chat button) - Mobile Only -->
+      <div class="fixed left-0 right-0 bottom-16 sm:bottom-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200/80 shadow-[0_-4px_12px_rgba(0,0,0,0.04)] px-4 py-3">
+        <div class="max-w-screen-sm mx-auto space-y-1.5">
+          <div class="flex items-center justify-between text-xs font-semibold text-gray-900 sm:text-sm">
+            <span>Total Pembayaran</span>
+            <span>Rp {{ formatIDR(total) }}</span>
+          </div>
+          <p class="text-[11px] text-gray-500">Pesanan akan dikirim ke chat penjual.</p>
+          <button class="w-full flex items-center justify-center gap-2 py-3 rounded-full bg-gradient-to-r from-[#FFA30E] to-[#ffba3d] hover:from-[#e5920d] hover:to-[#ffb024] text-white font-semibold text-center transition shadow-md" @click="sendToChat">
+            <i class="text-sm pi pi-send"></i>
+            <span>Pesan Sekarang</span>
+          </button>
+        </div>
       </div>
-    </main>
+    </div>
+
+    <!-- Desktop Layout (lg: and above) -->
+    <div class="hidden lg:block bg-gray-50 min-h-screen">
+      <!-- Desktop Header -->
+      <div class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-6 py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4">
+              <button type="button" class="w-10 h-10 rounded-xl bg-merchant-primary/10 flex items-center justify-center text-merchant-primary hover:bg-merchant-primary/20 transition" @click="goBack">
+                <i class="pi pi-arrow-left"></i>
+              </button>
+              <div>
+                <h1 class="text-lg font-bold text-gray-900">Ringkasan Pesanan</h1>
+                <p class="text-sm text-gray-500">Lengkapi data untuk memesan layanan</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="max-w-7xl mx-auto px-6 py-6">
+        <div class="grid grid-cols-12 gap-6" style="height: calc(100vh - 180px);">
+          <!-- Left Panel - Form -->
+          <div class="col-span-8 overflow-y-auto pr-2">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <div class="grid grid-cols-2 gap-6">
+                <!-- Data Pemesan -->
+                <div>
+                  <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                      <span class="w-7 h-7 rounded-lg bg-merchant-primary text-white flex items-center justify-center text-xs font-bold">1</span>
+                      Data Pemesan
+                    </h3>
+                    <button type="button" class="text-xs px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition" @click="useProfileContact">
+                      <i class="pi pi-user mr-1"></i> Gunakan profil
+                    </button>
+                  </div>
+                  <div class="space-y-3">
+                    <div>
+                      <label class="block text-xs font-medium text-gray-600 mb-1.5">Nama Lengkap</label>
+                      <input v-model="form.nama" type="text" placeholder="Nama pemesan" class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-merchant-primary/50 focus:border-merchant-primary bg-gray-50" />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-medium text-gray-600 mb-1.5">Nomor Telepon</label>
+                      <input v-model="form.tel" type="tel" placeholder="08xxxxxxxxxx" inputmode="numeric" pattern="[0-9]*" @input="onPhoneInput" class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-merchant-primary/50 focus:border-merchant-primary bg-gray-50" />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Detail Pesanan -->
+                <div>
+                  <h3 class="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-4">
+                    <span class="w-7 h-7 rounded-lg bg-merchant-primary text-white flex items-center justify-center text-xs font-bold">2</span>
+                    Detail Pesanan
+                  </h3>
+                  <div class="flex items-center gap-3 mb-3">
+                    <div class="w-16 h-12 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0">
+                      <img :src="order.image" class="object-cover w-full h-full" />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm font-semibold text-gray-900 line-clamp-2">{{ order.title }}</p>
+                      <div class="flex items-center gap-2 mt-0.5">
+                        <span class="text-sm font-bold text-merchant-primary">Rp {{ formatIDR(order.price) }}</span>
+                        <span v-if="orderPriceTypeLabel" class="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">{{ orderPriceTypeLabel }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1.5">Catatan</label>
+                    <textarea v-model="form.catatan" rows="2" placeholder="Catatan tambahan..." class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-merchant-primary/50 focus:border-merchant-primary bg-gray-50 resize-none"></textarea>
+                  </div>
+                </div>
+
+                <!-- Alamat Layanan -->
+                <div class="col-span-2">
+                  <h3 class="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-4">
+                    <span class="w-7 h-7 rounded-lg bg-merchant-primary text-white flex items-center justify-center text-xs font-bold">3</span>
+                    Alamat Layanan
+                    <span v-if="isOnlineService" class="ml-2 text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">Online</span>
+                  </h3>
+                  <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                    <span class="text-gray-400"><i class="pi pi-map-marker"></i></span>
+                    <p class="flex-1 text-sm text-gray-700">{{ form.alamat || 'Tidak ada alamat' }}</p>
+                    <button v-if="serviceType === 'on_site'" type="button" class="text-xs px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition" :disabled="locatingDevice" @click="requestDeviceLocation">
+                      <i class="pi pi-map-marker mr-1"></i>{{ locatingDevice ? 'Mengambil...' : 'Pakai lokasi' }}
+                    </button>
+                  </div>
+                  <p v-if="deviceCoordinates" class="text-xs text-gray-500 mt-1.5 ml-1">Koordinat: {{ deviceCoordinates.latitude.toFixed(6) }}, {{ deviceCoordinates.longitude.toFixed(6) }}</p>
+                </div>
+
+                <!-- Promo & Pembayaran -->
+                <div class="col-span-2">
+                  <h3 class="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-4">
+                    <span class="w-7 h-7 rounded-lg bg-merchant-primary text-white flex items-center justify-center text-xs font-bold">4</span>
+                    Promo & Pembayaran
+                  </h3>
+                  <div class="grid grid-cols-2 gap-4">
+                    <!-- Promo -->
+                    <div class="p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-100">
+                      <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-semibold text-gray-700">{{ selectedPromo ? selectedPromo.title : promos.length ? 'Pilih voucher' : 'Tidak ada voucher' }}</span>
+                        <button class="text-xs px-2 py-1 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition" @click="openPromo = true">
+                          {{ selectedPromo ? 'Batalkan' : 'Pakai' }}
+                        </button>
+                      </div>
+                      <button class="text-xs text-merchant-primary hover:underline" @click="openPromo = true">Lihat promo lainnya →</button>
+                    </div>
+
+                    <!-- Metode Bayar -->
+                    <div class="p-3 bg-gray-50 rounded-xl">
+                      <label class="block text-xs font-medium text-gray-600 mb-2">Metode Pembayaran</label>
+                      <div class="flex gap-2">
+                        <button type="button" class="flex-1 py-2 text-sm rounded-xl border-2 transition" :class="pay.method === 'COD' ? 'bg-merchant-primary text-white border-merchant-primary font-semibold' : 'bg-white text-gray-600 border-gray-200 hover:border-merchant-primary'" @click="pay.method = 'COD'">
+                          COD
+                        </button>
+                        <button v-if="order.paymentMethods.includes('qris') || order.paymentMethods.includes('QRIS')" type="button" class="flex-1 py-2 text-sm rounded-xl border-2 transition" :class="pay.method === 'QRIS' ? 'bg-merchant-primary text-white border-merchant-primary font-semibold' : 'bg-white text-gray-600 border-gray-200 hover:border-merchant-primary'" @click="pay.method = 'QRIS'">
+                          QRIS
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Panel - Summary -->
+          <div class="col-span-4">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden sticky top-6 h-fit">
+              <!-- Header -->
+              <div class="bg-white border-b border-gray-100 px-5 py-4">
+                <h3 class="font-bold text-gray-900 text-base">Ringkasan Pesanan</h3>
+                <p class="text-gray-500 text-xs mt-0.5">Periksa pesanan Anda</p>
+              </div>
+
+              <!-- Content -->
+              <div class="p-5">
+                <!-- Product Info -->
+                <div class="mb-4">
+                  <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Detail Layanan</p>
+                  <div class="bg-gray-50 rounded-xl p-3">
+                    <div class="flex items-start gap-3 mb-3">
+                      <div class="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0 shadow-sm">
+                        <img :src="order.image" class="object-cover w-full h-full" />
+                      </div>
+                      <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight">{{ order.title }}</p>
+                        <div class="flex items-baseline gap-1.5 mt-1">
+                          <span class="text-sm font-bold text-merchant-primary">Rp {{ formatIDR(order.price) }}</span>
+                          <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">{{ orderPriceTypeLabel || 'Harga Tetap' }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="flex justify-between text-sm pt-2 border-t border-gray-200">
+                      <span class="text-gray-500">Kategori</span>
+                      <span class="text-gray-700 font-medium">Jasa</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Order Info -->
+                <div class="mb-4">
+                  <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Info Pemesanan</p>
+                  <div class="space-y-2">
+                    <div class="flex justify-between text-sm">
+                      <span class="text-gray-500">Pemesan</span>
+                      <span class="text-gray-800 font-medium">{{ form.nama || '-' }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-gray-500">Tanggal</span>
+                      <span class="text-gray-800">{{ form.tanggalLabel || '—' }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-gray-500">Waktu</span>
+                      <span class="text-gray-800">{{ form.waktu || '—' }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-gray-500">Pembayaran</span>
+                      <span class="px-2 py-0.5 rounded-full bg-merchant-primary/10 text-merchant-primary text-xs font-semibold">{{ pay.method }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Diskon info -->
+                <div v-if="selectedPromo" class="flex justify-between text-sm mb-3 p-2 bg-amber-50 rounded-lg">
+                  <span class="text-gray-500">Diskon <span class="text-amber-600 font-medium">({{ selectedPromo.code }})</span></span>
+                  <span class="text-amber-600 font-semibold">-Rp {{ formatIDR(amounts.diskon) }}</span>
+                </div>
+
+                <!-- Total -->
+                <div class="flex items-center justify-between py-3 border-t border-gray-100 mb-4">
+                  <span class="text-base font-bold text-gray-900">Total</span>
+                  <span class="text-xl font-bold text-merchant-primary">Rp {{ formatIDR(total) }}</span>
+                </div>
+
+                <!-- Button -->
+                <button class="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-[#FFA30E] to-[#ffba3d] hover:from-[#e5920d] hover:to-[#ffb024] text-white font-bold text-sm transition shadow-lg shadow-amber-500/20" @click="sendToChat">
+                  <i class="pi pi-send text-sm"></i>
+                  Booking Sekarang
+                </button>
+                <p class="text-xs text-gray-400 text-center mt-2">Pesanan akan dikirim via WhatsApp</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Bubble Notifikasi dengan tombol OK -->
     <transition name="fade">
-      <div
-        v-if="errorMessage || successMessage"
-        class="fixed inset-0 z-40 flex items-center justify-center bg-black/30 backdrop-blur-sm sm:backdrop-blur"
-      >
-        <!-- backdrop untuk blok semua interaksi di belakang -->
+      <div v-if="errorMessage || successMessage" class="fixed inset-0 z-40 flex items-center justify-center bg-black/30 backdrop-blur-sm sm:backdrop-blur">
         <div class="absolute inset-0"></div>
-
-        <div
-          class="relative max-w-sm w-[90%] sm:w-auto rounded-2xl shadow-lg px-4 py-3 flex flex-col gap-2 text-xs sm:text-sm border bg-opacity-95"
-          :class="
-            errorMessage
-              ? 'bg-red-50 border-red-200 text-red-800'
-              : 'bg-emerald-50 border-emerald-200 text-emerald-800'
-          "
-        >
-          <p class="leading-snug">
-            {{ errorMessage || successMessage }}
-          </p>
-          <button
-            type="button"
-            class="self-end mt-1 px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold"
-            :class="
-              errorMessage
-                ? 'bg-red-600 text-white hover:bg-red-700'
-                : 'bg-emerald-600 text-white hover:bg-emerald-700'
-            "
-            @click="clearNotification"
-          >
+        <div class="relative max-w-sm w-[90%] sm:w-auto rounded-2xl shadow-lg px-4 py-3 flex flex-col gap-2 text-xs sm:text-sm border bg-opacity-95" :class="errorMessage ? 'bg-red-50 border-red-200 text-red-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'">
+          <p class="leading-snug">{{ errorMessage || successMessage }}</p>
+          <button type="button" class="self-end mt-1 px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold" :class="errorMessage ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-emerald-600 text-white hover:bg-emerald-700'" @click="clearNotification">
             Oke
           </button>
         </div>
       </div>
     </transition>
 
-    <!-- Bottom bar (Total + Chat button) -->
-    <div
-      class="fixed left-0 right-0 bottom-16 sm:bottom-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200/80 shadow-[0_-4px_12px_rgba(0,0,0,0.04)] px-4 py-3"
-    >
-      <div class="max-w-screen-sm mx-auto space-y-1.5">
-        <div
-          class="flex items-center justify-between text-xs font-semibold text-gray-900 sm:text-sm"
-        >
-          <span>Total Pembayaran</span>
-          <span>Rp {{ formatIDR(total) }}</span>
-        </div>
-        <p class="text-[11px] text-gray-500">
-          Pesanan akan dikirim ke chat penjual.
-        </p>
-
-        <button
-          class="w-full flex items-center justify-center gap-2 py-3 rounded-full bg-gradient-to-r from-[#FFA30E] to-[#ffba3d] hover:from-[#e5920d] hover:to-[#ffb024] text-white font-semibold text-center transition shadow-md"
-          @click="sendToChat"
-        >
-          <i class="text-sm pi pi-send"></i>
-          <span>Pesan Sekarang</span>
-        </button>
-      </div>
-    </div>
-
     <!-- Bottom Sheet Promo List -->
     <transition name="fade">
       <div v-if="openPromo" class="fixed inset-0 z-40">
-        <div
-          class="absolute inset-0 bg-black/40"
-          @click="openPromo = false"
-        ></div>
-        <div
-          class="absolute left-0 right-0 bottom-0 bg-white rounded-t-2xl shadow-2xl p-4 max-h-[70vh] overflow-y-auto"
-        >
+        <div class="absolute inset-0 bg-black/40" @click="openPromo = false"></div>
+        <div class="absolute left-0 right-0 bottom-0 bg-white rounded-t-2xl shadow-2xl p-4 max-h-[70vh] overflow-y-auto">
           <div class="w-12 h-1 mx-auto mb-3 bg-gray-300 rounded-full"></div>
           <div class="flex items-center justify-between mb-2">
             <h3 class="text-base font-semibold text-gray-900">Pilih Promo</h3>
             <button class="text-gray-500" @click="openPromo = false">✕</button>
           </div>
-
           <div class="space-y-3">
-            <div
-              v-for="p in promos"
-              :key="p.code"
-              class="overflow-hidden border border-gray-200 rounded-xl"
-            >
-              <div
-                class="flex items-center justify-between px-4 py-3 bg-gray-50"
-              >
+            <div v-for="p in promos" :key="p.code" class="overflow-hidden border border-gray-200 rounded-xl">
+              <div class="flex items-center justify-between px-4 py-3 bg-gray-50">
                 <div>
-                  <div class="text-sm font-semibold text-gray-800">
-                    {{ p.title }}
-                  </div>
+                  <div class="text-sm font-semibold text-gray-800">{{ p.title }}</div>
                   <div class="text-xs text-gray-600">{{ p.desc }}</div>
                 </div>
-                <button
-                  class="px-3 py-1 text-xs font-semibold rounded-full"
-                  :class="
-                    selectedPromo && selectedPromo.code === p.code
-                      ? 'bg-amber-500 text-white'
-                      : 'bg-amber-100 text-amber-900'
-                  "
-                  @click="usePromo(p)"
-                >
-                  {{
-                    selectedPromo && selectedPromo.code === p.code
-                      ? "Dipakai"
-                      : "Gunakan"
-                  }}
+                <button class="px-3 py-1 text-xs font-semibold rounded-full" :class="selectedPromo && selectedPromo.code === p.code ? 'bg-amber-500 text-white' : 'bg-amber-100 text-amber-900'" @click="usePromo(p)">
+                  {{ selectedPromo && selectedPromo.code === p.code ? "Dipakai" : "Gunakan" }}
                 </button>
               </div>
-
               <div class="px-4 py-3 text-xs text-gray-600">
-                Kode:
-                <span class="font-mono font-semibold">{{ p.code }}</span>
+                Kode: <span class="font-mono font-semibold">{{ p.code }}</span>
               </div>
             </div>
           </div>
-
           <div class="flex justify-end mt-4">
-            <button
-              class="px-4 py-2 border border-gray-200 rounded-lg"
-              @click="openPromo = false"
-            >
-              Tutup
-            </button>
+            <button class="px-4 py-2 border border-gray-200 rounded-lg" @click="openPromo = false">Tutup</button>
           </div>
         </div>
       </div>
@@ -409,52 +543,24 @@
     <!-- Bottom Sheet Pilih Alamat -->
     <transition name="fade">
       <div v-if="openAlamatOptions" class="fixed inset-0 z-40">
-        <div
-          class="absolute inset-0 bg-black/40"
-          @click="openAlamatOptions = false"
-        ></div>
-        <div
-          class="absolute left-0 right-0 bottom-0 bg-white rounded-t-2xl shadow-2xl p-4 max-h-[60vh] overflow-y-auto"
-        >
+        <div class="absolute inset-0 bg-black/40" @click="openAlamatOptions = false"></div>
+        <div class="absolute left-0 right-0 bottom-0 bg-white rounded-t-2xl shadow-2xl p-4 max-h-[60vh] overflow-y-auto">
           <div class="w-12 h-1 mx-auto mb-3 bg-gray-300 rounded-full"></div>
           <div class="mb-3">
-            <h3 class="text-base font-semibold text-gray-900">
-              Pilih Sumber Alamat
-            </h3>
-            <p class="text-xs text-gray-500 mt-0.5">
-              Kamu bisa gunakan alamat profil atau lokasi perangkat.
-            </p>
+            <h3 class="text-base font-semibold text-gray-900">Pilih Sumber Alamat</h3>
+            <p class="text-xs text-gray-500 mt-0.5">Kamu bisa gunakan alamat profil atau lokasi perangkat.</p>
           </div>
-
           <div class="space-y-3 text-sm">
-            <button
-              type="button"
-              class="flex items-center w-full gap-3 px-3 py-2 border border-gray-200 rounded-xl hover:bg-gray-50"
-              @click="useProfileAddress"
-            >
-              <span
-                class="flex items-center justify-center w-8 h-8 text-lg rounded-full bg-emerald-100 text-emerald-600"
-              >
-                <i class="pi pi-user"></i>
-              </span>
+            <button type="button" class="flex items-center w-full gap-3 px-3 py-2 border border-gray-200 rounded-xl hover:bg-gray-50" @click="useProfileAddress">
+              <span class="flex items-center justify-center w-8 h-8 text-lg rounded-full bg-emerald-100 text-emerald-600"><i class="pi pi-user"></i></span>
               <div class="flex-1 text-left">
                 <p class="font-semibold text-gray-800">Alamat Profil</p>
-                <p class="text-xs text-gray-500">
-                  Gunakan alamat yang tersimpan di profil kamu jika tersedia.
-                </p>
+                <p class="text-xs text-gray-500">Gunakan alamat yang tersimpan di profil kamu jika tersedia.</p>
               </div>
             </button>
-
-            <!-- Tombol ambil lokasi dari device dihapus, alamat hanya dari jasa/UMKM -->
           </div>
-
           <div class="flex justify-end mt-4">
-            <button
-              class="px-4 py-2 text-sm border border-gray-200 rounded-lg"
-              @click="openAlamatOptions = false"
-            >
-              Tutup
-            </button>
+            <button class="px-4 py-2 text-sm border border-gray-200 rounded-lg" @click="openAlamatOptions = false">Tutup</button>
           </div>
         </div>
       </div>
@@ -462,54 +568,23 @@
 
     <!-- Overlay Ringkasan Pemesanan (Card) -->
     <transition name="fade">
-      <div
-        v-if="showChat"
-        class="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40 backdrop-blur-sm sm:backdrop-blur-md"
-      >
-        <div
-          class="w-full max-w-md bg-white rounded-2xl shadow-xl flex flex-col max-h-[80vh] sm:max-h-[85vh]"
-        >
-          <div
-            class="flex items-center justify-between px-4 py-3 border-b border-gray-200"
-          >
-            <h2 class="text-sm font-semibold text-gray-900">
-              Ringkasan Pemesanan
-            </h2>
-            <button
-              class="text-sm text-gray-500 hover:text-gray-700"
-              @click="showChat = false"
-            >
-              ✕
-            </button>
+      <div v-if="showChat" class="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40 backdrop-blur-sm sm:backdrop-blur-md">
+        <div class="w-full max-w-md bg-white rounded-2xl shadow-xl flex flex-col max-h-[80vh] sm:max-h-[85vh]">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+            <h2 class="text-sm font-semibold text-gray-900">Ringkasan Pemesanan</h2>
+            <button class="text-sm text-gray-500 hover:text-gray-700" @click="showChat = false">✕</button>
           </div>
           <div class="flex flex-col flex-1 gap-4 p-4 bg-gray-50">
-            <!-- Card ringkasan utama -->
-            <div
-              class="px-4 py-3 text-white transition cursor-pointer rounded-2xl bg-merchant-primary hover:bg-merchant-primary/90"
-              @click="showDetails = !showDetails"
-            >
+            <div class="px-4 py-3 text-white transition cursor-pointer rounded-2xl bg-merchant-primary hover:bg-merchant-primary/90" @click="showDetails = !showDetails">
               <p class="mb-1 text-xs opacity-90">Layanan Jasa</p>
-              <p class="text-sm font-semibold truncate">
-                {{ order.title }}
-              </p>
-              <p class="mt-1 text-sm font-medium">
-                Rp {{ formatIDR(order.price) }}
-              </p>
-              <p
-                class="text-[11px] mt-2 opacity-90 flex items-center justify-between"
-              >
+              <p class="text-sm font-semibold truncate">{{ order.title }}</p>
+              <p class="mt-1 text-sm font-medium">Rp {{ formatIDR(order.price) }}</p>
+              <p class="text-[11px] mt-2 opacity-90 flex items-center justify-between">
                 <span>{{ form.tanggalLabel }} • {{ form.waktu }}</span>
-                <span class="underline">
-                  {{ showDetails ? "Sembunyikan detail" : "Lihat detail" }}
-                </span>
+                <span class="underline">{{ showDetails ? "Sembunyikan detail" : "Lihat detail" }}</span>
               </p>
             </div>
-
-            <!-- Detail pemesanan lengkap -->
-            <div
-              v-if="showDetails"
-              class="px-4 py-3 text-xs text-gray-700 whitespace-pre-line bg-white border border-gray-200 rounded-2xl sm:text-sm"
-            >
+            <div v-if="showDetails" class="px-4 py-3 text-xs text-gray-700 whitespace-pre-line bg-white border border-gray-200 rounded-2xl sm:text-sm">
               {{ summaryText }}
             </div>
           </div>
@@ -586,6 +661,7 @@ const total = computed(() =>
 const orderPriceTypeLabel = computed(() => {
   if (order.priceType === "fixed") return "Harga Tetap";
   if (order.priceType === "base") return "Mulai dari";
+  if (order.priceType === "cart") return "Keranjang (Tanpa Jadwal)";
   return "";
 });
 // Default metode: jika jasa hanya punya 1 metode, pakai itu; kalau tidak, COD.
@@ -1067,8 +1143,35 @@ const sendToChat = async () => {
     const phone = url.replace(/[^0-9]/g, "");
     url = `https://wa.me/${phone}?text=${encoded}`;
   }
-  // Redirect ke WhatsApp (tab baru jika memungkinkan)
+
+  // Buka WhatsApp
   window.open(url, "_blank");
+
+  // Redirect ke halaman konfirmasi
+  const params = new URLSearchParams({
+    order_id: 'pending',
+    jasa_id: route.query.jasa_slug ? '' : (route.query.jasa_id || ''), // Will be resolved from jasa_slug
+    merchant_slug: order.merchantSlug || route.query.merchant_name || '',
+    jasa_title: order.title,
+    nama: form.value.nama,
+    tel: form.value.tel,
+    alamat: form.value.alamat,
+    tanggal: form.value.tanggalISO || order.tglISO,
+    waktu: form.value.waktu,
+    payment_method: pay.method,
+    total: total.value || order.price,
+    catatan: form.value.catatan || '',
+  });
+
+  // If we have jasa_slug, get jasa_id from the data we already fetched
+  if (order.jasaSlug) {
+    params.set('jasa_slug', order.jasaSlug);
+  }
+
+  router.push({
+    path: "/booking-confirmation",
+    query: Object.fromEntries(params),
+  });
 };
 </script>
 

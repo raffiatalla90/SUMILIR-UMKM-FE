@@ -166,6 +166,16 @@
                     ></i>
                     {{ formattedDistanceKm }}
                   </span>
+
+                  <span
+                    v-if="merchantRatingDisplay"
+                    class="flex items-center gap-1 text-xs font-semibold text-gray-500"
+                  >
+                    <i
+                      class="text-sm pi pi-star-fill text-warning"
+                    ></i>
+                    {{ merchantRatingDisplay }}
+                  </span>
                 </div>
               </div>
 
@@ -309,6 +319,9 @@
                   >
                 </template>
               </p>
+
+              <!-- Rating Jasa -->
+              <JasaRatingBadge :jasa-id="jasa.id" class="mt-2" />
             </div>
           </router-link>
 
@@ -435,6 +448,10 @@
           >
             <span>Rute</span>
           </AppButton>
+
+          <div v-if="merchant?.id" ref="reviewSectionRef" id="reviews" class="mt-6">
+            <ReviewSection :umkmId="merchant.id" />
+          </div>
         </div>
       </div>
     </template>
@@ -477,10 +494,13 @@ import { useRouter } from "vue-router";
 import api from "@/libs/axios.js";
 import { getImageUrl } from "@/libs/getImageUrl.js";
 import { setMeta, setJsonLd } from "@/router/seo";
+import { useRating } from "@/composables/useRating";
 import LeafletMap from "@/components/LeafletMap.vue";
 import ProductCard from "@/components/Card/ProductCard.vue";
 import ProductCardSkeleton from "@/components/Card/ProductCardSkeleton.vue";
 import AppButton from "@/components/common/Button.vue";
+import ReviewSection from "@/components/common/ReviewSection.vue";
+import JasaRatingBadge from "@/components/common/JasaRatingBadge.vue";
 import { useToast } from "vue-toastification";
 const toast = useToast();
 
@@ -538,10 +558,23 @@ function scrollToTop() {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+// Merchant rating
+const { ratingDisplay: merchantRatingDisplay, fetchRating: fetchMerchantRating } = useRating("merchant", null);
+
 // Sync data state
 const merchantInfo = ref({
   address: "",
 });
+const reviewSectionRef = ref(null);
+
+const scrollToReviewSection = async () => {
+  if (route.hash !== "#reviews") return;
+
+  await nextTick();
+  if (reviewSectionRef.value) {
+    reviewSectionRef.value.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+};
 const operationalHours = ref([]);
 const latitude = ref(null);
 const longitude = ref(null);
@@ -1098,6 +1131,11 @@ const fetchMerchantData = async () => {
     const data = merchantData.data || merchantData;
     merchant.value = data;
 
+    // Fetch merchant rating
+    if (merchantSlug) {
+      fetchMerchantRating(merchantSlug);
+    }
+
     // Sync data similar to MerchantInfo.vue
     const primaryAddress =
       data?.primary_address ?? data?.primaryAddress ?? null;
@@ -1124,6 +1162,7 @@ const fetchMerchantData = async () => {
 
     await nextTick();
     setupObserver();
+    await scrollToReviewSection();
   } catch (error) {
     console.error("Error fetching merchant:", error);
     merchant.value = null;
@@ -1163,10 +1202,20 @@ watch(
 
     await nextTick();
     setupObserver();
+    await scrollToReviewSection();
   },
 );
 
 watch(() => route.params.slug, fetchMerchantData, { immediate: true });
+
+watch(
+  () => route.hash,
+  async (hash) => {
+    if (hash === "#reviews") {
+      await scrollToReviewSection();
+    }
+  },
+);
 </script>
 
 <style scoped>

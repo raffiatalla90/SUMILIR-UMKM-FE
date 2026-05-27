@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import ReportButton from "@/components/ReportButton.vue";
+import { useRating } from "@/composables/useRating";
 
 const imageError = ref(false);
 
@@ -25,6 +26,9 @@ const props = defineProps({
     default: "max-w-xs",
   },
 });
+
+// Initialize rating composable
+const { ratingDisplay, fetchRating } = useRating("product", props.product?.id);
 
 // Format harga ke Rupiah
 const formatIDR = (v) =>
@@ -87,8 +91,11 @@ const formattedDistanceKm = computed(() => {
 
 watch(
   () => props.product?.id,
-  () => {
+  (newId) => {
     imageError.value = false;
+    if (newId) {
+      fetchRating(newId);
+    }
   }
 );
 </script>
@@ -164,6 +171,12 @@ watch(
       <p class="mb-2 text-xs font-bold text-primary">
         {{ formattedPrice }}
       </p>
+
+      <!-- Rating -->
+      <div class="mb-2 flex items-center gap-1 text-[11px]">
+        <i class="pi pi-star-fill text-warning"></i>
+        <span class="text-gray-700 font-semibold">{{ ratingDisplay }}</span>
+      </div>
 
       <!-- Rating & Distance (auto push to bottom) -->
       <div
