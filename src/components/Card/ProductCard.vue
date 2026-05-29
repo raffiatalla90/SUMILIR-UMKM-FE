@@ -1,7 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted } from "vue";
 import ReportButton from "@/components/ReportButton.vue";
-import { useRating } from "@/composables/useRating";
 
 const imageError = ref(false);
 
@@ -27,8 +26,37 @@ const props = defineProps({
   },
 });
 
-// Initialize rating composable
-const { ratingDisplay, fetchRating } = useRating("product", props.product?.id);
+// Helper function to get item rating from various possible field names
+const getItemRating = (item) => {
+  const summary =
+    item.rating_summary ||
+    item.ratingSummary ||
+    item.item_rating_summary ||
+    null;
+
+  if (summary) {
+    return Number(summary?.average_rating || 0).toFixed(1);
+  }
+  return Number(item.average_rating || item.rating || 0).toFixed(1);
+};
+
+// Helper function to get total reviews
+const getItemTotalReviews = (item) => {
+  const summary =
+    item.rating_summary ||
+    item.ratingSummary ||
+    item.item_rating_summary ||
+    null;
+
+  if (summary) {
+    return Number(summary?.total_reviews || 0);
+  }
+  return Number(item.total_reviews || item.review_count || 0);
+};
+
+const itemRating = computed(() => getItemRating(props.product));
+const itemReviewCount = computed(() => getItemTotalReviews(props.product));
+const hasItemReviews = computed(() => itemReviewCount.value > 0);
 
 // Format harga ke Rupiah
 const formatIDR = (v) =>
@@ -89,15 +117,6 @@ const formattedDistanceKm = computed(() => {
   return `${distanceKm.value.toFixed(1)} km`;
 });
 
-watch(
-  () => props.product?.id,
-  (newId) => {
-    imageError.value = false;
-    if (newId) {
-      fetchRating(newId);
-    }
-  }
-);
 </script>
 
 <template>
@@ -174,8 +193,9 @@ watch(
 
       <!-- Rating -->
       <div class="mb-2 flex items-center gap-1 text-[11px]">
-        <i class="pi pi-star-fill text-warning"></i>
-        <span class="text-gray-700 font-semibold">{{ ratingDisplay }}</span>
+        <i class="pi pi-star-fill text-orange-400"></i>
+        <span class="text-gray-700 font-semibold">{{ itemRating }}</span>
+        <span v-if="hasItemReviews" class="text-gray-500">({{ itemReviewCount }})</span>
       </div>
 
       <!-- Rating & Distance (auto push to bottom) -->

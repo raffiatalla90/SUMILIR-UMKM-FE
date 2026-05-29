@@ -152,7 +152,7 @@ const formData = ref({
   fixed_price: 0,
   base_price: 0,
   operating_times: "",
-  service_type: "at_location",
+  service_type: "di_tempat_umkm", // online | di_tempat_umkm | ke_rumah_pelanggan
   service_type_booking: "booking",
   location_address: "",
   service_area: "",
@@ -175,7 +175,7 @@ const validationSchema = yup.object({
   base_price: yup.number().transform((value) => (isNaN(value) || value === "" ? 0 : Number(value))).min(0),
   operating_times: yup.string().nullable(),
   service_type: yup.string().required("Tipe layanan wajib dipilih"),
-  service_type_booking: yup.string().required("Cara pemesanan wajib dipilih").oneOf(['cart','booking', 'consultation'], "Pilih 'Keranjang', 'Booking' atau 'Konsultasi'"),
+  service_type_booking: yup.string().required("Cara pemesanan wajib dipilih").oneOf(['keranjang', 'booking', 'konsultasi'], "Pilih 'Keranjang', 'Booking' atau 'Konsultasi'"),
   location_address: yup.string().nullable(),
   service_area: yup.string().nullable(),
   special_notes: yup.string().nullable(),
@@ -334,7 +334,7 @@ const removeSelectedImage = (index) => {
 };
 
 const submitForm = async (values) => {
-  console.log("submitForm called", { values, formData: formData.value });
+  console.log("[Createjasa] submitForm called", { values, formData: formData.value });
   if (!currentMerchantSlug.value) { toast.error("Merchant slug tidak ditemukan"); return; }
   if (!currentMerchantId.value) { toast.error("Merchant ID tidak ditemukan"); return; }
   if (!authStore.isAuthenticated) { toast.error("Silakan login terlebih dahulu."); router.push("/login"); return; }
@@ -344,9 +344,10 @@ const submitForm = async (values) => {
     return;
   }
 
-  const fixedPrice = Number(formData.value.fixed_price || 0);
-  const basePrice = Number(formData.value.base_price || 0);
-  console.log("Prices:", { fixedPrice, basePrice });
+  // IMPORTANT: Use ?? instead of || to handle 0 values (0 is falsy)
+  const fixedPrice = Number(formData.value.fixed_price ?? 0);
+  const basePrice = Number(formData.value.base_price ?? 0);
+  console.log("[Createjasa] Prices:", { fixedPrice, basePrice });
   if (!fixedPrice && !basePrice) {
     toast.error("Pilih salah satu: Harga Tetap atau Harga Mulai Dari");
     return;
@@ -359,33 +360,84 @@ const submitForm = async (values) => {
   loading.value = true;
   try {
     const fd = new FormData();
-    Object.entries(values).forEach(([k, v]) => fd.append(k, v ?? ""));
-    fd.set("location_address", formData.value.location_address || "");
-    fd.set("operating_times", formData.value.operating_times || "");
-    fd.set("service_type_booking", formData.value.service_type_booking || "booking");
-    fd.set("status", "draft");
+
+    // Text fields - use ?? for proper 0 handling
     fd.set("title", formData.value.title || "");
     fd.set("description", formData.value.description || "");
-    fd.set("fixed_price", fixedPrice || "");
-    fd.set("base_price", basePrice || "");
-    fd.set("service_type", formData.value.service_type || "at_location");
+    // IMPORTANT: Always send numeric values, never empty string for price columns
+    fd.set("fixed_price", String(fixedPrice));
+    fd.set("base_price", String(basePrice));
+    // Legacy price field mirrors whichever price is set
+    fd.set("price", String(fixedPrice > 0 ? fixedPrice : basePrice));
+    fd.set("service_type", formData.value.service_type || "di_tempat_umkm");
+    fd.set("service_type_booking", formData.value.service_type_booking || "booking");
+    // Send cara_pemesanan to backend for proper validation
+    fd.set("cara_pemesanan", formData.value.service_type_booking === 'keranjang' ? 'langsung_pesan' : formData.value.service_type_booking);
+    fd.set("booking_type", formData.value.service_type_booking || "booking");
+    fd.set("location_address", formData.value.location_address || "");
+    // Operating times: send as JSON array for booking, empty for others
+    if (formData.value.service_type_booking === 'booking') {
+      const times = selectedOperatingTimes.value;
+      fd.set("operating_times", JSON.stringify(times));
+      console.log("[Createjasa] Booking operating_times:", times);
+    } else {
+      fd.set("operating_times", "");
+    }
+    fd.set("operating_days", "1,2,3,4,5,6,7"); // Default all days
+    fd.set("service_area", formData.value.service_area || "");
+    fd.set("special_notes", formData.value.special_notes || "");
+    fd.set("payment_methods", formData.value.payment_methods || "cod");
+    fd.set("status", "draft");
 
-    console.log("FormData ready, sending...");
+    console.log("[Createjasa] Price fields:", {
+      fixed_price: fd.get("fixed_price"),
+      base_price: fd.get("base_price"),
+      price: fd.get("price")
+    });
 
-    if (imageFiles.value && imageFiles.value.length) {
-      if (imageFiles.value.length > MAX_IMAGE_COUNT) { toast.error(`Maksimal ${MAX_IMAGE_COUNT} gambar`); return; }
-      imageFiles.value.forEach((file) => fd.append("images", file));
+    if (formData.value.jasa_category_id) {
+      fd.set("jasa_category_id", String(formData.value.jasa_category_id));
+    }
+    if (formData.value.jasa_subcategory_id) {
+      fd.set("jasa_subcategory_id", String(formData.value.jasa_subcategory_id));
     }
 
-    const { data } = await api.post(`/api/merchants/${currentMerchantSlug.value}/jasas`, fd);
-    console.log("Success:", data);
-    toast.success("Jasa berhasil dibuat sebagai Draft");
+    console.log("[Createjasa] FormData ready, sending...");
+
+    // Add images
+    if (imageFiles.value && imageFiles.value.length) {
+      if (imageFiles.value.length > MAX_IMAGE_COUNT) {
+        toast.error(`Maksimal ${MAX_IMAGE_COUNT} gambar`);
+        loading.value = false;
+        return;
+      }
+      imageFiles.value.forEach((file) => {
+        fd.append("images", file);
+      });
+    }
+
+    const { data } = await api.post(`/api/merchants/${currentMerchantSlug.value}/jasas`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    console.log("[Createjasa] Success:", data);
+    toast.success("Jasa berhasil disimpan");
     clearFormDraft();
     router.push(`/merchant-center/${currentMerchantSlug.value}/jasas`);
   } catch (error) {
-    console.error("Error creating jasa:", error);
-    const msg = error.response?.data?.message || "Gagal membuat jasa";
-    toast.error(msg);
+    console.error("[Createjasa] Error creating jasa:", error);
+    console.error("[Createjasa] Error response:", error.response?.data);
+
+    // Show Laravel validation errors
+    const errors = error.response?.data?.errors;
+    if (errors) {
+      Object.entries(errors).forEach(([field, messages]) => {
+        messages.forEach((msg) => {
+          toast.error(`${field}: ${msg}`);
+        });
+      });
+    } else {
+      toast.error(error.response?.data?.message || "Gagal menyimpan layanan jasa");
+    }
   } finally {
     loading.value = false;
   }
@@ -572,9 +624,9 @@ onBeforeUnmount(() => {
 
             <div class="space-y-2.5">
               <label v-for="opt in [
-                { value: 'cart', icon: 'pi-shopping-cart', label: 'Keranjang', desc: 'Tanpa jadwal, langsung checkout' },
+                { value: 'keranjang', icon: 'pi-shopping-cart', label: 'Keranjang', desc: 'Tanpa jadwal, langsung checkout' },
                 { value: 'booking', icon: 'pi-calendar', label: 'Booking', desc: 'Pilih tanggal & jam dulu' },
-                { value: 'consultation', icon: 'pi-comments', label: 'Konsultasi', desc: 'Chat untuk negosiasi' }
+                { value: 'konsultasi', icon: 'pi-comments', label: 'Konsultasi', desc: 'Chat untuk negosiasi' }
               ]" :key="opt.value"
                 class="flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition"
                 :class="formData.service_type_booking === opt.value ? 'border-blue-500 bg-blue-50' : 'border-slate-100 hover:border-slate-200'"
@@ -599,7 +651,7 @@ onBeforeUnmount(() => {
                 <span><strong>Booking:</strong> Jam layanan wajib diisi agar customer bisa memilih jadwal</span>
               </p>
             </div>
-            <div v-else-if="formData.service_type_booking === 'consultation'" class="mt-4 p-4 bg-purple-50 rounded-xl border border-purple-200">
+            <div v-else-if="formData.service_type_booking === 'konsultasi'" class="mt-4 p-4 bg-purple-50 rounded-xl border border-purple-200">
               <p class="text-sm text-purple-700 flex items-start gap-2">
                 <i class="pi pi-comments mt-0.5"></i>
                 <span><strong>Konsultasi:</strong> Customer chat untuk negosiasi harga & jadwal</span>
@@ -622,8 +674,8 @@ onBeforeUnmount(() => {
                 <label class="block text-sm font-semibold text-slate-700 mb-2">Tempat Layanan</label>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <label v-for="opt in [
-                    { value: 'at_location', icon: 'pi-home', label: 'Di Tempat Saya' },
-                    { value: 'on_site', icon: 'pi-map-marker', label: 'Ke Rumah Pelanggan' },
+                    { value: 'di_tempat_umkm', icon: 'pi-home', label: 'Di Tempat UMKM' },
+                    { value: 'ke_rumah_pelanggan', icon: 'pi-map-marker', label: 'Ke Rumah Pelanggan' },
                     { value: 'online', icon: 'pi-globe', label: 'Online' }
                   ]" :key="opt.value"
                     class="flex items-center gap-2.5 p-3 rounded-xl border-2 cursor-pointer transition text-center sm:text-left"
@@ -639,7 +691,7 @@ onBeforeUnmount(() => {
               </div>
 
               <!-- Alamat UMKM (auto-filled) -->
-              <div v-if="formData.service_type === 'at_location'">
+              <div v-if="formData.service_type === 'di_tempat_umkm'">
                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Alamat UMKM</label>
                 <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
                   <p class="text-sm text-slate-600">{{ merchantProfileAddress || formData.location_address || 'Alamat belum tersedia' }}</p>
@@ -648,17 +700,17 @@ onBeforeUnmount(() => {
               </div>
 
               <!-- Area Layanan -->
-              <div v-if="formData.service_type === 'on_site'">
+              <div v-if="formData.service_type === 'ke_rumah_pelanggan'">
                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Area Layanan</label>
                 <input v-model="formData.service_area" type="text" placeholder="Contoh: Kota Semarang, radius 10km" class="w-full px-4 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 transition" />
-                <p class="mt-1 text-xs text-slate-400">Customer akan diminta izin lokasi saat checkout</p>
+                <p class="mt-1 text-xs text-slate-400">Customer akan diminta alamat lengkap saat booking</p>
               </div>
 
               <!-- Online Info -->
               <div v-if="formData.service_type === 'online'" class="p-3 bg-blue-50 rounded-xl border border-blue-200">
                 <p class="text-sm text-blue-700 flex items-center gap-2">
                   <i class="pi pi-info-circle"></i>
-                  Layanan online tidak membutuhkan alamat fisik
+                  Layanan dilakukan secara online, alamat tidak diperlukan
                 </p>
               </div>
 

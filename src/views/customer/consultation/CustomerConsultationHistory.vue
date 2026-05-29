@@ -1,15 +1,12 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useToast } from 'vue-toastification';
 import api from '@/libs/axios';
 
-const route = useRoute();
+const router = useRouter();
 const toast = useToast();
 
-const merchantSlug = computed(() => route.params.merchantSlug);
-
-// States
 const consultations = ref([]);
 const loading = ref(false);
 const activeFilter = ref('all');
@@ -21,7 +18,7 @@ const statusGroupConfig = {
   selesai: { label: 'Selesai', color: 'bg-green-100 text-green-700' },
 };
 
-// Filter tabs (simple: Semua, Menunggu, Negosiasi, Selesai)
+// Filter tabs (simple)
 const filters = [
   { key: 'all', label: 'Semua' },
   { key: 'menunggu', label: 'Menunggu' },
@@ -48,7 +45,6 @@ const getConsultationFinalPrice = (consultation) => {
     || null;
 };
 
-// Format date
 const formatDateTime = (dateStr) => {
   if (!dateStr) return '';
   const date = new Date(dateStr);
@@ -68,16 +64,27 @@ const formatCurrency = (value) => {
 
 const getStatusGroupLabel = (group) => statusGroupConfig[group]?.label || group || '—';
 const getStatusGroupColor = (group) => statusGroupConfig[group]?.color || 'bg-gray-100 text-gray-700';
+const getStatusLabel = (status) => {
+  const labels = {
+    pending: 'Menunggu',
+    dapat_dikerjakan: 'Bisa Dikerjakan',
+    perlu_penyesuaian: 'Perlu Penyesuaian',
+    ditolak: 'Ditolak',
+    accepted: 'Disepakati',
+    closed: 'Ditutup',
+  };
+  return labels[status] || status || '—';
+};
 
 const fetchConsultations = async (statusGroup = null) => {
   loading.value = true;
   try {
     const params = statusGroup && statusGroup !== 'all' ? { status_group: statusGroup } : {};
-    const { data } = await api.get(`/api/merchant/${merchantSlug.value}/service-consultations`, { params });
+    const { data } = await api.get('/api/service-consultations', { params });
     const responseData = data?.data;
     if (Array.isArray(responseData)) {
       consultations.value = responseData;
-    } else if (responseData && Array.isArray(responseData.data)) {
+    } else if (responseData?.data) {
       consultations.value = responseData.data;
     } else {
       consultations.value = [];
@@ -95,6 +102,10 @@ const changeFilter = (filter) => {
   fetchConsultations(filter);
 };
 
+const openConsultation = (id) => {
+  router.push(`/customer/consultations/${id}`);
+};
+
 onMounted(() => {
   fetchConsultations();
 });
@@ -106,15 +117,12 @@ onMounted(() => {
     <header class="sticky top-0 z-20 bg-white border-b border-gray-200 px-4 py-3">
       <div class="max-w-4xl mx-auto">
         <div class="flex items-center gap-3">
-          <router-link
-            :to="`/merchant-center/${merchantSlug}/dashboard`"
-            class="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition"
-          >
+          <router-link to="/pembayaran-jasa" class="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition">
             <i class="pi pi-arrow-left"></i>
           </router-link>
           <div>
-            <h1 class="text-lg font-bold text-gray-900">Konsultasi</h1>
-            <p class="text-xs text-gray-500">Permintaan konsultasi pelanggan</p>
+            <h1 class="text-lg font-bold text-gray-900">Konsultasi Saya</h1>
+            <p class="text-xs text-gray-500">Riwayat konsultasi layanan jasa</p>
           </div>
         </div>
       </div>
@@ -122,18 +130,14 @@ onMounted(() => {
 
     <!-- Main Content -->
     <main class="max-w-4xl mx-auto px-4 py-4">
-      <!-- Filter Tabs -->
+      <!-- Filter Tabs (simple: Semua, Menunggu, Negosiasi, Selesai) -->
       <div class="bg-white rounded-2xl p-2 mb-4 flex gap-2 overflow-x-auto">
         <button
           v-for="filter in filters"
           :key="filter.key"
           @click="changeFilter(filter.key)"
           class="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition whitespace-nowrap"
-          :class="
-            activeFilter === filter.key
-              ? 'bg-purple-500 text-white shadow-md'
-              : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-          "
+          :class="activeFilter === filter.key ? 'bg-purple-500 text-white shadow-md' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'"
         >
           {{ filter.label }}
         </button>
@@ -146,24 +150,19 @@ onMounted(() => {
       </div>
 
       <!-- Empty State -->
-      <div
-        v-else-if="consultations.length === 0"
-        class="bg-white rounded-2xl p-8 text-center"
-      >
+      <div v-else-if="consultations.length === 0" class="bg-white rounded-2xl p-8 text-center">
         <i class="pi pi-comments text-5xl text-gray-300 mb-3"></i>
         <p class="text-gray-500">Belum ada konsultasi</p>
-        <p class="text-sm text-gray-400 mt-1">
-          Permintaan konsultasi dari pelanggan akan muncul di sini
-        </p>
+        <p class="text-sm text-gray-400 mt-1">Ajukan konsultasi dari detail layanan jasa</p>
       </div>
 
       <!-- Consultation List -->
       <div v-else class="space-y-4">
-        <router-link
+        <div
           v-for="consultation in consultations"
           :key="consultation.id"
-          :to="`/merchant-center/${merchantSlug}/consultations/${consultation.id}`"
-          class="block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:border-purple-200 transition"
+          @click="openConsultation(consultation.id)"
+          class="block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:border-purple-200 transition cursor-pointer"
         >
           <div class="p-4">
             <div class="flex items-start gap-3">
@@ -180,11 +179,11 @@ onMounted(() => {
                 <div class="flex items-start justify-between gap-2">
                   <div class="min-w-0">
                     <p class="text-sm font-semibold text-gray-900 line-clamp-2">
-                      {{ consultation.jasa?.title || consultation.service_name || 'Layanan Jasa' }}
+                      {{ consultation.service_name || consultation.jasa?.title || 'Layanan Jasa' }}
                     </p>
                     <p class="text-xs text-gray-500 mt-0.5">
-                      <i class="pi pi-user mr-1"></i>
-                      {{ consultation.customer?.name || consultation.customer_name || 'Pelanggan' }}
+                      <i class="pi pi-store mr-1"></i>
+                      {{ consultation.merchant?.name || consultation.merchant_name || 'Merchant' }}
                     </p>
                   </div>
                   <!-- Status group badge -->
@@ -195,12 +194,7 @@ onMounted(() => {
                   </span>
                 </div>
 
-                <!-- Description Preview -->
-                <p v-if="consultation.customer_description" class="mt-2 text-xs text-gray-600 line-clamp-2">
-                  "{{ consultation.customer_description }}"
-                </p>
-
-                <!-- Price info if responded -->
+                <!-- Price info -->
                 <div class="mt-2 flex items-center gap-2 flex-wrap">
                   <span v-if="getConsultationInitialPrice(consultation)" class="px-2 py-0.5 bg-gray-50 border border-gray-100 rounded-full text-xs text-gray-600">
                     Awal: {{ formatCurrency(getConsultationInitialPrice(consultation)) }}
@@ -213,7 +207,12 @@ onMounted(() => {
                   </span>
                 </div>
 
-                <!-- Notes count -->
+                <!-- Description preview -->
+                <p v-if="consultation.customer_description" class="mt-2 text-xs text-gray-600 line-clamp-2">
+                  "{{ consultation.customer_description }}"
+                </p>
+
+                <!-- Messages count -->
                 <div v-if="consultation.notes?.length > 0" class="mt-2 text-xs text-gray-500">
                   <i class="pi pi-comment mr-1"></i>
                   {{ consultation.notes.length }} pesan
@@ -228,11 +227,11 @@ onMounted(() => {
               </span>
               <span class="text-xs text-purple-500 font-medium">
                 <i class="pi pi-arrow-right mr-1"></i>
-                Buka Chat
+                Buka Konsultasi
               </span>
             </div>
           </div>
-        </router-link>
+        </div>
       </div>
     </main>
   </div>

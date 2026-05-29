@@ -67,11 +67,22 @@ const baseMenus = [
       <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
     </svg>`,
   },
+  {
+    key: "service-history",
+    label: "History Layanan",
+    to: isAuthenticated.value ? "/service-history" : "/login",
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>`,
+  },
 ];
 
 const menus = computed(() => {
   return baseMenus.filter((m) => {
     if (m.key === "keranjang" && (!isAuthenticated.value || isAdmin.value)) {
+      return false;
+    }
+    if (m.key === "service-history" && !isAuthenticated.value) {
       return false;
     }
     return true;
@@ -89,6 +100,10 @@ function isMenuActive(m) {
       route.path.startsWith("/profile") ||
       (!isAuthenticated.value && route.path === "/login")
     );
+  }
+  // Service history aktif jika route dimulai dengan /service-history
+  if (m.key === "service-history") {
+    return route.path.startsWith("/service-history");
   }
   // Komunitas aktif jika route dimulai dengan /community
   if (m.key === "komunitas") {
@@ -211,7 +226,7 @@ watch(
             <li
               v-for="m in menus
                 .filter((menu) => menu.key !== 'profile')
-                .slice(0, 4)"
+                .slice(0, 5)"
               :key="m.key"
               class="flex items-center"
             >

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useToast } from "vue-toastification";
 import api from "@/libs/axios";
 
@@ -25,9 +25,9 @@ const fetchRatings = async (pageNum = 1) => {
   try {
     let endpoint = "";
     if (props.resourceType === "jasa") {
-      endpoint = `/api/jasas/${props.resourceId}/ratings?page=${pageNum}`;
+      endpoint = `/api/public/jasas/${props.resourceId}/ratings?page=${pageNum}`;
     } else if (props.resourceType === "merchant") {
-      endpoint = `/api/merchants/${props.resourceId}/ratings?page=${pageNum}`;
+      endpoint = `/api/public/merchants/${props.resourceId}/ratings?page=${pageNum}`;
     }
 
     const { data } = await api.get(endpoint);

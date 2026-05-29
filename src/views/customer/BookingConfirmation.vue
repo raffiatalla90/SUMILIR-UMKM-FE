@@ -11,16 +11,16 @@ const loading = ref(true);
 onMounted(() => {
   const queryData = route.query;
 
-  if (queryData.booking_id) {
+  if (queryData.order_id && queryData.order_id !== "pending") {
     bookingData.value = {
-      id: queryData.booking_id,
-      merchant_name: queryData.merchant || "Merchant",
-      service_title: queryData.service || "Layanan",
-      price: queryData.price || 0,
-      date: queryData.date || new Date().toLocaleDateString("id-ID"),
-      time: queryData.time || "09:00",
-      customer_name: queryData.customer_name || "Customer",
-      customer_phone: queryData.customer_phone || "-",
+      id: queryData.order_id,
+      merchant_name: queryData.merchant_slug || queryData.merchant || "Merchant",
+      service_title: queryData.jasa_title || queryData.service || "Layanan",
+      price: queryData.total || queryData.price || 0,
+      date: queryData.tanggal || new Date().toLocaleDateString("id-ID"),
+      time: queryData.waktu || "09:00",
+      customer_name: queryData.nama || queryData.customer_name || "Customer",
+      customer_phone: queryData.tel || queryData.customer_phone || "-",
       status: "confirmed"
     };
   } else {
@@ -46,9 +46,7 @@ const goToHome = () => {
 };
 
 const viewBooking = () => {
-  if (bookingData.value?.id) {
-    router.push(`/bookings/${bookingData.value.id}`);
-  }
+  router.push("/service-history");
 };
 </script>
 

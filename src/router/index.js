@@ -242,6 +242,55 @@ const routes = [
           title: "Konfirmasi Pemesanan | SUMILIR",
         },
       },
+      {
+        path: "service-history",
+        name: "Customer Service History",
+        component: () => import("@/views/customer/service/CustomerServiceHistory.vue"),
+        meta: {
+          title: "History Layanan Jasa | SUMILIR",
+        },
+      },
+      // ===========================
+      // KONSULTASI CUSTOMER (UMKM JASA)
+      // ===========================
+      {
+        path: "customer/consultations",
+        name: "Customer Consultation History",
+        component: () => import("@/views/customer/consultation/CustomerConsultationHistory.vue"),
+        meta: {
+          title: "Konsultasi Saya | SUMILIR",
+          requiresAuth: true,
+        },
+      },
+      {
+        path: "customer/consultations/:consultationId",
+        name: "Customer Consultation Detail",
+        component: () => import("@/views/customer/consultation/CustomerConsultationDetail.vue"),
+        meta: {
+          title: "Detail Konsultasi | SUMILIR",
+          requiresAuth: true,
+        },
+      },
+      {
+        path: "customer/consultations/:consultationId/checkout",
+        name: "Customer Consultation Checkout",
+        component: () => import("@/views/customer/consultation/CustomerConsultationCheckout.vue"),
+        meta: {
+          title: "Checkout Konsultasi | SUMILIR",
+          requiresAuth: true,
+        },
+      },
+
+      // Universal Review Route - for all types: service, product, food, merchant
+      {
+        path: "review/:reviewableType/:orderId/:reviewableId",
+        name: "Universal Review",
+        component: () => import("@/views/customer/UniversalReviewView.vue"),
+        meta: {
+          title: "Beri Review | SUMILIR",
+          requiresAuth: true,
+        },
+      },
 
       // ===========================
       // Profil User
@@ -627,8 +676,8 @@ const routes = [
       {
         path: "bookings",
         name: "Merchant - Booking Management",
-        component: () => import("@/views/merchant/booking/BookingManagement.vue"),
-        meta: { title: "Status Layanan Jasa | SUMILIR" },
+        component: () => import("@/views/merchant/service/MerchantServiceHistory.vue"),
+        meta: { title: "History Layanan Jasa | SUMILIR" },
       },
 
       // ===========================

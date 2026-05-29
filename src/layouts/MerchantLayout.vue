@@ -108,10 +108,10 @@ const menuItems = computed(() => {
       route: `/merchant-center/${currentMerchantSlug.value}/dashboard`,
     },
     productOrServiceItem,
-    // 🆕 Booking Status Menu (for Jasa merchants)
+    // 🆕 History Layanan Jasa Menu (for Jasa merchants)
     ...(segmentationId === 3 ? [{
-      label: "Status Layanan Jasa",
-      icon: "pi-calendar",
+      label: "History Layanan Jasa",
+      icon: "pi-history",
       route: `/merchant-center/${currentMerchantSlug.value}/bookings`,
     }] : []),
     // 🆕 Konsultasi Menu (for Jasa merchants)

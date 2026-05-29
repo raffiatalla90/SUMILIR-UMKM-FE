@@ -134,7 +134,7 @@
               <p class="leading-snug break-words">{{ form.alamat }}</p>
             </div>
             <button
-              v-if="serviceType === 'on_site'"
+              v-if="isHomeService"
               type="button"
               class="ml-3 text-[11px] px-3 py-1 rounded-full border border-emerald-300 text-emerald-700 bg-emerald-50 whitespace-nowrap"
               :disabled="locatingDevice"
@@ -144,7 +144,7 @@
             </button>
           </div>
           <p
-            v-if="serviceType === 'on_site' && deviceCoordinates"
+            v-if="isHomeService && deviceCoordinates"
             class="mt-2 text-[11px] text-gray-500"
           >
             Koordinat terdeteksi: {{ deviceCoordinates.latitude.toFixed(6) }}, {{ deviceCoordinates.longitude.toFixed(6) }}
@@ -683,6 +683,11 @@ const clearNotification = () => {
 };
 
 const isOnlineService = computed(() => serviceType.value === "online");
+const isAtMerchantLocation = computed(() => serviceType.value === "di_tempat_umkm" || serviceType.value === "at_location");
+const isHomeService = computed(() => serviceType.value === "ke_rumah_pelanggan" || serviceType.value === "on_site");
+
+// Alamat tidak wajib untuk layanan online dan di tempat UMKM
+const addressRequired = computed(() => !isOnlineService.value && !isAtMerchantLocation.value);
 
 function resolveMerchantAddress(merchant, jasaLocationAddress = "") {
   const locationCandidate = String(jasaLocationAddress || "").trim();
@@ -1098,6 +1103,7 @@ const sendToChat = async () => {
   // reset pesan
   errorMessage.value = "";
   successMessage.value = "";
+  const submitting = ref(false);
 
   // Validasi khusus nama & nomor telepon
   if (!form.value.nama || !isValidName(form.value.nama)) {
@@ -1124,34 +1130,116 @@ const sendToChat = async () => {
     return;
   }
 
+  submitting.value = true;
+
+  // 1. Buat service order di backend
+  let orderId = null;
+  let whatsappRedirectUrl = null;
+
+  try {
+    // Ambil jasa_id dari data yang sudah di-fetch di onMounted
+    let jasaId = null;
+    try {
+      const { data: jasaData } = await api.get(`/api/public/jasas/${encodeURIComponent(order.jasaSlug)}`);
+      // API returns {id,...} directly, not wrapped
+      jasaId = jasaData?.id || jasaData?.data?.id || null;
+      console.log("[PembayaranJasa] jasa_id:", jasaId, "raw:", jasaData);
+    } catch (e) {
+      console.warn("[PembayaranJasa] Gagal fetch jasa:", e);
+      jasaId = route.query.jasa_id || null;
+    }
+
+    if (!jasaId) {
+      errorMessage.value = "Data jasa tidak ditemukan. Silakan ulangi.";
+      return;
+    }
+
+    // Helper to clean nullable values
+    const cleanValue = (val) => {
+      if (val === null || val === undefined || val === "") return null;
+      if (val === "—" || val === "-" || val === "null" || val === "undefined") return null;
+      return val;
+    };
+
+    const orderPayload = {
+      jasa_id: jasaId,
+      customer_name: form.value.nama,
+      customer_phone: form.value.tel,
+      customer_address: cleanValue(form.value.alamat),
+      booking_date: cleanValue(form.value.tanggalISO),
+      booking_time: cleanValue(form.value.waktu),
+      booking_note: cleanValue(form.value.catatan),
+      payment_method: pay.method,
+      // Include total_price from computed total
+      total_price: total.value || order.price || 0,
+    };
+
+    console.log("[PembayaranJasa] Creating order with payload:", orderPayload);
+    console.log("[PembayaranJasa] Service price:", order.price);
+    console.log("[PembayaranJasa] Total price:", total.value);
+    const { data: orderData } = await api.post("/api/service-orders", orderPayload).catch((err) => {
+      console.error("[PembayaranJasa] Order API error:", err.response?.data);
+      throw err;
+    });
+    console.log("[PembayaranJasa] Order response:", orderData);
+
+    if (orderData?.success && orderData?.data?.id) {
+      orderId = orderData.data.id;
+
+      // 2. Dapatkan WhatsApp redirect URL dari backend
+      try {
+        const { data: waData } = await api.post(
+          `/api/service-orders/${orderId}/redirect-whatsapp`,
+          { order_id: orderId }
+        ).catch((err) => {
+          console.warn("[PembayaranJasa] WhatsApp redirect failed:", err.response?.data);
+          return { data: { redirect_url: null } };
+        });
+        whatsappRedirectUrl = waData?.data?.redirect_url || null;
+        console.log("[PembayaranJasa] WhatsApp URL:", whatsappRedirectUrl);
+      } catch {
+        // WhatsApp redirect gagal, lanjut dengan link manual
+        whatsappRedirectUrl = null;
+      }
+    }
+  } catch (err) {
+    console.error("[PembayaranJasa] Gagal membuat service order:", err);
+    if (err.response) {
+      console.error("Status:", err.response.status, "Data:", err.response.data);
+      errorMessage.value = err.response.data?.message || "Gagal membuat pesanan. Silakan coba lagi.";
+    }
+  } finally {
+    submitting.value = false;
+  }
+
+  // 3. Bangun pesan WhatsApp
   const message = buildWhatsappMessage();
   if (!message) return;
 
-  if (!jasaWhatsappLink.value) {
+  let url = whatsappRedirectUrl || jasaWhatsappLink.value;
+
+  if (!url) {
     errorMessage.value =
       "Nomor atau link WhatsApp penjual belum tersedia. Silakan hubungi penjual secara manual.";
     return;
   }
 
-  // Susun URL WhatsApp
-  const encoded = encodeURIComponent(message);
-  let url = jasaWhatsappLink.value.trim();
-  if (url.startsWith("http")) {
-    url += url.includes("?") ? `&text=${encoded}` : `?text=${encoded}`;
-  } else {
-    // Anggap sebagai nomor telepon (tanpa +), gunakan wa.me
+  // Jika URL dari backend, gunakan langsung; jika tidak, bangun dari nomor manual
+  if (!url.startsWith("http") && !url.startsWith("wa.me")) {
     const phone = url.replace(/[^0-9]/g, "");
-    url = `https://wa.me/${phone}?text=${encoded}`;
+    url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  } else if (url.startsWith("http")) {
+    url += url.includes("?") ? `&text=${encodeURIComponent(message)}` : `?text=${encodeURIComponent(message)}`;
   }
 
   // Buka WhatsApp
   window.open(url, "_blank");
 
-  // Redirect ke halaman konfirmasi
+  // 4. Redirect ke halaman konfirmasi
   const params = new URLSearchParams({
-    order_id: 'pending',
-    jasa_id: route.query.jasa_slug ? '' : (route.query.jasa_id || ''), // Will be resolved from jasa_slug
-    merchant_slug: order.merchantSlug || route.query.merchant_name || '',
+    order_id: orderId || "pending",
+    jasa_id: route.query.jasa_id || "",
+    merchant_slug: order.merchantSlug || "",
     jasa_title: order.title,
     nama: form.value.nama,
     tel: form.value.tel,
@@ -1160,12 +1248,11 @@ const sendToChat = async () => {
     waktu: form.value.waktu,
     payment_method: pay.method,
     total: total.value || order.price,
-    catatan: form.value.catatan || '',
+    catatan: form.value.catatan || "",
   });
 
-  // If we have jasa_slug, get jasa_id from the data we already fetched
   if (order.jasaSlug) {
-    params.set('jasa_slug', order.jasaSlug);
+    params.set("jasa_slug", order.jasaSlug);
   }
 
   router.push({

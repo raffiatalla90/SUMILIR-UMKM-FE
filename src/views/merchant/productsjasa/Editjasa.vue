@@ -155,8 +155,9 @@ const formData = ref({
   jasa_subcategory_id: null,
   fixed_price: 0,
   base_price: 0,
-  service_type: "at_location",
-  service_type_booking: "cart",  // 🆕 New: cart or booking
+  service_type: "di_tempat_umkm", // online | di_tempat_umkm | ke_rumah_pelanggan
+  service_type_booking: "keranjang",  // keranjang / booking / konsultasi
+  cara_pemesanan: "langsung_pesan", // DB value: langsung_pesan / booking / memerlukan_konsultasi
   location_address: "",
   service_area: "",
   special_notes: "",
@@ -228,7 +229,7 @@ const validationSchema = yup.object({
       }
     ),
   service_type: yup.string().required("Tipe layanan wajib dipilih"),
-  service_type_booking: yup.string().required("Cara pemesanan wajib dipilih").oneOf(['cart', 'booking', 'consultation'], "Pilih 'Keranjang', 'Booking', atau 'Konsultasi'"),
+  service_type_booking: yup.string().required("Cara pemesanan wajib dipilih").oneOf(['keranjang', 'booking', 'konsultasi'], "Pilih 'Keranjang', 'Booking', atau 'Konsultasi'"),
   operating_times: yup.string().nullable().max(255),
   location_address: yup.string().nullable().max(255),
   service_area: yup.string().nullable(),
@@ -240,10 +241,10 @@ const validationSchema = yup.object({
 watch(
   [() => formData.value.service_type, merchantProfileAddress],
   ([serviceType, profileAddress]) => {
-    if (serviceType === "at_location") {
+    if (serviceType === "di_tempat_umkm") {
       formData.value.location_address = profileAddress || "";
     }
-    if (serviceType === "online" || serviceType === "on_site") {
+    if (serviceType === "online" || serviceType === "ke_rumah_pelanggan") {
       formData.value.location_address = "";
     }
   },
@@ -580,7 +581,24 @@ const loadJasa = async () => {
     const cover = existingImages.value.find((img) => img.is_cover && img.id);
     currentCoverId.value = cover ? cover.id : null;
 
+    // Map FE booking type from API response (service_type_booking or mapped from cara_pemesanan)
+    const rawBookingType = jasaData.service_type_booking || jasaData.cara_pemesanan || 'keranjang';
+    const mappedBookingType = (() => {
+      const t = String(rawBookingType).toLowerCase();
+      if (t === 'keranjang' || t === 'cart' || t === 'langsung_pesan') return 'keranjang';
+      if (t === 'booking') return 'booking';
+      if (t === 'konsultasi' || t === 'consultation' || t === 'memerlukan_konsultasi') return 'konsultasi';
+      return 'keranjang';
+    })();
+
     // Initialize form with loaded data
+    // Normalize service_type to new standard format
+    const normalizeServiceType = (type) => {
+      if (type === 'at_location' || type === 'ditempat_saya') return 'di_tempat_umkm';
+      if (type === 'on_site' || type === 'kerumah_pelanggan') return 'ke_rumah_pelanggan';
+      return type || 'di_tempat_umkm';
+    };
+
     formData.value = {
       title: jasaData.title || "",
       description: jasaData.description || "",
@@ -588,12 +606,14 @@ const loadJasa = async () => {
       jasa_subcategory_id: jasaData.jasa_subcategory_id || null,
       fixed_price: parseInt(jasaData.fixed_price) || 0,
       base_price: parseInt(jasaData.base_price) || 0,
-      service_type: jasaData.service_type || "at_location",
-      service_type_booking: jasaData.service_type_booking || "cart",  // 🆕 Load booking type
+      service_type: normalizeServiceType(jasaData.service_type),
+      service_type_booking: mappedBookingType,
       location_address: jasaData.location_address || "",
       service_area: jasaData.service_area || "",
       special_notes: jasaData.special_notes || "",
-      operating_times: jasaData.operating_times || "",
+      operating_times: Array.isArray(jasaData.operating_times)
+        ? jasaData.operating_times.join(',')
+        : (jasaData.operating_times || ""),
       payment_methods: jasaData.payment_methods || "cod",
       status: jasaData.status || "draft",
     };
@@ -646,9 +666,19 @@ const submitForm = async (values) => {
     // Explicitly add fields that use v-model on formData
     fd.set("status", formData.value.status);
     fd.set("service_type", formData.value.service_type);
-    fd.set("service_type_booking", formData.value.service_type_booking || "cart");  // 🆕 Set booking type
+    fd.set("service_type_booking", formData.value.service_type_booking || "keranjang");
+    // Always send both FE and DB field names for consistency
+    const caraPemesanan = formData.value.service_type_booking === 'keranjang' ? 'langsung_pesan'
+      : formData.value.service_type_booking === 'konsultasi' ? 'memerlukan_konsultasi'
+      : formData.value.service_type_booking;
+    fd.set("cara_pemesanan", caraPemesanan);
     fd.set("location_address", formData.value.location_address || "");
     fd.set("operating_times", formData.value.operating_times || "");
+
+    console.log("[Editjasa] Submitting:", {
+      service_type_booking: formData.value.service_type_booking,
+      cara_pemesanan: fd.get("cara_pemesanan"),
+    });
 
     // Ensure integer prices
     fd.set("fixed_price", parseInt(values.fixed_price) || 0);
@@ -1137,9 +1167,9 @@ onMounted(async () => {
                   name="service_type_booking"
                   label="Mekanisme Pemesanan"
                   :options="[
-                    { value: 'cart', label: '🛒 Keranjang (Tanpa Jadwal)' },
+                    { value: 'keranjang', label: '🛒 Keranjang (Tanpa Jadwal)' },
                     { value: 'booking', label: '📅 Booking (Pilih Jadwal)' },
-                    { value: 'consultation', label: '💬 Konsultasi (Hubungi Penjual)' },
+                    { value: 'konsultasi', label: '💬 Konsultasi (Hubungi Penjual)' },
                   ]"
                   v-model="formData.service_type_booking"
                   required
@@ -1151,7 +1181,7 @@ onMounted(async () => {
                     Jika pilih Booking, bagian Jam Layanan akan muncul di bawah.
                   </p>
                   <div
-                    v-if="formData.service_type_booking === 'cart'"
+                    v-if="formData.service_type_booking === 'keranjang'"
                     class="p-3 text-xs border border-blue-200 rounded-lg bg-blue-50 text-blue-700"
                   >
                     💡 <strong>Keranjang:</strong> Layanan langsung masuk keranjang tanpa konsultasi atau jadwal. Pelanggan bisa segera melanjutkan pembayaran.
@@ -1163,7 +1193,7 @@ onMounted(async () => {
                     💡 <strong>Booking:</strong> Pelanggan memilih tanggal dan jam terlebih dahulu, kemudian lanjut ke ringkasan pembayaran.
                   </div>
                   <div
-                    v-else-if="formData.service_type_booking === 'consultation'"
+                    v-else-if="formData.service_type_booking === 'konsultasi'"
                     class="p-3 text-xs border border-purple-200 rounded-lg bg-purple-50 text-purple-700"
                   >
                     💡 <strong>Konsultasi:</strong> Pelanggan menghubungi UMKM dulu untuk berdiskusi. Setelah konsultasi, penjual akan mengirimkan link layanan atau detail order.
@@ -1191,8 +1221,8 @@ onMounted(async () => {
                   name="service_type"
                   label="Tipe Layanan"
                   :options="[
-                    { value: 'at_location', label: '📍 Di Tempat Saya' },
-                    { value: 'on_site', label: '🏠 Ke Rumah Pelanggan' },
+                    { value: 'di_tempat_umkm', label: '📍 Di Tempat UMKM' },
+                    { value: 'ke_rumah_pelanggan', label: '🏠 Ke Rumah Pelanggan' },
                     { value: 'online', label: '💻 Online' },
                   ]"
                   v-model="formData.service_type"
@@ -1200,7 +1230,7 @@ onMounted(async () => {
                 />
 
                 <Field
-                  v-if="formData.service_type === 'at_location'"
+                  v-if="formData.service_type === 'di_tempat_umkm'"
                   name="location_address"
                   v-slot="{ errors }"
                 >
@@ -1224,7 +1254,7 @@ onMounted(async () => {
                 </Field>
 
                 <Field
-                  v-if="formData.service_type === 'on_site'"
+                  v-if="formData.service_type === 'ke_rumah_pelanggan'"
                   name="service_area"
                   v-slot="{ field, errors }"
                 >
@@ -1242,7 +1272,7 @@ onMounted(async () => {
                       class="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                     ></textarea>
                     <p class="mt-1 text-xs text-gray-500">
-                      Saat checkout, customer akan diminta izin lokasi device untuk menentukan alamat layanan.
+                      Customer akan diminta alamat lengkap saat booking.
                     </p>
                     <p v-if="errors[0]" class="mt-1 text-sm text-red-500">
                       {{ errors[0] }}
@@ -1254,7 +1284,7 @@ onMounted(async () => {
                   v-if="formData.service_type === 'online'"
                   class="sm:col-span-2 p-3 text-xs border border-blue-200 rounded-lg bg-blue-50 text-blue-700"
                 >
-                  Layanan online tidak membutuhkan alamat lokasi.
+                  Layanan dilakukan secara online, alamat tidak diperlukan.
                 </div>
 
                 <Field name="operating_times" v-slot="{ errors }">
